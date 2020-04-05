@@ -34,7 +34,7 @@ People that made this release possible:
 Important updates:
 
 - [#875](https://github.com/monix/monix/pull/875) and [#1022](https://github.com/monix/monix/pull/1022): Update to Cats and Cats-Effect 2.0.0
-- [#1018](https://github.com/monix/monix/pull/1018): Update Minitest to 2.7.0
+- [#1018](https://github.com/monix/monix/pull/1018): Update Minitest to 2.8.2
 
 Chores:
 

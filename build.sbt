@@ -37,7 +37,7 @@ ThisBuild/catsEffectVersion := {
 
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.3"
-val minitestVersion = "2.7.0"
+val minitestVersion = "2.8.2"
 val scalaTestVersion = "3.0.8"
 val implicitBoxVersion = "0.1.0"
 
