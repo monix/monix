@@ -187,5 +187,6 @@ object BufferTimedSuite extends BaseOperatorSuite {
         .range(0, 1000)
         .bufferTimedAndCounted(10.seconds, -1)
     }
+    ()
   }
 }
