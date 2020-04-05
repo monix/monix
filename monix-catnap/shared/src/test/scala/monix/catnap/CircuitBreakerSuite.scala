@@ -313,6 +313,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         maxResetTimeout = Duration.Zero
       )
     }
+    ()
   }
 
   test("awaitClose") { implicit s =>

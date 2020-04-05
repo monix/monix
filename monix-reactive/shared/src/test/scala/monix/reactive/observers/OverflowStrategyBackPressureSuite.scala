@@ -687,5 +687,7 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
     intercept[IllegalArgumentException] {
       BufferedSubscriber[Int](Subscriber.empty[Int], BackPressure(1))
     }
+    ()
+
   }
 }

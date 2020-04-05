@@ -44,5 +44,6 @@ object CacheSuite extends BaseOperatorSuite {
     intercept[IllegalArgumentException] {
       Observable.empty[Int].cache(0)
     }
+    ()
   }
 }

@@ -108,6 +108,7 @@ object InlineMacrosTest extends SimpleTestSuite {
     intercept[MatchError] {
       box.map { case 1 => 2 }
     }
+    ()
   }
 
   test("Inline NonFatal clause") {

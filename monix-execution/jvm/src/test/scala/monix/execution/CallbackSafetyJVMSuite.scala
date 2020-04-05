@@ -89,10 +89,12 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
 
   test("Normal callback is not thread-safe via onSuccess") { implicit sc =>
     intercept[AssertionException] { executeOnSuccessTest(x => x) }
+    ()
   }
 
   test("Normal callback is not thread-safe via onError") { implicit sc =>
     intercept[AssertionException] { executeOnErrorTest(x => x) }
+    ()
   }
 
   test("Callback.fromAttempt is not thread-safe via onSuccess") { implicit sc =>
@@ -103,6 +105,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
       Callback.fromAttempt(f)
     }
     intercept[AssertionException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
+    ()
   }
 
   test("Callback.fromAttempt is not thread-safe via onError") { implicit sc =>
@@ -113,6 +116,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
       Callback.fromAttempt(f)
     }
     intercept[AssertionException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
+    ()
   }
 
   test("Callback.fromTry is not thread-safe via onSuccess") { implicit sc =>
@@ -123,6 +127,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
       Callback[Throwable].fromTry(f)
     }
     intercept[AssertionException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
+    ()
   }
 
   test("Callback.fromTry is not thread-safe via onError") { implicit sc =>
@@ -133,6 +138,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
       Callback[Throwable].fromTry(f)
     }
     intercept[AssertionException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
+    ()
   }
 
   test("Callback.fromAttempt is quasi-safe via onSuccess") { implicit sc =>
@@ -167,12 +173,14 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
     intercept[MiniTestException] {
       executeQuasiSafeOnSuccessTest(x => x)
     }
+    ()
   }
 
   test("Normal callback is not quasi-safe via onError") { implicit sc =>
     intercept[MiniTestException] {
       executeQuasiSafeOnFailureTest(x => x)
     }
+    ()
   }
 
   def executeQuasiSafeOnSuccessTest(wrap: Callback[Throwable, Int] => Callback[Throwable, Int]): Unit = {

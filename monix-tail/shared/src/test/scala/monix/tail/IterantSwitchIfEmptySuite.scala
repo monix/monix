@@ -49,6 +49,7 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
     intercept[DummyException] {
       source.toListL.value()
     }
+    ()
   }
 
   test("Iterant.switchIfEmpty still executes left's earlyStop when switching") { implicit s =>

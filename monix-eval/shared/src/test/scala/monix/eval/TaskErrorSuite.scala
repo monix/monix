@@ -45,6 +45,7 @@ object TaskErrorSuite extends BaseTestSuite {
     intercept[NoSuchElementException] {
       Task.now(10).failed.runSyncStep
     }
+    ()
   }
 
   test("Task.now.materialize") { implicit s =>
