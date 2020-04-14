@@ -5010,8 +5010,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *  - ensures that the input stream is closed on completion,
     *    failure or cancellation
     *
-    * @param in is the `Task[InputStream]` generator to convert into an observable
-    * @param chunkSize is the maximum length of the emitted arrays of bytes
+    * @param in the `Task[InputStream]` generator to convert into an observable
+    * @param chunkSize the maximum length of the emitted arrays of bytes, must be positive
     */
   def fromInputStream(in: Task[InputStream], chunkSize: Int = 4096): Observable[Array[Byte]] = {
     Observable
@@ -5053,9 +5053,8 @@ object Observable extends ObservableDeprecatedBuilders {
     * $blocksDefaultSchedulerDesc
     *
     * @see [[fromInputStream]] for the safe version
-    *
-    * @param in is the `InputStream` to convert into an observable
-    * @param chunkSize is the maximum length of the emitted arrays of bytes
+    * @param in the `InputStream` to convert into an observable
+    * @param chunkSize the maximum length of the emitted arrays of bytes, must be positive
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
@@ -5074,8 +5073,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *  - ensures that the input stream is closed on completion,
     *    failure or cancellation
     *
-    * @param in is the `Task[Reader]` generator to convert into an observable
-    * @param chunkSize is the maximum length of the emitted arrays of chars
+    * @param in the `Task[Reader]` generator to convert into an observable
+    * @param chunkSize the maximum length of the emitted arrays of chars, must be positive
     */
   def fromCharsReader(in: Task[Reader], chunkSize: Int = 4096): Observable[Array[Char]] = {
     Observable
@@ -5117,8 +5116,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     * @see [[fromCharsReader]] for the safe version
     *
-    * @param in is the `Reader` to convert into an observable
-    * @param chunkSize is the maximum length of the emitted arrays of chars
+    * @param in the `Reader` to convert into an observable
+    * @param chunkSize the maximum length of the emitted arrays of chars, must be positive
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
