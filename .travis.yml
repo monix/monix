@@ -10,13 +10,13 @@ matrix:
       scala: 2.11.12
       env:
         - COMMAND=ci-jvm-mima
-        - SCALAJS_VERSION=
+        - SCALAJS_VERSION=0.6.32
     # Scala 2.11, JavaScript
     - jdk: oraclejdk8
       scala: 2.11.12
       env:
         - COMMAND=ci-js
-        - SCALAJS_VERSION=1.0.0
+        - SCALAJS_VERSION=0.6.32
     # Scala 2.12, JVM
     - jdk: oraclejdk8
       scala: 2.12.10
