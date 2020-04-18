@@ -17,9 +17,10 @@
 
 package monix.execution.schedulers
 
-import monix.execution.Scheduler
-
+import monix.execution.{Scheduler, UncaughtExceptionReporter}
 import java.util.concurrent.Executors
+
+import monix.execution.exceptions.DummyException
 
 object JVMUncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSuite {
   testReports("Scheduler(ExecutorService, _)")(Scheduler(Executors.newSingleThreadExecutor(), _))
@@ -29,4 +30,16 @@ object JVMUncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSu
   testReports("Scheduler.forkJoin")(r => Scheduler.forkJoin(1, 2, reporter = r))
   testReports("Scheduler.cached")(r => Scheduler.cached("test-cached", 1, 5, reporter = r))
   testReports("Scheduler.fixedPool")(r => Scheduler.fixedPool("test-fixed", 1, reporter = r))
+
+  testAsync("UncaughtExceptionReporter.asJava") { p =>
+    import Scheduler.Implicits.global
+
+    val e = DummyException("dummy")
+    val r = UncaughtExceptionReporter(e => p.success(e)).asJava
+    r.uncaughtException(null, e)
+
+    for (thrown <- p.future) yield {
+      assertEquals(thrown, e)
+    }
+  }
 }
