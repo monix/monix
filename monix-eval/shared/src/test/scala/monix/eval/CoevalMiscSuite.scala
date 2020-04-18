@@ -47,6 +47,7 @@ object CoevalMiscSuite extends BaseTestSuite {
     intercept[NoSuchElementException] {
       Coeval.eval(10).failed.value()
     }
+    ()
   }
 
   test("Coeval.map protects against user code") { implicit s =>

@@ -102,6 +102,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     intercept[IllegalStateException] {
       downstream.pushFirst(1)
     }
+    ()
   }
 
   test("should not allow pushFirstAll after connect") { implicit s =>
@@ -117,6 +118,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     intercept[IllegalStateException] {
       downstream.pushFirstAll(Seq(1, 2, 3))
     }
+    ()
   }
 
   test("should schedule pushComplete") { implicit s =>
@@ -158,6 +160,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     intercept[IllegalStateException] {
       downstream.pushComplete()
     }
+    ()
   }
 
   test("should schedule pushError") { implicit s =>
@@ -199,6 +202,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     intercept[IllegalStateException] {
       downstream.pushError(DummyException("dummy"))
     }
+    ()
   }
 
   def create[A](o: Observer[A])(implicit s: Scheduler) =

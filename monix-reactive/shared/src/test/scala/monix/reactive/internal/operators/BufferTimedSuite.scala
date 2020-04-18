@@ -116,6 +116,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
         .intervalAtFixedRate(100.millis)
         .bufferTimed(Duration.Zero - 1.second)
     }
+    ()
   }
 
   test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
@@ -186,5 +187,6 @@ object BufferTimedSuite extends BaseOperatorSuite {
         .range(0, 1000)
         .bufferTimedAndCounted(10.seconds, -1)
     }
+    ()
   }
 }

@@ -113,6 +113,7 @@ object SingleAssignCancelableSuite extends SimpleTestSuite {
       val b2 = Cancelable()
       s := b2
     }
+    ()
   }
 
   test("throw exception on multi assignment when canceled") {
@@ -126,5 +127,6 @@ object SingleAssignCancelableSuite extends SimpleTestSuite {
       val b2 = Cancelable()
       s := b2
     }
+    ()
   }
 }

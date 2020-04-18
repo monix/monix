@@ -169,7 +169,7 @@ import scala.util.{Failure, Success, Try}
   * it does for `Future.sequence`, the given `Task` values being
   * evaluated one after another, in ''sequence'', not in ''parallel''.
   * If you want parallelism, then you need to use
-  * [[monix.eval.Task.gather Task.gather]] and thus be explicit about it.
+  * [[monix.eval.Task.parSequence Task.parSequence]] and thus be explicit about it.
   *
   * This is great because it gives you the possibility of fine tuning the
   * execution. For example, say you want to execute things in parallel,
@@ -185,7 +185,7 @@ import scala.util.{Failure, Success, Try}
   *   val chunks = list.sliding(30, 30).toSeq
   *
   *   // Specify that each batch should process stuff in parallel
-  *   val batchedTasks = chunks.map(chunk => Task.gather(chunk))
+  *   val batchedTasks = chunks.map(chunk => Task.parSequence(chunk))
   *   // Sequence the batches
   *   val allBatches = Task.sequence(batchedTasks)
   *
@@ -1207,6 +1207,37 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     */
   final def >>[B](tb: => Task[B]): Task[B] =
     this.flatMap(_ => tb)
+
+  /** Runs this task first and then, when successful, the given task.
+    * Returns the result of the given task.
+    *
+    * Example:
+    * {{{
+    *   val combined = Task{println("first"); "first"} *> Task{println("second"); "second"}
+    *   // Prints "first" and then "second"
+    *   // Result value will be "second"
+    * }}}
+    *
+    * As this method is strict, it can lead to an infinite loop / stack overflow for self-referring tasks.
+    * @see [[>>]] for the version with a non-strict parameter
+    */
+  @inline final def *>[B](tb: Task[B]): Task[B] =
+    this.flatMap(_ => tb)
+
+  /** Runs this task first and then, when successful, the given task.
+    * Returns the result of this task.
+    *
+    * Example:
+    * {{{
+    *   val combined = Task{println("first"); "first"} <* Task{println("second"); "second"}
+    *   // Prints "first" and then "second"
+    *   // Result value will be "first"
+    * }}}
+    *
+    * As this method is strict, it can lead to an infinite loop / stack overflow for self-referring tasks.
+    */
+  @inline final def <*[B](tb: Task[B]): Task[A] =
+    this.flatMap(a => tb.map(_ => a))
 
   /** Introduces an asynchronous boundary at the current stage in the
     * asynchronous processing pipeline.
@@ -3511,7 +3542,7 @@ object Task extends TaskInstancesLevel1 {
     * results in the same collection.
     *
     * This operation will execute the tasks one by one, in order, which means that
-    * both effects and results will be ordered. See [[gather]] and [[gatherUnordered]]
+    * both effects and results will be ordered. See [[parSequence]] and [[parSequenceUnordered]]
     * for unordered results or effects, and thus potential of running in parallel.
     *
     *  It's a simple version of [[traverse]].
@@ -3536,11 +3567,11 @@ object Task extends TaskInstancesLevel1 {
     * This function is the nondeterministic analogue of `sequence` and should
     * behave identically to `sequence` so long as there is no interaction between
     * the effects being gathered. However, unlike `sequence`, which decides on
-    * a total order of effects, the effects in a `gather` are unordered with
+    * a total order of effects, the effects in a `parSequence` are unordered with
     * respect to each other, the tasks being execute in parallel, not in sequence.
     *
     * Although the effects are unordered, we ensure the order of results
-    * matches the order of the input sequence. Also see [[gatherUnordered]]
+    * matches the order of the input sequence. Also see [[parSequenceUnordered]]
     * for the more efficient alternative.
     *
     * Example:
@@ -3548,17 +3579,17 @@ object Task extends TaskInstancesLevel1 {
     *   val tasks = List(Task(1 + 1), Task(2 + 2), Task(3 + 3))
     *
     *   // Yields 2, 4, 6
-    *   Task.gather(tasks)
+    *   Task.parSequence(tasks)
     * }}}
     *
     * $parallelismAdvice
     *
     * $parallelismNote
     *
-    * @see [[gatherN]] for a version that limits parallelism.
+    * @see [[parSequenceN]] for a version that limits parallelism.
     */
-  def gather[A, M[X] <: Iterable[X]](in: M[Task[A]])(implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
-    TaskGather[A, M](in, () => newBuilder(bf, in))
+  def parSequence[A, M[X] <: Iterable[X]](in: M[Task[A]])(implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
+    TaskParSequence[A, M](in, () => newBuilder(bf, in))
 
   /** Executes the given sequence of tasks in parallel, non-deterministically
     * gathering their results, returning a task that will signal the sequence
@@ -3579,17 +3610,17 @@ object Task extends TaskInstancesLevel1 {
     *    )
     *
     *   // Yields 2, 4, 6, 8 after around 6 seconds
-    *   Task.gatherN(2)(tasks)
+    *   Task.parSequenceN(2)(tasks)
     * }}}
     *
     * $parallelismAdvice
     *
     * $parallelismNote
     *
-    * @see [[gather]] for a version that does not limit parallelism.
+    * @see [[parSequence]] for a version that does not limit parallelism.
     */
-  def gatherN[A](parallelism: Int)(in: Iterable[Task[A]]): Task[List[A]] =
-    TaskGatherN[A](parallelism, in)
+  def parSequenceN[A](parallelism: Int)(in: Iterable[Task[A]]): Task[List[A]] =
+    TaskParSequenceN[A](parallelism, in)
 
   /** Given a `Iterable[A]` and a function `A => Task[B]`,
     * nondeterministically apply the function to each element of the collection
@@ -3599,23 +3630,23 @@ object Task extends TaskInstancesLevel1 {
     * This function is the nondeterministic analogue of `traverse` and should
     * behave identically to `traverse` so long as there is no interaction between
     * the effects being gathered. However, unlike `traverse`, which decides on
-    * a total order of effects, the effects in a `wander` are unordered with
+    * a total order of effects, the effects in a `parTraverse` are unordered with
     * respect to each other.
     *
     * Although the effects are unordered, we ensure the order of results
-    * matches the order of the input sequence. Also see [[wanderUnordered]]
+    * matches the order of the input sequence. Also see [[parTraverseUnordered]]
     * for the more efficient alternative.
     *
-    * It's a generalized version of [[gather]].
+    * It's a generalized version of [[parSequence]].
     *
     * $parallelismAdvice
     *
     * $parallelismNote
     *
-    * @see [[wanderN]] for a version that limits parallelism.
+    * @see [[parTraverseN]] for a version that limits parallelism.
     */
-  def wander[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
-    Task.eval(in.map(f)).flatMap(col => TaskGather[B, M](col, () => newBuilder(bf, in)))
+  def parTraverse[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
+    Task.eval(in.map(f)).flatMap(col => TaskParSequence[B, M](col, () => newBuilder(bf, in)))
 
   /** Given a `Iterable[A]` and a function `A => Task[B]`,
     * nondeterministically apply the function to each element of the collection
@@ -3632,29 +3663,27 @@ object Task extends TaskInstancesLevel1 {
     *   val numbers = List(1, 2, 3, 4)
     *
     *   // Yields 2, 4, 6, 8 after around 6 seconds
-    *   Task.wanderN(2)(numbers)(n => Task(n + n).delayExecution(n.second))
+    *   Task.parTraverseN(2)(numbers)(n => Task(n + n).delayExecution(n.second))
     * }}}
     *
     * $parallelismAdvice
     *
     * $parallelismNote
     *
-    * @see [[wander]] for a version that does not limit parallelism.
+    * @see [[parTraverse]] for a version that does not limit parallelism.
     */
-  def wanderN[A, B](parallelism: Int)(in: Iterable[A])(f: A => Task[B]): Task[List[B]] =
-    Task.suspend {
-      TaskGatherN(parallelism, in.map(f))
-    }
+  def parTraverseN[A, B](parallelism: Int)(in: Iterable[A])(f: A => Task[B]): Task[List[B]] =
+    Task.suspend(TaskParSequenceN(parallelism, in.map(f)))
 
   /** Processes the given collection of tasks in parallel and
     * nondeterministically gather the results without keeping the original
     * ordering of the given tasks.
     *
-    * This function is similar to [[gather]], but neither the effects nor the
+    * This function is similar to [[parSequence]], but neither the effects nor the
     * results will be ordered. Useful when you don't need ordering because:
     *
     *  - it has non-blocking behavior (but not wait-free)
-    *  - it can be more efficient (compared with [[gather]]), but not
+    *  - it can be more efficient (compared with [[parSequence]]), but not
     *    necessarily (if you care about performance, then test)
     *
     * Example:
@@ -3662,7 +3691,7 @@ object Task extends TaskInstancesLevel1 {
     *   val tasks = List(Task(1 + 1), Task(2 + 2), Task(3 + 3))
     *
     *   // Yields 2, 4, 6 (but order is NOT guaranteed)
-    *   Task.gatherUnordered(tasks)
+    *   Task.parSequenceUnordered(tasks)
     * }}}
     *
     * $parallelismAdvice
@@ -3671,28 +3700,28 @@ object Task extends TaskInstancesLevel1 {
     *
     * @param in is a list of tasks to execute
     */
-  def gatherUnordered[A](in: Iterable[Task[A]]): Task[List[A]] =
-    TaskGatherUnordered(in)
+  def parSequenceUnordered[A](in: Iterable[Task[A]]): Task[List[A]] =
+    TaskParSequenceUnordered(in)
 
   /** Given a `Iterable[A]` and a function `A => Task[B]`,
     * nondeterministically apply the function to each element of the collection
     * without keeping the original ordering of the results.
     *
-    * This function is similar to [[wander]], but neither the effects nor the
+    * This function is similar to [[parTraverse]], but neither the effects nor the
     * results will be ordered. Useful when you don't need ordering because:
     *
     *  - it has non-blocking behavior (but not wait-free)
-    *  - it can be more efficient (compared with [[wander]]), but not
+    *  - it can be more efficient (compared with [[parTraverse]]), but not
     *    necessarily (if you care about performance, then test)
     *
-    * It's a generalized version of [[gatherUnordered]].
+    * It's a generalized version of [[parSequenceUnordered]].
     *
     * $parallelismAdvice
     *
     * $parallelismNote
     */
-  def wanderUnordered[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B]): Task[List[B]] =
-    Task.eval(in.map(f)).flatMap(gatherUnordered)
+  def parTraverseUnordered[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B]): Task[List[B]] =
+    Task.eval(in.map(f)).flatMap(parSequenceUnordered)
 
   /** Yields a task that on evaluation will process the given tasks
     * in parallel, then apply the given mapping function on their results.
@@ -3898,7 +3927,7 @@ object Task extends TaskInstancesLevel1 {
     * ordering the results, but not the side effects, the evaluation
     * being done in parallel.
     *
-    * This is a specialized [[Task.gather]] operation and as such
+    * This is a specialized [[Task.parSequence]] operation and as such
     * the tasks are evaluated in parallel, ordering the results.
     * In case one of the tasks fails, then all other tasks get
     * cancelled and the final result will be a failure.
@@ -3931,7 +3960,7 @@ object Task extends TaskInstancesLevel1 {
     * ordering the results, but not the side effects, the evaluation
     * being done in parallel.
     *
-    * This is a specialized [[Task.gather]] operation and as such
+    * This is a specialized [[Task.parSequence]] operation and as such
     * the tasks are evaluated in parallel, ordering the results.
     * In case one of the tasks fails, then all other tasks get
     * cancelled and the final result will be a failure.
@@ -3967,7 +3996,7 @@ object Task extends TaskInstancesLevel1 {
     * ordering the results, but not the side effects, the evaluation
     * being done in parallel if the tasks are async.
     *
-    * This is a specialized [[Task.gather]] operation and as such
+    * This is a specialized [[Task.parSequence]] operation and as such
     * the tasks are evaluated in parallel, ordering the results.
     * In case one of the tasks fails, then all other tasks get
     * cancelled and the final result will be a failure.
@@ -4005,7 +4034,7 @@ object Task extends TaskInstancesLevel1 {
     * ordering the results, but not the side effects, the evaluation
     * being done in parallel if the tasks are async.
     *
-    * This is a specialized [[Task.gather]] operation and as such
+    * This is a specialized [[Task.parSequence]] operation and as such
     * the tasks are evaluated in parallel, ordering the results.
     * In case one of the tasks fails, then all other tasks get
     * cancelled and the final result will be a failure.
@@ -4044,7 +4073,7 @@ object Task extends TaskInstancesLevel1 {
     * ordering the results, but not the side effects, the evaluation
     * being done in parallel if the tasks are async.
     *
-    * This is a specialized [[Task.gather]] operation and as such
+    * This is a specialized [[Task.parSequence]] operation and as such
     * the tasks are evaluated in parallel, ordering the results.
     * In case one of the tasks fails, then all other tasks get
     * cancelled and the final result will be a failure.

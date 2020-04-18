@@ -43,6 +43,7 @@ object CoevalErrorSuite extends BaseTestSuite {
     intercept[NoSuchElementException] {
       Coeval.now(10).failed.value()
     }
+    ()
   }
 
   test("Coeval.now.materialize") { implicit s =>

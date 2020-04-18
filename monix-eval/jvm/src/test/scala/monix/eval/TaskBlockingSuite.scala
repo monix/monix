@@ -63,5 +63,6 @@ object TaskBlockingSuite extends SimpleTestSuite {
     intercept[TimeoutException] {
       Task.never.runSyncUnsafe(100.millis)
     }
+    ()
   }
 }

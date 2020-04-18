@@ -620,5 +620,6 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
     intercept[IllegalArgumentException] {
       BufferedSubscriber[Int](Subscriber.empty[Int], DropNew(1))
     }
+    ()
   }
 }

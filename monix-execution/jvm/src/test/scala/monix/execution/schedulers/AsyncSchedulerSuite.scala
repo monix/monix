@@ -56,6 +56,7 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
     intercept[TimeoutException] {
       Await.result(p.future, 150.millis)
     }
+    ()
   }
 
   test("schedule with fixed delay") {

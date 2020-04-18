@@ -4,7 +4,8 @@ import com.typesafe.tools.mima.core._
 object MimaFilters {
   lazy val changesFor_3_2_0: Seq[ProblemFilter] = Seq(
     // Signature change in internal instance
-    exclude[IncompatibleResultTypeProblem]("monix.catnap.internal.ParallelApplicative.apply")
+    exclude[IncompatibleResultTypeProblem]("monix.catnap.internal.ParallelApplicative.apply"),
+    exclude[MissingClassProblem]("monix.eval.internal.TaskGather*")
   )
 
   lazy val changesFor_3_0_1: Seq[ProblemFilter] = Seq(

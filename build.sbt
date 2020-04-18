@@ -14,7 +14,7 @@ val allProjects = List(
 )
 
 val benchmarkProjects = List(
-  "benchmarksPrev",
+  //  "benchmarksPrev", // TODO: temporarily disabling to avoid deprecation errors, enable after 3.2.0 release
   "benchmarksNext"
 ).map(_ + "/compile")
 
@@ -26,14 +26,28 @@ addCommandAlias("ci-jvm-mima", s";ci-jvm ;mimaReportBinaryIssues")
 addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc")
 addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
 
-val catsVersion = "2.0.0"
-val catsEffectVersion = "2.0.0"
-val catsEffectLawsVersion = catsEffectVersion
+lazy val catsVersion = settingKey[String]("cats version")
+ThisBuild/catsVersion := {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 11)) => "2.0.0"
+    case _ => "2.1.1"
+  }
+}
+
+lazy val catsEffectVersion = settingKey[String]("cats-effect version")
+ThisBuild/catsEffectVersion := {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 11)) => "2.0.0"
+    case _ => "2.1.3"
+  }
+}
+
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.3"
-val minitestVersion = "2.7.0"
+val minitestVersion = "2.8.2"
 val scalaTestVersion = "3.0.8"
-val implicitBoxVersion = "0.1.0"
+val implicitBoxVersion = "0.2.0"
+val customScalaJSVersion = Option(System.getenv("SCALAJS_VERSION"))
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -291,8 +305,8 @@ lazy val testSettings = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
   libraryDependencies ++= Seq(
     "io.monix" %%% "minitest-laws" % minitestVersion % Test,
-    "org.typelevel" %%% "cats-laws" % catsVersion % Test,
-    "org.typelevel" %%% "cats-effect-laws" % catsEffectVersion % Test
+    "org.typelevel" %%% "cats-laws" % catsVersion.value % Test,
+    "org.typelevel" %%% "cats-effect-laws" % catsEffectVersion.value % Test
   )
 )
 
@@ -352,6 +366,10 @@ lazy val coreJVM = project.in(file("monix/jvm"))
   .aggregate(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
   .settings(crossSettings)
   .settings(name := "monix")
+  .settings(
+    // do not publish second time during +publish run with ScalaJS 1.0
+    skip.in(publish) := customScalaJSVersion.forall(_.startsWith("1.0"))
+  )
 
 lazy val coreJS = project.in(file("monix/js"))
   .configure(profile)
@@ -389,7 +407,7 @@ lazy val executionJS = project.in(file("monix-execution/js"))
 lazy val catnapCommon =
   crossSettings ++ crossVersionSharedSources ++ testSettings ++ Seq(
     name := "monix-catnap",
-    libraryDependencies += "org.typelevel" %%% "cats-effect" % catsEffectVersion
+    libraryDependencies += "org.typelevel" %%% "cats-effect" % catsEffectVersion.value
 )
 
 lazy val catnapJVM = project.in(file("monix-catnap/jvm"))

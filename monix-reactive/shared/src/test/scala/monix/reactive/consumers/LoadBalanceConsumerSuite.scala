@@ -38,12 +38,14 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     intercept[IllegalArgumentException] {
       Consumer.loadBalance(0, Consumer.head[Int])
     }
+    ()
   }
 
   test("trigger error when array of consumers is empty") { implicit s =>
     intercept[IllegalArgumentException] {
       new LoadBalanceConsumer(1, Array.empty[Consumer[Int, Int]])
     }
+    ()
   }
 
   test("aggregate all events") { implicit s =>

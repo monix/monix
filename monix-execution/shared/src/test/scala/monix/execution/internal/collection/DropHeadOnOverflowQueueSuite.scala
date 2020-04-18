@@ -26,6 +26,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     intercept[NullPointerException] {
       q.offer(null)
     }
+    ()
   }
 
   test("capacity must be computed as a power of 2") {
@@ -48,6 +49,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     intercept[IllegalArgumentException] {
       DropHeadOnOverflowQueue[Int](-100)
     }
+    ()
   }
 
   test("offer and poll, happy path") {
