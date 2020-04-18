@@ -102,6 +102,7 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
     intercept[IllegalStateException] {
       s.set(CancelableF.empty[IO]).unsafeRunSync()
     }
+    ()
   }
 
   test("throw exception on multi assignment when canceled") {
@@ -114,6 +115,7 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
     intercept[IllegalStateException] {
       s.set(CancelableF.empty[IO]).unsafeRunSync()
     }
+    ()
   }
 
   test("cancel when both reference and `extra` throw") {

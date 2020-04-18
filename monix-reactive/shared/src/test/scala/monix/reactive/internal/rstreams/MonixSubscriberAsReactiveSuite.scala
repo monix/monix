@@ -111,6 +111,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     intercept[NullPointerException] {
       reactiveSubscriber.onError(null)
     }
+    ()
   }
 
   test("should throw NullPointerException for null elements with Sync Subscriber") { implicit s =>
@@ -136,6 +137,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     intercept[NullPointerException] {
       reactiveSubscriber.onError(null)
     }
+    ()
   }
 
   test("should work synchronously and with requests of size 1") { implicit s =>

@@ -46,6 +46,7 @@ object TaskMiscSuite extends BaseTestSuite {
     intercept[NoSuchElementException] {
       Task.eval(10).failed.runSyncStep
     }
+    ()
   }
 
   test("Task.map protects against user code") { implicit s =>

@@ -63,6 +63,7 @@ object IterantTailSuite extends BaseTestSuite {
 
     assert(iter.isInstanceOf[Suspend[Coeval, Int]], "iter.isInstanceOf[Suspend[Coeval, Int]]")
     intercept[DummyException](iter.toListL.value())
+    ()
   }
 
   test("Iterant.tail suspends execution for NextBatch") { implicit s =>
@@ -76,5 +77,6 @@ object IterantTailSuite extends BaseTestSuite {
 
     assert(iter.isInstanceOf[Suspend[Coeval, Int]], "iter.isInstanceOf[Suspend[Coeval, Int]]")
     intercept[DummyException](iter.toListL.value())
+    ()
   }
 }

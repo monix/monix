@@ -77,6 +77,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
     intercept[TimeoutException] {
       Await.result(p.future, 150.millis)
     }
+    ()
   }
 
   test("schedule with fixed delay") { scheduler =>

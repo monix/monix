@@ -230,6 +230,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     intercept[NullPointerException] {
       Iterant[Task].of(1).toReactivePublisher.subscribe(null)
     }
+    ()
   }
 
   test("protects against broken cursors") { implicit s =>

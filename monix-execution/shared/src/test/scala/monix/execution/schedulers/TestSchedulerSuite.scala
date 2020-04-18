@@ -123,6 +123,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
     s.tick(10.seconds)
     intercept[TimeoutException](f.value.get.get)
+    ()
   }
 
   test("should work correctly for ticks spanning several tasks, test 3") { implicit s =>

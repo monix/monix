@@ -20,7 +20,6 @@ package monix.execution.schedulers
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.concurrent.duration._
 import minitest.TestSuite
-import monix.execution.exceptions.DummyException
 import monix.execution.{ExecutionModel, FutureUtils, Scheduler, UncaughtExceptionReporter}
 
 class UncaughtExceptionReporterBaseSuite extends TestSuite[Promise[Throwable]] {
@@ -59,15 +58,4 @@ object UncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSuite
   testReports("trampoline(Scheduler(_, ExecModel))")(r => Scheduler.trampoline(Scheduler(r, ExecutionModel.Default)))
   testReports("TracingScheduler(Scheduler(_, ExecModel))")(r => TracingScheduler(Scheduler(r, ExecutionModel.Default)))
 
-  testAsync("UncaughtExceptionReporter.asJava") { p =>
-    import Scheduler.Implicits.global
-
-    val e = DummyException("dummy")
-    val r = UncaughtExceptionReporter(e => p.success(e)).asJava
-    r.uncaughtException(null, e)
-
-    for (thrown <- p.future) yield {
-      assertEquals(thrown, e)
-    }
-  }
 }

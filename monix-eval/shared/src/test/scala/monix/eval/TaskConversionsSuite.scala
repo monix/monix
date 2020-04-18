@@ -63,6 +63,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     intercept[DummyException] {
       Task.raiseError(dummy).to[IO].unsafeRunSync()
     }
+    ()
   }
 
   test("Task.eval(thunk).to[IO]") { implicit s =>

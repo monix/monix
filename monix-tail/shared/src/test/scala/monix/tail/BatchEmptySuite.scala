@@ -26,12 +26,14 @@ object BatchEmptySuite extends SimpleTestSuite {
   test("Batch.empty.cursor().current") {
     val cursor = Batch.empty[Int].cursor()
     intercept[NoSuchElementException] { cursor.next() }
+    ()
   }
 
   test("Batch.empty.cursor().current after moveNext") {
     val cursor = Batch.empty[Int].cursor()
     assert(!cursor.hasNext(), "!cursor.hasNext()")
     intercept[NoSuchElementException] { cursor.next() }
+    ()
   }
 
   test("Batch.empty.cursor().hasNext") {
@@ -67,5 +69,6 @@ object BatchEmptySuite extends SimpleTestSuite {
     val iter = Batch.empty[Int].toIterable.iterator
     assert(!iter.hasNext, "!iter.hasNext")
     intercept[NoSuchElementException] { iter.next() }
+    ()
   }
 }

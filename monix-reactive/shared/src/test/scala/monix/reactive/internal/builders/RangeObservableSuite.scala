@@ -105,6 +105,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     intercept[IllegalArgumentException] {
       Observable.range(0, 10, 0)
     }
+    ()
   }
 
   test("should do synchronous execution in batches") { implicit s =>

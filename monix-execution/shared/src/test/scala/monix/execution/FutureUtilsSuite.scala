@@ -56,6 +56,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
 
     s.tick(10.seconds)
     intercept[TimeoutException](t.value.get.get)
+    ()
   }
 
   test("timeoutTo should work") { implicit s =>
