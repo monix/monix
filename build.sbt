@@ -1,8 +1,5 @@
 import com.typesafe.sbt.GitVersioning
 import sbt.Keys.version
-// For getting Scoverage out of the generated POM
-import scala.xml.Elem
-import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 val allProjects = List(
   "execution",
@@ -14,7 +11,7 @@ val allProjects = List(
 )
 
 val benchmarkProjects = List(
-  //  "benchmarksPrev", // TODO: temporarily disabling to avoid deprecation errors, enable after 3.2.0 release
+  "benchmarksPrev",
   "benchmarksNext"
 ).map(_ + "/compile")
 
@@ -189,18 +186,6 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
   isSnapshot := version.value endsWith "SNAPSHOT",
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies
-
-  // For evicting Scoverage out of the generated POM
-  // See: https://github.com/scoverage/sbt-scoverage/issues/153
-  pomPostProcess := { (node: xml.Node) =>
-    new RuleTransformer(new RewriteRule {
-      override def transform(node: xml.Node): Seq[xml.Node] = node match {
-        case e: Elem
-          if e.label == "dependency" && e.child.exists(child => child.label == "groupId" && child.text == "org.scoverage") => Nil
-        case _ => Seq(node)
-      }
-    }).transform(node).head
-  },
 
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
   homepage := Some(url("https://monix.io")),
@@ -511,8 +496,8 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "io.monix" %% "monix" % "3.1.0",
-      "dev.zio" %% "zio" % "1.0.0-RC17"
+      "io.monix" %% "monix" % "3.2.0",
+      "dev.zio" %% "zio" % "1.0.0-RC18-2"
   ))
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
@@ -524,7 +509,7 @@ lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio" % "1.0.0-RC17"
+      "dev.zio" %% "zio" % "1.0.0-RC18-2"
     ))
 
 //------------- For Release
@@ -534,7 +519,7 @@ enablePlugins(GitVersioning)
 /* The BaseVersion setting represents the in-development (upcoming) version,
  * as an alternative to SNAPSHOTS.
  */
-git.baseVersion := "3.2.0"
+git.baseVersion := "3.3.0"
 
 val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 git.gitTagToVersionNumber := {
