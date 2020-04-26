@@ -21,8 +21,8 @@ import cats.effect.{ContextShift, IO}
 import monix.execution.ExecutionModel.SynchronousExecution
 import monix.execution.Scheduler
 import monix.execution.Scheduler.Implicits.global
-import zio.DefaultRuntime
-import zio.internal.PlatformLive
+import zio.BootstrapRuntime
+import zio.internal.{Platform, Tracing}
 
 import scala.concurrent.ExecutionContext
 
@@ -34,7 +34,7 @@ package object benchmarks {
   implicit val contextShift: ContextShift[IO] =
     IO.contextShift(ExecutionContext.global)
 
-  val zioUntracedRuntime = new DefaultRuntime {
-    override val platform = PlatformLive.Benchmark
+  val zioUntracedRuntime = new BootstrapRuntime {
+    override val platform = Platform.benchmark.withTracing(Tracing.disabled)
   }
 }
