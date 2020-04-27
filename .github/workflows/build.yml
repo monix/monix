@@ -1,0 +1,84 @@
+name: build
+on:
+  pull_request:
+    branches:
+      - 'master'
+
+jobs:
+  unit:
+    name: ${{ matrix.os }} jdk-${{ matrix.java }} scala-${{ matrix.scala }} platform-${{ matrix.platform }} unit tests
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        java: [8, 11]
+        scala: ["2.11", "2.12", "2.13"]
+        platform: ["jvm", "js-0.x", "js-1.x"]
+        
+        exclude:
+          - os: windows-latest
+            java: 8
+          - os: macOS-latest
+            java: 8
+          - scala: "2.11"
+            platform: ["js-1.x"]
+            
+        include:
+          - os: ubuntu-latest
+            CACHE_PATH: ~/.cache/coursier/v1
+            
+          - os: macOS-latest
+            CACHE_PATH: ~/Library/Caches/Coursier/v1
+            
+          - os: windows-latest
+            CACHE_PATH: ~\AppData\Local\Coursier\Cache\v1
+
+          - platform: "jvm"
+            SCALAJS_VERSION: 0.6.32
+            SBT_COMMAND: "ci-jvm"
+
+          - platform: "js-0.x"
+            SCALAJS_VERSION: 0.6.32
+            SBT_COMMAND: "ci-js"
+            
+          - platform: "js-1.x"
+            SCALAJS_VERSION: 1.0.0
+            SBT_COMMAND: "ci-js"
+
+          - scala: "2.11"
+            SCALA_VERSION: 2.11.12
+          - scala: "2.12"
+            SCALA_VERSION: 2.12.11
+          - scala: "2.13"
+            SCALA_VERSION: 2.13.2
+          
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: olafurpg/setup-scala@v7
+        with:
+          java-version: "adopt@1.${{ matrix.java }}"
+          
+      - name: Cache SBT Coursier directory
+        uses: actions/cache@v1
+        with:
+          path: $CACHE_PATH
+          key: ${{ runner.os }}-coursier-${{ hashFiles('**/*.sbt') }}
+          restore-keys: |
+            ${{ runner.os }}-coursier-
+
+      - name: Cache SBT directory
+        uses: actions/cache@v1
+        with:
+          path: ~/.sbt
+          key: |
+            ${{ runner.os }}-sbt-${{ hashFiles('project/build.properties') }}-${{ hashFiles('project/plugins.sbt') }}
+          restore-keys: ${{ runner.os }}-sbt-
+          
+      - name: Run Tests
+        run: |
+          sbt -J-Xmx6144m ++$SCALA_VERSION $COMMAND
+
+
