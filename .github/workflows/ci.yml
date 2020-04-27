@@ -8,20 +8,41 @@ on:
 
 jobs:
   tests:
-    name: ${{ matrix.os }} jdk-${{ matrix.java }} scala-${{ matrix.scala }} platform-${{ matrix.platform }} tests
-    runs-on: ${{ matrix.os }}
+    name: jdk-${{ matrix.java }} scala-${{ matrix.scala }} platform-${{ matrix.platform }} tests
+    runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Ubuntu, OpenJDK 8, Scala 2.11, JVM
-          - os: ubuntu-latest
-            java: 8
+          # Java 8, Scala 2.11, JVM
+          - java: 8
             scala: 2.11.12
             command: ci-jvm-mima
-            cache_path: ~/.cache/coursier/v1
 
+          # Java 8, Scala 2.11, JavaScript
+          - java: 8
+            scala: 2.11.12
+            scalaJS: 0.6.32
+            command: ci-js
+
+          # Java 8, Scala 2.12, JVM
+          - java: 8
+            scala: 2.12.11
+            command: ci-jvm
+
+          # Java 8, Scala 2.12, JavaScript 0.6.x
+          - java: 8
+            scala: 2.12.11
+            command: ci-js
+            scalaJS: 0.6.32            
+            
+          # Java 8, Scala 2.12, JavaScript 0.6.x
+          - java: 8
+            scala: 2.12.11
+            command: ci-js
+            scalaJS: 1.0.0            
+            
     steps:
       - uses: actions/checkout@v2
       - uses: olafurpg/setup-scala@v7
@@ -31,7 +52,7 @@ jobs:
       - name: Cache SBT Coursier directory
         uses: actions/cache@v1
         with:
-          path: $CACHE_PATH
+          path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-coursier-${{ hashFiles('**/*.sbt') }}
           restore-keys: |
             ${{ runner.os }}-coursier-
@@ -44,7 +65,7 @@ jobs:
             ${{ runner.os }}-sbt-${{ hashFiles('project/build.properties') }}-${{ hashFiles('project/plugins.sbt') }}
           restore-keys: ${{ runner.os }}-sbt-
           
-      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }} (js=${{ matrix.scalaJS }}), ${{ matrix.command }}
+      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}, JS ${{matrix.scalaJS:-default}}, ${{ matrix.command }}
         run: |
           ./.github/scripts/build
         env:
