@@ -35,7 +35,7 @@ private[execution] class StandardContext(reporter: UncaughtExceptionReporter) ex
     reporter.reportFailure(cause)
 
   private[this] val setImmediateRef: js.Dynamic = {
-    if (!js.isUndefined(js.Dynamic.global.setImmediate))
+    if (js.typeOf(js.Dynamic.global.setImmediate) == "function")
       js.Dynamic.global.setImmediate
     else
       js.Dynamic.global.setTimeout
