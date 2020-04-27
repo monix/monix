@@ -1,13 +1,14 @@
-name: build
+name: CI
+
 on:
   push:
-    branches:
-      - master
+    branches: [ master ]
   pull_request:
+    branches: [ master ]
 
 jobs:
-  unit:
-    name: ${{ matrix.os }} jdk-${{ matrix.java }} scala-${{ matrix.scala }} platform-${{ matrix.platform }} unit tests
+  tests:
+    name: ${{ matrix.os }} jdk-${{ matrix.java }} scala-${{ matrix.scala }} platform-${{ matrix.platform }} tests
     runs-on: ${{ matrix.os }}
 
     strategy:
