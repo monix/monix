@@ -81,4 +81,7 @@ jobs:
       - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}, ${{ matrix.platform }}
         run: |
           ./.github/scripts/build
-
+        env:
+          SBT_COMMAND: ${{ matrix.SBT_COMMAND }}
+          SCALA_VERSION: ${{ matrix.SCALA_VERSION }}
+          SCALAJS_VERSION: ${{ matrix.SCALAJS_VERSION }}
