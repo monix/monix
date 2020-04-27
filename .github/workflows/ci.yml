@@ -14,47 +14,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-        java: [8, 11]
-        scala: ["2.11", "2.12", "2.13"]
-        platform: ["jvm", "js-0.x", "js-1.x"]
-        
-        exclude:
-          - os: windows-latest
-            java: 8
-          - os: macOS-latest
-            java: 8
-          - scala: "2.11"
-            platform: "js-1.x"
-            
         include:
+          # Ubuntu, OpenJDK 8, Scala 2.11, JVM
           - os: ubuntu-latest
-            CACHE_PATH: ~/.cache/coursier/v1
-            
-          - os: macOS-latest
-            CACHE_PATH: ~/Library/Caches/Coursier/v1
-            
-          - os: windows-latest
-            CACHE_PATH: ~\AppData\Local\Coursier\Cache\v1
-
-          - platform: "jvm"
-            SCALAJS_VERSION: 0.6.32
-            SBT_COMMAND: "ci-jvm"
-
-          - platform: "js-0.x"
-            SCALAJS_VERSION: 0.6.32
-            SBT_COMMAND: "ci-js"
-            
-          - platform: "js-1.x"
-            SCALAJS_VERSION: 1.0.0
-            SBT_COMMAND: "ci-js"
-
-          - scala: "2.11"
-            SCALA_VERSION: 2.11.12
-          - scala: "2.12"
-            SCALA_VERSION: 2.12.11
-          - scala: "2.13"
-            SCALA_VERSION: 2.13.2
+            java: 8
+            scala: 2.11.12
+            command: ci-jvm-mima
+            cache_path: ~/.cache/coursier/v1
 
     steps:
       - uses: actions/checkout@v2
@@ -78,10 +44,10 @@ jobs:
             ${{ runner.os }}-sbt-${{ hashFiles('project/build.properties') }}-${{ hashFiles('project/plugins.sbt') }}
           restore-keys: ${{ runner.os }}-sbt-
           
-      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}, ${{ matrix.platform }}
+      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }} (js=${{ matrix.scalaJS }}), ${{ matrix.command }}
         run: |
           ./.github/scripts/build
         env:
-          SBT_COMMAND: ${{ matrix.SBT_COMMAND }}
-          SCALA_VERSION: ${{ matrix.SCALA_VERSION }}
-          SCALAJS_VERSION: ${{ matrix.SCALAJS_VERSION }}
+          SBT_COMMAND: ${{ matrix.command }}
+          SCALA_VERSION: ${{ matrix.scala }}
+          SCALAJS_VERSION: ${{ matrix.scalaJS }}
