@@ -27,15 +27,15 @@ import scala.scalajs.js
 private[execution] class StandardContext(reporter: UncaughtExceptionReporter) extends ExecutionContext {
 
   override def execute(r: Runnable): Unit =
-    setImmediateRef(() =>
+    executeRef(() =>
       try r.run()
       catch { case e: Throwable => reporter.reportFailure(e) })
 
   override def reportFailure(cause: Throwable): Unit =
     reporter.reportFailure(cause)
 
-  private[this] val setImmediateRef: js.Dynamic = {
-    if (!js.isUndefined(js.Dynamic.global.setImmediate))
+  private[this] val executeRef: js.Dynamic = {
+    if (js.typeOf(js.Dynamic.global.setImmediate) == "function")
       js.Dynamic.global.setImmediate
     else
       js.Dynamic.global.setTimeout
