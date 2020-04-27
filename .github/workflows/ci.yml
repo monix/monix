@@ -80,4 +80,5 @@ jobs:
           
       - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}, ${{ matrix.platform }}
         run: |
-          sbt -J-Xmx6144m ++$SCALA_VERSION $SBT_COMMAND
+          ./.github/scripts/build
+
