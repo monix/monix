@@ -80,6 +80,6 @@ jobs:
           
       - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}, ${{ matrix.platform }}
         run: |
+          echo "sbt -J-Xmx6144m ++$SCALA_VERSION $COMMAND"
           sbt -J-Xmx6144m ++$SCALA_VERSION $COMMAND
-
 
