@@ -25,7 +25,7 @@ jobs:
           - os: macOS-latest
             java: 8
           - scala: "2.11"
-            platform: ["js-1.x"]
+            platform: "js-1.x"
             
         include:
           - os: ubuntu-latest
