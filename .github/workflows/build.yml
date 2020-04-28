@@ -45,7 +45,7 @@ jobs:
             ${{ runner.os }}-sbt-${{ hashFiles('project/build.properties') }}-${{ hashFiles('project/plugins.sbt') }}
           restore-keys: ${{ runner.os }}-sbt-
           
-      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}, JS ${{matrix.scalaJS:-default}}, ${{ matrix.command }}
+      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }} / ${{matrix.platform }}
         run: |
           ./.github/scripts/build
         env:
