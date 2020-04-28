@@ -1,4 +1,4 @@
-name: CI
+name: build
 
 on:
   push:
@@ -12,36 +12,16 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
+        java: [8, 11]
+        scala: [2.11.12, 2.12.11, 2.13.1]
+        platform: ["jvm", "js-0.6.x", "js-1.x"]
+
         include:
-          # Java 8, Scala 2.11, JVM
-          - java: 8
-            scala: 2.11.12
-            command: ci-jvm-mima
-
-          # Java 8, Scala 2.11, JavaScript
-          - java: 8
-            scala: 2.11.12
-            scalaJS: 0.6.32
-            command: ci-js
-
-          # Java 8, Scala 2.12, JVM
-          - java: 8
-            scala: 2.12.11
-            command: ci-jvm
-
-          # Java 8, Scala 2.12, JavaScript 0.6.x
-          - java: 8
-            scala: 2.12.11
-            command: ci-js
-            scalaJS: 0.6.32            
-            
-          # Java 8, Scala 2.12, JavaScript 0.6.x
-          - java: 8
-            scala: 2.12.11
-            command: ci-js
-            scalaJS: 1.0.0            
+          - platform: jvm
+            java: "*"
+            scala: "*"
             
     steps:
       - uses: actions/checkout@v2
@@ -69,6 +49,6 @@ jobs:
         run: |
           ./.github/scripts/build
         env:
-          SBT_COMMAND: ${{ matrix.command }}
           SCALA_VERSION: ${{ matrix.scala }}
           SCALAJS_VERSION: ${{ matrix.scalaJS }}
+          PLATFORM: ${{ matrix.platform }}

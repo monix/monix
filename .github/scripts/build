@@ -19,7 +19,8 @@ echo "--------------------------------"
 echo "SCALA_VERSION   = $SCALA_VERSION"
 echo "SBT_COMMAND     = $SBT_COMMAND"
 echo "SCALAJS_VERSION = $SCALAJS_VERSION"
+echo "PLATFORM        = $PLATFORM"
 echo "--------------------------------"
 echo
 
-exec sbt ++$SCALA_VERSION $SBT_COMMAND
+#exec sbt ++$SCALA_VERSION $SBT_COMMAND
