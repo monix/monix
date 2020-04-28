@@ -4,6 +4,15 @@ set -e
 
 cd "$(dirname "$0")/../.." || exit
 
+echo
+echo "--------------------------------"
+echo "SCALA_VERSION   = $SCALA_VERSION"
+echo "SBT_COMMAND     = $SBT_COMMAND"
+echo "SCALAJS_VERSION = $SCALAJS_VERSION"
+echo "PLATFORM        = $PLATFORM"
+echo "--------------------------------"
+echo
+
 if [[ -z "$SCALA_VERSION" ]]; then
     echo "ERROR: environment value SCALA_VERSION is not set!" 1>&2
     exit 1
@@ -13,14 +22,5 @@ if [[ -z "$SBT_COMMAND" ]]; then
     echo "ERROR: environment value SBT_COMMAND is not set!" 1>&2
     exit 1
 fi
-
-echo
-echo "--------------------------------"
-echo "SCALA_VERSION   = $SCALA_VERSION"
-echo "SBT_COMMAND     = $SBT_COMMAND"
-echo "SCALAJS_VERSION = $SCALAJS_VERSION"
-echo "PLATFORM        = $PLATFORM"
-echo "--------------------------------"
-echo
 
 #exec sbt ++$SCALA_VERSION $SBT_COMMAND
