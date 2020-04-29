@@ -197,8 +197,10 @@ private[monix] object TaskBracket {
             }
           }
 
-          def onError(ex: Throwable): Unit =
+          def onError(ex: Throwable): Unit = {
+            deferredRelease.complete(Task.unit)(ctx.scheduler)
             cb.onError(ex)
+          }
         }
       )
     }
