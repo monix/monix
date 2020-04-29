@@ -1,3 +1,7 @@
+## Version 3.2.1 (April 30, 2020)
+
+Bug fix release, fixing a critical issue with ScalaJS 1.0.x [#1666](https://github.com/monix/monix/issues/1166) and a corner case with `Bracket` [#1175](https://github.com/monix/monix/pull/1175)
+
 ## Version 3.2.0 (April 26, 2020)
 
 The release is binary and source compatible with 3.x.x line.
