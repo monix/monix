@@ -2631,9 +2631,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorHandle[B >: A](f: Throwable => B): Observable[B] =
-    onErrorHandleWith { elem =>
-      Observable.now(f(elem))
-    }
+    onErrorHandleWith { elem => Observable.now(f(elem)) }
 
   /** Returns an observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which
@@ -2701,6 +2699,26 @@ abstract class Observable[+A] extends Serializable { self =>
   final def onErrorRestart(maxRetries: Long): Observable[A] = {
     require(maxRetries >= 0, "maxRetries should be positive")
     new OnErrorRetryCountedObservable(self, maxRetries)
+  }
+
+  /** Returns an Observable that mirrors the behavior of the source,
+    * unless the source is terminated with an `onError`, in which case
+    * it tries subscribing to the source again after the `initialDelay` has
+    * expired, in the hope that it will complete without an error.
+    *
+    * The number of retries is limited by the specified `maxRetries`
+    * parameter, while also implementing an exponential backoff strategy meaning
+    * each successive retry will wait twice as long as the previous before attempting
+    * to subscribe to the source again.
+    *
+    * So for an Observable that always ends in error the total number of subscriptions that will eventually
+    * happen is `maxRetries + 1`, and the total time taken before the source fails will be
+    * `(initialDelay ^ maxAttempts - 1) / 2`, so if the `initialDelay` is 2 seconds with a `maxAttempts`
+    * value of 10, the the total time taken, assuming all retries fail, will be 512 seconds.
+    */
+  final def onErrorRetryWithBackoff(maxRetries: Long, initialDelay: FiniteDuration): Observable[A] = {
+    require(maxRetries >= 0, "maxRetries should be positive")
+    new OnErrorRetryWithBackoffObservable(self, maxRetries, initialDelay)
   }
 
   /** Returns an Observable that mirrors the behavior of the source,
@@ -3595,9 +3613,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param f is a mapping function over the generated pairs
     */
   final def withLatestFrom2[B1, B2, R](o1: Observable[B1], o2: Observable[B2])(f: (A, B1, B2) => R): Observable[R] =
-    self.withLatestFrom(Observable.combineLatest2(o1, o2)) { (a, tuple) =>
-      f(a, tuple._1, tuple._2)
-    }
+    self.withLatestFrom(Observable.combineLatest2(o1, o2)) { (a, tuple) => f(a, tuple._1, tuple._2) }
 
   /** Combines the elements emitted by the source with the latest elements
     * emitted by three observables.
@@ -3614,9 +3630,7 @@ abstract class Observable[+A] extends Serializable { self =>
   final def withLatestFrom3[B1, B2, B3, R](o1: Observable[B1], o2: Observable[B2], o3: Observable[B3])(
     f: (A, B1, B2, B3) => R): Observable[R] = {
 
-    self.withLatestFrom(Observable.combineLatest3(o1, o2, o3)) { (a, o) =>
-      f(a, o._1, o._2, o._3)
-    }
+    self.withLatestFrom(Observable.combineLatest3(o1, o2, o3)) { (a, o) => f(a, o._1, o._2, o._3) }
   }
 
   /** Combines the elements emitted by the source with the latest elements
@@ -3638,9 +3652,7 @@ abstract class Observable[+A] extends Serializable { self =>
     o3: Observable[B3],
     o4: Observable[B4])(f: (A, B1, B2, B3, B4) => R): Observable[R] = {
 
-    self.withLatestFrom(Observable.combineLatest4(o1, o2, o3, o4)) { (a, o) =>
-      f(a, o._1, o._2, o._3, o._4)
-    }
+    self.withLatestFrom(Observable.combineLatest4(o1, o2, o3, o4)) { (a, o) => f(a, o._1, o._2, o._3, o._4) }
   }
 
   /** Combines the elements emitted by the source with the latest elements
@@ -3664,9 +3676,7 @@ abstract class Observable[+A] extends Serializable { self =>
     o4: Observable[B4],
     o5: Observable[B5])(f: (A, B1, B2, B3, B4, B5) => R): Observable[R] = {
 
-    self.withLatestFrom(Observable.combineLatest5(o1, o2, o3, o4, o5)) { (a, o) =>
-      f(a, o._1, o._2, o._3, o._4, o._5)
-    }
+    self.withLatestFrom(Observable.combineLatest5(o1, o2, o3, o4, o5)) { (a, o) => f(a, o._1, o._2, o._3, o._4, o._5) }
   }
 
   /** Combines the elements emitted by the source with the latest elements
@@ -4661,9 +4671,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * source observable, executing the given callback for each element.
     */
   final def foreachL(cb: A => Unit): Task[Unit] =
-    Task.create { (s, onFinish) =>
-      unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s))
-    }
+    Task.create { (s, onFinish) => unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s)) }
 }
 
 /** Observable builders.
@@ -4989,13 +4997,9 @@ object Observable extends ObservableDeprecatedBuilders {
           .resourceCase(F(ra.resource)) { case ((_, release), exitCase) => F(release(exitCase)) }
           .map(_._1)
       case ra: Resource.Suspend[F, A] @unchecked =>
-        Observable.from(ra.resource).flatMap { res =>
-          fromResource(res)
-        }
+        Observable.from(ra.resource).flatMap { res => fromResource(res) }
       case ra: Resource.Bind[F, Any, A] @unchecked =>
-        fromResource(ra.source).flatMap { s =>
-          fromResource(ra.fs(s))
-        }
+        fromResource(ra.source).flatMap { s => fromResource(ra.fs(s)) }
     }
 
   /** Safely converts a `java.io.InputStream` into an observable that will
@@ -5756,9 +5760,7 @@ object Observable extends ObservableDeprecatedBuilders {
     if (sources.isEmpty) Observable.empty
     else {
       val seed = sources.head.map(t => Vector(t))
-      sources.tail.foldLeft(seed) { (acc, obs) =>
-        acc.zipMap(obs)((seq, elem) => seq :+ elem)
-      }
+      sources.tail.foldLeft(seed) { (acc, obs) => acc.zipMap(obs)((seq, elem) => seq :+ elem) }
     }
   }
 
@@ -6025,8 +6027,8 @@ object Observable extends ObservableDeprecatedBuilders {
     oa4: Observable[A4],
     oa5: Observable[A5],
     oa6: Observable[A6]): Observable[(A1, A2, A3, A4, A5, A6)] =
-    new builders.CombineLatest6Observable(oa1, oa2, oa3, oa4, oa5, oa6)(
-      (a1, a2, a3, a4, a5, a6) => (a1, a2, a3, a4, a5, a6))
+    new builders.CombineLatest6Observable(oa1, oa2, oa3, oa4, oa5, oa6)((a1, a2, a3, a4, a5, a6) =>
+      (a1, a2, a3, a4, a5, a6))
 
   /** Creates a combined observable from 6 source observables.
     *
