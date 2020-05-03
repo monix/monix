@@ -18,32 +18,28 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.execution.FutureUtils.timeout
 import monix.execution.cancelables.OrderedCancelable
 import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.reactive.Observable
+import monix.reactive.{BackoffStrategy, Observable}
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
-private[reactive] final class OnErrorRetryWithBackoffObservable[+A](
-                                                                     source: Observable[A],
-                                                                     maxRetries: Long,
-                                                                     initialDelay: FiniteDuration)
-  extends Observable[A] {
+private[reactive] final class OnErrorRetryWithBackoffObservable[+A](source: Observable[A], maxRetries: Long, initialDelay: FiniteDuration, strategy: BackoffStrategy)
+  extends Observable[A] { self =>
 
-  private def loop(
-                    subscriber: Subscriber[A],
-                    task: OrderedCancelable,
-                    retryIdx: Long,
-                    retryAfter: FiniteDuration): Unit = {
+  private def loop(subscriber: Subscriber[A], task: OrderedCancelable, retryIdx: Long, currentDelay: FiniteDuration): Unit = {
+
     val cancelable = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler: Scheduler = subscriber.scheduler
+
       private[this] var isDone = false
+      private[this] var isBackoff = true
       private[this] var ack: Future[Ack] = Continue
 
       def onNext(elem: A): Future[Ack] = {
+        isBackoff = false
         ack = subscriber.onNext(elem)
         ack
       }
@@ -54,21 +50,28 @@ private[reactive] final class OnErrorRetryWithBackoffObservable[+A](
           subscriber.onComplete()
         }
 
-      def onError(ex: Throwable): Unit =
+      def onError(ex: Throwable): Unit = {
         if (!isDone) {
           isDone = true
 
           if (maxRetries < 0 || retryIdx < maxRetries) {
-            timeout(ack, retryAfter).map {
-              case Continue =>
-                loop(subscriber, task, retryIdx + 1, retryAfter * 2)
-              case _ =>
-                () // stop
+            if (isBackoff) {
+              scheduler.scheduleOnce(currentDelay) {
+                ack.syncOnContinue(loop(subscriber, task, retryIdx + 1, strategy(retryIdx + 1, initialDelay, currentDelay)))
+              }
+            } else {
+              scheduler.scheduleOnce(initialDelay) {
+                ack.syncOnContinue(loop(subscriber, task, retryIdx = 0, strategy(0, initialDelay, initialDelay)))
+              }
             }
           } else {
             subscriber.onError(ex)
           }
+
+          List(0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1)
+          List(0, 1, 0, 1, 0, 1, 0, 1, 0, 1)
         }
+      }
     })
 
     // We need to do an `orderedUpdate`, because `onError` might have

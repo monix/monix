@@ -19,20 +19,7 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
-import cats.{
-  ~>,
-  Alternative,
-  Applicative,
-  Apply,
-  CoflatMap,
-  Eq,
-  FlatMap,
-  Functor,
-  FunctorFilter,
-  Monoid,
-  NonEmptyParallel,
-  Order
-}
+import cats.{Alternative, Applicative, Apply, CoflatMap, Eq, FlatMap, Functor, FunctorFilter, Monoid, NonEmptyParallel, Order, ~>}
 import cats.effect.{Bracket, Effect, ExitCase, Resource}
 import monix.eval.{Coeval, Task, TaskLift, TaskLike}
 import monix.eval.Task.defaultOptions
@@ -2716,9 +2703,9 @@ abstract class Observable[+A] extends Serializable { self =>
     * `(initialDelay ^ maxAttempts - 1) / 2`, so if the `initialDelay` is 2 seconds with a `maxAttempts`
     * value of 10, the the total time taken, assuming all retries fail, will be 512 seconds.
     */
-  final def onErrorRetryWithBackoff(maxRetries: Long, initialDelay: FiniteDuration): Observable[A] = {
+  final def onErrorRestartWithBackoff(maxRetries: Long, initialDelay: FiniteDuration, strategy: BackoffStrategy = BackoffStrategy.Exponential): Observable[A] = {
     require(maxRetries >= 0, "maxRetries should be positive")
-    new OnErrorRetryWithBackoffObservable(self, maxRetries, initialDelay)
+    new OnErrorRetryWithBackoffObservable(self, maxRetries, initialDelay, strategy)
   }
 
   /** Returns an Observable that mirrors the behavior of the source,
