@@ -67,9 +67,6 @@ private[reactive] final class OnErrorRetryWithBackoffObservable[+A](source: Obse
           } else {
             subscriber.onError(ex)
           }
-
-          List(0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1)
-          List(0, 1, 0, 1, 0, 1, 0, 1, 0, 1)
         }
       }
     })
