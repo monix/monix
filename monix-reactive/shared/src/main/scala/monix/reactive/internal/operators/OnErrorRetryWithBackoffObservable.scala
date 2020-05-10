@@ -29,7 +29,7 @@ import scala.concurrent.duration.FiniteDuration
 private[reactive] final class OnErrorRetryWithBackoffObservable[+A](source: Observable[A], maxRetries: Long, initialDelay: FiniteDuration, strategy: BackoffStrategy)
   extends Observable[A] { self =>
 
-  private def loop(subscriber: Subscriber[A], task: OrderedCancelable, retryIdx: Long, currentDelay: FiniteDuration): Unit = {
+  private def loop(subscriber: Subscriber[A], task: OrderedCancelable, currAttempt: Long, currDelay: FiniteDuration): Unit = {
 
     val cancelable = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler: Scheduler = subscriber.scheduler
@@ -54,14 +54,14 @@ private[reactive] final class OnErrorRetryWithBackoffObservable[+A](source: Obse
         if (!isDone) {
           isDone = true
 
-          if (maxRetries < 0 || retryIdx < maxRetries) {
+          if (maxRetries < 0 || currAttempt < maxRetries) {
             if (inBackoff) {
-              scheduler.scheduleOnce(currentDelay) {
-                ack.syncOnContinue(loop(subscriber, task, retryIdx + 1, strategy(retryIdx + 1, initialDelay, currentDelay)))
+              scheduler.scheduleOnce(currDelay) {
+                ack.syncOnContinue(loop(subscriber, task, currAttempt + 1, strategy(currAttempt + 1, initialDelay, currDelay)))
               }
             } else {
               scheduler.scheduleOnce(initialDelay) {
-                ack.syncOnContinue(loop(subscriber, task, retryIdx = 0, strategy(0, initialDelay, initialDelay)))
+                ack.syncOnContinue(loop(subscriber, task, currAttempt = 0, strategy(0, initialDelay, initialDelay)))
               }
             }
           } else {
@@ -73,7 +73,7 @@ private[reactive] final class OnErrorRetryWithBackoffObservable[+A](source: Obse
 
     // We need to do an `orderedUpdate`, because `onError` might have
     // already executed and we might be resubscribed by now.
-    task.orderedUpdate(cancelable, retryIdx)
+    task.orderedUpdate(cancelable, currAttempt)
   }
 
   /** Characteristic function for an `Observable` instance, that creates
@@ -87,7 +87,7 @@ private[reactive] final class OnErrorRetryWithBackoffObservable[+A](source: Obse
     */
   override def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val task = OrderedCancelable()
-    loop(subscriber, task, retryIdx = 0, initialDelay)
+    loop(subscriber, task, currAttempt = 0, initialDelay)
     task
   }
 }
