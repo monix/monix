@@ -17,7 +17,9 @@
 
 package monix.reactive
 
+import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 abstract class BackoffStrategy extends ((Long, FiniteDuration, FiniteDuration) => FiniteDuration)
 
@@ -29,16 +31,16 @@ object BackoffStrategy {
     *
     * | Attempt | Delay     |
     * | ---     | ---       |
-    * | 1       | 1 second  |
-    * | 2       | 2 seconds |
-    * | 3       | 3 seconds |
-    * | 4       | 4 seconds |
-    * | 5       | 5 seconds |
-    *
+    * | 1       | 0 seconds |
+    * | 2       | 1 seconds |
+    * | 3       | 2 seconds |
+    * | 4       | 3 seconds |
+    * | 5       | 4 seconds |
     */
   case object Linear extends BackoffStrategy {
-    override def apply(attempt: Long, initialDelay: FiniteDuration, currentDelay: FiniteDuration): FiniteDuration =
+    override def apply(attempt: Long, initialDelay: FiniteDuration, currentDelay: FiniteDuration): FiniteDuration = {
       initialDelay * attempt
+    }
   }
 
   /**
@@ -52,7 +54,6 @@ object BackoffStrategy {
     * | 3       | 4 seconds  |
     * | 4       | 8 seconds  |
     * | 5       | 16 seconds |
-    *
     */
   case object Exponential extends BackoffStrategy {
     override def apply(attempt: Long, initialDelay: FiniteDuration, currentDelay: FiniteDuration): FiniteDuration =
@@ -63,29 +64,25 @@ object BackoffStrategy {
     * Implements a Fibonacci Backoff Strategy, for example, and initial delay of 1 second plus a max attempts
     * value of 5 would result in the following:
     *
-    * | Attempt | Delay      |
-    * | ---     | ---        |
-    * | 1       | 1 second   |
-    * | 2       | 1 second   |
-    * | 3       | 2 seconds  |
-    * | 4       | 6 seconds  |
-    * | 5       | 30 seconds |
-    *
-    * Example Usage:
-    *
-    * {{{
-    *   import monix.reactive.Observable
-    *
-    *   Observable.from(1).onErrorRestartWithBackoff()
-    * }}}
-    *
+    * | Attempt | Delay     |
+    * | ---     | ---       |
+    * | 1       | 1 second  |
+    * | 2       | 1 second  |
+    * | 3       | 2 seconds |
+    * | 4       | 3 seconds |
+    * | 5       | 5 seconds |
     */
-  final case class Fibonacci private[reactive](var prev0: Int = 0, var prev1: Int = 1) extends BackoffStrategy {
-    override def apply(attempt: Long, initialDelay: FiniteDuration, currentDelay: FiniteDuration): FiniteDuration = {
-      val next = prev0 + prev1
-      prev0 = prev1
-      prev1 = next
-      currentDelay * next
+  case object Fibonacci extends BackoffStrategy {
+
+    private def getNthFibonacciNumber(attempt: Long): Long = {
+      @tailrec def loop(round: Long, a: Long, b: Long): Long = {
+        if (round == attempt) b else loop(round + 1, b, a + b)
+      }
+
+      loop(1, 0, 1)
     }
+
+    override def apply(attempt: Long, initialDelay: FiniteDuration, currentDelay: FiniteDuration): FiniteDuration =
+      1.second * getNthFibonacciNumber(attempt)
   }
 }

@@ -2694,14 +2694,9 @@ abstract class Observable[+A] extends Serializable { self =>
     * expired, in the hope that it will complete without an error.
     *
     * The number of retries is limited by the specified `maxRetries`
-    * parameter, while also implementing an exponential backoff strategy meaning
-    * each successive retry will wait twice as long as the previous before attempting
+    * parameter, while also implementing the specified backoff strategy meaning
+    * each successive retry will wait the specified amount of time before attempting
     * to subscribe to the source again.
-    *
-    * So for an Observable that always ends in error the total number of subscriptions that will eventually
-    * happen is `maxRetries + 1`, and the total time taken before the source fails will be
-    * `(initialDelay ^ maxAttempts - 1) / 2`, so if the `initialDelay` is 2 seconds with a `maxAttempts`
-    * value of 10, the the total time taken, assuming all retries fail, will be 512 seconds.
     */
   final def onErrorRestartWithBackoff(maxRetries: Long, initialDelay: FiniteDuration, strategy: BackoffStrategy = BackoffStrategy.Exponential): Observable[A] = {
     require(maxRetries >= 0, "maxRetries should be positive")

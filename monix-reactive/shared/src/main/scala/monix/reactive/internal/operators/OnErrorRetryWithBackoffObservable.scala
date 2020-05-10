@@ -35,11 +35,11 @@ private[reactive] final class OnErrorRetryWithBackoffObservable[+A](source: Obse
       implicit val scheduler: Scheduler = subscriber.scheduler
 
       private[this] var isDone = false
-      private[this] var isBackoff = true
+      private[this] var inBackoff = true
       private[this] var ack: Future[Ack] = Continue
 
       def onNext(elem: A): Future[Ack] = {
-        isBackoff = false
+        inBackoff = false
         ack = subscriber.onNext(elem)
         ack
       }
@@ -55,7 +55,7 @@ private[reactive] final class OnErrorRetryWithBackoffObservable[+A](source: Obse
           isDone = true
 
           if (maxRetries < 0 || retryIdx < maxRetries) {
-            if (isBackoff) {
+            if (inBackoff) {
               scheduler.scheduleOnce(currentDelay) {
                 ack.syncOnContinue(loop(subscriber, task, retryIdx + 1, strategy(retryIdx + 1, initialDelay, currentDelay)))
               }

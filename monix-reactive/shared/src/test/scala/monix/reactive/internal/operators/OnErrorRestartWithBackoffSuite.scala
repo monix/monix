@@ -18,8 +18,9 @@
 package monix.reactive.internal.operators
 
 import monix.execution.exceptions.DummyException
-import monix.reactive.{BaseTestSuite, Observable}
+import monix.reactive.{BackoffStrategy, BaseTestSuite, Observable}
 
+import scala.annotation.tailrec
 import scala.concurrent.duration._
 import scala.util.Success
 
@@ -38,5 +39,32 @@ object OnErrorRestartWithBackoffSuite extends BaseTestSuite {
 
     s.tick(5.seconds)
     assertEquals(f.value, Some(Success(List(0, 1, 0, 1, 0, 1, 0, 1, 0, 1))))
+  }
+
+  private def genBackoffSequence(strategy: BackoffStrategy,
+                                 maxAttempts: Int = 5,
+                                 initialDelay: FiniteDuration = 1.second): List[(Int, FiniteDuration)] = {
+    @tailrec def loop(attempt: Int, currentDelay: FiniteDuration, acc: List[(Int, FiniteDuration)] = List()): List[(Int, FiniteDuration)] = {
+      if (attempt > maxAttempts) acc else {
+        loop(attempt + 1, strategy(attempt + 1, initialDelay, currentDelay), acc :+ (attempt -> currentDelay))
+      }
+    }
+
+    loop(1, 1.second)
+  }
+
+  test("BackoffStrategy.Linear results in the correct backoff sequence") { implicit s =>
+    val result = List(1 -> 1.second, 2 -> 2.second, 3 -> 3.second, 4 -> 4.second, 5 -> 5.second)
+    assert(genBackoffSequence(BackoffStrategy.Linear) == result)
+  }
+
+  test("BackoffStrategy.Exponential results in the correct backoff sequence") { implicit s =>
+    val result = List(1 -> 1.second, 2 -> 2.second, 3 -> 4.second, 4 -> 8.second, 5 -> 16.second)
+    assert(genBackoffSequence(BackoffStrategy.Exponential) == result)
+  }
+
+  test("BackoffStrategy.Fibonacci results in the correct backoff sequence") { implicit s =>
+    val result = List(1 -> 1.second, 2 -> 1.second, 3 -> 2.second, 4 -> 3.second, 5 -> 5.second)
+    assert(genBackoffSequence(BackoffStrategy.Fibonacci) == result)
   }
 }
