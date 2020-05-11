@@ -1,3 +1,47 @@
+## Version 3.2.1 (April 30, 2020)
+
+Bug fix release, fixing a critical issue with ScalaJS 1.0.x [#1666](https://github.com/monix/monix/issues/1166) and a corner case with `Bracket` [#1175](https://github.com/monix/monix/pull/1175)
+
+## Version 3.2.0 (April 26, 2020)
+
+The release is binary and source compatible with 3.x.x line.
+It is released for the following Scala and ScalaJS versions:
+- Scala 2.11: ScalaJS 0.6.x
+- Scala 2.12: ScalaJS 0.6.x and 1.0.x
+- Scala 2.13: ScalaJS 0.6.x and 1.0.x
+
+Relevant updates:
+
+- [#1087](https://github.com/monix/monix/pull/1087): Bracket should not evaluate "use" if Task was canceled during "acquire"
+- [#1098](https://github.com/monix/monix/pull/1098): Allow to pass Long in Observable.drop(n)
+- [#1101](https://github.com/monix/monix/pull/1101): Canceled tasks in Half-Open state should return to Open state in CircuitBreaker
+- [#1107](https://github.com/monix/monix/pull/1107): Add CommutativeApplicative[Task.Par] instance
+- [#1106](https://github.com/monix/monix/pull/1106) and [#1125](https://github.com/monix/monix/pull/1125): Add Observable.concatMapIterable
+- [#1117](https://github.com/monix/monix/pull/1117): SyncEffect instance for Coeval
+- [#1120](https://github.com/monix/monix/pull/1120): Cancel should always wait for the finalizer
+- [#1126](https://github.com/monix/monix/pull/1126): bufferIntrospective should signal Stop upstream when it is back-pressured
+- [#1135](https://github.com/monix/monix/pull/1135): Observable.intervalAtFixedRate under-millisecond interval fix
+- [#1132](https://github.com/monix/monix/pull/1132): Add Iterant.withFilter
+- [#1129](https://github.com/monix/monix/pull/1129): Add Observable.withFilter
+- [#1145](https://github.com/monix/monix/pull/1145): Deprecate gather, gatherN, gatherUnordered in favor of parSequence, parSequenceN, parSequenceUnordered
+- [#1152](https://github.com/monix/monix/pull/1152): Add Consumer.toList
+
+People that made this release possible:
+
+- Allan Timothy Leong (@allantl)
+- Eugene Platonov (@jozic)
+- Fabien Chaillou (@fchaillou)
+- Gabriel Claramunt (@gclaramunt)
+- Mantas Indrašius (@mantasindrasius)
+- TapanVaishnav (@TapanVaishnav)
+- najder-k (@najder-k)
+- Oleg Pyzhcov (@oleg-py)
+- Pau Alarcón (@paualarco)
+- Piotr Gawryś (@Avasil)
+- Ross A. Baker (@rossabaker)
+- Viet Yen Nguyen (@nguyenvietyen)
+- Viktor Dychko (@dychko)
+
 ## Version 3.1.0 (November 8, 2019)
 
 The release is binary and source compatible with 3.0.0.
