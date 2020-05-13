@@ -110,6 +110,18 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     }
   }
 
+  test("fromReactivePublisher handles immediate completion") { implicit s =>
+    val publisher = new Publisher[Unit] {
+      def subscribe(subscriber: Subscriber[_ >: Unit]): Unit = {
+        subscriber.onComplete()
+      }
+    }
+    val f = Iterant[Task].fromReactivePublisher(publisher).completedL.runToFuture
+
+    s.tick()
+    assertEquals(f.value, Some(Success(())))
+  }
+
   class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])(
     implicit sc: Scheduler)
     extends Publisher[Int] {
