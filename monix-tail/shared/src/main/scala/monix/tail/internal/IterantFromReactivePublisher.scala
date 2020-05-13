@@ -53,11 +53,11 @@ private[tail] object IterantFromReactivePublisher {
     extends Subscriber[A] {
 
     private[this] val sub = SingleAssignSubscription()
-    private[this] val state = Atomic.withPadding(null: State[F, A], LeftRight128)
+    private[this] val state = Atomic.withPadding(Uninitialized: State[F, A], LeftRight128)
 
     def start: F[Iterant[F, A]] =
       F.async { cb =>
-        if (state.compareAndSet(null, Empty(bufferSize))) {
+        if (initialize()) {
           sub.request(
             // Requesting unlimited?
             if (bufferSize < Int.MaxValue) bufferSize
@@ -66,6 +66,9 @@ private[tail] object IterantFromReactivePublisher {
         // Go, go, go
         take(cb)
       }
+
+    private def initialize(): Boolean =
+      state.compareAndSet(Uninitialized, Empty(bufferSize))
 
     private[this] val generate: (Int => F[Iterant[F, A]]) = {
       if (eagerBuffer) {
@@ -96,6 +99,10 @@ private[tail] object IterantFromReactivePublisher {
 
     @tailrec def onNext(a: A): Unit =
       state.get match {
+        case Uninitialized =>
+          initialize()
+          onNext(a)
+
         case current @ Enqueue(queue, length, toReceive) =>
           if (!state.compareAndSet(current, Enqueue(queue.enqueue(a), length + 1, toReceive)))
             onNext(a)
@@ -117,6 +124,10 @@ private[tail] object IterantFromReactivePublisher {
 
     @tailrec private def finish(fa: Iterant[F, A]): Unit =
       state.get match {
+        case Uninitialized =>
+          initialize()
+          finish(fa)
+
         case current @ Enqueue(queue, length, _) =>
           val update: Iterant[F, A] = length match {
             case 0 => fa
@@ -151,8 +162,12 @@ private[tail] object IterantFromReactivePublisher {
     def onComplete(): Unit =
       finish(Iterant.empty)
 
-    private def take(cb: Either[Throwable, Iterant[F, A]] => Unit): Unit =
+    @tailrec private def take(cb: Either[Throwable, Iterant[F, A]] => Unit): Unit =
       state.get match {
+        case Uninitialized =>
+          initialize()
+          take(cb)
+
         case current @ Enqueue(queue, length, toReceive) =>
           if (length == 0) {
             val update = Take(cb, toReceive)
@@ -191,6 +206,8 @@ private[tail] object IterantFromReactivePublisher {
   }
 
   private sealed abstract class State[+F[_], +A]
+
+  private case object Uninitialized extends State[Nothing, Nothing]
 
   private final case class Stop[F[_], A](fa: Iterant[F, A]) extends State[F, A]
 
