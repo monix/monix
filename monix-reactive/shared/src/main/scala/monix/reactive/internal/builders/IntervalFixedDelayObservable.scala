@@ -63,11 +63,7 @@ private[reactive] final class IntervalFixedDelayObservable(initialDelay: FiniteD
       }
     }
 
-    if (initialDelay.length <= 0)
-      runnable.run()
-    else
-      task := s.scheduleOnce(initialDelay.length, initialDelay.unit, runnable)
-
+    task := s.scheduleOnce(initialDelay.length, initialDelay.unit, runnable)
     task
   }
 }
