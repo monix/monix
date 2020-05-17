@@ -67,8 +67,10 @@ private[reactive] final class CharsReaderObservable(in: Reader, chunkSize: Int) 
     ack.onComplete {
       case Success(next) =>
         // Should we continue, or should we close the stream?
-        if (next == Continue && !c.isCanceled)
-          fastLoop(b, out, c, em, 0)
+        if (next == Continue && !c.isCanceled) {
+          // Using Scala's BlockContext, since this is potentially a blocking call
+          blocking(fastLoop(b, out, c, em, 0))
+        }
       // else stop
       case Failure(ex) =>
         reportFailure(ex)
@@ -90,8 +92,7 @@ private[reactive] final class CharsReaderObservable(in: Reader, chunkSize: Int) 
     var streamErrors = true
 
     try {
-      // Using Scala's BlockContext, since this is potentially a blocking call
-      val length = blocking(fillBuffer(in, buffer))
+      val length = fillBuffer(in, buffer)
       // From this point on, whatever happens is a protocol violation
       streamErrors = false
 

@@ -64,8 +64,10 @@ private[reactive] final class LinesReaderObservable(reader: Reader) extends Obse
     ack.onComplete {
       case Success(next) =>
         // Should we continue, or should we close the stream?
-        if (next == Continue && !c.isCanceled)
-          fastLoop(out, c, em, 0)
+        if (next == Continue && !c.isCanceled) {
+          // Using Scala's BlockContext, since this is potentially a blocking call
+          blocking(fastLoop(out, c, em, 0))
+        }
       // else stop
       case Failure(ex) =>
         reportFailure(ex)
@@ -83,8 +85,7 @@ private[reactive] final class LinesReaderObservable(reader: Reader) extends Obse
     var streamErrors = true
 
     try {
-      // Using Scala's BlockContext, since this is potentially a blocking call
-      val next = blocking(in.readLine())
+      val next = in.readLine()
       // From this point on, whatever happens is a protocol violation
       streamErrors = false
 

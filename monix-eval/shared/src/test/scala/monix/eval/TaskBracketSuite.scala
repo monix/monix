@@ -376,4 +376,18 @@ object TaskBracketSuite extends BaseTestSuite {
     sc.tick()
     assertEquals(f.value, Some(Success(())))
   }
+
+  test("bracket can be canceled while failing to acquire") { implicit sc =>
+
+    val task = (Task.sleep(2.second) *> Task.raiseError[Unit](DummyException("BOOM")))
+      .bracket(_ => Task.unit)(_ => Task.unit)
+
+    val cancelToken = task.runAsyncF(_ => ())
+
+    sc.tick(1.second)
+    val f = cancelToken.runToFuture
+
+    sc.tick(1.second)
+    assertEquals(f.value, Some(Success(())))
+  }
 }
