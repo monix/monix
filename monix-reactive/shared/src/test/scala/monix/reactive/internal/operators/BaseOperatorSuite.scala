@@ -277,7 +277,6 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
           def onComplete(): Unit = throw new IllegalStateException()
         })
 
-        s.tick()
         s.tick(waitForFirst + waitForNext * count)
         assertEquals(received, count)
         assertEquals(thrownError, DummyException("dummy"))
