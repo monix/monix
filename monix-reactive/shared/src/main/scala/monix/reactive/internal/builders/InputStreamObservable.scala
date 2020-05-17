@@ -35,7 +35,8 @@ import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: Int) extends Observable[Array[Byte]] {
-  self =>
+
+  require(chunkSize > 0, "chunkSize > 0")
 
   private[this] val wasSubscribed = Atomic(false)
 
@@ -96,7 +97,7 @@ private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: 
     var streamErrors = true
 
     try {
-      val length = in.read(buffer)
+      val length = fillBuffer(in, buffer)
       // From this point on, whatever happens is a protocol violation
       streamErrors = false
 
@@ -134,6 +135,20 @@ private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: 
         sendError(out, errorThrown)
       else
         reportFailure(errorThrown)
+    }
+  }
+
+  @tailrec
+  private def fillBuffer(in: InputStream, buffer: Array[Byte], nTotalBytesRead: Int = 0): Int = {
+    if (nTotalBytesRead >= buffer.length) nTotalBytesRead
+    else {
+      val nBytesRead = in.read(buffer, nTotalBytesRead, buffer.length - nTotalBytesRead)
+      if (nBytesRead >= 0) fillBuffer(in, buffer, nTotalBytesRead + nBytesRead)
+      else { // stream has ended
+        if (nTotalBytesRead <= 0)
+          nBytesRead // no more bytes (-1 via InputStream.read contract) available, end the observable
+        else nTotalBytesRead // we read the last bytes available
+      }
     }
   }
 

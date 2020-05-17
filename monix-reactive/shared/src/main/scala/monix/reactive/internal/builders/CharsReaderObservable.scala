@@ -36,7 +36,8 @@ import scala.concurrent.{blocking, Future}
 import scala.util.{Failure, Success}
 
 private[reactive] final class CharsReaderObservable(in: Reader, chunkSize: Int) extends Observable[Array[Char]] {
-  self =>
+
+  require(chunkSize > 0, "chunkSize > 0")
 
   private[this] val wasSubscribed = Atomic(false)
 
@@ -91,7 +92,7 @@ private[reactive] final class CharsReaderObservable(in: Reader, chunkSize: Int) 
     var streamErrors = true
 
     try {
-      val length = in.read(buffer)
+      val length = fillBuffer(in, buffer)
       // From this point on, whatever happens is a protocol violation
       streamErrors = false
 
@@ -129,6 +130,20 @@ private[reactive] final class CharsReaderObservable(in: Reader, chunkSize: Int) 
         sendError(out, errorThrown)
       else
         reportFailure(errorThrown)
+    }
+  }
+
+  @tailrec
+  private def fillBuffer(in: Reader, buffer: Array[Char], nTotalCharsRead: Int = 0): Int = {
+    if (nTotalCharsRead >= buffer.length) nTotalCharsRead
+    else {
+      val nCharsRead = in.read(buffer, nTotalCharsRead, buffer.length - nTotalCharsRead)
+      if (nCharsRead >= 0) fillBuffer(in, buffer, nTotalCharsRead + nCharsRead)
+      else { // stream has ended
+        if (nTotalCharsRead <= 0)
+          nCharsRead // no more chars (-1 via Reader.read contract) available, end the observable
+        else nTotalCharsRead // we read the last chars available
+      }
     }
   }
 
