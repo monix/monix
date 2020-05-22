@@ -18,10 +18,12 @@
 package monix.reactive.internal.operators
 
 import minitest.TestSuite
+import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.duration._
 
 object DoOnSubscriptionCancelSuite extends TestSuite[TestScheduler] {
@@ -75,4 +77,20 @@ object DoOnSubscriptionCancelSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 0)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
+
+  test("Issue #1177: should work with doAfterSubscribe") { implicit s =>
+    var wasCanceled = false
+    var wasSubscribed = false
+
+    Observable(1, 2, 3)
+      .doOnSubscriptionCancel(Task { wasCanceled = true })
+      .doAfterSubscribe(Task { wasSubscribed = true })
+      .subscribe()
+      .cancel()
+
+    s.tick()
+    assert(wasCanceled, "onSubscriptionCancel should be called")
+    assert(wasSubscribed, "doAfterSubscribe should be called")
+  }
+
 }

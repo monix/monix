@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import cats.effect.IO
+import cats.effect.{ExitCase, IO}
 import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
@@ -91,5 +91,23 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assertEquals(wasThrown, dummy)
+  }
+
+  test("doAfterSubscribe should preserve original cancelable") { implicit s =>
+    var wasCanceled = false
+
+    Observable
+      .range(1, 10)
+      .guaranteeCase {
+        case ExitCase.Completed => Task.unit
+        case ExitCase.Error(_) => Task.unit
+        case ExitCase.Canceled => Task { wasCanceled = true }
+      }
+      .doAfterSubscribe(Task.unit)
+      .subscribe()
+      .cancel()
+
+    s.tick()
+    assert(wasCanceled, "wasCanceled should be true")
   }
 }
