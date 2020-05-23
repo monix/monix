@@ -41,7 +41,7 @@ private[reactive] final class ForeachAsyncConsumer[A](f: A => Task[Unit]) extend
         try {
           this.synchronized {
             if (!isDone) {
-              val future = f(elem).map(_ => Continue).runToFuture
+              val future = f(elem).redeem({e => onError(e); Stop}, _ => Continue).runToFuture
               lastCancelable = future
               future.syncTryFlatten
             } else Stop
