@@ -104,19 +104,19 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
   }
 
   test("should suspend effects encountered during the stream") { implicit s =>
-    val exceptionMessage: String = "Boom!"
+    val dummyException = DummyException("Boom!")
+
     val f: Future[Unit] = {
       Observable(1)
         .consumeWith(
           Consumer.foreachTask(_ =>
-            Task.raiseError(new RuntimeException(exceptionMessage))
+            Task.raiseError(dummyException)
           )
         ).runToFuture
     }
 
     s.tick()
-    assert(f.value.get.isFailure)
-    assertEquals(f.value.get.failed.get.getMessage, exceptionMessage)
+    assertEquals(f.value, Some(Failure(dummyException)))
   }
 
 }
