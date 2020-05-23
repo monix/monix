@@ -24,6 +24,7 @@ import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Consumer, Observable}
 
+import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
@@ -104,18 +105,18 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
 
   test("should suspend effects encountered during the stream") { implicit s =>
     val exceptionMessage: String = "Boom!"
-    val t: Try[Unit] = Try {
+    val f: Future[Unit] = {
       Observable(1)
         .consumeWith(
           Consumer.foreachTask(_ =>
             Task.raiseError(new RuntimeException(exceptionMessage))
           )
-        ).runSyncUnsafe()
+        ).runToFuture
     }
 
     s.tick()
-    assert(t.isFailure)
-    assertEquals(t.failed.get.getMessage, exceptionMessage)
+    assert(f.value.get.isFailure)
+    assertEquals(f.value.get.failed.get.getMessage, exceptionMessage)
   }
 
 }
