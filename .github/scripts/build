@@ -23,4 +23,8 @@ if [[ -z "$SBT_COMMAND" ]]; then
     exit 1
 fi
 
-#exec sbt ++$SCALA_VERSION $SBT_COMMAND
+if [ $SCALA_VERSION == '2.11.12' ] && [ $SCALAJS_VERSION == '1.0.0' ]; then
+echo "No tests executed since sjs 1.0.0 and scala 2.11 are not compatible."
+else 
+  sbt -J-Xmx6144m ++$SCALA_VERSION $SBT_COMMAND
+fi
