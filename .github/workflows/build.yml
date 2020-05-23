@@ -1,6 +1,6 @@
 name: build
 
-on: [push, pull_request]
+on: [ push, pull_request ]
 
 jobs:
   
@@ -44,7 +44,6 @@ jobs:
           SBT_COMMAND: ${{ matrix.command }}
               
   js-tests:
-    needs: [jvm-tests]
     name: scalajs-${{ matrix.scalajs }} scala-${{ matrix.scala }} jdk-${{ matrix.java }}   tests
     runs-on: ubuntu-latest
 
@@ -86,7 +85,7 @@ jobs:
           SBT_COMMAND: ${{ matrix.command }}
           
   publish:
-    needs: [js-tests]
+    needs: [ jvm-tests, js-tests ]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
