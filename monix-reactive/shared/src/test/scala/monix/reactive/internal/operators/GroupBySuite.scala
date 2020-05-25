@@ -110,7 +110,7 @@ object GroupBySuite extends BaseOperatorSuite {
   }
 
   test("on error groups should also error") { implicit s =>
-    var groupsCompleted = 0
+    var groupsErrored = 0
 
     val observable =
       Observable(1, 2, 3)
@@ -119,11 +119,11 @@ object GroupBySuite extends BaseOperatorSuite {
           case _ => Task.raiseError(new RuntimeException)
         }
         .groupBy(identity)
-        .mapEval(_.completedL >> Task(groupsCompleted += 1))
+        .mapEval(_.completedL.onErrorHandleWith(_ => Task(groupsErrored += 1)))
         .runAsyncGetLast
 
     s.tick()
-    assertEquals(groupsCompleted, 0)
+    assertEquals(groupsErrored, 2)
   }
 
   override def cancelableObservables() = {
