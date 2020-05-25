@@ -121,10 +121,27 @@ private[reactive] final class GroupByOperator[A, K](
           }
       }
 
+      private[this] def errorAll(ex: Throwable): Seq[Throwable] = {
+        val cache = cacheRef.get()
+
+        if (!cacheRef.compareAndSet(cache, Map.empty))
+          errorAll(ex)
+        else
+          cache.values.foldLeft(Vector.empty[Throwable]) { (acc, o) =>
+            try {
+              o.onError(ex)
+              acc
+            } catch {
+              case e if NonFatal(e) =>
+                acc :+ e
+            }
+          }
+      }
+
       def onError(ex: Throwable): Unit = {
         if (!isDone) {
           isDone = true
-          val errors = completeAll()
+          val errors = errorAll(ex)
           if (errors.nonEmpty)
             downstream.onError(CompositeException(ex +: errors))
           else
