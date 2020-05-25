@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.subjects.PublishSubject
@@ -106,6 +107,23 @@ object GroupBySuite extends BaseOperatorSuite {
     assertEquals(received, 12)
     s.tick(10.second)
     assertEquals(fallbackTick, 3)
+  }
+
+  test("on error groups should also error") { implicit s =>
+    var groupsCompleted = 0
+
+    val observable =
+      Observable(1, 2, 3)
+        .mapEval {
+          case n if n < 3 => Task.pure(n)
+          case _ => Task.raiseError(new RuntimeException)
+        }
+        .groupBy(identity)
+        .mapEval(_.completedL >> Task(groupsCompleted += 1))
+        .runAsyncGetLast
+
+    s.tick()
+    assertEquals(groupsCompleted, 0)
   }
 
   override def cancelableObservables() = {
