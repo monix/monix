@@ -22,7 +22,6 @@ import monix.execution.ChannelType.SingleProducer
 import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
 import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.execution.exceptions.CompositeException
 import monix.reactive.observables.GroupedObservable
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
@@ -84,9 +83,7 @@ private[reactive] final class GroupByOperator[A, K](
                       observer.onNext(elem).syncMap(_ => Continue)
 
                     case Stop =>
-                      val errors = completeAll()
-                      if (errors.nonEmpty)
-                        self.onError(CompositeException(errors))
+                      foreachObserver(_.onComplete())
                       Stop
                   }
                 else
@@ -104,59 +101,28 @@ private[reactive] final class GroupByOperator[A, K](
             result
         }
 
-      private[this] def completeAll(): Seq[Throwable] = {
+      private[this] def foreachObserver(f: Observer[A] => Unit): Unit = {
         val cache = cacheRef.get()
-
-        if (!cacheRef.compareAndSet(cache, Map.empty))
-          completeAll()
-        else
-          cache.values.foldLeft(Vector.empty[Throwable]) { (acc, o) =>
-            try {
-              o.onComplete()
-              acc
-            } catch {
-              case ex if NonFatal(ex) =>
-                acc :+ ex
-            }
-          }
-      }
-
-      private[this] def errorAll(ex: Throwable): Seq[Throwable] = {
-        val cache = cacheRef.get()
-
-        if (!cacheRef.compareAndSet(cache, Map.empty))
-          errorAll(ex)
-        else
-          cache.values.foldLeft(Vector.empty[Throwable]) { (acc, o) =>
-            try {
-              o.onError(ex)
-              acc
-            } catch {
-              case e if NonFatal(e) =>
-                acc :+ e
-            }
-          }
+        if (cacheRef.compareAndSet(cache, Map.empty)) {
+          cache.values.foreach(f)
+        } else {
+          foreachObserver(f)
+        }
       }
 
       def onError(ex: Throwable): Unit = {
         if (!isDone) {
           isDone = true
-          val errors = errorAll(ex)
-          if (errors.nonEmpty)
-            downstream.onError(CompositeException(ex +: errors))
-          else
-            downstream.onError(ex)
+          foreachObserver(_.onError(ex))
+          downstream.onError(ex)
         }
       }
 
       def onComplete(): Unit = {
         if (!isDone) {
           isDone = true
-          val errors = completeAll()
-          if (errors.nonEmpty)
-            downstream.onError(CompositeException(errors))
-          else
-            downstream.onComplete()
+          foreachObserver(_.onComplete())
+          downstream.onComplete()
         }
       }
     }
