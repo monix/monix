@@ -10,9 +10,8 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        java: [8, 11]
-        scala: [2.11.12, 2.12.11, 2.13.1]
-        command: [ci-jvm]
+        java: [ 8, 11 ]
+        scala: [ 2.11.12, 2.12.11, 2.13.1 ]
     
     steps:
       - uses: actions/checkout@v2
@@ -35,13 +34,12 @@ jobs:
             ${{ runner.os }}-sbt-${{ hashFiles('project/build.properties') }}-${{ hashFiles('project/plugins.sbt') }}
           restore-keys: ${{ runner.os }}-sbt-
           
-      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}, ScalaJS ${{ matrix.scalajs }}
+      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}
         run: |
           ./.github/scripts/build
         env:
           SCALA_VERSION: ${{ matrix.scala }}
-          SCALAJS_VERSION: ${{ matrix.scalaJS }}
-          SBT_COMMAND: ${{ matrix.command }}
+          SBT_COMMAND: ci-jvm
               
   js-tests:
     name: scalajs-${{ matrix.scalajs }} scala-${{ matrix.scala }} jdk-${{ matrix.java }}   tests
@@ -50,10 +48,9 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        java: [8]
-        scala: [2.11.12, 2.12.11, 2.13.1]
-        scalajs: [0.6.32, 1.0.0]
-        command: [ci-js]
+        java: [ 8 ]
+        scala: [ 2.11.12, 2.12.11, 2.13.1 ]
+        scalajs: [ 0.6.32, 1.0.0 ]
     
     steps:
       - uses: actions/checkout@v2
@@ -82,10 +79,34 @@ jobs:
         env:
           SCALA_VERSION: ${{ matrix.scala }}
           SCALAJS_VERSION: ${{ matrix.scalaJS }}
-          SBT_COMMAND: ${{ matrix.command }}
-          
+          SBT_COMMAND: ci-js
+  
+  mima:
+    name: Mima binary compatibility test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        java: [ 8 ]
+        scala: [ 2.12.11 ]
+        scalajs: [ 0.6.32 ]
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: olafurpg/setup-scala@v7
+        with:
+          java-version: "adopt@1.${{ matrix.java }}"
+     
+      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}, ScalaJS ${{ matrix.scalajs }}
+        run: |
+          ./.github/scripts/build
+        env:
+          SCALA_VERSION: ${{ matrix.scala }}
+          SCALAJS_VERSION: ${{ matrix.scalaJS }}
+          SBT_COMMAND: ci-jvm-mima
+      
   publish:
-    needs: [ jvm-tests, js-tests ]
+    needs: [ jvm-tests, js-tests,  mima ]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
