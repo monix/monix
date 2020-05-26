@@ -103,7 +103,7 @@ private[reactive] object DoOnSubscribeObservable {
       )
 
       val ref = SingleAssignCancelable()
-      val conn = StackedCancelable(List(cancelable, ref))
+      val conn = StackedCancelable(List(ref, cancelable))
 
       ref := task.runAsync(new Callback[Throwable, Unit] {
         def onSuccess(value: Unit): Unit = {
