@@ -18,9 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.eval.Task
-import monix.execution.Ack
-import monix.execution.Ack.Continue
-import monix.reactive.{Observable, Observer}
+import monix.reactive.Observable
 
 import scala.concurrent.duration._
 
