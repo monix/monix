@@ -74,7 +74,10 @@ private[reactive] final class IntervalFixedRateObservable(initialDelay: FiniteDu
       }
     }
 
-    task := s.scheduleOnce(initialDelay.length, initialDelay.unit, runnable)
+    if (initialDelay.length <= 0)
+      s.execute(runnable)
+    else
+      task := s.scheduleOnce(initialDelay.length, initialDelay.unit, runnable)
     task
   }
 }
