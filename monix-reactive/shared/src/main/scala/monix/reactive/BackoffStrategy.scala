@@ -44,7 +44,7 @@ object BackoffStrategy {
   }
 
   /**
-    * Implements an Exponential Backoff Strategy, for example, and initial delay of 1 second plus a max attempts
+    * Implements an Exponential Backoff Strategy. For example, an initial delay of 1 second plus a max attempts
     * value of 5 would result in the following:
     *
     * | Attempt | Delay      |
