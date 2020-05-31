@@ -88,8 +88,9 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
           }
       }
 
-      continueP.completeWith(lastAck)
+      val oldP = continueP
       continueP = Promise[Ack]()
+      oldP.completeWith(lastAck)
       lastAck
     }
 
@@ -109,7 +110,9 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
         }
 
       lock.synchronized {
-        if (!hasElem) {
+        // Other source could already set completeWithNext
+        // so it won't emit any elements
+        if (!hasElem || completeWithNext) {
           lastAck match {
             case Continue => rawOnComplete()
             case Stop => () // do nothing
