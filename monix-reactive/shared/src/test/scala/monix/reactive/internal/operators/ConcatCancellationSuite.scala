@@ -34,7 +34,7 @@ object ConcatCancellationSuite extends BaseTestSuite {
     assert(items > 0, "items > 0")
     assert(sc.state.tasks.nonEmpty, "tasks.nonEmpty")
 
-    d.cancel()
+    sc.tick(); d.cancel()
     assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
   }
 

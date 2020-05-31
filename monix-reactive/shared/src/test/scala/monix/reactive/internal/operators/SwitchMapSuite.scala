@@ -17,43 +17,47 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack
-import monix.execution.Ack.Continue
-import monix.reactive.{Observable, Observer}
+import monix.eval.Task
+import monix.reactive.Observable
+
 import scala.concurrent.duration._
 
 object SwitchMapSuite extends BaseOperatorSuite {
-  def createObservable(sourceCount: Int) = Some {
-    val mainPeriod = 2.seconds + 500.millis
-    val o = Observable
-      .interval(mainPeriod)
-      .switchMap(i => Observable.interval(1.second))
-      .bufferTimed(mainPeriod)
-      .map(_.sum)
-      .take(sourceCount)
+  def createObservable(sourceCount: Int) =
+    Some {
+      val mainPeriod = 2.seconds + 500.millis
+      val o = Observable
+        .interval(mainPeriod)
+        .switchMap(i => Observable.interval(1.second))
+        .bufferTimed(mainPeriod)
+        .map(_.sum)
+        .take(sourceCount)
 
-    val sum = 3 * sourceCount
-    Sample(o, sourceCount, sum, waitFirst, waitNext)
-  }
+      val sum = 3 * sourceCount
+      Sample(o, sourceCount, sum, waitFirst, waitNext)
+    }
 
   def waitFirst = 2.5.seconds
   def waitNext = 2.5.seconds
 
-  def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val mainPeriod = 2.seconds + 500.millis
-    val o = createObservableEndingInError(Observable.interval(mainPeriod).take(sourceCount), ex)
-      .switchMap(i => Observable.interval(1.second))
-      .bufferTimed(mainPeriod)
-      .map(_.sum)
+  def observableInError(sourceCount: Int, ex: Throwable) =
+    Some {
+      val mainPeriod = 2.seconds + 500.millis
+      val o =
+        createObservableEndingInError(Observable.interval(mainPeriod).take(sourceCount), ex)
+          .switchMap(_ => Observable.eval(1L) ++ Observable.intervalAtFixedRate(1.second, 1.second))
+          .bufferTimed(mainPeriod)
+          .map(_.sum)
 
-    val sum = 3 * (sourceCount - 1)
-    Sample(o, sourceCount - 1, sum, waitFirst, waitNext)
-  }
+      val sum = 3 * (sourceCount - 1)
+      Sample(o, sourceCount - 1, sum, waitFirst, waitNext)
+    }
 
-  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.interval(2.5.seconds).switchMap(i => throw ex)
-    Sample(o, 0, 0, waitFirst, waitNext)
-  }
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
+    Some {
+      val o = Observable.interval(2.5.seconds).switchMap(i => throw ex)
+      Sample(o, 0, 0, waitFirst, waitNext)
+    }
 
   override def cancelableObservables(): Seq[Sample] = {
     val sample1 = {

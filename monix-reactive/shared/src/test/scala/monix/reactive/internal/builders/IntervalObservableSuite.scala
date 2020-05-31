@@ -43,6 +43,7 @@ object IntervalObservableSuite extends SimpleTestSuite {
         def onComplete(): Unit = ()
       })
 
+    s.tick()
     assertEquals(received, 1)
 
     s.tick()
@@ -99,6 +100,7 @@ object IntervalObservableSuite extends SimpleTestSuite {
         def onComplete(): Unit = ()
       })
 
+    s.tick()
     assertEquals(received, 1)
 
     s.tick(900.millis)
@@ -130,6 +132,7 @@ object IntervalObservableSuite extends SimpleTestSuite {
         def onComplete(): Unit = ()
       })
 
+    s.tick()
     assertEquals(received, 1)
 
     s.tick(90.nanos)
