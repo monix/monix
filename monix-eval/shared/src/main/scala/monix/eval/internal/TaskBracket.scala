@@ -190,7 +190,7 @@ private[monix] object TaskBracket {
                 val fb =
                   try use(value)
                   catch { case NonFatal(e) => Task.raiseError(e) }
-                fb.flatMap(releaseFrame)
+                fb.flatMap(releaseFrame).flatMap(r => Task { conn.pop(); r })
               }
 
               Task.unsafeStartNow(onNext, ctx, cb)
