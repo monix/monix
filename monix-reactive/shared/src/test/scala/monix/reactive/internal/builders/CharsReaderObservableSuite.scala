@@ -20,6 +20,7 @@ package monix.reactive.internal.builders
 import java.io.{Reader, StringReader}
 
 import minitest.SimpleTestSuite
+import minitest.laws.Checkers
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
@@ -29,11 +30,12 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
+import org.scalacheck.{Gen, Prop}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Random, Success}
 
-object CharsReaderObservableSuite extends SimpleTestSuite {
+object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
   test("fromCharsReaderUnsafe yields a single subscriber observable") {
     implicit val s = TestScheduler()
     var errorThrown: Throwable = null
@@ -54,6 +56,28 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
 
     assert(errorThrown.isInstanceOf[APIContractViolationException])
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
+  }
+
+  test("fromCharsReaderUnsafe should throw if the chunkSize is zero") {
+    val str = randomString()
+    val in = new StringReader(str)
+
+    val error = intercept[IllegalArgumentException] {
+      Observable
+        .fromCharsReaderUnsafe(in, 0)
+    }
+    assert(error.getMessage.contains("chunkSize"))
+  }
+
+  test("fromCharsReaderUnsafe should throw if the chunkSize is negative") {
+    val str = randomString()
+    val in = new StringReader(str)
+
+    val error = intercept[IllegalArgumentException] {
+      Observable
+        .fromCharsReaderUnsafe(in, -1)
+    }
+    assert(error.getMessage.contains("chunkSize"))
   }
 
   test("fromCharsReaderUnsafe works for BatchedExecution") {
@@ -201,6 +225,82 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     assert(!didRead)
   }
 
+  test("fromCharsReader signals an error if the chunk size is zero or negative") {
+    implicit val s = TestScheduler()
+
+    val str = randomString()
+    val in = new StringReader(str)
+    val f = Observable
+      .fromCharsReader(Task(in), 0)
+      .completedL
+      .runToFuture
+
+    s.tick()
+
+    intercept[IllegalArgumentException] {
+      f.value.get.get
+    }
+    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
+  }
+
+  test("fromCharsReader completes normally for files with size == 0") {
+    implicit val s = TestScheduler()
+
+    val in = new StringReader("")
+    val f = Observable
+      .fromCharsReader(Task(in))
+      .map(_.length)
+      .sumL
+      .runToFuture
+
+    s.tick()
+
+    assertEquals(f.value.get.get, 0)
+  }
+
+  test("fromCharsReader fills the buffer up to 'chunkSize' if possible") {
+    implicit val s = TestScheduler()
+
+    val gen = for {
+      nCharsPerLine <- Gen.choose(1, 150)
+      nLines        <- Gen.choose(1, 250)
+      chunkSize     <- Gen.choose(Math.floorDiv(nCharsPerLine, 2).max(1), nCharsPerLine * 2)
+    } yield (nCharsPerLine, nLines, chunkSize)
+
+    val prop = Prop
+      .forAllNoShrink(gen) { // do not shrink to avoid a zero for the chunkSize
+        case (nCharsPerLine, nLines, chunkSize) =>
+          val str = randomString(nLines, 1, nCharsPerLine, 1)
+          val forcedReadSize = Math.floorDiv(nCharsPerLine, 10).max(1) // avoid zero-char reads
+          val in = inputWithStaggeredChars(forcedReadSize, new StringReader(str))
+          val f = Observable
+            .fromCharsReader(Task(in), chunkSize)
+            .foldLeftL(Vector.empty[Int]) {
+              case (acc, charArray) => acc :+ charArray.length
+            }
+            .runToFuture
+
+          s.tick()
+
+          val resultChunkSizes = f.value.get.get
+          if (str.length > chunkSize) // all values except the last should be equal to the chunkSize
+            resultChunkSizes.init.forall(_ == chunkSize) && resultChunkSizes.last <= chunkSize
+          else resultChunkSizes.head <= chunkSize
+      }
+    check(prop)
+  }
+
+  def inputWithStaggeredChars(forcedReadSize: Int, underlying: StringReader): Reader = {
+    new Reader {
+      override def read(): Int = underlying.read()
+      override def read(b: Array[Char]): Int =
+        read(b, 0, forcedReadSize)
+      override def read(b: Array[Char], off: Int, len: Int): Int =
+        underlying.read(b, off, forcedReadSize.min(len))
+      override def close(): Unit = underlying.close()
+    }
+  }
+
   def inputWithError(ex: Throwable, whenToThrow: Int, onFinish: () => Unit): Reader =
     new Reader {
       private[this] var callIdx = 0
@@ -223,18 +323,24 @@ object CharsReaderObservableSuite extends SimpleTestSuite {
     new Reader {
       def read(cbuf: Array[Char], off: Int, len: Int): Int =
         underlying.read(cbuf, off, len)
-      override def close(): Unit =
+      override def close(): Unit = {
+        underlying.close()
         onFinish()
+      }
     }
   }
 
-  def randomString(): String = {
+  def randomString(
+    nLines: Int = 100,
+    nMinLines: Int = 0,
+    nCharsPerLine: Int = 100,
+    nMinCharsPerLine: Int = 0): String = {
     val chars = (('a' to 'z') ++ ('A' to 'Z') ++ ('0' to '9')).toVector
     val builder = new StringBuilder
-    val lines = Random.nextInt(100)
+    val lines = Random.nextInt(nLines).max(nMinLines)
 
     for (_ <- 0 until lines) {
-      val lineLength = Random.nextInt(100)
+      val lineLength = Random.nextInt(nCharsPerLine).max(nMinCharsPerLine)
       val line = for (_ <- 0 until lineLength) yield chars(Random.nextInt(chars.length))
       builder.append(new String(line.toArray))
       builder.append('\n')

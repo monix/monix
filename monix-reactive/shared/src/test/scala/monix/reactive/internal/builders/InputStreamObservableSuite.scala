@@ -20,20 +20,21 @@ package monix.reactive.internal.builders
 import java.io.{ByteArrayInputStream, InputStream}
 
 import minitest.SimpleTestSuite
+import minitest.laws.Checkers
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
-import monix.execution.exceptions.APIContractViolationException
+import monix.execution.exceptions.{APIContractViolationException, DummyException}
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
-import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
+import org.scalacheck.{Gen, Prop}
 
 import scala.collection.mutable.ListBuffer
 import scala.util.{Failure, Random, Success}
 
-object InputStreamObservableSuite extends SimpleTestSuite {
+object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
   test("fromInputStreamUnsafe yields a single subscriber observable") {
     implicit val s = TestScheduler()
     var errorThrown: Throwable = null
@@ -56,6 +57,24 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
+  test("fromInputStreamUnsafe should throw if the chunkSize is zero") {
+    val byteArray = randomByteArray()
+    val in = new ByteArrayInputStream(byteArray)
+    val error = intercept[IllegalArgumentException] {
+      Observable.fromInputStreamUnsafe(in, 0)
+    }
+    assert(error.getMessage.contains("chunkSize"))
+  }
+
+  test("fromInputStreamUnsafe should throw if the chunkSize is negative") {
+    val byteArray = randomByteArray()
+    val in = new ByteArrayInputStream(byteArray)
+    val error = intercept[IllegalArgumentException] {
+      Observable.fromInputStreamUnsafe(in, -1)
+    }
+    assert(error.getMessage.contains("chunkSize"))
+  }
+
   test("fromInputStreamUnsafe works for BatchedExecution") {
     implicit val s = TestScheduler(BatchedExecution(1024))
     val array = randomByteArray()
@@ -72,7 +91,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  test("fromInputStreamUnsafe it works for AlwaysAsyncExecution") {
+  test("fromInputStreamUnsafe works for AlwaysAsyncExecution") {
     implicit val s = TestScheduler(AlwaysAsyncExecution)
     val array = randomByteArray()
     val in = new ByteArrayInputStream(array)
@@ -88,7 +107,7 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
-  test("fromInputStreamUnsafe it works for SynchronousExecution") {
+  test("fromInputStreamUnsafe works for SynchronousExecution") {
     implicit val s = TestScheduler(SynchronousExecution)
 
     var wasCompleted = 0
@@ -190,6 +209,79 @@ object InputStreamObservableSuite extends SimpleTestSuite {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
+  test("fromInputStream should signal an error if the chunkSize is zero or negative") {
+    implicit val s = TestScheduler()
+
+    val byteArray = randomByteArray()
+    val in = new ByteArrayInputStream(byteArray)
+    val f = Observable.fromInputStream(Task(in), 0).completedL.runToFuture
+
+    s.tick()
+
+    intercept[IllegalArgumentException] {
+      f.value.get.get
+    }
+    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
+  }
+
+  test("fromInputStream completes normally for files with size == 0") {
+    implicit val s = TestScheduler()
+
+    val byteArray = new Array[Byte](0)
+    val in = new ByteArrayInputStream(byteArray)
+    val f = Observable
+      .fromInputStream(Task(in))
+      .map(_.length)
+      .sumL
+      .runToFuture
+
+    s.tick()
+
+    assertEquals(f.value.get.get, 0)
+    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
+  }
+
+  test("fromInputStream fills the buffer up to 'chunkSize' if possible") {
+    implicit val s = TestScheduler()
+
+    val gen = for {
+      byteSize  <- Gen.choose(0, 4096)
+      chunkSize <- Gen.choose(Math.floorDiv(byteSize, 2).max(1), byteSize * 2)
+    } yield (byteSize, chunkSize)
+
+    val prop = Prop
+      .forAllNoShrink(gen) { // do not shrink to avoid a zero for the chunkSize
+        case (byteSize, chunkSize) =>
+          val byteArray = randomByteArray(byteSize, 10)
+          val forcedReadSize = Math.floorDiv(byteSize, 10).max(1) // avoid zero-byte reads
+          val in = inputWithStaggeredBytes(forcedReadSize, new ByteArrayInputStream(byteArray))
+          val f = Observable
+            .fromInputStreamF(Task(in), chunkSize)
+            .foldLeftL(Vector.empty[Int]) {
+              case (acc, byteArray) => acc :+ byteArray.length
+            }
+            .runToFuture
+
+          s.tick()
+
+          val resultChunkSizes = f.value.get.get
+          if (byteArray.length > chunkSize) // all values except the last should be equal to the chunkSize
+            resultChunkSizes.init.forall(_ == chunkSize) && resultChunkSizes.last <= chunkSize
+          else resultChunkSizes.head <= chunkSize
+      }
+    check(prop)
+  }
+
+  def inputWithStaggeredBytes(forcedReadSize: Int, underlying: ByteArrayInputStream): InputStream = {
+    new InputStream {
+      override def read(): Int = underlying.read()
+      override def read(b: Array[Byte]): Int =
+        read(b, 0, forcedReadSize)
+      override def read(b: Array[Byte], off: Int, len: Int): Int =
+        underlying.read(b, off, forcedReadSize.min(len))
+    }
+  }
+
   def inputWithError(ex: Throwable, whenToThrow: Int, onFinish: () => Unit): InputStream =
     new InputStream {
       private[this] var callIdx = 0
@@ -214,13 +306,15 @@ object InputStreamObservableSuite extends SimpleTestSuite {
         underlying.read(b)
       override def read(b: Array[Byte], off: Int, len: Int): Int =
         underlying.read(b, off, len)
-      override def close(): Unit =
+      override def close(): Unit = {
+        underlying.close()
         onFinish()
+      }
     }
   }
 
-  def randomByteArray(): Array[Byte] = {
-    val length = Random.nextInt(2048)
+  def randomByteArray(size: Int = 2048, nMinSize: Int = 0): Array[Byte] = {
+    val length = Random.nextInt(size).max(nMinSize)
     val bytes = new Array[Byte](length)
     Random.nextBytes(bytes)
     bytes
