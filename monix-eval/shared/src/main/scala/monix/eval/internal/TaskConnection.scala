@@ -56,7 +56,7 @@ private[eval] sealed abstract class TaskConnection extends CancelableF[Task] {
 
   /**
     * Pushes a cancelable token on the stack, to be
-    * popped or canceled later in FIFO order.
+    * popped or canceled later in LIFO order.
     *
     * The function needs a [[monix.execution.Scheduler Scheduler]]
     * to work because in case the connection was already cancelled,
@@ -66,7 +66,7 @@ private[eval] sealed abstract class TaskConnection extends CancelableF[Task] {
 
   /**
     * Pushes a [[monix.execution.Cancelable]] on the stack, to be
-    * popped or canceled later in FIFO order.
+    * popped or canceled later in LIFO order.
     *
     * The function needs a [[monix.execution.Scheduler Scheduler]]
     * to work because in case the connection was already cancelled,
@@ -76,7 +76,7 @@ private[eval] sealed abstract class TaskConnection extends CancelableF[Task] {
 
   /**
     * Pushes a [[monix.catnap.CancelableF]] on the stack, to be
-    * popped or canceled later in FIFO order.
+    * popped or canceled later in LIFO order.
     *
     * The function needs a [[monix.execution.Scheduler Scheduler]]
     * to work because in case the connection was already cancelled,
@@ -94,7 +94,7 @@ private[eval] sealed abstract class TaskConnection extends CancelableF[Task] {
   def pushConnections(seq: CancelableF[Task]*)(implicit s: Scheduler): Unit
 
   /**
-    * Removes a cancelable reference from the stack in FIFO order.
+    * Removes a cancelable reference from the stack in LIFO order.
     *
     * @return the cancelable reference that was removed.
     */

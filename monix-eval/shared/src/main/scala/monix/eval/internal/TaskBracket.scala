@@ -263,10 +263,10 @@ private[monix] object TaskBracket {
     }
 
     private final def makeUncancelable(task: Task[B]): Task[B] = {
-      // NOTE: the "restore" part of this is `null` because we don't need to restore
-      // the original connection. The original connection gets restored automatically
-      // via how "TaskRestartCallback" works. This is risky!
-      ContextSwitch(task, withConnectionUncancelable, null)
+      // Unregistering cancel token, otherwise we can have a memory leak;
+      // N.B. conn.pop() happens after the evaluation of `release`, because
+      // otherwise we might have a conflict with the auto-cancellation logic
+      ContextSwitch(task, withConnectionUncancelable, disableUncancelableAndPop)
     }
   }
 
@@ -282,4 +282,10 @@ private[monix] object TaskBracket {
 
   private[this] val withConnectionUncancelable: Context => Context =
     _.withConnection(TaskConnection.uncancelable)
+
+  private[this] val disableUncancelableAndPop: (Any, Throwable, Context, Context) => Context =
+    (_, _, old, _) => {
+      old.connection.pop()
+      old
+    }
 }
