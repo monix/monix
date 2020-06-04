@@ -374,8 +374,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[consumeWith]] for another way of consuming observables
     */
   @UnsafeBecauseImpure
-  final def subscribe(nextFn: A => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit)(
-    implicit s: Scheduler): Cancelable = {
+  final def subscribe(nextFn: A => Future[Ack], errorFn: Throwable => Unit, completedFn: () => Unit)(implicit
+    s: Scheduler): Cancelable = {
 
     subscribe(new Subscriber[A] {
       implicit val scheduler = s
@@ -875,8 +875,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *  - `scala.concurrent.Future`
     *  - ...
     */
-  final def bracketCaseF[F[_], B](use: A => Observable[B])(release: (A, ExitCase[Throwable]) => F[Unit])(
-    implicit F: TaskLike[F]): Observable[B] =
+  final def bracketCaseF[F[_], B](use: A => Observable[B])(release: (A, ExitCase[Throwable]) => F[Unit])(implicit
+    F: TaskLike[F]): Observable[B] =
     bracketCase(use)((a, e) => F(release(a, e)))
 
   /** Applies the given partial function to the source
@@ -1781,7 +1781,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * for `concatMap` and NOT `mergeMap`.
     */
   final def flatMapIterable[B](f: A => immutable.Iterable[B]): Observable[B] =
-    self.flatMapIterable(f)
+    self.concatMapIterable(f)
 
   /** Alias for [[concatMap]].
     *
@@ -2024,8 +2024,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * @param keySelector  a function that extracts the key for each item
     */
-  final def groupBy[K](keySelector: A => K)(
-    implicit os: Synchronous[Nothing] = OverflowStrategy.Unbounded): Observable[GroupedObservable[K, A]] =
+  final def groupBy[K](keySelector: A => K)(implicit
+    os: Synchronous[Nothing] = OverflowStrategy.Unbounded): Observable[GroupedObservable[K, A]] =
     self.liftByOperator(new GroupByOperator[A, K](os, keySelector))
 
   /** Given a routine make sure to execute it whenever the current
@@ -2241,8 +2241,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *     which may lead to faster execution times
     * @see [[mapEval]] for serial execution
     */
-  final def mapParallelOrdered[B](parallelism: Int)(f: A => Task[B])(
-    implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
+  final def mapParallelOrdered[B](parallelism: Int)(f: A => Task[B])(implicit
+    os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
     new MapParallelOrderedObservable[A, B](self, parallelism, f, os)
 
   /** Version of [[mapParallelOrderedF]] that can work with generic
@@ -2296,8 +2296,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[mapParallelOrdered]] for a variant that does preserve order
     * @see [[mapEval]] for serial execution
     */
-  final def mapParallelUnordered[B](parallelism: Int)(f: A => Task[B])(
-    implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
+  final def mapParallelUnordered[B](parallelism: Int)(f: A => Task[B])(implicit
+    os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
     new MapParallelUnorderedObservable[A, B](self, parallelism, f, os)
 
   /** Version of [[mapParallelUnordered]] that can work with generic
@@ -2358,8 +2358,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @note $defaultOverflowStrategy
     * @return $mergeReturn
     */
-  final def merge[B](
-    implicit ev: A <:< Observable[B],
+  final def merge[B](implicit
+    ev: A <:< Observable[B],
     os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
     self.mergeMap(x => x)(os)
 
@@ -2393,8 +2393,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param f is a generator for the streams that will get merged
     * @return $mergeMapReturn
     */
-  final def mergeMap[B](f: A => Observable[B])(
-    implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
+  final def mergeMap[B](f: A => Observable[B])(implicit
+    os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
     new MergeMapObservable[A, B](self, f, os, delayErrors = false)
 
   /** $mergeDescription
@@ -2404,8 +2404,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @note $defaultOverflowStrategy
     * @return $mergeReturn
     */
-  final def mergeDelayErrors[B](
-    implicit ev: A <:< Observable[B],
+  final def mergeDelayErrors[B](implicit
+    ev: A <:< Observable[B],
     os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
     self.mergeMap(x => x)(os)
 
@@ -2416,8 +2416,8 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param f is a generator for the streams that will get merged
     * @return $mergeMapReturn
     */
-  final def mergeMapDelayErrors[B](f: A => Observable[B])(
-    implicit os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
+  final def mergeMapDelayErrors[B](f: A => Observable[B])(implicit
+    os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
     new MergeMapObservable[A, B](self, f, os, delayErrors = true)
 
   /** Overrides the default [[monix.execution.Scheduler Scheduler]],
@@ -4841,8 +4841,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *        in front (since this will be a hot data-source that cannot be
     *        back-pressured)
     */
-  def multicast[A](multicast: MulticastStrategy[A], overflow: OverflowStrategy.Synchronous[A])(
-    implicit s: Scheduler): (Observer.Sync[A], Observable[A]) = {
+  def multicast[A](multicast: MulticastStrategy[A], overflow: OverflowStrategy.Synchronous[A])(implicit
+    s: Scheduler): (Observer.Sync[A], Observable[A]) = {
 
     val ref = ConcurrentSubject(multicast, overflow)
     (ref, ref)
@@ -5031,8 +5031,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *  - `scala.concurrent.Future`
     *  - ...
     */
-  def fromInputStreamF[F[_]](in: F[InputStream], chunkSize: Int = 4096)(
-    implicit F: TaskLike[F]): Observable[Array[Byte]] =
+  def fromInputStreamF[F[_]](in: F[InputStream], chunkSize: Int = 4096)(implicit
+    F: TaskLike[F]): Observable[Array[Byte]] =
     fromInputStream(F(in), chunkSize)
 
   /** Converts a `java.io.InputStream` into an observable that will
@@ -5868,8 +5868,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *  - `scala.concurrent.Future`
     *  - ...
     */
-  def resourceCaseF[F[_], A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit])(
-    implicit F: TaskLike[F]): Observable[A] =
+  def resourceCaseF[F[_], A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit])(implicit
+    F: TaskLike[F]): Observable[A] =
     resourceCase(F(acquire))((a, e) => F(release(a, e)))
 
   /** Creates a combined observable from 2 source observables.
@@ -6024,8 +6024,8 @@ object Observable extends ObservableDeprecatedBuilders {
     oa4: Observable[A4],
     oa5: Observable[A5],
     oa6: Observable[A6]): Observable[(A1, A2, A3, A4, A5, A6)] =
-    new builders.CombineLatest6Observable(oa1, oa2, oa3, oa4, oa5, oa6)(
-      (a1, a2, a3, a4, a5, a6) => (a1, a2, a3, a4, a5, a6))
+    new builders.CombineLatest6Observable(oa1, oa2, oa3, oa4, oa5, oa6)((a1, a2, a3, a4, a5, a6) =>
+      (a1, a2, a3, a4, a5, a6))
 
   /** Creates a combined observable from 6 source observables.
     *
