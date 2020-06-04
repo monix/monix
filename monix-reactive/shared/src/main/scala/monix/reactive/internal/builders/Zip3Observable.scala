@@ -137,7 +137,7 @@ private[reactive] final class Zip3Observable[A1, A2, A3, +R](
         continueP.trySuccess(Stop)
         lastAck = Stop
       } else {
-        sourcesCompleted += 1.toByte
+        sourcesCompleted += 1
       }
     }
 
