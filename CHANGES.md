@@ -1,3 +1,34 @@
+## Version 3.2.2 (June 4, 2020)
+
+The release is binary and source compatible with 3.x.x line.
+It is released for the following Scala and ScalaJS versions:
+- Scala 2.11: ScalaJS 0.6.x
+- Scala 2.12: ScalaJS 0.6.x and 1.0.x
+- Scala 2.13: ScalaJS 0.6.x and 1.0.x
+
+Relevant updates:
+
+- [#1197](https://github.com/monix/monix/pull/1197): Fixes a memory leak in bracket, introduced in 3.2.0
+- [#1195](https://github.com/monix/monix/pull/1195): Fixes non-deterministic behavior in Observable.zip of sources different size
+- [#1190](https://github.com/monix/monix/pull/1190): Now Observable.groupBy correctly signals error as a failed stream instead of normal completion
+- [#1188](https://github.com/monix/monix/pull/1188): Fixes an issue in ForeachAsyncConsumer where it wasn't properly propagaing errors in some cases
+- [#1187](https://github.com/monix/monix/pull/1187): Fixes an issue where Observable.doAfterSubscribe was not executing its finalizer
+- [#1186](https://github.com/monix/monix/pull/1186): Observable.interval method now schedules the first tick asynchronously
+- [#1184](https://github.com/monix/monix/pull/1184): Huge performance improvement in CharsReader, InputStream and LinesReaderObservable
+- [#1154](https://github.com/monix/monix/pull/1161): Observable.fromInputStream and fromCharsReader now respects the chunkSize
+- [#1181](https://github.com/monix/monix/pull/1181): Fix MatchError in Iterant.fromReactivePublisher
+
+People who made this release possible:
+
+- Akosh Farkash (@aakoshh)
+- Alexander (@ppressives)
+- fnqista (@fnqista)
+- Kasper Kondzielski (@ghostbuster91)
+- Pau Alarcón (@paualarco)
+- Piotr Gawryś (@Avasil)
+- Vasily Kirichenko (@vasily-kirichenko)
+- Viktor Lövgren (@vlovgr)
+
 ## Version 3.2.1 (April 30, 2020)
 
 Bug fix release, fixing a critical issue with ScalaJS 1.0.x [#1666](https://github.com/monix/monix/issues/1166) and a corner case with `Bracket` [#1175](https://github.com/monix/monix/pull/1175)
