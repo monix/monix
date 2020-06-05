@@ -38,20 +38,21 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var completed = 0
 
-    def createObserver = new Observer[Long] {
-      def onNext(elem: Long): Future[Ack] = {
-        received += 1
-        Continue
-      }
+    def createObserver =
+      new Observer[Long] {
+        def onNext(elem: Long): Future[Ack] = {
+          received += 1
+          Continue
+        }
 
-      def onError(ex: Throwable): Unit = ()
-      def onComplete(): Unit = completed += 1
-    }
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = completed += 1
+      }
 
     val ref = Observable.interval(2.seconds).publish.refCount
     val s1 = ref.subscribe(createObserver)
 
-    assertEquals(received, 1)
+    s.tick(); assertEquals(received, 1)
     s.tick(2.seconds); assertEquals(received, 2)
 
     val s2 = ref.subscribe(createObserver)
@@ -82,15 +83,16 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var completed = 0
 
-    def createObserver = new Observer[Long] {
-      def onNext(elem: Long): Future[Ack] = {
-        received += 1
-        Continue
-      }
+    def createObserver =
+      new Observer[Long] {
+        def onNext(elem: Long): Future[Ack] = {
+          received += 1
+          Continue
+        }
 
-      def onError(ex: Throwable): Unit = completed += 1
-      def onComplete(): Unit = ()
-    }
+        def onError(ex: Throwable): Unit = completed += 1
+        def onComplete(): Unit = ()
+      }
 
     val ch = ConcurrentSubject.publish[Long](Unbounded)
     val ref = ch.publish.refCount
@@ -115,15 +117,16 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var completed = 0
 
-    def createObserver = new Observer[Long] {
-      def onNext(elem: Long): Future[Ack] = {
-        received += 1
-        Continue
-      }
+    def createObserver =
+      new Observer[Long] {
+        def onNext(elem: Long): Future[Ack] = {
+          received += 1
+          Continue
+        }
 
-      def onError(ex: Throwable): Unit = ()
-      def onComplete(): Unit = completed += 1
-    }
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = completed += 1
+      }
 
     val ch = ConcurrentSubject.publish[Long](Unbounded)
     val ref = ch.publish.refCount
@@ -143,15 +146,16 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var completed = 0
 
-    def createObserver = new Observer[Long] {
-      def onNext(elem: Long): Future[Ack] = {
-        received += 1
-        Continue
-      }
+    def createObserver =
+      new Observer[Long] {
+        def onNext(elem: Long): Future[Ack] = {
+          received += 1
+          Continue
+        }
 
-      def onError(ex: Throwable): Unit = ()
-      def onComplete(): Unit = completed += 1
-    }
+        def onError(ex: Throwable): Unit = ()
+        def onComplete(): Unit = completed += 1
+      }
 
     val ref = ch.publish.refCount
     val s1 = ref.subscribe(createObserver)

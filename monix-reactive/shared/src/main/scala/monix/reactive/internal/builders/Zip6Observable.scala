@@ -71,7 +71,9 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
     // MUST BE synchronized by `lock`
     var continueP = Promise[Ack]()
     // MUST BE synchronized by `lock`
-    var completeWithNext = false
+    var sourcesCompleted: Int = 0
+
+    def completeWithNext: Boolean = sourcesCompleted >= 1
 
     // MUST BE synchronized by `lock`
     def rawOnNext(a1: A1, a2: A2, a3: A3, a4: A4, a5: A5, a6: A6): Future[Ack] =
@@ -114,8 +116,9 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
           }
       }
 
-      continueP.completeWith(lastAck)
+      val oldP = continueP
       continueP = Promise[Ack]()
+      oldP.completeWith(lastAck)
       lastAck
     }
 
@@ -134,7 +137,9 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
       }
 
     def signalOnComplete(hasElem: Boolean): Unit = lock.synchronized {
-      if (!hasElem) {
+      // If all other sources have completed then
+      // we won't receive the next batch of elements
+      if (!hasElem || sourcesCompleted == 5) {
         lastAck match {
           case Continue => rawOnComplete()
           case Stop => () // do nothing
@@ -147,10 +152,10 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
             }
         }
 
-        continueP.success(Stop)
+        continueP.trySuccess(Stop)
         lastAck = Stop
       } else {
-        completeWithNext = true
+        sourcesCompleted += 1
       }
     }
 
