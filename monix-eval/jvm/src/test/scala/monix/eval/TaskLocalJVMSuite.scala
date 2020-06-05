@@ -278,60 +278,60 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
 //    test.runToFuture
 //  }
 
-  testAsync("Task.runToFuture isolates but preserves context for Future continuation") {
+  test("Task.runToFuture isolates but preserves context for Future continuation") {
     implicit val s: Scheduler = Scheduler.Implicits.traced
     val local = Local(0)
-    println(s"Main Local: ${Local.getContext()}")
+    val mainContext = Local.getContext()
 
-    def test(i: Int): Future[Local.Context] = {
+    def runTest(i: Int): Future[Unit] = {
+      assertEquals(Local.getContext(), mainContext) // isolated local shouldn't leak outside future continuation
+      val prev = local.get
+
       for {
-        _ <- {
-          val prev = local.get
-          println(s"$i: Using $prev from ${Local.getContext()}")
-          Task {
-            // sometimes starts with restored Local
-            println(s"$i: updating ${Local.getContext()}")
+//      _ <- Future {()}
+        isolated <- Task {
             local.update(prev + i)
-          }
-      }.runToFuture
+            Local.getContext()
+          }.runToFuture
         next <- Future {
-          val w = local.get
-          println(s"$i: updated to $w from ${Local.getContext()}")
-          w // received 0 != expected 2 czyli przeczytal bez izolacji
+          local.get
         }
       } yield {
         assertEquals(next, i)
-        Local.getContext()
+        assertEquals(Local.getContext(), isolated)
       }
     }
 
-    val futures = List.range(0, 6).map(test)
+    List.range(1, 1000).foreach { i =>
+      println(s"\n== RUN NUMBER $i ==\n")
+      println(s"MainLocal: $mainContext")
 
-    Future.sequence(futures).map { listOfLocals =>
-      assert(listOfLocals.toSet.size == listOfLocals.size, "All locals need to be unique")
+      Await.result(runTest(i), Duration.Inf)
     }
   }
 
-//  testAsync("Task.runToFuture isolates but preserves context for Future continuation on a single thread") {
+//  test("Task.runToFuture isolates but preserves context for Future continuation on a single thread") {
 //    implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
 //    val local = Local(0)
+//    val mainContext = Local.getContext()
 //
-//    def test(i: Int, isAsync: Boolean): Future[Local.Context] = {
+//    def runTest(i: Int): Future[Unit] = {
+//      assertEquals(Local.getContext(), mainContext)
+//      val prev = local.get
 //      for {
-//        prev <- Future(local.get)
-//        _ <- (if (isAsync) Task.evalAsync(local.update(prev + i)) else Task(local.update(prev + i))).runToFuture
-//        next <- Future(local.get)
+//        isolated <- Task {
+//          local.update(prev + i)
+//          Local.getContext()
+//        }.runToFuture
+//        next <- Future { local.get }
 //      } yield {
 //        assertEquals(next, i)
-//        Local.getContext()
+//        assertEquals(Local.getContext(), isolated)
 //      }
 //    }
 //
-//    val futures = List.range(0, 20).map(i => test(i, true)) ++
-//      List.range(20, 40).map(i => test(i, false))
-//
-//    Future.sequence(futures).map { listOfLocals =>
-//      assert(listOfLocals.toSet.size == listOfLocals.size, "All locals need to be unique")
+//    List.range(1, 100).foreach { i =>
+//      Await.result(runTest(i), Duration.Inf)
 //    }
 //  }
 }
