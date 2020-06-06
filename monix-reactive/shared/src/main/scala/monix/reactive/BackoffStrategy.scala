@@ -60,7 +60,7 @@ object BackoffStrategy {
   }
 
   /**
-    * Implements a Fibonacci Backoff Strategy, for example, and initial delay of 1 second plus a max attempts
+    * Implements a Fibonacci Backoff Strategy. For example, an initial delay of 1 second plus a max attempts
     * value of 5 would result in the following:
     *
     * | Attempt | Delay     |
