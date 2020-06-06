@@ -20,26 +20,35 @@ package monix.reactive.internal.operators
 import monix.execution.Ack.Continue
 import monix.execution.cancelables.OrderedCancelable
 import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.reactive.{BackoffStrategy, Observable}
 import monix.reactive.observers.Subscriber
+import monix.reactive.{BackoffStrategy, Observable}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
+import scala.util.control.NonFatal
 
-private[reactive] final class OnErrorRetryWithBackoffObservable[+A](source: Observable[A], maxRetries: Long, initialDelay: FiniteDuration, strategy: BackoffStrategy)
-  extends Observable[A] { self =>
+private[reactive] final class OnErrorRetryWithBackoffObservable[+A](
+  source: Observable[A],
+  maxAttempts: Long,
+  initialDelay: FiniteDuration,
+  strategy: BackoffStrategy) extends Observable[A] {self =>
 
-  private def loop(subscriber: Subscriber[A], task: OrderedCancelable, currAttempt: Long, currDelay: FiniteDuration): Unit = {
+  private def loop(
+    subscriber: Subscriber[A],
+    task: OrderedCancelable,
+    retryIdx: Long,
+    currentAttempt: Long,
+    currentDelay: FiniteDuration): Unit = {
 
     val cancelable = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler: Scheduler = subscriber.scheduler
 
-      private[this] var isDone = false
-      private[this] var inBackoff = true
+      private[this] var isDone  = false
+      private[this] var isError = true
       private[this] var ack: Future[Ack] = Continue
 
       def onNext(elem: A): Future[Ack] = {
-        inBackoff = false
+        if (isError) isError = false
         ack = subscriber.onNext(elem)
         ack
       }
@@ -54,15 +63,16 @@ private[reactive] final class OnErrorRetryWithBackoffObservable[+A](source: Obse
         if (!isDone) {
           isDone = true
 
-          if (maxRetries < 0 || currAttempt < maxRetries) {
-            if (inBackoff) {
-              scheduler.scheduleOnce(currDelay) {
-                ack.syncOnContinue(loop(subscriber, task, currAttempt + 1, strategy(currAttempt + 1, initialDelay, currDelay)))
+          if (maxAttempts < 0 || currentAttempt < maxAttempts) {
+            try {
+              val nextAttempt = if (isError) currentAttempt + 1 else 0
+              val nextDelay = if (isError) strategy(nextAttempt, initialDelay, currentDelay) else initialDelay
+
+              scheduler.scheduleOnce(currentDelay) {
+                ack.syncOnContinue(loop(subscriber, task, retryIdx + 1, nextAttempt, nextDelay))
               }
-            } else {
-              scheduler.scheduleOnce(initialDelay) {
-                ack.syncOnContinue(loop(subscriber, task, currAttempt = 0, strategy(0, initialDelay, initialDelay)))
-              }
+            } catch {
+              case NonFatal(ex) => subscriber.onError(ex)
             }
           } else {
             subscriber.onError(ex)
@@ -73,7 +83,7 @@ private[reactive] final class OnErrorRetryWithBackoffObservable[+A](source: Obse
 
     // We need to do an `orderedUpdate`, because `onError` might have
     // already executed and we might be resubscribed by now.
-    task.orderedUpdate(cancelable, currAttempt)
+    task.orderedUpdate(cancelable, retryIdx + 1)
   }
 
   /** Characteristic function for an `Observable` instance, that creates
@@ -87,7 +97,7 @@ private[reactive] final class OnErrorRetryWithBackoffObservable[+A](source: Obse
     */
   override def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val task = OrderedCancelable()
-    loop(subscriber, task, currAttempt = 0, initialDelay)
+    loop(subscriber, task, retryIdx = 0L, currentAttempt = 1L, initialDelay)
     task
   }
 }

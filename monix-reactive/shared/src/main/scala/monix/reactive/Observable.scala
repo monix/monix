@@ -2693,12 +2693,37 @@ abstract class Observable[+A] extends Serializable { self =>
     * it tries subscribing to the source again after the `initialDelay` has
     * expired, in the hope that it will complete without an error.
     *
-    * The number of retries is limited by the specified `maxRetries`
-    * parameter, while also implementing the specified backoff strategy meaning
-    * each successive retry will wait the specified amount of time before attempting
-    * to subscribe to the source again.
+    * The `maxRetries` parameter specifies the number of sequential retries that can be performed
+    * before the error handler gives up and calls `onError` on it's subscriber. This is reset to 1
+    * if resubscribing to the source [[Observable]] is successful.
+    *
+    * See [[BackoffStrategy]] for the full list of included BackoffStrategies, each retry attempt waits for
+    * the duration calculated by the provided [[BackoffStrategy]]. Like the `maxRetries` value
+    * the delay is reset to the value of `initialDelay` should resubscribing to the source [[Observable]]
+    * be successful.
+    *
+    * These Strategies use the `initialDelay`, `currentDelay`, and `currentAttempt` to calculate the
+    * next duration. You can also provide your own implementation of [[BackoffStrategy]] should the
+    * provided ones not be suitable for your use case. For example:
+    *
+    * {{{
+    *   import monix.reactive.{BackoffStrategy, Observable}
+    *   import scala.concurrent.duration._
+    *
+    *   // Implements a simple Constant strategy that just reuses the value of `initialDelay`.
+    *   val constant = new BackoffStrategy {
+    *     override def apply(attempt: Long, initialDelay: FiniteDuration, currentDelay: FiniteDuration): FiniteDuration = {
+    *         initialDelay
+    *     }
+    *   }
+    *
+    *   Observable
+    *     .range(0, 20)
+    *     .onErrorRestartWithBackoff(10, 1.second, constant)
+    *
+    * }}}
     */
-  final def onErrorRestartWithBackoff(maxRetries: Long, initialDelay: FiniteDuration, strategy: BackoffStrategy = BackoffStrategy.Exponential): Observable[A] = {
+  final def onErrorRestartWithBackoff(maxRetries: Long, initialDelay: FiniteDuration, strategy: BackoffStrategy = BackoffStrategy.Linear): Observable[A] = {
     require(maxRetries >= 0, "maxRetries should be positive")
     new OnErrorRetryWithBackoffObservable(self, maxRetries, initialDelay, strategy)
   }

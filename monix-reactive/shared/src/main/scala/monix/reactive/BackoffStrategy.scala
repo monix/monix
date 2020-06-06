@@ -19,7 +19,6 @@ package monix.reactive
 
 import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
 
 abstract class BackoffStrategy extends ((Long, FiniteDuration, FiniteDuration) => FiniteDuration)
 
@@ -31,13 +30,13 @@ object BackoffStrategy {
     *
     * | Attempt | Delay     |
     * | ---     | ---       |
-    * | 1       | 0 seconds |
-    * | 2       | 1 seconds |
-    * | 3       | 2 seconds |
-    * | 4       | 3 seconds |
-    * | 5       | 4 seconds |
+    * | 1       | 1 seconds |
+    * | 2       | 2 seconds |
+    * | 3       | 3 seconds |
+    * | 4       | 4 seconds |
+    * | 5       | 5 seconds |
     */
-  case object Linear extends BackoffStrategy {
+  final case object Linear extends BackoffStrategy {
     override def apply(attempt: Long, initialDelay: FiniteDuration, currentDelay: FiniteDuration): FiniteDuration = {
       initialDelay * attempt
     }
@@ -55,9 +54,9 @@ object BackoffStrategy {
     * | 4       | 8 seconds  |
     * | 5       | 16 seconds |
     */
-  case object Exponential extends BackoffStrategy {
+  final case class Exponential(factor: Long = 2) extends BackoffStrategy {
     override def apply(attempt: Long, initialDelay: FiniteDuration, currentDelay: FiniteDuration): FiniteDuration =
-      currentDelay * 2
+      currentDelay * factor
   }
 
   /**
@@ -72,8 +71,7 @@ object BackoffStrategy {
     * | 4       | 3 seconds |
     * | 5       | 5 seconds |
     */
-  case object Fibonacci extends BackoffStrategy {
-
+  final case object Fibonacci extends BackoffStrategy {
     private def getNthFibonacciNumber(attempt: Long): Long = {
       @tailrec def loop(round: Long, a: Long, b: Long): Long = {
         if (round == attempt) b else loop(round + 1, b, a + b)
@@ -83,6 +81,6 @@ object BackoffStrategy {
     }
 
     override def apply(attempt: Long, initialDelay: FiniteDuration, currentDelay: FiniteDuration): FiniteDuration =
-      1.second * getNthFibonacciNumber(attempt)
+      initialDelay * getNthFibonacciNumber(attempt)
   }
 }
