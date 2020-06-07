@@ -163,6 +163,7 @@ Here's a (non-exhaustive) list of companies that use Monix in production. Don't 
 - [commercetools](https://commercetools.com)
 - [Coya](https://www.coya.com/)
 - [eBay Inc.](https://www.ebay.com)
+- [Iterators](https://www.iteratorshq.com)
 - [Sony Electronics](https://www.sony.com)
 - [Zalando](https://www.zalando.com)
 - [Agoda](https://www.agoda.com)
