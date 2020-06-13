@@ -32,9 +32,9 @@ object TransformerSuite extends TestSuite[TestScheduler] {
     val transformer = Transformer.map[Int, String](i => i.toString)
 
 
-    val r = Observable.from(1, 2, 3).transform(transformer).toListL.runSyncUnsafe()
+    val r = Observable.now(1).transform(transformer).headL.runSyncUnsafe()
 
-    assertEquals(r, List("1", "2", "3"))
+    assertEquals(r, "1")
   }
 
 
