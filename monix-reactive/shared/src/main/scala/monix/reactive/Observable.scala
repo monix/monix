@@ -4664,6 +4664,12 @@ abstract class Observable[+A] extends Serializable { self =>
     Task.create { (s, onFinish) =>
       unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s))
     }
+
+  final def transform[B](transformer: Observable[A] => Observable[B]): Observable[B] = {
+    transformer(this)
+  }
+
+
 }
 
 /** Observable builders.
