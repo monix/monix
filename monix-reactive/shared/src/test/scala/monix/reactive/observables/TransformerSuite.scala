@@ -19,7 +19,12 @@ package monix.reactive.observables
 
 import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
+import monix.reactive.Observable.Transformation
+import monix.reactive.internal.transformer.MapTransformer
 import monix.reactive.{Observable, Transformer}
+
+import scala.concurrent.duration._
+import scala.concurrent.Await
 
 
 object TransformerSuite extends TestSuite[TestScheduler] {
@@ -29,13 +34,32 @@ object TransformerSuite extends TestSuite[TestScheduler] {
   }
 
   test("transformer ") { implicit s =>
-    val transformer = Transformer.map[Int, String](i => i.toString)
+    val transformer: Transformation[Int, String] = Transformer.map[String](i => i.toString)
 
+    s.tick()
 
-    val r = Observable.now(1).transform(transformer).headL.runSyncUnsafe()
+    val f = Observable.now(1).transform(transformer).headL.runToFuture
+    val r = Await.result(f, 1.seconds)
 
     assertEquals(r, "1")
   }
+
+
+
+  test("transformer chain") { implicit s =>
+    val transformer: Observable[Int] => Observable[String] = Transformer
+      .map[String](i => i.toString)
+      .map[String](s => s + s)
+      .chainPrevious
+
+    s.tick()
+
+    val f = Observable.now(1).transform(transformer).headL.runToFuture
+    val r = Await.result(f, 1.seconds)
+
+    assertEquals(r, "11")
+  }
+
 
 
 }

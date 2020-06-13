@@ -19,20 +19,7 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
-import cats.{
-  ~>,
-  Alternative,
-  Applicative,
-  Apply,
-  CoflatMap,
-  Eq,
-  FlatMap,
-  Functor,
-  FunctorFilter,
-  Monoid,
-  NonEmptyParallel,
-  Order
-}
+import cats.{Alternative, Applicative, Apply, CoflatMap, Eq, FlatMap, Functor, FunctorFilter, Monoid, NonEmptyParallel, Order, ~>}
 import cats.effect.{Bracket, Effect, ExitCase, Resource}
 import monix.eval.{Coeval, Task, TaskLift, TaskLike}
 import monix.eval.Task.defaultOptions
@@ -4665,6 +4652,7 @@ abstract class Observable[+A] extends Serializable { self =>
       unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s))
     }
 
+
   final def transform[B](transformer: Observable[A] => Observable[B]): Observable[B] = {
     transformer(this)
   }
@@ -4712,6 +4700,8 @@ object Observable extends ObservableDeprecatedBuilders {
     * See [[Observable.liftByOperator]].
     */
   type Operator[-I, +O] = Subscriber[O] => Subscriber[I]
+
+  type Transformation[A, B] = Observable[A] => Observable[B]
 
   /** Given a sequence of elements, builds an observable from it. */
   def apply[A](elems: A*): Observable[A] =

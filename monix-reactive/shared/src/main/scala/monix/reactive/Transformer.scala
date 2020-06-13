@@ -17,55 +17,47 @@
 
 package monix.reactive
 
-import monix.reactive.Transformer.Transformer
+import monix.reactive.Observable.Transformation
+import monix.reactive.internal.transformer.MapTransformer
 
-abstract class TransformerBuilder[A, B, C ,D, E](first: Option[TransformerBuilder[D, E, Any, D, E]]) extends Transformer[A, B] {
-
-
- /* def a(observable: Observable[A]) = {
-    new Transformer(observable)
-  }*/
-
-  var nextT: Option[TransformerBuilder[B, C, _, D, E]] = None
-
-  val firstT: TransformerBuilder[_ >: A with D, _ >: B with E, _, D, E] = if(first.isEmpty) this else first.get
-
-  def chain(observable: Observable[A]): Observable[Any] = {
-    nextT match {
-      //case Some(nextTransformation) => nextTransformation.apply(this.apply)
-      case Some(nextTransformation) => nextTransformation.chain(this.apply(observable))
-      case None => this.apply(observable)
-    }
-  }
-
-  def map(f: B => C): TransformerMap[B, C, _, D, E] = {
-    val mapTransformer = new TransformerMap[B, C, Any, D, E](f, first)
-    nextT = Some(mapTransformer)
-    mapTransformer
-  }
-
-/*  def build(observable: Observable[A]) = {
-    firstT.chainTransformation()
-//    transformationChain.fold(observable)((state: Observable[_], next: Transformer[_, _]) => this.chainTransformation(next))
-  }*/
-
+sealed trait Trans[A, B, I] extends Transformation[A, B] {
+  def chainPrevious(observable: Observable[I]): Observable[B]
 }
 
-class TransformerMap[A, B, C, D, E](f: A => B, first: Option[TransformerBuilder[D, E, Any, D, E]]) extends TransformerBuilder[A, B, C, D, E](first) {
+abstract class Transformer[A, B, I](previous: Trans[_, A, I]) extends Transformation[A, B] with Trans[A, B, I]  {
 
-  override def apply(v1: Observable[A]): Observable[B] = {
-    v1.map(f)
+  //var nextTransformer: Option[Transformer[B, Any, I]] = None
+
+  def chainPrevious(observable: Observable[I]): Observable[B] = {
+    this.apply(previous.chainPrevious(observable))
   }
+
+  def map[C](f: B => C): Transformer[B, C, I] =
+    new MapTransformer[B, C, I](f, this)
+
 
 }
 
 
 
-object Transformer {
-  type Transformer[A, B] = Observable[A] => Observable[B]
+object Transformer extends Transformer[Any, Any, Any](TransIdentity) {
 
- // def apply[A](observable: Observable[A]): Transformer[A, A] = new Transformer(observable)
-  def map[A, B](f: A => B) = new TransformerMap[A, B, A, B, Any](f, None)
+  override def apply(v1: Observable[Any]): Observable[Any] = v1
+
+  override def chainPrevious(observable: Observable[Any]): Observable[Any] = observable
 
 }
+
+object TransIdentity extends TransIdentity
+
+trait TransIdentity extends Trans[Any, Any, Any] {
+
+  def chainPrevious(observable: Observable[Any]): Observable[Any] = {
+    observable
+  }
+
+  override def apply(v1: Observable[Any]): Observable[Any] = v1
+}
+
+
 
