@@ -18,46 +18,33 @@
 package monix.reactive
 
 import monix.reactive.Observable.Transformation
-import monix.reactive.internal.transformer.MapTransformer
+import monix.reactive.internal.transformer.{BufferTumblingTransformer, ChainableT, FlatMapTransformer, MapTransformer, TransformerIdentity}
 
-sealed trait Trans[A, B, I] extends Transformation[A, B] {
-  def chainPrevious(observable: Observable[I]): Observable[B]
-}
+abstract class Transformer[A, B, I](previous: ChainableT[_, A, I]) extends Transformation[A, B] with ChainableT[A, B, I] {
 
-abstract class Transformer[A, B, I](previous: Trans[_, A, I]) extends Transformation[A, B] with Trans[A, B, I]  {
-
-  //var nextTransformer: Option[Transformer[B, Any, I]] = None
-
-  def chainPrevious(observable: Observable[I]): Observable[B] = {
+  def chainPrevious(observable: Observable[I]): Observable[B] =
     this.apply(previous.chainPrevious(observable))
-  }
+
+  def chain(observable: Observable[I]): Observable[B] =
+    this.apply(previous.chainPrevious(observable))
 
   def map[C](f: B => C): Transformer[B, C, I] =
     new MapTransformer[B, C, I](f, this)
 
+  def flatMap[C](f: B => Observable[C]): Transformer[B, C, I] =
+    new FlatMapTransformer[B, C, I](f, this)
+
+  def bufferTumbling(n: Int): Transformer[B, Seq[B], I] =
+    new BufferTumblingTransformer[B, I](n, this)
 
 }
 
+object Transformer extends Transformer[Any, Any, Any] (new TransformerIdentity {}) with TransformerIdentity
 
 
-object Transformer extends Transformer[Any, Any, Any](TransIdentity) {
 
-  override def apply(v1: Observable[Any]): Observable[Any] = v1
 
-  override def chainPrevious(observable: Observable[Any]): Observable[Any] = observable
 
-}
-
-object TransIdentity extends TransIdentity
-
-trait TransIdentity extends Trans[Any, Any, Any] {
-
-  def chainPrevious(observable: Observable[Any]): Observable[Any] = {
-    observable
-  }
-
-  override def apply(v1: Observable[Any]): Observable[Any] = v1
-}
 
 
 

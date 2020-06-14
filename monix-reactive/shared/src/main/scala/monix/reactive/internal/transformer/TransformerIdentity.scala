@@ -17,14 +17,12 @@
 
 package monix.reactive.internal.transformer
 
-import monix.reactive.{Observable, Transformer}
+import monix.reactive.Observable
 
+trait TransformerIdentity extends ChainableT[Any, Any, Any] {
 
-class MapTransformer[A, B, I](f: A => B, previous: ChainableT[_, A, I]) extends Transformer[A, B, I](previous) {
+  override def chainPrevious(ob: Observable[Any]): Observable[Any] = ob
 
-  override def apply(v1: Observable[A]): Observable[B] = {
-    v1.map(f)
-  }
-
+  override def apply(ob: Observable[Any]): Observable[Any] = ob
 }
 

@@ -20,10 +20,10 @@ package monix.reactive.internal.transformer
 import monix.reactive.{Observable, Transformer}
 
 
-class MapTransformer[A, B, I](f: A => B, previous: ChainableT[_, A, I]) extends Transformer[A, B, I](previous) {
+class BufferTumblingTransformer[A, I](n: Int, previous: ChainableT[_, A, I]) extends Transformer[A, Seq[A], I](previous) {
 
-  override def apply(v1: Observable[A]): Observable[B] = {
-    v1.map(f)
+  override def apply(ob: Observable[A]): Observable[Seq[A]] = {
+    ob.bufferTumbling(n)
   }
 
 }

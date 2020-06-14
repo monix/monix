@@ -15,36 +15,32 @@
  * limitations under the License.
  */
 
-package monix.reactive.observables
+package monix.reactive.internal.transformer
 
 import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.Observable.Transformation
 import monix.reactive.{Observable, Transformer}
+import monix.reactive.Observable.Transformation
 
-import scala.concurrent.duration._
 import scala.concurrent.Await
+import scala.concurrent.duration._
 
-object TransformerSuite extends TestSuite[TestScheduler] {
+
+object FlatMapTransformerSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("transform should accept any transformation ") { implicit s =>
-    def transformerA(obA: Observable[Int]): Observable[String] = obA.map(_.toString)
-    val transformerB: Transformation[Int, String] = Transformer.map[String](i => i.toString)
+  test("should expose flatMap transformations") { implicit s =>
+    val transformer: Transformation[Int, String] =
+      Transformer.flatMap[String](i => Observable.now(i.toString))
 
     s.tick()
+    val f = Observable.now(1).transform(transformer).headL.runToFuture
+    val r = Await.result(f, 1.seconds)
 
-    val f1 = Observable.now(1).transform(transformerA).headL.runToFuture
-    val f2 = Observable.now(1).transform(transformerB).headL.runToFuture
-
-    val r1 = Await.result(f1, 1.seconds)
-    val r2 = Await.result(f2, 1.seconds)
-    assertEquals(r1, "1")
-    assertEquals(r2, "1")
-
+    assertEquals(r, "1")
   }
 
 }

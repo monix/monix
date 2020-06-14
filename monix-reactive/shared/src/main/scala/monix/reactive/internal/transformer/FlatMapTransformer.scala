@@ -20,10 +20,10 @@ package monix.reactive.internal.transformer
 import monix.reactive.{Observable, Transformer}
 
 
-class MapTransformer[A, B, I](f: A => B, previous: ChainableT[_, A, I]) extends Transformer[A, B, I](previous) {
+class FlatMapTransformer[A, B, I](f: A => Observable[B], previous: ChainableT[_, A, I]) extends Transformer[A, B, I](previous) {
 
   override def apply(v1: Observable[A]): Observable[B] = {
-    v1.map(f)
+    v1.flatMap(f)
   }
 
 }
