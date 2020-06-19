@@ -6056,6 +6056,18 @@ object Observable extends ObservableDeprecatedBuilders {
     }
   }
 
+  /** Given an observable sequence and associated priorities, it combines them
+    * into a new observable, preferring higher-priority sources when multiple
+    * sources have items available.
+    */
+  def mergePrioritizedList[A](sources: Observable[A]*)(priorities: Seq[Int]): Observable[A] = {
+    if (sources.isEmpty) {
+      Observable.empty
+    } else {
+      new MergePrioritizedListObservable[A](sources, priorities)
+    }
+  }
+
   /** Given a list of source Observables, emits all of the items from
     * the first of these Observables to emit an item or to complete,
     * and cancel the rest.
