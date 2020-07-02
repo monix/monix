@@ -4712,7 +4712,10 @@ object Observable extends ObservableDeprecatedBuilders {
     */
   type Operator[-I, +O] = Subscriber[O] => Subscriber[I]
 
-  /** A `Transformer` is a function used for transforming observables */
+  /** A `Transformer` is a function used for transforming observables.
+    *
+    * See [[Observable.transform]]
+    */
   type Transformer[-A, +B] = Observable[A] => Observable[B]
 
   /** Given a sequence of elements, builds an observable from it. */
