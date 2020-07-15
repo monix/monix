@@ -21,7 +21,7 @@ import cats.effect.IO
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
-import monix.execution.{ExecutionModel, Scheduler}
+import monix.execution.{CancelableFuture, ExecutionModel, Scheduler}
 import monix.execution.misc.Local
 import monix.execution.schedulers.TracingScheduler
 
@@ -276,5 +276,118 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     } yield ()
 
     test.runToFuture
+  }
+
+  testAsync("Task.evalAsync.runToFuture isolates but preserves context for Future continuation") {
+    implicit val s: Scheduler = Scheduler.Implicits.traced
+    val local = Local(0)
+    val n = 100
+
+    case class TestResult(lastCtx: Local.Context, isolatedCtx: Local.Context, lastValue: Int, expectedValue: Int)
+
+    val promises = Array.fill(n)(Promise[TestResult]())
+
+    def test(i: Int): Future[Unit] = {
+      val prev = local.get
+
+      for {
+        // TODO: figure out why the first one fails if test starts on a different ec
+        _ <- Future.unit
+        isolated <- Task.evalAsync {
+          local.update(prev + i)
+          Local.getContext()
+        }.runToFuture
+        next <- Future {
+          local.get
+        }
+      } yield {
+        promises(i).success(TestResult(Local.getContext(), isolated, next, i))
+      }
+    }
+
+    List.range(0, n).foreach(test)
+
+    Future
+      .traverse(promises.toList)(_.future)
+      .map(_.foreach {
+        case TestResult(ctx, expected, next, expectedValue) =>
+          assertEquals(ctx, expected)
+          assertEquals(next, expectedValue)
+      })
+  }
+
+  testAsync("Task.eval.runToFuture isolates but preserves context for Future continuation") {
+    implicit val s: Scheduler = Scheduler.Implicits.traced
+    val local = Local(0)
+    val n = 100
+
+    case class TestResult(lastCtx: Local.Context, isolatedCtx: Local.Context, lastValue: Int, expectedValue: Int)
+
+    val promises = Array.fill(n)(Promise[TestResult]())
+
+    def test(i: Int): Future[Unit] = {
+      val prev = local.get
+
+      for {
+        // TODO: figure out why the first one fails if test starts on a different ec
+        _ <- Future.unit
+        isolated <- Task.eval {
+          local.update(prev + i)
+          Local.getContext()
+        }.runToFuture
+        next <- Future {
+          local.get
+        }
+      } yield {
+        promises(i).success(TestResult(Local.getContext(), isolated, next, i))
+      }
+    }
+
+    List.range(0, n).foreach(test)
+
+    Future
+      .traverse(promises.toList)(_.future)
+      .map(_.foreach {
+        case TestResult(ctx, expected, next, expectedValue) =>
+          assertEquals(ctx, expected)
+          assertEquals(next, expectedValue)
+      })
+  }
+
+  testAsync("Task.evalAsync.runToFuture isolates but preserves context for Future continuation on a single thread") {
+    implicit val s: Scheduler = TracingScheduler(Scheduler.singleThread("local-test"))
+    val local = Local(0)
+    val n = 100
+    case class TestResult(lastCtx: Local.Context, isolatedCtx: Local.Context, lastValue: Int, expectedValue: Int)
+
+    val promises = Array.fill(n)(Promise[TestResult]())
+
+    def test(i: Int): Future[Unit] = {
+      val prev = local.get
+
+      for {
+        // TODO: figure out why the first one fails if test starts on a different ec
+        _ <- Future.unit
+        isolated <- Task.evalAsync {
+          local.update(prev + i)
+          Local.getContext()
+        }.runToFuture
+        next <- Future {
+          local.get
+        }
+      } yield {
+        promises(i).success(TestResult(Local.getContext(), isolated, next, i))
+      }
+    }
+
+    List.range(0, n).foreach(test)
+
+    Future
+      .traverse(promises.toList)(_.future)
+      .map(_.foreach {
+        case TestResult(ctx, expected, next, expectedValue) =>
+          assertEquals(ctx, expected)
+          assertEquals(next, expectedValue)
+      })
   }
 }

@@ -18,12 +18,11 @@
 package monix.eval.internal
 
 import cats.effect.CancelToken
-import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend}
-import monix.execution.Callback
 import monix.eval.Task
+import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend}
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.misc.Local
-import monix.execution.{CancelableFuture, ExecutionModel, Scheduler}
+import monix.execution.{Callback, CancelableFuture, ExecutionModel, Scheduler}
 
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
@@ -460,7 +459,7 @@ private[eval] object TaskRunLoop {
     * synchronously falling back to [[startFull]] and actual
     * asynchronous execution in case of an asynchronous boundary.
     *
-    * Function gets invoked by `Task.runAsync(implicit s: Scheduler)`.
+    * Function gets invoked by `Task.runToFuture(implicit s: Scheduler)`.
     */
   def startFuture[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): CancelableFuture[A] = {
     var current = source.asInstanceOf[Task[Any]]
@@ -544,6 +543,7 @@ private[eval] object TaskRunLoop {
           popNextBind(bFirst, bRest) match {
             case null =>
               return CancelableFuture.successful(unboxed.asInstanceOf[A])
+
             case bind =>
               // Try/catch described as statement to prevent ObjectRef ;-)
               try {
@@ -637,7 +637,6 @@ private[eval] object TaskRunLoop {
     val p = Promise[A]()
     val cb = Callback.fromPromise(p).asInstanceOf[Callback[Throwable, Any]]
     val context = Context(scheduler, opts)
-    val current = source.asInstanceOf[Task[A]]
 
     if (!forceFork) source match {
       case async: Async[Any] =>
@@ -646,7 +645,7 @@ private[eval] object TaskRunLoop {
         startFull(source, context, cb, null, bFirst, bRest, nextFrame)
     }
     else {
-      restartAsync(current, context, cb, null, bFirst, bRest)
+      restartAsync(source.asInstanceOf[Task[A]], context, cb, null, bFirst, bRest)
     }
 
     CancelableFuture(p.future, context.connection.toCancelable(scheduler))
@@ -717,7 +716,7 @@ private[eval] object TaskRunLoop {
     // $COVERAGE-ON$
   }
 
-  private def frameStart(em: ExecutionModel): FrameIndex =
+  private[internal] def frameStart(em: ExecutionModel): FrameIndex =
     em.nextFrameIndex(0)
 
   private final class RestoreContext(old: Context, restore: (Any, Throwable, Context, Context) => Context)
