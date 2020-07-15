@@ -22,11 +22,9 @@ import monix.eval.Task
 import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend}
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.misc.Local
-import monix.execution.schedulers.TrampolineExecutionContext
-import monix.execution.{Callback, Cancelable, CancelableFuture, ExecutionModel, Scheduler}
+import monix.execution.{Callback, CancelableFuture, ExecutionModel, Scheduler}
 
 import scala.concurrent.Promise
-import scala.util.Success
 import scala.util.control.NonFatal
 
 private[eval] object TaskRunLoop {
@@ -474,9 +472,6 @@ private[eval] object TaskRunLoop {
     val em = scheduler.executionModel
     var frameIndex = frameStart(em)
 
-    val prev = Local.getContext()
-    val isolated = prev.isolate()
-
     do {
       if (frameIndex != 0) {
         current match {
@@ -494,7 +489,6 @@ private[eval] object TaskRunLoop {
             hasUnboxed = true
 
           case Eval(thunk) =>
-            Local.setContext(isolated)
             try {
               unboxed = thunk().asInstanceOf[AnyRef]
               hasUnboxed = true
@@ -513,7 +507,6 @@ private[eval] object TaskRunLoop {
             current = fa
 
           case Suspend(thunk) =>
-            Local.setContext(isolated)
             // Try/catch described as statement to prevent ObjectRef ;-)
             try {
               current = thunk()
@@ -549,13 +542,7 @@ private[eval] object TaskRunLoop {
         if (hasUnboxed) {
           popNextBind(bFirst, bRest) match {
             case null =>
-              Local.setContext(prev) // restore Local on the current thread
-
-              return CancelableFuture.unit.flatMap(_ => CancelableFuture.async[A]{ cb =>
-                Local.setContext(isolated)
-                cb(Success(unboxed.asInstanceOf[A]))
-                Cancelable.empty
-              }(scheduler))(scheduler)
+              return CancelableFuture.successful(unboxed.asInstanceOf[A])
 
             case bind =>
               // Try/catch described as statement to prevent ObjectRef ;-)
@@ -647,14 +634,9 @@ private[eval] object TaskRunLoop {
     nextFrame: FrameIndex,
     forceFork: Boolean): CancelableFuture[A] = {
 
-    val prev = Local.getContext()
-    val isolated = prev.isolate()
-    Local.setContext(isolated)
-
     val p = Promise[A]()
     val cb = Callback.fromPromise(p).asInstanceOf[Callback[Throwable, Any]]
     val context = Context(scheduler, opts)
-    val current = source.asInstanceOf[Task[A]]
 
     if (!forceFork) source match {
       case async: Async[Any] =>
@@ -663,17 +645,10 @@ private[eval] object TaskRunLoop {
         startFull(source, context, cb, null, bFirst, bRest, nextFrame)
     }
     else {
-      restartAsync(current, context, cb, null, bFirst, bRest)
+      restartAsync(source.asInstanceOf[Task[A]], context, cb, null, bFirst, bRest)
     }
 
-    CancelableFuture.async[A] { cb =>
-      p.future.onComplete { result =>
-        Local.setContext(isolated)
-        cb(result)
-      }(TrampolineExecutionContext.immediate)
-      Local.setContext(prev)
-      context.connection.toCancelable(scheduler)
-    }(scheduler)
+    CancelableFuture(p.future, context.connection.toCancelable(scheduler))
   }
 
   /** Called when we hit the first async boundary in [[startStep]]. */
@@ -741,7 +716,7 @@ private[eval] object TaskRunLoop {
     // $COVERAGE-ON$
   }
 
-  private def frameStart(em: ExecutionModel): FrameIndex =
+  private[internal] def frameStart(em: ExecutionModel): FrameIndex =
     em.nextFrameIndex(0)
 
   private final class RestoreContext(old: Context, restore: (Any, Throwable, Context, Context) => Context)
