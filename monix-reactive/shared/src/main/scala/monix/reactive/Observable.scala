@@ -4666,7 +4666,7 @@ abstract class Observable[+A] extends Serializable { self =>
     }
 
   /** Transforms the source using the given transformer function. */
-  final def transform[B](transformer: Transformer[A, B]): Observable[B] =
+  def transform[B](transformer: Transformer[A, B]): Observable[B] =
     transformer(this)
 
 }
