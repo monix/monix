@@ -73,7 +73,7 @@ object CoevalMapCallsBenchmark {
     var sum = 0L
     var i = 0
     while (i < iterations) {
-      sum += io.value
+      sum += io.value()
       i += 1
     }
     sum

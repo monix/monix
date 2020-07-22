@@ -27,7 +27,7 @@ private[monix] final class RunnableAction private (action: () => Unit) extends R
 private[monix] object RunnableAction {
   /** Builder for [[RunnableAction]] */
   def apply(action: => Unit): Runnable =
-    new RunnableAction(action _)
+    new RunnableAction(() => action)
 
   /** Builder for [[RunnableAction]] */
   def from(f: () => Unit): Runnable =

@@ -54,7 +54,7 @@ final class MultiAssignCancelable private (initial: Cancelable) extends Assignab
   }
 
   override def isCanceled: Boolean =
-    state.get match {
+    state.get() match {
       case null => true
       case _ => false
     }
@@ -67,7 +67,7 @@ final class MultiAssignCancelable private (initial: Cancelable) extends Assignab
   }
 
   @tailrec def `:=`(value: Cancelable): this.type =
-    state.get match {
+    state.get() match {
       case null =>
         value.cancel()
         this
@@ -99,7 +99,7 @@ final class MultiAssignCancelable private (initial: Cancelable) extends Assignab
     * dummy references.
     */
   @tailrec def clear(): Cancelable = {
-    val current: Cancelable = state.get
+    val current: Cancelable = state.get()
     if ((current ne null) && !current.isInstanceOf[IsDummy]) {
       if (state.compareAndSet(current, Cancelable.empty)) {
         current

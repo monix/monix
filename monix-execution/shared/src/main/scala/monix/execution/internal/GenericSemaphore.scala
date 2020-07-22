@@ -117,7 +117,7 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
   protected final def unsafeReleaseN(n: Long): Unit = {
     assert(n >= 0, "n must be positive")
 
-    stateRef.get match {
+    stateRef.get() match {
       case current @ State(available, promises, awaitReleases) =>
         // No promises made means we should only increase
         if (promises.isEmpty) {
@@ -168,7 +168,7 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
 
   @tailrec
   protected final def unsafeAwaitAvailable(n: Long, await: Listener[Unit]): CancelToken =
-    stateRef.get match {
+    stateRef.get() match {
       case current @ State(available, _, awaitReleases) =>
         if (available >= n) {
           await(Constants.eitherOfUnit)
@@ -189,7 +189,7 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
 
   private[this] val cancelAwaitRelease: (Listener[Unit] => Unit) = {
     @tailrec def loop(p: Listener[Unit]): Unit = {
-      val current: State = stateRef.get
+      val current: State = stateRef.get()
       val update = current.removeAwaitReleaseRef(p)
       if (!stateRef.compareAndSet(current, update))
         loop(p) // retry
@@ -199,7 +199,7 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
 
   private[this] def cancelAcquisition(n: Long, isAsync: Boolean): (Listener[Unit] => Unit) = {
     @tailrec def loop(permit: Listener[Unit]): Unit = {
-      val current: State = stateRef.get
+      val current: State = stateRef.get()
 
       current.awaitPermits.find(_._2 eq permit) match {
         case None =>

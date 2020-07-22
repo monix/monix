@@ -254,7 +254,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
           val next: A = {
             // Do we have an overflow message to send?
             val overflowMessage =
-              if (onOverflow == null || droppedCount.get == 0)
+              if (onOverflow == null || droppedCount.get() == 0)
                 null.asInstanceOf[A]
               else
                 onOverflow(droppedCount.getAndSet(0)).value() match {
@@ -315,7 +315,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
             // there's a clear happens-before relationship between
             // queue.offer() and upstreamIsComplete=true
             currentQueue = queue.drain()
-            if (currentQueue.isEmpty && (onOverflow == null || droppedCount.get == 0)) {
+            if (currentQueue.isEmpty && (onOverflow == null || droppedCount.get() == 0)) {
               // ending loop
               downstreamIsComplete = true
 

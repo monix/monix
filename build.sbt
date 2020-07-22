@@ -39,6 +39,14 @@ ThisBuild/catsEffectVersion := {
   }
 }
 
+lazy val fs2Version = settingKey[String]("fs2 version")
+ThisBuild/catsEffectVersion := {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 11)) => "2.1.0"
+    case _ => "2.4.0"
+  }
+}
+
 val jcToolsVersion = "2.1.2"
 val reactiveStreamsVersion = "1.0.3"
 val minitestVersion = "2.8.2"
@@ -72,8 +80,8 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.13.1",
-  crossScalaVersions := Seq("2.11.12", "2.12.10", "2.13.1"),
+  scalaVersion := "2.13.3",
+  crossScalaVersions := Seq("2.11.12", "2.12.10", "2.13.3"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -107,7 +115,6 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     // Enables linter options
     "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
     "-Xlint:nullary-unit", // warn when nullary methods return Unit
-    "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
     "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
     "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
     "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
@@ -497,7 +504,8 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .settings(
     libraryDependencies ++= Seq(
       "io.monix" %% "monix" % "3.2.0",
-      "dev.zio" %% "zio" % "1.0.0-RC18-2"
+      "dev.zio" %% "zio" % "1.0.0-RC18-2",
+      "co.fs2" %% "fs2-core" % fs2Version
   ))
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
@@ -509,7 +517,8 @@ lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio" % "1.0.0-RC18-2"
+      "dev.zio" %% "zio" % "1.0.0-RC18-2",
+      "co.fs2" %% "fs2-core" % fs2Version
     ))
 
 //------------- For Release

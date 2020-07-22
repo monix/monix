@@ -40,7 +40,7 @@ final class SingleAssignSubscription private () extends Subscription {
   def :=(s: org.reactivestreams.Subscription): Unit = set(s)
 
   def set(s: org.reactivestreams.Subscription): Unit = {
-    val current = state.get
+    val current = state.get()
 
     current match {
       case Empty =>
@@ -69,7 +69,7 @@ final class SingleAssignSubscription private () extends Subscription {
 
   @tailrec
   def cancel(): Unit = {
-    val current = state.get
+    val current = state.get()
 
     current match {
       case Empty =>
@@ -93,7 +93,7 @@ final class SingleAssignSubscription private () extends Subscription {
 
   @tailrec
   def request(n: Long): Unit = {
-    val current = state.get
+    val current = state.get()
 
     current match {
       case Empty =>

@@ -72,7 +72,7 @@ final class OrderedCancelable private (initial: Cancelable) extends AssignableCa
   }
 
   override def isCanceled: Boolean =
-    state.get match {
+    state.get() match {
       case Cancelled => true
       case _ => false
     }
@@ -82,7 +82,7 @@ final class OrderedCancelable private (initial: Cancelable) extends AssignableCa
     * reference is shared.
     */
   def currentOrder: Long =
-    state.get match {
+    state.get() match {
       case Cancelled => 0
       case Active(_, order) => order
     }
@@ -96,7 +96,7 @@ final class OrderedCancelable private (initial: Cancelable) extends AssignableCa
   }
 
   @tailrec def `:=`(value: Cancelable): this.type =
-    state.get match {
+    state.get() match {
       case Cancelled =>
         value.cancel()
         this
@@ -118,7 +118,7 @@ final class OrderedCancelable private (initial: Cancelable) extends AssignableCa
     * Useful to force ordering for concurrent updates.
     */
   @tailrec def orderedUpdate(value: Cancelable, order: Long): this.type =
-    state.get match {
+    state.get() match {
       case Cancelled =>
         value.cancel()
         this

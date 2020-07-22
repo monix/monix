@@ -37,13 +37,13 @@ private[monix] final class DynamicWorkerThreadFactory(
   private[this] val currentNumberOfThreads = AtomicInt(0)
 
   @tailrec private def reserveThread(): Boolean =
-    currentNumberOfThreads.get match {
+    currentNumberOfThreads.get() match {
       case `maxThreads` | Int.`MaxValue` => false
       case other => currentNumberOfThreads.compareAndSet(other, other + 1) || reserveThread()
     }
 
   @tailrec private def deregisterThread(): Boolean =
-    currentNumberOfThreads.get match {
+    currentNumberOfThreads.get() match {
       case 0 => false
       case other => currentNumberOfThreads.compareAndSet(other, other - 1) || deregisterThread()
     }
