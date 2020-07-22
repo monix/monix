@@ -23,8 +23,8 @@ import monix.execution.ChannelType.{MPMC, MPSC, SPMC, SPSC}
 import monix.execution.internal.Platform
 import monix.execution.internal.atomic.UnsafeAccess
 import monix.execution.internal.collection.LowLevelConcurrentQueue
-import org.jctools.queues._
-import org.jctools.queues.atomic._
+import monix.execution.internal.jctools.queues._
+import monix.execution.internal.jctools.queues.atomic._
 
 private[internal] trait LowLevelConcurrentQueueBuilders {
   /**

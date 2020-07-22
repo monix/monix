@@ -17,7 +17,7 @@
 
 package monix.execution.internal.collection.queues
 
-import org.jctools.queues.MessagePassingQueue.Consumer
+import monix.execution.internal.jctools.queues.MessagePassingQueue.Consumer
 import scala.collection.mutable
 
 private[internal] final class QueueDrain[A](buffer: mutable.Buffer[A]) extends Consumer[A] {

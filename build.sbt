@@ -72,7 +72,7 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.13.3",
+  scalaVersion := "2.13.1",
   crossScalaVersions := Seq("2.11.12", "2.12.12", "2.13.3"),
 
   scalacOptions ++= Seq(
@@ -145,14 +145,6 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     // definitely not what we want.
     "-sourcepath", file(".").getAbsolutePath.replaceAll("[.]$", "")
   ),
-
-  parallelExecution in Test := false,
-  parallelExecution in IntegrationTest := false,
-  parallelExecution in ThisBuild := false,
-  testForkedParallel in Test := false,
-  testForkedParallel in IntegrationTest := false,
-  testForkedParallel in ThisBuild := false,
-  concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
 
   logBuffered in Test := false,
   logBuffered in IntegrationTest := false,
@@ -328,13 +320,40 @@ def profile: Project ⇒ Project = pr => {
     case "coverage" => pr
     case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
   }
-  withCoverage.enablePlugins(AutomateHeaderPlugin)
+  withCoverage
+    .enablePlugins(AutomateHeaderPlugin)
+    .enablePlugins(ReproducibleBuildsPlugin)
 }
 
 lazy val doctestTestSettings = Seq(
   doctestTestFramework := DoctestTestFramework.Minitest,
   doctestIgnoreRegex := Some(s".*TaskApp.scala|.*reactive.internal.(builders|operators|rstreams).*"),
   doctestOnlyCodeBlocksMode := true
+)
+
+lazy val assemblyShadeSettings = Seq(
+  assemblyOption in assembly :=  (assemblyOption in assembly).value.copy(
+    includeScala = false, 
+    includeBin = false,
+  ),
+  // for some weird reason the "assembly" task runs tests by default
+  test in assembly := {},
+  // prevent cyclic task dependencies, see https://github.com/sbt/sbt-assembly/issues/365
+  // otherwise, there's a cyclic dependency between packageBin and assembly
+  fullClasspath in assembly := (managedClasspath in Runtime).value, 
+  // in dependent projects, use assembled and shaded jar
+  exportJars := true, 
+  // do not include scala dependency in pom
+  autoScalaLibrary := false, 
+  // prevent original dependency to be added to pom as runtime dep
+  makePomConfiguration := makePomConfiguration.value.withConfigurations(Vector.empty), 
+  // package by running assembly
+  packageBin in Compile := ReproducibleBuildsPlugin
+    .postProcessJar((assembly in Compile).value),
+  // disable publishing the main API jar
+  Compile / packageDoc / publishArtifact := false,
+  // disable publishing the main sources jar
+  Compile / packageSrc / publishArtifact := false,
 )
 
 lazy val monix = project.in(file("."))
@@ -344,6 +363,9 @@ lazy val monix = project.in(file("."))
   .settings(sharedSettings)
   .settings(doNotPublishArtifact)
   .settings(unidocSettings)
+  .settings(
+    Global / onChangedBuildSource := ReloadOnSourceChanges
+  )
 
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(profile)
@@ -370,13 +392,29 @@ lazy val executionCommon = crossVersionSharedSources ++ Seq(
   libraryDependencies += "io.monix" %%% "implicitbox" % implicitBoxVersion
 )
 
+lazy val executionShadedJCTools = project.in(file("monix-execution/shaded/jctools"))
+  .configure(profile)
+  .settings(crossSettings)
+  .settings(assemblyShadeSettings)
+  .settings(
+    name := "monix-shaded-jctools",
+    description := "Monix Execution Shaded JCTools is a shaded version of JCTools library. See: https://github.com/JCTools/JCTools",
+    libraryDependencies += "org.jctools" % "jctools-core" % jcToolsVersion % "optional;provided",
+    // https://github.com/sbt/sbt-assembly#shading
+    assemblyShadeRules in assembly := Seq(
+      ShadeRule.rename("org.jctools.**" -> "monix.execution.internal.jctools.@1")
+        .inLibrary("org.jctools" % "jctools-core" % jcToolsVersion % "optional;provided")
+        .inAll
+    )
+  )
+
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .configure(profile)
   .settings(crossSettings)
   .settings(testSettings)
   .settings(requiredMacroDeps)
   .settings(executionCommon)
-  .settings(libraryDependencies += "org.jctools" % "jctools-core" % jcToolsVersion)
+  .dependsOn(executionShadedJCTools)
   .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % reactiveStreamsVersion)
   .settings(mimaSettings("monix-execution"))
 
