@@ -23,6 +23,9 @@ import monix.eval.{Task => MonixTask}
 import monix.reactive.{Observable => MonixObservable}
 import monix.tail.Iterant
 import org.openjdk.jmh.annotations._
+import zio.stream.{Stream => ZStream}
+import fs2.{Stream => FS2Stream}
+import zio.{Chunk, UIO}
 
 import scala.collection.immutable.IndexedSeq
 
@@ -132,6 +135,25 @@ class ChunkedEvalFilterMapSumBenchmark {
       .foldLeftL(0L)(_ + _)
 
     testResult(stream.runSyncUnsafe())
+  }
+
+  @Benchmark
+  def zioStream = {
+    val stream = ZStream
+      // 1: iteration
+      .fromIterable(allElements)
+      // 2: collect buffers
+      .chunkN(chunkSize)
+      // 3: eval map
+      .mapChunksM(chunk => UIO(Chunk.single(chunk.foldLeft(0)(_ + _))))
+      // 4: filter
+      .filter(_ > 0)
+      // 5: map
+      .map(_.toLong)
+      // 6: foldLeft
+      .fold(0L)(_ + _)
+
+    testResult(zioUntracedRuntime.unsafeRun(stream))
   }
 
   def testResult(r: Long): Long = {

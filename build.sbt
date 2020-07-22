@@ -40,7 +40,7 @@ ThisBuild/catsEffectVersion := {
 }
 
 lazy val fs2Version = settingKey[String]("fs2 version")
-ThisBuild/catsEffectVersion := {
+ThisBuild/fs2Version := {
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, 11)) => "2.1.0"
     case _ => "2.4.0"
@@ -81,7 +81,7 @@ lazy val warnUnusedImport = Seq(
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
   scalaVersion := "2.13.3",
-  crossScalaVersions := Seq("2.11.12", "2.12.10", "2.13.3"),
+  crossScalaVersions := Seq("2.11.12", "2.12.11", "2.13.3"),
 
   scalacOptions ++= Seq(
     // warnings
@@ -503,9 +503,9 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "io.monix" %% "monix" % "3.2.0",
-      "dev.zio" %% "zio" % "1.0.0-RC18-2",
-      "co.fs2" %% "fs2-core" % fs2Version
+      "io.monix" %% "monix" % "3.2.2",
+      "dev.zio" %% "zio-streams" % "1.0.0-RC21-2",
+      "co.fs2" %% "fs2-core" % fs2Version.value
   ))
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
@@ -517,8 +517,8 @@ lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio" % "1.0.0-RC18-2",
-      "co.fs2" %% "fs2-core" % fs2Version
+      "dev.zio" %% "zio-streams" % "1.0.0-RC21-2",
+      "co.fs2" %% "fs2-core" % fs2Version.value
     ))
 
 //------------- For Release
