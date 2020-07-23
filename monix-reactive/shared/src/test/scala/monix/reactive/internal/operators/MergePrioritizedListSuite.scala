@@ -1,0 +1,110 @@
+/*
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * See the project homepage at: https://monix.io
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package monix.reactive.internal.operators
+
+import monix.eval.Task
+import monix.execution.Ack
+import monix.execution.Ack.Continue
+import monix.reactive.{Observable, Observer}
+
+import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.concurrent.duration.Duration.Zero
+
+object MergePrioritizedListSuite extends BaseOperatorSuite {
+  def createObservable(sourceCount: Int) = Some {
+    val sources = (1 to sourceCount).map(i => Observable.fromIterable(Seq.fill(4)(i.toLong)))
+    val o = Observable.mergePrioritizedList(sources: _*)(1 to sourceCount)
+    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+  }
+
+  def count(sourceCount: Int) =
+    4 * sourceCount
+
+  def observableInError(sourceCount: Int, ex: Throwable) = {
+    val o = Observable.range(0, sourceCount).mergeMap(_ => Observable.raiseError(ex))
+    Some(Sample(o, 0, 0, Zero, Zero))
+  }
+
+  def sum(sourceCount: Int) = {
+    4L * sourceCount * (sourceCount + 1) / 2
+  }
+
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample] = None
+
+  override def cancelableObservables(): Seq[Sample] = {
+    val sources1 = (1 to 100).map(_ => Observable.range(0, 100).delayExecution(2.second))
+    val sample1 = Observable.mergePrioritizedList(sources1: _*)(1 to 100)
+    Seq(
+      Sample(sample1, 0, 0, 0.seconds, 0.seconds),
+      Sample(sample1, 0, 0, 1.seconds, 0.seconds)
+    )
+  }
+
+  test("must pick items in priority order") { implicit s =>
+    val sources = (1 to 10).map(i => Observable.now(i * 1L))
+    val source = Observable.mergePrioritizedList(sources: _*)(1 to 10)
+    var last = 0L
+    source.unsafeSubscribeFn(new Observer[Long] {
+      def onNext(elem: Long): Future[Ack] = {
+        Task
+          .sleep(FiniteDuration(1, SECONDS)) // sleep so that other source observables' items queued before next call
+          .map { _ =>
+            last = elem
+            Continue
+          }
+          .runToFuture
+      }
+      def onError(ex: Throwable): Unit = throw ex
+      def onComplete(): Unit = ()
+    })
+
+    s.tick(1.seconds)
+    assertEquals(last, 1L) // First observable's item always first since it's subscribed to first
+    (10L to 2L by -1).foreach { p =>
+      s.tick(1.seconds)
+      assertEquals(last, p) // 2nd, 3rd, ... observable's items chosen by priority
+    }
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("must push all items downstream before calling onComplete") { implicit s =>
+    val source =
+      Observable.mergePrioritizedList(Observable.now(1L), Observable.now(1L))(Seq(1, 1))
+    var count = 0L
+    source.unsafeSubscribeFn(new Observer[Long] {
+      def onNext(elem: Long): Future[Ack] = {
+        Task
+          .sleep(FiniteDuration(1, SECONDS))
+          .map { _ =>
+            count += elem
+            Continue
+          }
+          .runToFuture
+      }
+      def onError(ex: Throwable): Unit = throw ex
+      def onComplete(): Unit = ()
+    })
+
+    s.tick(1.seconds)
+    assertEquals(count, 1L)
+    s.tick(1.seconds)
+    assertEquals(count, 2L)
+    assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+}

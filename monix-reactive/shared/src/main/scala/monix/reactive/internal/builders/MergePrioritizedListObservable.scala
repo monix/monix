@@ -29,6 +29,10 @@ import scala.concurrent.{Future, Promise}
 import scala.jdk.CollectionConverters._
 import scala.util.Success
 
+/** Given an observable sequence and associated priorities, it combines them
+  * into a new observable, preferring higher-priority sources when multiple
+  * sources have items available.
+  */
 private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[Observable[A]], priorities: Seq[Int])
   extends Observable[A] {
   require(sources.size == priorities.size, "sources.size != priorities.size")
@@ -47,8 +51,10 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[Obs
     var lastAck = Continue: Future[Ack]
 
     case class PQElem(data: A, promise: Promise[Ack], priority: Int) extends Comparable[PQElem] {
+      // Reverses natural ordering by multiplying by -1, since PQ head is least by ordering and we want ordered
+      // from highest to lowest priority
       override def compareTo(o: PQElem): Int =
-        priority.compareTo(o.priority)
+        -priority.compareTo(o.priority)
     }
 
     val pq = new PriorityBlockingQueue[PQElem](sources.size)
@@ -136,20 +142,23 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[Obs
       composite += pair._1.unsafeSubscribeFn(new Subscriber[A] {
         implicit val scheduler: Scheduler = out.scheduler
 
-        def onNext(elem: A): Future[Ack] = {
+        def onNext(elem: A): Future[Ack] = lock.synchronized {
           if (isDone) {
             Stop
           } else {
-            pq.add(PQElem(elem, Promise(), pair._2))
+            val p = Promise[Ack]()
+            pq.add(PQElem(elem, p, pair._2))
             signalOnNext()
+            p.future
           }
         }
 
         def onError(ex: Throwable): Unit =
           signalOnError(ex)
 
-        def onComplete(): Unit =
+        def onComplete(): Unit = {
           signalOnComplete()
+        }
       })
     }
     composite
