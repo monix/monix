@@ -28,7 +28,7 @@ matrix:
       scala: 2.12.10
       env:
         - COMMAND=ci-js
-        - SCALAJS_VERSION=1.0.0
+        - SCALAJS_VERSION=1.0.1
     # Scala 2.13, JVM
     - jdk: oraclejdk8
       scala: 2.13.1
@@ -52,7 +52,7 @@ matrix:
       scala: 2.13.1
       env:
         - COMMAND=ci-js
-        - SCALAJS_VERSION=1.0.0
+        - SCALAJS_VERSION=1.0.1
 
 env:
   global:
