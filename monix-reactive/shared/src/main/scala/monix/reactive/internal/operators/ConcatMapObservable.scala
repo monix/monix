@@ -113,7 +113,7 @@ private[reactive] final class ConcatMapObservable[A, B](
     }
 
     @tailrec private def cancelState(): Unit = {
-      stateRef.get match {
+      stateRef.get() match {
         case current @ Active(ref) =>
           if (stateRef.compareAndSet(current, Cancelled)) {
             ref.cancel()
@@ -154,7 +154,7 @@ private[reactive] final class ConcatMapObservable[A, B](
       // WARN: Concurrent cancellation might have happened, due
       // to the `Cancelled` state being thread-unsafe because of
       // the logic using `lazySet` below; hence the extra check
-      if (!isActive.get) {
+      if (!isActive.get()) {
         // If we have a `release` specified, this is `bracket`, so we still
         // need to ensure that release happens before stopping the stream
         if (release eq null) {
@@ -212,7 +212,7 @@ private[reactive] final class ConcatMapObservable[A, B](
               // `isActive == false` here b/c it was updated before `stateRef` (JMM);
               // And if `stateRef = Cancelled` happened afterwards, then we should
               // see it in the outer match statement
-              if (isActive.get) {
+              if (isActive.get()) {
                 asyncUpstreamAck.future.syncTryFlatten
               } else {
                 cancelState()
@@ -256,7 +256,7 @@ private[reactive] final class ConcatMapObservable[A, B](
       // the only race condition that can happen is for the child to
       // set this to `null` between this `get` and the upcoming
       // `getAndSet`, which is totally fine
-      val childRef = stateRef.get match {
+      val childRef = stateRef.get() match {
         case Active(ref) => ref
         case WaitComplete(_, ref) => ref
         case _ => null
@@ -284,7 +284,7 @@ private[reactive] final class ConcatMapObservable[A, B](
           // `Cancelled` state is thread unsafe, we need a second check.
           // Assumption is that `isActive = false` would be visible in case of
           // a race condition!
-          if (!isActive.get) cancelState()
+          if (!isActive.get()) cancelState()
 
         case WaitComplete(_, _) =>
           // This branch happens if the child has triggered the completion
@@ -319,7 +319,7 @@ private[reactive] final class ConcatMapObservable[A, B](
     private def sendOnComplete(): Unit = {
       if (!delayErrors) out.onComplete()
       else
-        this.errors.get match {
+        this.errors.get() match {
           case Nil => out.onComplete()
           case list => out.onError(CompositeException(list))
         }

@@ -77,7 +77,7 @@ private[tail] object IterantToReactivePublisher {
     def request(n: Long): Unit = {
       // Tail-recursive function modifying `requested`
       @tailrec def loop(n: Long): Unit =
-        state.get match {
+        state.get() match {
           case null =>
             if (!state.compareAndSet(null, Request(n)))
               loop(n)
@@ -117,7 +117,7 @@ private[tail] object IterantToReactivePublisher {
       cancelWithSignal(None)
 
     @tailrec def cancelWithSignal(signal: Option[Throwable]): Unit = {
-      state.get match {
+      state.get() match {
         case current @ (null | Request(_)) =>
           if (!state.compareAndSet(current, Interrupt(signal)))
             cancelWithSignal(signal)
@@ -194,7 +194,7 @@ private[tail] object IterantToReactivePublisher {
         while (continue) {
           continue = false
 
-          ref.get match {
+          ref.get() match {
             case current @ Request(n) =>
               if (n > 0) {
                 if (n < Long.MaxValue) {

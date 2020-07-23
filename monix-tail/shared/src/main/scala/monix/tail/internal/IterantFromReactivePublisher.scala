@@ -98,7 +98,7 @@ private[tail] object IterantFromReactivePublisher {
       else toReceive
 
     @tailrec def onNext(a: A): Unit =
-      state.get match {
+      state.get() match {
         case Uninitialized =>
           initialize()
           onNext(a)
@@ -123,7 +123,7 @@ private[tail] object IterantFromReactivePublisher {
       }
 
     @tailrec private def finish(fa: Iterant[F, A]): Unit =
-      state.get match {
+      state.get() match {
         case Uninitialized =>
           initialize()
           finish(fa)
@@ -163,7 +163,7 @@ private[tail] object IterantFromReactivePublisher {
       finish(Iterant.empty)
 
     @tailrec private def take(cb: Either[Throwable, Iterant[F, A]] => Unit): Unit =
-      state.get match {
+      state.get() match {
         case Uninitialized =>
           initialize()
           take(cb)

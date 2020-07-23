@@ -2604,7 +2604,7 @@ object Task extends TaskInstancesLevel1 {
     * same type.
     */
   def defer[A](fa: => Task[A]): Task[A] =
-    Suspend(fa _)
+    Suspend(() => fa)
 
   /** Defers the creation of a `Task` by using the provided
     * function, which has the ability to inject a needed
@@ -2692,7 +2692,7 @@ object Task extends TaskInstancesLevel1 {
 
   /** Alias for [[defer]]. */
   def suspend[A](fa: => Task[A]): Task[A] =
-    Suspend(fa _)
+    Suspend(() => fa)
 
   /** Promote a non-strict value to a Task that is memoized on the first
     * evaluation, the result being then available on subsequent evaluations.
@@ -2711,7 +2711,7 @@ object Task extends TaskInstancesLevel1 {
     * @param a is the thunk to process on evaluation
     */
   def eval[A](a: => A): Task[A] =
-    Eval(a _)
+    Eval(() => a)
 
   /** Lifts a non-strict value, a thunk, to a `Task` that will trigger a logical
     * fork before evaluation.
@@ -2724,7 +2724,7 @@ object Task extends TaskInstancesLevel1 {
     * @param a is the thunk to process on evaluation
     */
   def evalAsync[A](a: => A): Task[A] =
-    TaskEvalAsync(a _)
+    TaskEvalAsync(() => a)
 
   /** Alias for [[eval]]. */
   def delay[A](a: => A): Task[A] = eval(a)

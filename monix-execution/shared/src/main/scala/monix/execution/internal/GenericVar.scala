@@ -40,7 +40,7 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
   protected def emptyCancelable: CancelToken
 
   protected final def unsafePut(a: A, await: Either[Nothing, Unit] => Unit): CancelToken = {
-    stateRef.get match {
+    stateRef.get() match {
       case current @ WaitForTake(value, listeners) =>
         val id = new Id
         val newMap = listeners.updated(id, (a, await))
@@ -79,7 +79,7 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
   }
 
   protected final def unsafeTryPut(a: A): Boolean = {
-    stateRef.get match {
+    stateRef.get() match {
       case WaitForTake(_, _) => false
 
       case current @ WaitForPut(reads, takes) =>
@@ -109,7 +109,7 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
 
   private val putCancel: (Id => Unit) = {
     @tailrec def loop(id: Id): Unit =
-      stateRef.get match {
+      stateRef.get() match {
         case current @ WaitForTake(_, queue) =>
           val update = current.copy(queue = queue - id)
           if (!stateRef.compareAndSet(current, update)) {
@@ -122,7 +122,7 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
   }
 
   protected final def unsafeTake(await: Either[Nothing, A] => Unit): CancelToken = {
-    stateRef.get match {
+    stateRef.get() match {
       case current @ WaitForTake(a, queue) =>
         val value = Right(a)
         if (queue.isEmpty) {
@@ -155,7 +155,7 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
   }
 
   protected final def unsafeTryTake(): Option[A] = {
-    val current: State[A] = stateRef.get
+    val current: State[A] = stateRef.get()
     current match {
       case WaitForTake(value, queue) =>
         if (queue.isEmpty) {
@@ -184,7 +184,7 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
 
   private val takeCancel: (Id => Unit) = {
     @tailrec def loop(id: Id): Unit =
-      stateRef.get match {
+      stateRef.get() match {
         case current @ WaitForPut(reads, takes) =>
           val newMap = takes - id
           val update: State[A] = WaitForPut(reads, newMap)
@@ -196,7 +196,7 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
   }
 
   protected final def unsafeRead(await: Either[Nothing, A] => Unit): CancelToken = {
-    val current: State[A] = stateRef.get
+    val current: State[A] = stateRef.get()
     current match {
       case WaitForTake(value, _) =>
         // A value is available, so complete `read` immediately without
@@ -216,7 +216,7 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
   }
 
   protected final def unsafeTryRead(): Option[A] =
-    stateRef.get match {
+    stateRef.get() match {
       case WaitForTake(value, _) =>
         Some(value)
       case _ =>
@@ -224,7 +224,7 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
     }
 
   protected final def unsafeIsEmpty(): Boolean =
-    stateRef.get match {
+    stateRef.get() match {
       case WaitForTake(_, _) =>
         false
       case _ =>
@@ -234,7 +234,7 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
   @tailrec
   private val readCancel: (Id => Unit) = {
     def loop(id: Id): Unit =
-      stateRef.get match {
+      stateRef.get() match {
         case current @ WaitForPut(reads, takes) =>
           val newMap = reads - id
           val update: State[A] = WaitForPut(newMap, takes)

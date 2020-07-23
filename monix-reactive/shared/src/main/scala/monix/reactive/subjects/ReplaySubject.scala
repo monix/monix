@@ -37,7 +37,7 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A]) exte
   private[this] val stateRef = Atomic(initialState)
 
   def size: Int =
-    stateRef.get.subscribers.size
+    stateRef.get().subscribers.size
 
   @tailrec
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
@@ -62,7 +62,7 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A]) exte
         })
     }
 
-    val state = stateRef.get
+    val state = stateRef.get()
     val buffer = state.buffer
 
     if (state.isDone) {
@@ -91,7 +91,7 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A]) exte
 
   @tailrec
   def onNext(elem: A): Future[Ack] = {
-    val state = stateRef.get
+    val state = stateRef.get()
 
     if (state.isDone) Stop
     else {
@@ -155,7 +155,7 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A]) exte
 
   @tailrec
   private def onCompleteOrError(ex: Throwable): Unit = {
-    val state = stateRef.get
+    val state = stateRef.get()
 
     if (!state.isDone) {
       if (!stateRef.compareAndSet(state, state.markDone(ex)))
@@ -176,7 +176,7 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A]) exte
 
   @tailrec
   private def removeSubscriber(s: ConnectableSubscriber[A]): Unit = {
-    val state = stateRef.get
+    val state = stateRef.get()
     val newState = state.removeSubscriber(s)
     if (!stateRef.compareAndSet(state, newState))
       removeSubscriber(s)

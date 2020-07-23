@@ -981,7 +981,7 @@ object Coeval extends CoevalInstancesLevel0 {
     * Alias of [[eval]].
     */
   def apply[A](f: => A): Coeval[A] =
-    Always(f _)
+    Always(() => f)
 
   /** Returns a `Coeval` that on execution is always successful, emitting
     * the given strict value.
@@ -1014,7 +1014,7 @@ object Coeval extends CoevalInstancesLevel0 {
     * $unsafeMemoize
     */
   def evalOnce[A](a: => A): Coeval[A] =
-    Suspend(LazyVal(a _, cacheErrors = true))
+    Suspend(LazyVal(() => a, cacheErrors = true))
 
   /** Promote a non-strict value to a `Coeval`, catching exceptions in the
     * process.
@@ -1022,7 +1022,7 @@ object Coeval extends CoevalInstancesLevel0 {
     * Note that since `Coeval` is not memoized, this will recompute the
     * value each time the `Coeval` is executed.
     */
-  def eval[A](a: => A): Coeval[A] = Always(a _)
+  def eval[A](a: => A): Coeval[A] = Always(() => a)
 
   /** Alias for [[eval]]. */
   def delay[A](a: => A): Coeval[A] = eval(a)

@@ -122,7 +122,7 @@ private[reactive] object ReactiveSubscriberAsMonixSubscriber {
 
     @tailrec
     def await(): Future[Long] = {
-      state.get match {
+      state.get() match {
         case CancelledState =>
           Future.successful(0)
 
@@ -154,7 +154,7 @@ private[reactive] object ReactiveSubscriberAsMonixSubscriber {
         "n must be strictly positive, according to " +
           "the Reactive Streams contract, rule 3.9")
 
-      state.get match {
+      state.get() match {
         case CancelledState =>
           () // do nothing
 
@@ -183,7 +183,7 @@ private[reactive] object ReactiveSubscriberAsMonixSubscriber {
 
     @tailrec
     def cancel(): Unit = {
-      state.get match {
+      state.get() match {
         case CancelledState =>
           () // do nothing
 

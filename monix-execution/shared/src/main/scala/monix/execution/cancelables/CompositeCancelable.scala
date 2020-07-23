@@ -77,10 +77,10 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
   import CompositeCancelable.{Active, Cancelled}
 
   override def isCanceled: Boolean =
-    stateRef.get eq Cancelled
+    stateRef.get() eq Cancelled
 
   @tailrec override def cancel(): Unit =
-    stateRef.get match {
+    stateRef.get() match {
       case Cancelled => ()
       case current @ Active(set) =>
         if (stateRef.compareAndSet(current, Cancelled))
@@ -101,7 +101,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
 
   /** $addOp */
   @tailrec def add(other: Cancelable): this.type =
-    stateRef.get match {
+    stateRef.get() match {
       case Cancelled =>
         other.cancel()
         this
@@ -125,7 +125,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
   /** $addAllOp */
   def addAll(that: Iterable[Cancelable]): this.type = {
     @tailrec def loop(that: Iterable[Cancelable]): this.type =
-      stateRef.get match {
+      stateRef.get() match {
         case Cancelled =>
           Cancelable.cancelAll(that)
           this
@@ -150,7 +150,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
 
   /** $removeOp */
   @tailrec def remove(s: Cancelable): this.type =
-    stateRef.get match {
+    stateRef.get() match {
       case Cancelled => this
       case current @ Active(set) =>
         if (stateRef.compareAndSet(current, Active(set - s))) {
@@ -172,7 +172,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
   /** $removeAllOp */
   def removeAll(that: Iterable[Cancelable]): this.type = {
     @tailrec def loop(that: Iterable[Cancelable]): this.type =
-      stateRef.get match {
+      stateRef.get() match {
         case Cancelled => this
         case current @ Active(set) =>
           if (stateRef.compareAndSet(current, Active(set -- that))) {
@@ -191,7 +191,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
     * otherwise leaves it in the canceled state.
     */
   @tailrec def reset(): this.type =
-    stateRef.get match {
+    stateRef.get() match {
       case Cancelled => this
       case current @ Active(_) =>
         if (stateRef.compareAndSet(current, Active(Set.empty))) {
@@ -208,7 +208,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
     */
   def getAndSet(that: Iterable[Cancelable]): Set[Cancelable] = {
     @tailrec def loop(that: Set[Cancelable]): Set[Cancelable] =
-      stateRef.get match {
+      stateRef.get() match {
         case Cancelled =>
           Cancelable.cancelAll(that)
           Set.empty

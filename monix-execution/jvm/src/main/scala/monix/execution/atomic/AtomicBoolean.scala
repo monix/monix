@@ -48,7 +48,7 @@ final class AtomicBoolean private (private[this] val ref: BoxedInt) extends Atom
     ref.lazySet(if (update) 1 else 0)
 
   override def toString: String =
-    s"AtomicBoolean($get)"
+    s"AtomicBoolean(${get()})"
 }
 
 /** @define createDesc Constructs an [[AtomicBoolean]] reference, allowing

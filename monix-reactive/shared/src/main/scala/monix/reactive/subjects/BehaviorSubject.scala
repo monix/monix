@@ -44,12 +44,12 @@ final class BehaviorSubject[A] private (initialValue: A) extends Subject[A, A] {
     Atomic(BehaviorSubject.State[A](initialValue))
 
   def size: Int =
-    stateRef.get.subscribers.size
+    stateRef.get().subscribers.size
 
   @tailrec
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
-    val state = stateRef.get
+    val state = stateRef.get()
 
     if (state.errorThrown != null) {
       subscriber.onError(state.errorThrown)
@@ -80,7 +80,7 @@ final class BehaviorSubject[A] private (initialValue: A) extends Subject[A, A] {
 
   @tailrec
   def onNext(elem: A): Future[Ack] = {
-    val state = stateRef.get
+    val state = stateRef.get()
 
     if (state.isDone) Stop
     else {
@@ -143,7 +143,7 @@ final class BehaviorSubject[A] private (initialValue: A) extends Subject[A, A] {
 
   @tailrec
   private def onCompleteOrError(ex: Throwable): Unit = {
-    val state = stateRef.get
+    val state = stateRef.get()
 
     if (!state.isDone) {
       if (!stateRef.compareAndSet(state, state.markDone(ex)))
@@ -164,7 +164,7 @@ final class BehaviorSubject[A] private (initialValue: A) extends Subject[A, A] {
 
   @tailrec
   private def removeSubscriber(s: ConnectableSubscriber[A]): Unit = {
-    val state = stateRef.get
+    val state = stateRef.get()
     val newState = state.removeSubscriber(s)
     if (!stateRef.compareAndSet(state, newState))
       removeSubscriber(s)

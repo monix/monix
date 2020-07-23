@@ -196,7 +196,7 @@ private[tail] object IterantAttempt {
 
     @tailrec
     private def pushError(ref: Atomic[Throwable], e: Throwable): Unit = {
-      val current = ref.get
+      val current = ref.get()
       val update = current match {
         case null => e
         case e0 => Platform.composeErrors(e0, e)

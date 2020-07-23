@@ -46,7 +46,7 @@ final class SerialCancelable private (initial: Cancelable) extends AssignableCan
   }
 
   override def isCanceled: Boolean =
-    state.get match {
+    state.get() match {
       case null => true
       case _ => false
     }
@@ -58,7 +58,7 @@ final class SerialCancelable private (initial: Cancelable) extends AssignableCan
     }
 
   @tailrec def `:=`(value: Cancelable): this.type =
-    state.get match {
+    state.get() match {
       case null =>
         value.cancel()
         this
