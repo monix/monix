@@ -23,15 +23,16 @@ import monix.execution.Ack.Continue
 import monix.reactive.{Observable, Observer}
 
 import scala.concurrent.Future
-import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
+import scala.concurrent.duration._
 
 object MergePrioritizedListSuite extends BaseOperatorSuite {
-  def createObservable(sourceCount: Int) = Some {
-    val sources = (1 to sourceCount).map(i => Observable.fromIterable(Seq.fill(4)(i.toLong)))
-    val o = Observable.mergePrioritizedList(sources: _*)(1 to sourceCount)
-    Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
-  }
+  def createObservable(sourceCount: Int) =
+    Some {
+      val sources = (1 to sourceCount).map(i => Observable.fromIterable(Seq.fill(4)(i.toLong)))
+      val o = Observable.mergePrioritizedList(sources: _*)(1 to sourceCount)
+      Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+    }
 
   def count(sourceCount: Int) =
     4 * sourceCount
@@ -56,7 +57,25 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
     )
   }
 
-  test("must pick items in priority order") { implicit s =>
+  test("should return Observable.empty if sources empty") { implicit s =>
+    assertEquals(Observable.mergePrioritizedList()(Seq.empty), Observable.empty)
+  }
+
+  test("should throw if sources.size < priorities.size") { implicit s =>
+    intercept[IllegalArgumentException] {
+      Observable.mergePrioritizedList(Observable.empty)(Seq(2, 1))
+    }
+    ()
+  }
+
+  test("should throw if sources.size > priorities.size") { implicit s =>
+    intercept[IllegalArgumentException] {
+      Observable.mergePrioritizedList(Observable.empty)(Seq.empty)
+    }
+    ()
+  }
+
+  test("should pick items in priority order") { implicit s =>
     val sources = (1 to 10).map(i => Observable.now(i * 1L))
     val source = Observable.mergePrioritizedList(sources: _*)(1 to 10)
     var last = 0L
@@ -83,7 +102,7 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("must push all items downstream before calling onComplete") { implicit s =>
+  test("should push all items downstream before calling onComplete") { implicit s =>
     val source =
       Observable.mergePrioritizedList(Observable.now(1L), Observable.now(1L))(Seq(1, 1))
     var count = 0L

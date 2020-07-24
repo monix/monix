@@ -6058,7 +6058,8 @@ object Observable extends ObservableDeprecatedBuilders {
 
   /** Given an observable sequence and associated priorities, it combines them
     * into a new observable, preferring higher-priority sources when multiple
-    * sources have items available.
+    * sources have items available. If items are available from sources with the
+    * same priority, the order is undefined.
     */
   def mergePrioritizedList[A](sources: Observable[A]*)(priorities: Seq[Int]): Observable[A] = {
     if (sources.isEmpty) {

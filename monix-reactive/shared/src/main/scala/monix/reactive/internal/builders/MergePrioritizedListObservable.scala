@@ -17,21 +17,20 @@
 
 package monix.reactive.internal.builders
 
-import java.util.concurrent.PriorityBlockingQueue
-
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.CompositeCancelable
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
+import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
-import scala.jdk.CollectionConverters._
 import scala.util.Success
 
 /** Given an observable sequence and associated priorities, it combines them
   * into a new observable, preferring higher-priority sources when multiple
-  * sources have items available.
+  * sources have items available. If items are available from sources with the
+  * same priority, the order is undefined.
   */
 private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[Observable[A]], priorities: Seq[Int])
   extends Observable[A] {
@@ -45,19 +44,17 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[Obs
     val lock = new AnyRef
     var isDone = false
 
-    // NOTE: We use arrays and other mutable structures here to be as performant as possible.
-
     // MUST BE synchronized by `lock`
     var lastAck = Continue: Future[Ack]
 
-    case class PQElem(data: A, promise: Promise[Ack], priority: Int) extends Comparable[PQElem] {
-      // Reverses natural ordering by multiplying by -1, since PQ head is least by ordering and we want ordered
-      // from highest to lowest priority
-      override def compareTo(o: PQElem): Int =
-        -priority.compareTo(o.priority)
+    case class PQElem(data: A, promise: Promise[Ack], priority: Int)
+
+    object PQElemOrdering extends Ordering[PQElem] {
+      override def compare(x: PQElem, y: PQElem): Int =
+        x.priority.compareTo(y.priority)
     }
 
-    val pq = new PriorityBlockingQueue[PQElem](sources.size)
+    val pq = new mutable.PriorityQueue[PQElem]()(PQElemOrdering)
 
     // MUST BE synchronized by `lock`
     var completedCount = 0
@@ -68,7 +65,7 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[Obs
     }
 
     def processNext(): Future[Ack] = {
-      val e = pq.remove()
+      val e = pq.dequeue()
       val fut = rawOnNext(e.data)
       e.promise.completeWith(fut)
       fut
@@ -133,7 +130,7 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[Obs
       }
 
     def completePromises(): Unit = {
-      pq.iterator().asScala.foreach(e => e.promise.complete(Success(Stop)))
+      pq.iterator.foreach(e => e.promise.complete(Success(Stop)))
     }
 
     val composite = CompositeCancelable()
@@ -142,16 +139,17 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[Obs
       composite += pair._1.unsafeSubscribeFn(new Subscriber[A] {
         implicit val scheduler: Scheduler = out.scheduler
 
-        def onNext(elem: A): Future[Ack] = lock.synchronized {
-          if (isDone) {
-            Stop
-          } else {
-            val p = Promise[Ack]()
-            pq.add(PQElem(elem, p, pair._2))
-            signalOnNext()
-            p.future
+        def onNext(elem: A): Future[Ack] =
+          lock.synchronized {
+            if (isDone) {
+              Stop
+            } else {
+              val p = Promise[Ack]()
+              pq.enqueue(PQElem(elem, p, pair._2))
+              signalOnNext()
+              p.future
+            }
           }
-        }
 
         def onError(ex: Throwable): Unit =
           signalOnError(ex)
