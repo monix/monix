@@ -116,7 +116,7 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
         .runToFuture
 
       for (r <- f) yield {
-        assertEquals(effect.get, (count.toLong * (count - 1)) / 2)
+        assertEquals(effect.get(), (count.toLong * (count - 1)) / 2)
         assertEquals(r, Left(dummy))
       }
     }
@@ -205,9 +205,9 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
           if (requested.getAndAdd(n) == 0)
             sc.execute(new Runnable {
               def run(): Unit = {
-                var requested = self.requested.get
+                var requested = self.requested.get()
                 var toSend = requested
-                var isCanceled = self.cancelled.get && self.finished.get
+                var isCanceled = self.cancelled.get() && self.finished.get()
 
                 while (toSend > 0 && isInRange(index, until, step) && !isCanceled) {
                   s.onNext(index)
@@ -218,7 +218,7 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
                     requested = self.requested.subtractAndGet(requested)
                     toSend = requested
                   } else if (toSend % 100 == 0) {
-                    isCanceled = self.cancelled.get
+                    isCanceled = self.cancelled.get()
                   }
                 }
 

@@ -1039,7 +1039,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * the source completes after emitting no items.
     */
   final def defaultIfEmpty[B >: A](default: => B): Observable[B] =
-    self.liftByOperator(new DefaultIfEmptyOperator[B](default _))
+    self.liftByOperator(new DefaultIfEmptyOperator[B](() => default))
 
   /** Delays emitting the final `onComplete` event by the specified amount. */
   final def delayOnComplete(delay: FiniteDuration): Observable[A] =
@@ -1835,7 +1835,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[flatScan0]] for the version that emits seed element at the beginning
     */
   final def flatScan[R](seed: => R)(op: (R, A) => Observable[R]): Observable[R] =
-    new FlatScanObservable[A, R](self, seed _, op, delayErrors = false)
+    new FlatScanObservable[A, R](self, () => seed, op, delayErrors = false)
 
   /** Applies a binary operator to a start value and to elements
     * produced by the source observable, going from left to right,
@@ -1854,7 +1854,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[flatScan]]
     */
   final def flatScanDelayErrors[R](seed: => R)(op: (R, A) => Observable[R]): Observable[R] =
-    new FlatScanObservable[A, R](self, seed _, op, delayErrors = true)
+    new FlatScanObservable[A, R](self, () => seed, op, delayErrors = true)
 
   /** Version of [[flatScan0]] that delays the errors from the emitted
     * streams until the source completes.
@@ -2905,7 +2905,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[scan0]] for the version that emits seed element at the beginning
     */
   final def scan[S](seed: => S)(op: (S, A) => S): Observable[S] =
-    new ScanObservable[A, S](self, seed _, op)
+    new ScanObservable[A, S](self, () => seed, op)
 
   /**
     * Applies a binary operator to a start value and all elements of
@@ -2918,7 +2918,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * the returned observable.
     */
   final def mapAccumulate[S, R](seed: => S)(op: (S, A) => (S, R)): Observable[R] =
-    new MapAccumulateObservable[A, S, R](self, seed _, op)
+    new MapAccumulateObservable[A, S, R](self, () => seed, op)
 
   /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new
@@ -4054,7 +4054,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *         is empty
     */
   final def foldWhileLeft[S](seed: => S)(op: (S, A) => Either[S, S]): Observable[S] =
-    new FoldWhileLeftObservable[A, S](self, seed _, op)
+    new FoldWhileLeftObservable[A, S](self, () => seed, op)
 
   /** Folds the source observable, from start to finish, until the
     * source completes, or until the operator short-circuits the
@@ -4267,7 +4267,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        observable, returning the next state
     */
   final def foldLeft[R](seed: => R)(op: (R, A) => R): Observable[R] =
-    new FoldLeftObservable[A, R](self, seed _, op)
+    new FoldLeftObservable[A, R](self, () => seed, op)
 
   /** Applies a binary operator to a start value and all elements of
     * the source, going left to right and returns a new `Task` that
@@ -4743,7 +4743,7 @@ object Observable extends ObservableDeprecatedBuilders {
     * emits a single element.
     */
   def eval[A](a: => A): Observable[A] =
-    new builders.EvalAlwaysObservable(a _)
+    new builders.EvalAlwaysObservable(() => a)
 
   /** Lifts a non-strict value into an observable that emits a single element,
     * but upon subscription delay its evaluation by the specified timespan
@@ -5338,7 +5338,7 @@ object Observable extends ObservableDeprecatedBuilders {
     * given factory on each subscription.
     */
   def defer[A](fa: => Observable[A]): Observable[A] =
-    new builders.DeferObservable(fa _)
+    new builders.DeferObservable(() => fa)
 
   /** Builds a new observable from a strict `head` and a lazily
     * evaluated tail.

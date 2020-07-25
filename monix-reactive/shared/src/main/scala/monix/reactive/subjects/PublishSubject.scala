@@ -53,7 +53,7 @@ final class PublishSubject[A] private () extends Subject[A, A] { self =>
   }
 
   def size: Int =
-    stateRef.get.subscribers.size
+    stateRef.get().subscribers.size
 
   /*
    * NOTE: onSubscribe is in contention with onNext, onComplete and onError,
@@ -64,7 +64,7 @@ final class PublishSubject[A] private () extends Subject[A, A] { self =>
    */
   @tailrec
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    val state = stateRef.get
+    val state = stateRef.get()
     val subscribers = state.subscribers
 
     if (subscribers eq null) {
@@ -83,7 +83,7 @@ final class PublishSubject[A] private () extends Subject[A, A] { self =>
   }
 
   def onNext(elem: A): Future[Ack] = {
-    val state = stateRef.get
+    val state = stateRef.get()
     val subscribersArray = state.cache
 
     if (subscribersArray eq null) {
@@ -154,7 +154,7 @@ final class PublishSubject[A] private () extends Subject[A, A] { self =>
 
   @tailrec
   private def sendOnCompleteOrError(ex: Throwable): Unit = {
-    val state = stateRef.get
+    val state = stateRef.get()
     val set = state.subscribers
     val subscribers: Iterable[Subscriber[A]] =
       if (state.cache ne null) state.cache.toSeq else set
@@ -180,7 +180,7 @@ final class PublishSubject[A] private () extends Subject[A, A] { self =>
 
   @tailrec
   private def unsubscribe(subscriber: Subscriber[A]): Ack = {
-    val state = stateRef.get
+    val state = stateRef.get()
     val subscribers = state.subscribers
 
     if (subscribers eq null) Continue

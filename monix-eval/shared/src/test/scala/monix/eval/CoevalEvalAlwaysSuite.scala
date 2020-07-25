@@ -101,7 +101,7 @@ object CoevalEvalAlwaysSuite extends BaseTestSuite {
     assertEquals(f, Success(Failure(dummy)))
   }
 
-  test("Coeval.EvalAlways.runTry override") { implicit s =>
+  test("Coeval.EvalAlways.runTry() override") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Coeval.eval { if (1 == 1) throw dummy else 10 }
     val f = task.runTry()

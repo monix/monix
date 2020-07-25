@@ -52,18 +52,18 @@ object CoevalMiscSuite extends BaseTestSuite {
 
   test("Coeval.map protects against user code") { implicit s =>
     val ex = DummyException("dummy")
-    val result = Coeval.now(1).map(_ => throw ex).runTry
+    val result = Coeval.now(1).map(_ => throw ex).runTry()
     assertEquals(result, Failure(ex))
   }
 
   test("Coeval.now.dematerialize") { implicit s =>
-    val result = Coeval.now(1).materialize.dematerialize.runTry
+    val result = Coeval.now(1).materialize.dematerialize.runTry()
     assertEquals(result, Success(1))
   }
 
   test("Coeval.raiseError.dematerialize") { implicit s =>
     val ex = DummyException("dummy")
-    val result = Coeval.raiseError[Int](ex).materialize.dematerialize.runTry
+    val result = Coeval.raiseError[Int](ex).materialize.dematerialize.runTry()
     assertEquals(result, Failure(ex))
   }
 
@@ -98,6 +98,6 @@ object CoevalMiscSuite extends BaseTestSuite {
   test("Coeval.error.flatten is equivalent with flatMap") { implicit s =>
     val ex = DummyException("dummy")
     val ref = Coeval(Coeval.raiseError[Int](ex))
-    assertEquals(ref.flatten.runTry, ref.flatMap(x => x).runTry)
+    assertEquals(ref.flatten.runTry(), ref.flatMap(x => x).runTry())
   }
 }

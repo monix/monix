@@ -39,7 +39,7 @@ final class RefCountObservable[+A] private (source: ConnectableObservable[A]) ex
 
   @tailrec
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    val current = refs.get
+    val current = refs.get()
     val update = current match {
       case x if x < 0 => 1
       case 0 => 0
@@ -89,7 +89,7 @@ final class RefCountObservable[+A] private (source: ConnectableObservable[A]) ex
     }
 
   @tailrec
-  private[this] def countDownToConnectionCancel(): Unit = refs.get match {
+  private[this] def countDownToConnectionCancel(): Unit = refs.get() match {
     case x if x > 0 =>
       val update = x - 1
       if (!refs.compareAndSet(x, update))

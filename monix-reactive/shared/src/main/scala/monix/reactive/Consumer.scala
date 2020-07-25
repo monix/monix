@@ -250,7 +250,7 @@ object Consumer {
     *        emitted value by the stream, for accumulating state
     */
   def foldLeft[S, A](initial: => S)(f: (S, A) => S): Consumer.Sync[A, S] =
-    new FoldLeftConsumer[A, S](initial _, f)
+    new FoldLeftConsumer[A, S](() => initial, f)
 
   /** Given a fold function and an initial state value, applies the
     * fold function to every element of the stream and finally signaling
@@ -270,7 +270,7 @@ object Consumer {
     *        execution.
     */
   def foldLeftEval[F[_], S, A](initial: => S)(f: (S, A) => F[S])(implicit F: TaskLike[F]): Consumer[A, S] =
-    new FoldLeftTaskConsumer[A, S](initial _, (s, a) => F(f(s, a)))
+    new FoldLeftTaskConsumer[A, S](() => initial, (s, a) => F(f(s, a)))
 
   /** Given a fold function and an initial state value, applies the
     * fold function to every element of the stream and finally signaling
@@ -286,7 +286,7 @@ object Consumer {
     *        returning a `Task` capable of asynchronous execution.
     */
   def foldLeftTask[S, A](initial: => S)(f: (S, A) => Task[S]): Consumer[A, S] =
-    new FoldLeftTaskConsumer[A, S](initial _, f)
+    new FoldLeftTaskConsumer[A, S](() => initial, f)
 
   /** A consumer that will produce the first streamed value on
     * `onNext` after which the streaming gets cancelled.

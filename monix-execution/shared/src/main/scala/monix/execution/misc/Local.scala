@@ -67,7 +67,7 @@ object Local extends LocalCompanionDeprecated {
 
   /** Return the state of the current Local state. */
   def getContext(): Context =
-    localContext.get
+    localContext.get()
 
   /** Restore the Local state to a given Context. */
   def setContext(ctx: Context): Unit =

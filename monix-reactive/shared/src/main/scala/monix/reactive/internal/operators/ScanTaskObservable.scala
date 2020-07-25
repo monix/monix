@@ -90,7 +90,7 @@ private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], se
     }
 
     @tailrec private def cancelState(): Unit =
-      stateRef.get match {
+      stateRef.get() match {
         case current @ Active(ref) =>
           if (stateRef.compareAndSet(current, Cancelled)) {
             ref.cancel()
@@ -130,7 +130,7 @@ private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], se
       // WARN: Concurrent cancellation might have happened, due
       // to the `Cancelled` state being thread-unsafe because of
       // the logic using `lazySet` below; hence the extra check
-      if (!isActive.get) {
+      if (!isActive.get()) {
         Stop
       } else
         try {
@@ -173,7 +173,7 @@ private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], se
               // `isActive == false` here b/c it was updated before `stateRef` (JMM);
               // And if `stateRef = Cancelled` happened afterwards, then we should
               // see it in the outer match statement
-              if (isActive.get) {
+              if (isActive.get()) {
                 ack
               } else {
                 cancelState()
@@ -277,7 +277,7 @@ private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], se
       // the only race condition that can happen is for the child to
       // set this to `null` between this `get` and the upcoming
       // `getAndSet`, which is totally fine
-      val childRef = stateRef.get match {
+      val childRef = stateRef.get() match {
         case Active(ref) => ref
         case WaitComplete(_, ref) => ref
         case _ => null
@@ -319,7 +319,7 @@ private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], se
           // `Cancelled` state is thread unsafe, we need a second check.
           // Assumption is that `isActive = false` would be visible in case of
           // a race condition!
-          if (!isActive.get) cancelState()
+          if (!isActive.get()) cancelState()
 
         case WaitActiveTask =>
           // Something is screwed up in our state machine :-(

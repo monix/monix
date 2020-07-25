@@ -50,7 +50,7 @@ object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {
 
         def onNext(elem: List[Long]): Future[Ack] = {
           sum += elem.sum
-          nextAck.get.future
+          nextAck.get().future
         }
 
         def onError(ex: Throwable): Unit =

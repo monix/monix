@@ -164,7 +164,7 @@ private[eval] object TaskConnection {
     }
 
     def isCanceled: Boolean =
-      state.get._1 eq null
+      state.get()._1 eq null
 
     def push(token: CancelToken[Task])(implicit s: Scheduler): Unit =
       pushAny(token)

@@ -50,18 +50,18 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
     subscribeToObservable(publisher, 1, ack, isObservableActive, received)
 
     s.tick()
-    assertEquals(received.get, 1)
+    assertEquals(received.get(), 1)
 
     for (i <- 2 to 100) {
       ack.getAndSet(Promise()).success(Continue)
       s.tick()
-      assertEquals(received.get, i)
+      assertEquals(received.get(), i)
     }
 
-    ack.get.success(Stop); s.tick()
-    assertEquals(received.get, 100)
-    assert(isObservableActive.get, "isObservableActive")
-    assert(!isPublisherActive.get, "!isPublisherActive")
+    ack.get().success(Stop); s.tick()
+    assertEquals(received.get(), 100)
+    assert(isObservableActive.get(), "isObservableActive")
+    assert(!isPublisherActive.get(), "!isPublisherActive")
   }
 
   test("should work with back-pressure") { implicit s =>
@@ -76,19 +76,19 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
     subscribeToObservable(publisher, 2, ack, isObservableActive, received)
 
     s.tick()
-    assertEquals(requested.get, 2)
-    assertEquals(received.get, 1)
+    assertEquals(requested.get(), 2)
+    assertEquals(received.get(), 1)
 
     for (i <- 2 to 100) {
       ack.getAndSet(Promise()).success(Continue)
       s.tick()
-      assertEquals(received.get, i)
+      assertEquals(received.get(), i)
     }
 
-    ack.get.success(Stop); s.tick()
-    assertEquals(received.get, 100)
-    assert(isObservableActive.get, "isObservableActive")
-    assert(!isPublisherActive.get, "!isPublisherActive")
+    ack.get().success(Stop); s.tick()
+    assertEquals(received.get(), 100)
+    assert(isObservableActive.get(), "isObservableActive")
+    assert(!isPublisherActive.get(), "!isPublisherActive")
   }
 
   test("canceling observable should cancel publisher") { implicit s =>
@@ -103,11 +103,11 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
     val conn = subscribeToObservable(publisher, 1, ack, isObservableActive, received)
 
     s.tick()
-    assertEquals(received.get, 1)
+    assertEquals(received.get(), 1)
 
     conn.cancel(); s.tick()
-    assertEquals(received.get, 1)
-    assert(!isPublisherActive.get, "!isPublisherActive")
+    assertEquals(received.get(), 1)
+    assert(!isPublisherActive.get(), "!isPublisherActive")
   }
 
   private def subscribeToObservable(
@@ -122,7 +122,7 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long): Future[Ack] = {
           received.increment()
-          ack.get.future
+          ack.get().future
         }
 
         def onError(ex: Throwable): Unit =
@@ -144,7 +144,7 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
           override def request(n: Long): Unit = {
             assertEquals(n, requestSize)
             requested.increment(requestSize)
-            if (isPublisherActive.get) {
+            if (isPublisherActive.get()) {
               s.executeTrampolined { () =>
                 for (_ <- 0 until n.toInt) subscriber.onNext(1)
               }

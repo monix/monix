@@ -264,7 +264,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * {{{
     *   val fa = Coeval.eval(10 * 2)
     *
-    *   fa.run match {
+    *   fa.run() match {
     *     case Coeval.Now(value) =>
     *       println("Success: " + value)
     *     case Coeval.Error(e) =>
@@ -272,8 +272,8 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *   }
     * }}}
     *
-    * See [[runAttempt]] for working with [[scala.Either Either]]
-    * values and [[runTry]] for working with [[scala.util.Try Try]]
+    * See [.runAttempt()]] for working with [[scala.Either Either]]
+    * values and [.runTry()]] for working with [[scala.util.Try Try]]
     * values. See [[apply]] for a partial function (that may throw
     * exceptions in case of failure).
     *
@@ -290,7 +290,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * {{{
     *   val fa = Coeval(10 * 2)
     *
-    *   fa.runAttempt match {
+    *   fa.runAttempt() match {
     *     case Right(value) =>
     *       println("Success: " + value)
     *     case Left(e) =>
@@ -299,7 +299,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * }}}
     *
     * See [[run]] for working with [[Coeval.Eager]] values and
-    * [[runTry]] for working with [[scala.util.Try Try]] values.
+    * [.runTry()]] for working with [[scala.util.Try Try]] values.
     * See [[apply]] for a partial function (that may throw exceptions
     * in case of failure).
     *
@@ -320,7 +320,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     *   val fa = Coeval(10 * 2)
     *
-    *   fa.runTry match {
+    *   fa.runTry() match {
     *     case Success(value) =>
     *       println("Success: " + value)
     *     case Failure(e) =>
@@ -329,7 +329,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * }}}
     *
     * See [[run]] for working with [[Coeval.Eager]] values and
-    * [[runAttempt]] for working with [[scala.Either Either]] values.
+    * [.runAttempt()]] for working with [[scala.Either Either]] values.
     * See [[apply]] for a partial function (that may throw exceptions
     * in case of failure).
     *
@@ -981,7 +981,7 @@ object Coeval extends CoevalInstancesLevel0 {
     * Alias of [[eval]].
     */
   def apply[A](f: => A): Coeval[A] =
-    Always(f _)
+    Always(() => f)
 
   /** Returns a `Coeval` that on execution is always successful, emitting
     * the given strict value.
@@ -1014,7 +1014,7 @@ object Coeval extends CoevalInstancesLevel0 {
     * $unsafeMemoize
     */
   def evalOnce[A](a: => A): Coeval[A] =
-    Suspend(LazyVal(a _, cacheErrors = true))
+    Suspend(LazyVal(() => a, cacheErrors = true))
 
   /** Promote a non-strict value to a `Coeval`, catching exceptions in the
     * process.
@@ -1022,7 +1022,7 @@ object Coeval extends CoevalInstancesLevel0 {
     * Note that since `Coeval` is not memoized, this will recompute the
     * value each time the `Coeval` is executed.
     */
-  def eval[A](a: => A): Coeval[A] = Always(a _)
+  def eval[A](a: => A): Coeval[A] = Always(() => a)
 
   /** Alias for [[eval]]. */
   def delay[A](a: => A): Coeval[A] = eval(a)

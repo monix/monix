@@ -58,7 +58,7 @@ class CoevalAttemptBenchmark {
       if (i < size) Coeval.pure(i + 1).attempt.flatMap(_.fold(Coeval.raiseError, loop))
       else Coeval.pure(i)
 
-    loop(0).value
+    loop(0).value()
   }
 
   @Benchmark
@@ -75,6 +75,6 @@ class CoevalAttemptBenchmark {
       else
         Coeval.pure(i)
 
-    loop(0).value
+    loop(0).value()
   }
 }

@@ -30,7 +30,7 @@ class UncaughtExceptionReporterBaseSuite extends TestSuite[Promise[Throwable]] {
     def run(): Unit = throw Dummy
   }
 
-  def setup() = Promise[Throwable]
+  def setup() = Promise[Throwable]()
 
   def tearDown(env: Promise[Throwable]): Unit = ()
   private[this] def reporter(p: Promise[Throwable]) = UncaughtExceptionReporter { t =>

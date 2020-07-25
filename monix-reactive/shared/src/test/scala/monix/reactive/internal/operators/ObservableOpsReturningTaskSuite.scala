@@ -276,7 +276,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val sumRef = Atomic(0)
-      val result: Future[Int] = obs.foreachL(sumRef.increment).runToFuture.map(_ => sumRef.get)
+      val result: Future[Int] = obs.foreachL(sumRef.increment).runToFuture.map(_ => sumRef.get())
       result <-> Future.successful(list.sum)
     }
   }

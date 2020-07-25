@@ -60,7 +60,7 @@ object IterantTakeSuite extends BaseTestSuite {
       var n = if (length == 0) 1000 else Math.floorMod(nr, length + 1)
       if (n <= 0) n = 1
 
-      stream.take(n).toListL.value == list.take(n) &&
+      stream.take(n).toListL.value() == list.take(n) &&
       cancelable.isCanceled
     }
   }

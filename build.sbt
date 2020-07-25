@@ -24,20 +24,29 @@ addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc")
 addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
 
 lazy val catsVersion = settingKey[String]("cats version")
-ThisBuild/catsVersion := {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 11)) => "2.0.0"
-    case _ => "2.1.1"
+  ThisBuild/catsVersion := {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 11)) => "2.0.0"
+      case _ => "2.1.1"
+    }
   }
-}
 
 lazy val catsEffectVersion = settingKey[String]("cats-effect version")
-ThisBuild/catsEffectVersion := {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 11)) => "2.0.0"
-    case _ => "2.1.3"
+  ThisBuild/catsEffectVersion := {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 11)) => "2.0.0"
+      case _ => "2.1.3"
+    }
   }
-}
+
+// For benchmarks
+lazy val fs2Version = settingKey[String]("fs2 version")
+  ThisBuild/fs2Version := {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 11)) => "2.1.0"
+      case _ => "2.4.0"
+    }
+  }
 
 val jcToolsVersion = "3.0.0"
 val reactiveStreamsVersion = "1.0.3"
@@ -72,7 +81,7 @@ lazy val warnUnusedImport = Seq(
 
 lazy val sharedSettings = warnUnusedImport ++ Seq(
   organization := "io.monix",
-  scalaVersion := "2.13.1",
+  scalaVersion := "2.13.3",
   crossScalaVersions := Seq("2.11.12", "2.12.12", "2.13.3"),
 
   scalacOptions ++= Seq(
@@ -107,7 +116,6 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     // Enables linter options
     "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
     "-Xlint:nullary-unit", // warn when nullary methods return Unit
-    "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
     "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
     "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
     "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
@@ -310,10 +318,9 @@ lazy val cmdlineProfile =
 def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
   mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_3,
 )
-// https://github.com/lightbend/mima/pull/289
-mimaFailOnNoPrevious in ThisBuild := false
 
 def profile: Project ⇒ Project = pr => {
   val withCoverage = cmdlineProfile match {
@@ -333,20 +340,20 @@ lazy val doctestTestSettings = Seq(
 
 lazy val assemblyShadeSettings = Seq(
   assemblyOption in assembly :=  (assemblyOption in assembly).value.copy(
-    includeScala = false, 
+    includeScala = false,
     includeBin = false,
   ),
   // for some weird reason the "assembly" task runs tests by default
   test in assembly := {},
   // prevent cyclic task dependencies, see https://github.com/sbt/sbt-assembly/issues/365
   // otherwise, there's a cyclic dependency between packageBin and assembly
-  fullClasspath in assembly := (managedClasspath in Runtime).value, 
+  fullClasspath in assembly := (managedClasspath in Runtime).value,
   // in dependent projects, use assembled and shaded jar
-  exportJars := true, 
+  exportJars := true,
   // do not include scala dependency in pom
-  autoScalaLibrary := false, 
+  autoScalaLibrary := false,
   // prevent original dependency to be added to pom as runtime dep
-  makePomConfiguration := makePomConfiguration.value.withConfigurations(Vector.empty), 
+  makePomConfiguration := makePomConfiguration.value.withConfigurations(Vector.empty),
   // package by running assembly
   packageBin in Compile := ReproducibleBuildsPlugin
     .postProcessJar((assembly in Compile).value),
@@ -364,7 +371,9 @@ lazy val monix = project.in(file("."))
   .settings(doNotPublishArtifact)
   .settings(unidocSettings)
   .settings(
-    Global / onChangedBuildSource := ReloadOnSourceChanges
+    Global / onChangedBuildSource := ReloadOnSourceChanges,
+    // https://github.com/lightbend/mima/pull/289
+    mimaFailOnNoPrevious in ThisBuild := false
   )
 
 lazy val coreJVM = project.in(file("monix/jvm"))
@@ -534,8 +543,9 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "io.monix" %% "monix" % "3.2.0",
-      "dev.zio" %% "zio" % "1.0.0-RC18-2"
+      "io.monix" %% "monix" % "3.2.2",
+      "dev.zio" %% "zio-streams" % "1.0.0-RC21-2",
+      "co.fs2" %% "fs2-core" % fs2Version.value
   ))
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
@@ -547,7 +557,8 @@ lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .settings(doNotPublishArtifact)
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio" % "1.0.0-RC18-2"
+      "dev.zio" %% "zio-streams" % "1.0.0-RC21-2",
+      "co.fs2" %% "fs2-core" % fs2Version.value
     ))
 
 //------------- For Release

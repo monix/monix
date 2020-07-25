@@ -60,7 +60,7 @@ object IterantDumpSuite extends BaseTestSuite {
       out.completedL.runToFuture
       s.tick()
 
-      counter.get <-> 2
+      counter.get() <-> 2
     }
   }
 
@@ -72,7 +72,7 @@ object IterantDumpSuite extends BaseTestSuite {
       out.completedL.runToFuture
       s.tick()
 
-      counter.get <-> 2
+      counter.get() <-> 2
     }
   }
 
@@ -83,7 +83,7 @@ object IterantDumpSuite extends BaseTestSuite {
       out.completedL.runToFuture
       s.tick()
 
-      counter.get <-> 2
+      counter.get() <-> 2
     }
   }
 
@@ -93,7 +93,7 @@ object IterantDumpSuite extends BaseTestSuite {
     out.completedL.runToFuture
     s.tick()
 
-    assertEquals(counter.get, 2)
+    assertEquals(counter.get(), 2)
   }
 
   test("Iterant.dump works for Last") { implicit s =>
@@ -103,7 +103,7 @@ object IterantDumpSuite extends BaseTestSuite {
       out.completedL.runToFuture
       s.tick()
 
-      counter.get <-> 1
+      counter.get() <-> 1
     }
   }
 
@@ -114,7 +114,7 @@ object IterantDumpSuite extends BaseTestSuite {
     out.completedL.runToFuture
     s.tick()
 
-    assertEquals(counter.get, 1)
+    assertEquals(counter.get(), 1)
   }
 
   test("Iterant.dump works for Concat") { implicit s =>
@@ -126,7 +126,7 @@ object IterantDumpSuite extends BaseTestSuite {
       stream.completedL.runToFuture
       s.tick()
 
-      counter.get <-> 5
+      counter.get() <-> 5
     }
   }
 
@@ -139,7 +139,7 @@ object IterantDumpSuite extends BaseTestSuite {
       stream.completedL.runToFuture
       s.tick()
 
-      counter.get <-> 4
+      counter.get() <-> 4
     }
   }
 

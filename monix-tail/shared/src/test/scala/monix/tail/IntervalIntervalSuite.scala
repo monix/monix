@@ -68,7 +68,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
       }
       .take(5)
       .toListL
-      .unsafeToFuture
+      .unsafeToFuture()
 
     assertEquals(lst.value, None)
     assertEquals(effect, 0)
@@ -128,7 +128,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
       }
       .take(5)
       .toListL
-      .unsafeToFuture
+      .unsafeToFuture()
 
     assertEquals(lst.value, None)
     assertEquals(effect, 1)
@@ -233,7 +233,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
         })
       .take(3)
       .toListL
-      .unsafeToFuture
+      .unsafeToFuture()
 
     assertEquals(lst.value, None)
     s.tick(2.seconds)
@@ -287,7 +287,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
         })
       .take(3)
       .toListL
-      .unsafeToFuture
+      .unsafeToFuture()
 
     assertEquals(lst.value, None)
     assertEquals(effect, 0)

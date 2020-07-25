@@ -24,7 +24,7 @@ import monix.tail.batches.{BatchCursor, GenericBatch}
 final class ThrowExceptionBatch[A](ex: Throwable) extends GenericBatch[A] {
 
   private[this] val triggered = Atomic(false)
-  def isTriggered: Boolean = triggered.get
+  def isTriggered: Boolean = triggered.get()
 
   override def cursor(): BatchCursor[A] = {
     triggered.set(true)

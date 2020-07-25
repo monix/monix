@@ -74,7 +74,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
           callback.onError(ex)
 
         override def onComplete(): Unit =
-          callback.onSuccess(sum.get)
+          callback.onSuccess(sum.get())
       }
     }
 
@@ -90,7 +90,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
     s.tick(1.second)
     assert(s.state.tasks.isEmpty, "s.state.tasks.isEmpty")
 
-    assertEquals(sum.get, 1001)
+    assertEquals(sum.get(), 1001)
     assertEquals(result.value, None)
   }
 }

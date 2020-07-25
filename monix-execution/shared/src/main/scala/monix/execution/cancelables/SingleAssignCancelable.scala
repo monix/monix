@@ -42,7 +42,7 @@ final class SingleAssignCancelable private (extra: Cancelable) extends Assignabl
   import State._
 
   override def isCanceled: Boolean =
-    state.get match {
+    state.get() match {
       case IsEmptyCanceled | IsCanceled =>
         true
       case _ =>
@@ -64,7 +64,7 @@ final class SingleAssignCancelable private (extra: Cancelable) extends Assignabl
     // Optimistic CAS, no loop needed
     if (state.compareAndSet(Empty, IsActive(value))) this
     else {
-      state.get match {
+      state.get() match {
         case IsEmptyCanceled =>
           state.getAndSet(IsCanceled) match {
             case IsEmptyCanceled =>
@@ -87,7 +87,7 @@ final class SingleAssignCancelable private (extra: Cancelable) extends Assignabl
 
   @tailrec
   override def cancel(): Unit = {
-    state.get match {
+    state.get() match {
       case IsCanceled | IsEmptyCanceled => ()
       case IsActive(s) =>
         state.set(IsCanceled)
