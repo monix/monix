@@ -92,6 +92,7 @@ object ScheduleOnceJVMSuite extends SimpleTestSuite {
       sc.scheduleOnce(delayMs, MILLISECONDS, new Runnable {
         def run(): Unit = {
           p.success(Thread.currentThread().getName)
+          ()
         }
       })
       p.future

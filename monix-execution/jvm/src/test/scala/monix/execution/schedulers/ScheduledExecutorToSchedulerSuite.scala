@@ -88,6 +88,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
 
     intercept[TimeoutException] {
       Await.result(p.future, 150.millis)
+      ()
     }
     ()
   }
