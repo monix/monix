@@ -42,7 +42,7 @@ import monix.execution._
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.cancelables.{BooleanCancelable, SingleAssignCancelable}
 import monix.execution.exceptions.{DownstreamTimeoutException, UpstreamTimeoutException}
-import monix.reactive.Observable.Operator
+import monix.reactive.Observable.{Operator, Transformer}
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.internal.builders
 import monix.reactive.internal.builders._
@@ -4664,6 +4664,11 @@ abstract class Observable[+A] extends Serializable { self =>
     Task.create { (s, onFinish) =>
       unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s))
     }
+
+  /** Transforms the source using the given transformer function. */
+  def transform[B](transformer: Transformer[A, B]): Observable[B] =
+    transformer(this)
+
 }
 
 /** Observable builders.
@@ -4706,6 +4711,12 @@ object Observable extends ObservableDeprecatedBuilders {
     * See [[Observable.liftByOperator]].
     */
   type Operator[-I, +O] = Subscriber[O] => Subscriber[I]
+
+  /** A `Transformer` is a function used for transforming observables.
+    *
+    * See [[Observable.transform]]
+    */
+  type Transformer[-A, +B] = Observable[A] => Observable[B]
 
   /** Given a sequence of elements, builds an observable from it. */
   def apply[A](elems: A*): Observable[A] =

@@ -211,7 +211,9 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         taskInError.unsafeToFuture().value.get.get
         ()
       }
+      
       s.tick(resetTimeout - 1.second)
+
       intercept[ExecutionRejectedException] {
         taskInError.unsafeToFuture().value.get.get
         ()
@@ -303,6 +305,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         maxFailures = -1,
         resetTimeout = 1.minute
       )
+      ()
     }
 
     intercept[IllegalArgumentException] {
@@ -311,6 +314,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         maxFailures = 2,
         resetTimeout = -1.minute
       )
+      ()
     }
 
     intercept[IllegalArgumentException] {
@@ -320,6 +324,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         resetTimeout = 1.minute,
         exponentialBackoffFactor = 0.5
       )
+      ()
     }
 
     intercept[IllegalArgumentException] {
@@ -330,6 +335,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         exponentialBackoffFactor = 2,
         maxResetTimeout = Duration.Zero
       )
+      ()
     }
     ()
   }
