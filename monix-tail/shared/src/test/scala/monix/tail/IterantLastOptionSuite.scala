@@ -37,7 +37,7 @@ object IterantLastOptionSuite extends BaseTestSuite {
   test("Iterant.lastOption <-> List.lastOption") { _ =>
     check2 { (list: List[Int], idx: Int) =>
       val iter = arbitraryListToIterant[Coeval, Int](list, math.abs(idx % 4), allowErrors = false)
-      iter.lastOptionL.value == list.lastOption
+      iter.lastOptionL.value() == list.lastOption
     }
   }
 

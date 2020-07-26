@@ -30,12 +30,12 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
 
   def assertChoosesArg(source: Iterant[Coeval, Int]): Unit = {
     val target = source.switchIfEmpty(backupStream)
-    assert(target.toListL.value == source.toListL.value)
+    assert(target.toListL.value() == source.toListL.value())
   }
 
   def assertChoosesFallback(source: Iterant[Coeval, Int]): Unit = {
     val target = source.switchIfEmpty(backupStream)
-    assert(target.toListL.value == backupStream.toListL.value)
+    assert(target.toListL.value() == backupStream.toListL.value())
   }
 
   test("Iterant.switchIfEmpty returns left stream on nonempty streams") { implicit s =>

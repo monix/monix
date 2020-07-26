@@ -46,7 +46,7 @@ abstract class ConcurrentAtomicNumberSuite[A, R <: AtomicNumber[A]](
 
     val f = Future.sequence(futures)
     Await.result(f, 30.seconds)
-    assert(r.get == ev.fromInt(500))
+    assert(r.get() == ev.fromInt(500))
   }
 
   test("should perform concurrent getAndSet") {
@@ -58,7 +58,7 @@ abstract class ConcurrentAtomicNumberSuite[A, R <: AtomicNumber[A]](
 
     val f = Future.sequence(futures)
     Await.result(f, 30.seconds)
-    assert(r.get == ev.fromInt(100))
+    assert(r.get() == ev.fromInt(100))
   }
 
   test("should perform concurrent increment") {
@@ -70,7 +70,7 @@ abstract class ConcurrentAtomicNumberSuite[A, R <: AtomicNumber[A]](
 
     val f = Future.sequence(futures)
     Await.result(f, 30.seconds)
-    assert(r.get == ev.fromInt(500))
+    assert(r.get() == ev.fromInt(500))
   }
 
   test("should perform concurrent incrementAndGet") {
@@ -82,7 +82,7 @@ abstract class ConcurrentAtomicNumberSuite[A, R <: AtomicNumber[A]](
 
     val f = Future.sequence(futures)
     Await.result(f, 30.seconds)
-    assert(r.get == ev.fromInt(500))
+    assert(r.get() == ev.fromInt(500))
   }
 
   test("should perform concurrent getAndIncrement") {
@@ -94,7 +94,7 @@ abstract class ConcurrentAtomicNumberSuite[A, R <: AtomicNumber[A]](
 
     val f = Future.sequence(futures)
     Await.result(f, 30.seconds)
-    assert(r.get == ev.fromInt(500))
+    assert(r.get() == ev.fromInt(500))
   }
 }
 

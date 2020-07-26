@@ -43,39 +43,39 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
 
   test("should set()") {
     val r = Atomic(zero)
-    assertEquals(r.get, zero)
+    assertEquals(r.get(), zero)
     r.set(one)
-    assert(r.get == one)
+    assert(r.get() == one)
   }
 
   test("should getAndSet()") {
     val r = Atomic(zero)
-    assertEquals(r.get, zero)
+    assertEquals(r.get(), zero)
     val old = r.getAndSet(one)
     assert(old == zero)
-    assert(r.get == one)
+    assert(r.get() == one)
   }
 
   test("should compareAndSet()") {
     val r = Atomic(zero)
-    assertEquals(r.get, zero)
+    assertEquals(r.get(), zero)
 
     assert(r.compareAndSet(zero, one))
-    assert(r.get == one)
+    assert(r.get() == one)
     assert(r.compareAndSet(one, zero))
-    assertEquals(r.get, zero)
+    assertEquals(r.get(), zero)
     assert(!r.compareAndSet(one, one))
-    assertEquals(r.get, zero)
+    assertEquals(r.get(), zero)
   }
 
   test("should transform with clean arguments") {
     val r = Atomic(zero)
-    assertEquals(r.get, zero)
+    assertEquals(r.get(), zero)
 
     r.transform(x => valueFromInt(valueToInt(x) + 1))
-    assert(r.get == one)
+    assert(r.get() == one)
     r.transform(x => valueFromInt(valueToInt(x) + 1))
-    assertEquals(r.get, two)
+    assertEquals(r.get(), two)
   }
 
   test("should transform with dirty function #1") {
@@ -84,7 +84,7 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
       def increment(y: A): A = valueFromInt(valueToInt(y) + 1)
       x: A => increment(x)
     }
-    assert(r.get == one)
+    assert(r.get() == one)
   }
 
   test("should transform with dirty function #2") {
@@ -92,7 +92,7 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
     def increment(y: A): A = valueFromInt(valueToInt(y) + 1)
 
     r.transform(increment)
-    assert(r.get == one)
+    assert(r.get() == one)
   }
 
   test("should transform with dirty function #3") {
@@ -104,27 +104,27 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
           x
       }
     }
-    assert(r.get == one)
+    assert(r.get() == one)
   }
 
   test("should transform with dirty self") {
     val r = Atomic(zero)
     def atomic = r
-    assertEquals(atomic.get, zero)
+    assertEquals(atomic.get(), zero)
 
     atomic.transform(x => valueFromInt(valueToInt(x) + 1))
-    assertEquals(atomic.get, one)
+    assertEquals(atomic.get(), one)
     atomic.transform(x => valueFromInt(valueToInt(x) + 1))
-    assertEquals(atomic.get, two)
+    assertEquals(atomic.get(), two)
   }
 
   test("should transformAndGet with clean arguments") {
     val r = Atomic(zero)
-    assertEquals(r.get, zero)
+    assertEquals(r.get(), zero)
 
     assert(r.transformAndGet(x => valueFromInt(valueToInt(x) + 1)) == one)
     assert(r.transformAndGet(x => valueFromInt(valueToInt(x) + 1)) == two)
-    assertEquals(r.get, two)
+    assertEquals(r.get(), two)
   }
 
   test("should transformAndGet with dirty function #1") {
@@ -159,20 +159,20 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
   test("should transformAndGet with dirty self") {
     var inst = Atomic(zero)
     def r = inst
-    assertEquals(r.get, zero)
+    assertEquals(r.get(), zero)
 
     assert(r.transformAndGet(x => valueFromInt(valueToInt(x) + 1)) == one)
     assert(r.transformAndGet(x => valueFromInt(valueToInt(x) + 1)) == two)
-    assertEquals(r.get, two)
+    assertEquals(r.get(), two)
   }
 
   test("should getAndTransform with clean arguments") {
     val r = Atomic(zero)
-    assertEquals(r.get, zero)
+    assertEquals(r.get(), zero)
 
     assert(r.getAndTransform(x => valueFromInt(valueToInt(x) + 1)) == zero)
     assert(r.getAndTransform(x => valueFromInt(valueToInt(x) + 1)) == one)
-    assertEquals(r.get, two)
+    assertEquals(r.get(), two)
   }
 
   test("should getAndTransform with dirty function #1") {
@@ -182,7 +182,7 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
       x: A => increment(x)
     }
     assertEquals(result, zero)
-    assertEquals(r.get, one)
+    assertEquals(r.get(), one)
   }
 
   test("should getAndTransform with dirty function #2") {
@@ -191,7 +191,7 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
 
     val result = r.getAndTransform(increment)
     assertEquals(result, zero)
-    assertEquals(r.get, one)
+    assertEquals(r.get(), one)
   }
 
   test("should getAndTransform with dirty function #3") {
@@ -204,27 +204,27 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
       }
     }
     assertEquals(result, zero)
-    assertEquals(r.get, one)
+    assertEquals(r.get(), one)
   }
 
   test("should getAndTransform with dirty self") {
     var inst = Atomic(zero)
     def r = inst
-    assertEquals(r.get, zero)
+    assertEquals(r.get(), zero)
 
     assert(r.getAndTransform(x => valueFromInt(valueToInt(x) + 1)) == zero)
     assert(r.getAndTransform(x => valueFromInt(valueToInt(x) + 1)) == one)
-    assertEquals(r.get, two)
+    assertEquals(r.get(), two)
   }
 
   // --
   test("should transformAndExtract with clean arguments") {
     val r = Atomic(zero)
-    assertEquals(r.get, zero)
+    assertEquals(r.get(), zero)
 
     assert(r.transformAndExtract(x => (x, valueFromInt(valueToInt(x) + 1))) == zero)
     assert(r.transformAndExtract(x => (x, valueFromInt(valueToInt(x) + 1))) == one)
-    assertEquals(r.get, two)
+    assertEquals(r.get(), two)
   }
 
   test("should transformAndExtract with dirty function #1") {
@@ -235,7 +235,7 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
     }
 
     assertEquals(result, zero)
-    assertEquals(r.get, one)
+    assertEquals(r.get(), one)
   }
 
   test("should transformAndExtract with dirty function #2") {
@@ -244,7 +244,7 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
 
     val result = r.transformAndExtract(increment)
     assertEquals(result, zero)
-    assertEquals(r.get, one)
+    assertEquals(r.get(), one)
   }
 
   test("should transformAndExtract with dirty function #3") {
@@ -259,24 +259,24 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
     }
 
     assertEquals(result, zero)
-    assertEquals(r.get, one)
+    assertEquals(r.get(), one)
   }
 
   test("should transformAndExtract with dirty self") {
     var inst = Atomic(zero)
     def r = inst
-    assertEquals(r.get, zero)
+    assertEquals(r.get(), zero)
 
     assert(r.transformAndExtract(x => (x, valueFromInt(valueToInt(x) + 1))) == zero)
     assert(r.transformAndExtract(x => (x, valueFromInt(valueToInt(x) + 1))) == one)
-    assertEquals(r.get, two)
+    assertEquals(r.get(), two)
   }
 
   test("should lazySet") {
     val r = Atomic(zero)
-    assertEquals(r.get, zero)
+    assertEquals(r.get(), zero)
     r.lazySet(one)
-    assertEquals(r.get, one)
+    assertEquals(r.get(), one)
   }
 }
 

@@ -104,17 +104,17 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     s.tick()
 
     assertEquals(continue.syncTryFlatten, Continue)
-    assertEquals(sum.get, expectedSum - 2 - 5)
+    assertEquals(sum.get(), expectedSum - 2 - 5)
 
     // Triggering on complete
     subscriber.onComplete(); s.tick()
-    assertEquals(wasCompleted.get, 4)
+    assertEquals(wasCompleted.get(), 4)
     assertEquals(finishPromise.future.value, None)
 
     // Continue
     ackPromise.success(Continue); s.tick()
-    assertEquals(sum.get, expectedSum)
-    assertEquals(wasCompleted.get, 6)
+    assertEquals(sum.get(), expectedSum)
+    assertEquals(wasCompleted.get(), 6)
     assertEquals(finishPromise.future.value, Some(Success(6)))
   }
 
@@ -142,17 +142,17 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     s.tick()
 
     assertEquals(continue.syncTryFlatten, Continue)
-    assertEquals(sum.get, expectedSum - 2 - 5)
+    assertEquals(sum.get(), expectedSum - 2 - 5)
 
     // Triggering on complete
     subscriber.onComplete(); s.tick()
-    assertEquals(wasCompleted.get, 4)
+    assertEquals(wasCompleted.get(), 4)
     assertEquals(finishPromise.future.value, None)
 
     // Continue
     val dummy = DummyException("dummy")
     ackPromise1.failure(dummy); s.tick()
-    assertEquals(wasCompleted.get, 4)
+    assertEquals(wasCompleted.get(), 4)
     assertEquals(finishPromise.future.value, Some(Failure(dummy)))
     assert(conn.isCanceled, "conn.isCanceled")
     assertEquals(subscriber.onNext(10), Stop)
@@ -189,16 +189,16 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     s.tick()
 
     assertEquals(continue.syncTryFlatten, Continue)
-    assertEquals(sum.get, expectedSum - 2 - 5)
+    assertEquals(sum.get(), expectedSum - 2 - 5)
 
     // Triggering on complete
     subscriber.onComplete(); s.tick()
-    assertEquals(wasCompleted.get, 4)
+    assertEquals(wasCompleted.get(), 4)
     assertEquals(finishPromise.future.value, None)
 
     // Continue
     ackPromise1.success(Continue); s.tick()
-    assertEquals(wasCompleted.get, 4)
+    assertEquals(wasCompleted.get(), 4)
     assertEquals(finishPromise.future.value, Some(Failure(dummy)))
     assert(conn.isCanceled, "conn.isCanceled")
     assertEquals(subscriber.onNext(10), Stop)
@@ -224,18 +224,18 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
 
     for (_ <- 0 until 4) assertEquals(subscriber.onNext(1), Continue)
     s.tick()
-    assertEquals(sum.get, 4 + 2)
+    assertEquals(sum.get(), 4 + 2)
 
     for (_ <- 0 until 4) assertEquals(subscriber.onNext(1), Continue)
     s.tick()
-    assertEquals(sum.get, 8 + 2 + 2)
+    assertEquals(sum.get(), 8 + 2 + 2)
 
     composite.cancel(); s.tick()
     for (_ <- 0 until 4) { assertEquals(subscriber.onNext(1), Continue); s.tick() }
-    assertEquals(sum.get, 12 + 4)
+    assertEquals(sum.get(), 12 + 4)
 
     subscriber.onComplete(); s.tick()
-    assertEquals(wasCompleted.get, 2)
+    assertEquals(wasCompleted.get(), 2)
     assertEquals(finishPromise.future.value, Some(Success(4)))
   }
 

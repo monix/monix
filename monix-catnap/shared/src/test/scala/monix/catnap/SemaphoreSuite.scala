@@ -134,7 +134,7 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     val p2 = semaphore.acquire.unsafeToFuture()
     assert(p2.isCompleted, "p2.isCompleted")
 
-    val p3 = Promise[Unit]
+    val p3 = Promise[Unit]()
     val cancel = semaphore.acquire.unsafeRunCancelable(_ => p3.success(()))
     assert(!p3.isCompleted, "!p3.isCompleted")
     assertEquals(semaphore.available.unsafeRunSync(), 0)

@@ -193,14 +193,14 @@ object Atomic {
         if (util.isClean(cb))
           q"""
           val $self = $selfExpr
-          $self.set($cb($self.get))
+          $self.set($cb($self.get()))
           """
         else {
           val fn = util.name("fn")
           q"""
           val $self = $selfExpr
           val $fn = $cb
-          $self.set($fn($self.get))
+          $self.set($fn($self.get()))
           """
         }
 
@@ -220,7 +220,7 @@ object Atomic {
         if (util.isClean(cb)) {
           q"""
           val $self = $selfExpr
-          val $current = $self.get
+          val $current = $self.get()
           val $update = $cb($current)
           $self.set($update)
           $update
@@ -230,7 +230,7 @@ object Atomic {
           q"""
           val $self = $selfExpr
           val $fn = $cb
-          val $current = $self.get
+          val $current = $self.get()
           val $update = $fn($current)
           $self.set($update)
           $update
@@ -253,7 +253,7 @@ object Atomic {
         if (util.isClean(cb)) {
           q"""
           val $self = $selfExpr
-          val $current = $self.get
+          val $current = $self.get()
           val $update = $cb($current)
           $self.set($update)
           $current
@@ -263,7 +263,7 @@ object Atomic {
           q"""
           val $self = $selfExpr
           val $fn = $cb
-          val $current = $self.get
+          val $current = $self.get()
           val $update = $fn($current)
           $self.set($update)
           $current
@@ -288,7 +288,7 @@ object Atomic {
         if (util.isClean(cb)) {
           q"""
           val $self = $selfExpr
-          val $current = $self.get
+          val $current = $self.get()
           val ($result, $update) = $cb($current)
           $self.set($update)
           $result
@@ -298,7 +298,7 @@ object Atomic {
           q"""
           val $self = $selfExpr
           val $fn = $cb
-          val $current = $self.get
+          val $current = $self.get()
           val ($result, $update) = $fn($current)
           $self.set($update)
           $result
@@ -331,7 +331,7 @@ object Atomic {
 
     def applyMacro[A: c.WeakTypeTag](): c.Expr[A] = {
       val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
-      val tree = q"""$selfExpr.get"""
+      val tree = q"""$selfExpr.get()"""
       inlineAndReset[A](tree)
     }
 

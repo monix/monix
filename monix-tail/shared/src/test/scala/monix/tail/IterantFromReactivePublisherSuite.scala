@@ -146,10 +146,10 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
           if (requested.getAndAdd(n) == 0)
             sc.execute(new Runnable {
               def run(): Unit = {
-                var requested = self.requested.get
+                var requested = self.requested.get()
                 var toSend = requested
 
-                while (toSend > 0 && isInRange(index, until, step) && !cancelled.get) {
+                while (toSend > 0 && isInRange(index, until, step) && !cancelled.get()) {
                   s.onNext(index)
                   index += step
                   toSend -= 1
