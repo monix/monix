@@ -53,6 +53,9 @@ val reactiveStreamsVersion = "1.0.3"
 val minitestVersion = "2.8.2"
 val scalaTestVersion = "3.0.8"
 val implicitBoxVersion = "0.2.0"
+val kindProjectorVersion = "0.11.0"
+val betterMonadicForVersion = "0.3.1"
+val silencerVersion = "1.7.0"
 val customScalaJSVersion = Option(System.getenv("SCALAJS_VERSION"))
 
 // The Monix version with which we must keep binary compatibility.
@@ -66,82 +69,36 @@ lazy val doNotPublishArtifact = Seq(
   publishArtifact in (Compile, packageBin) := false
 )
 
-lazy val warnUnusedImport = Seq(
-  scalacOptions ++= {
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 11)) =>
-        Seq("-Ywarn-unused-import")
-      case _ =>
-        Seq("-Ywarn-unused:imports")
-    }
-  },
-  scalacOptions in (Compile, console) --= Seq("-Ywarn-unused-import", "-Ywarn-unused:imports"),
-  scalacOptions in Test --= Seq("-Ywarn-unused-import", "-Ywarn-unused:imports")
-)
-
-lazy val sharedSettings = warnUnusedImport ++ Seq(
+lazy val sharedSettings = Seq(
   organization := "io.monix",
   scalaVersion := "2.13.3",
   crossScalaVersions := Seq("2.11.12", "2.12.12", "2.13.3"),
 
-  scalacOptions ++= Seq(
-    // warnings
-    "-unchecked", // able additional warnings where generated code depends on assumptions
-    "-deprecation", // emit warning for usages of deprecated APIs
-    "-feature", // emit warning usages of features that should be imported explicitly
-    // Features enabled by default
-    "-language:higherKinds",
-    "-language:implicitConversions",
-    "-language:experimental.macros",
-  ),
-
-  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, v)) if v <= 12 =>
-      Seq(
-        // possibly deprecated options
-        "-Ywarn-inaccessible",
-        // absolutely necessary for Iterant
-        "-Ypartial-unification",
+  // Enable this to debug warnings
+  scalacOptions in Compile += "-Wconf:any:warning-verbose",
+  // Disabled from the sbt-tpolecat set
+  scalacOptions in Compile ~= { options: Seq[String] =>
+    options.filterNot(
+      Set(
+        "-Wunused:privates",
+        "-Ywarn-unused:privates",
+        "-Ywarn-unused:implicits",
+        "-Wunused:implicits",
+        "-Ywarn-unused:imports",
+        "-Wunused:explicits",
+        "-Ywarn-unused:params",
+        "-Wunused:params",
       )
-    case _ =>
-      Seq(
-        "-Ymacro-annotations",
-      )
-  }),
+    )
+  },
 
-  // Linter
-  scalacOptions ++= Seq(
-    // Turns all warnings into errors ;-)
-    "-Xfatal-warnings",
-    // Enables linter options
-    "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
-    "-Xlint:nullary-unit", // warn when nullary methods return Unit
-    "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
-    "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
-    "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
-    "-Xlint:private-shadow", // a private field (or class parameter) shadows a superclass field
-    "-Xlint:type-parameter-shadow", // a local type parameter shadows a type already in scope
-    "-Xlint:poly-implicit-overload", // parameterized overloaded implicit methods are not visible as view bounds
-    "-Xlint:option-implicit", // Option.apply used implicit view
-    "-Xlint:delayedinit-select", // Selecting member of DelayedInit
-    "-Xlint:package-object-classes", // Class or object defined in package object
-  ),
-  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, majorVersion)) if majorVersion <= 12 =>
-      Seq(
-        "-Xlint:inaccessible", // warn about inaccessible types in method signatures
-        "-Xlint:by-name-right-associative", // By-name parameter of right associative operator
-        "-Xlint:unsound-match" // Pattern match may not be typesafe
-      )
-    case _ =>
-      Seq.empty
-  }),
-
-  // Turning off fatal warnings for ScalaDoc, otherwise we can't release.
-  scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
+  // Turning off fatal warnings for doc generation
+  scalacOptions.in(Compile, doc) ~= filterConsoleScalacOptions,
 
   // For working with partially-applied types
-  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.0" cross CrossVersion.full),
+  addCompilerPlugin("org.typelevel" % "kind-projector" % kindProjectorVersion cross CrossVersion.full),
+  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % betterMonadicForVersion),
+  addCompilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full),
 
   // ScalaDoc settings
   autoAPIMappings := true,

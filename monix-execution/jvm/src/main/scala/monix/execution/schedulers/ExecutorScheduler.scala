@@ -55,9 +55,10 @@ abstract class ExecutorScheduler(e: ExecutorService, r: UncaughtExceptionReporte
       override def run() =
         try blocking {
           p.success(e.awaitTermination(timeout, unit))
+          ()
         } catch {
           case ex if NonFatal(ex) =>
-            p.failure(ex)
+            p.failure(ex); ()
         }
     })
     p.future
@@ -224,18 +225,18 @@ object ExecutorScheduler {
         Cancelable.empty
       } else {
         val task = s.schedule(r, initialDelay, unit)
-        Cancelable(() => task.cancel(true))
+        Cancelable(() => { task.cancel(true); () })
       }
     }
 
     override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
       val task = s.scheduleWithFixedDelay(r, initialDelay, delay, unit)
-      Cancelable(() => task.cancel(false))
+      Cancelable(() => { task.cancel(false); () })
     }
 
     override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable = {
       val task = s.scheduleAtFixedRate(r, initialDelay, period, unit)
-      Cancelable(() => task.cancel(false))
+      Cancelable(() => { task.cancel(false); () })
     }
 
     override def withExecutionModel(em: ExecModel): SchedulerService =

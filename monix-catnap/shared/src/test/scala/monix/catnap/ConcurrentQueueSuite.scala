@@ -128,8 +128,9 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
       if (n > 0)
         queue.poll.flatMap { a =>
           consumer(n - 1, acc.enqueue(a))
-        } else
-        IO.pure(acc.sum)
+        } 
+      else
+        IO.pure(acc.foldLeft(0L)(_ + _))
 
     for {
       p <- producer(count).start

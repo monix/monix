@@ -94,8 +94,7 @@ object Cancelable {
     */
   def fromPromise[A](p: Promise[A], e: Throwable): Cancelable =
     new Cancelable {
-      def cancel(): Unit =
-        p.tryFailure(e)
+      def cancel(): Unit = { p.tryFailure(e); () }
     }
 
   /** Given a collection of cancelables, cancel them all.
@@ -107,7 +106,7 @@ object Cancelable {
     *  - for JS they are wrapped in a `CompositeException`
     */
   def cancelAll(seq: Iterable[Cancelable]): Unit = {
-    var errors = ListBuffer.empty[Throwable]
+    val errors = ListBuffer.empty[Throwable]
     val cursor = seq.iterator
     while (cursor.hasNext) {
       try cursor.next().cancel()

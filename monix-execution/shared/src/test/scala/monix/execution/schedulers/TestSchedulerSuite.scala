@@ -19,7 +19,6 @@ package monix.execution.schedulers
 
 import java.util.concurrent.{TimeUnit, TimeoutException}
 
-import cats.effect.IO
 import minitest.TestSuite
 import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException

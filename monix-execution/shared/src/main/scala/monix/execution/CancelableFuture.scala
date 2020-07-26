@@ -336,7 +336,7 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     def value: Option[Try[A]] = underlying.value
 
     def onComplete[U](f: (Try[A]) => U)(implicit executor: ExecutionContext): Unit =
-      executor.execute(new Runnable { def run(): Unit = f(immediate) })
+      executor.execute(new Runnable { def run(): Unit = { f(immediate); () } })
   }
 
   /** An actual [[CancelableFuture]] implementation; internal. */

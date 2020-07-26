@@ -46,7 +46,7 @@ private[execution] abstract class CancelableFutureForPlatform {
           }
         }
       })
-      Cancelable(() => cfa.cancel(true))
+      Cancelable(() => { cfa.cancel(true); () })
     })
 
   /**

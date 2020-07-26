@@ -42,7 +42,7 @@ private[monix] object math {
     */
   def roundToPowerOf2(nr: Int): Int = {
     require(nr >= 0, "nr must be positive")
-    val bit = round(log2(nr))
+    val bit = round(log2(nr.toDouble))
     1 << (if (bit > 30) 30 else bit.toInt)
   }
 
@@ -70,7 +70,7 @@ private[monix] object math {
     */
   def nextPowerOf2(nr: Int): Int = {
     require(nr >= 0, "nr must be positive")
-    val bit = ceil(log2(nr))
+    val bit = ceil(log2(nr.toDouble))
     1 << (if (bit > 30) 30 else bit.toInt)
   }
 
