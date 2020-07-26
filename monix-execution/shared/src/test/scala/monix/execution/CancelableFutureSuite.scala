@@ -18,7 +18,6 @@
 package monix.execution
 
 import minitest.TestSuite
-import cats.Monad
 import monix.execution.cancelables.{BooleanCancelable, ChainedCancelable}
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler

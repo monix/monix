@@ -20,6 +20,7 @@ package monix.execution.atomic
 import minitest.SimpleTestSuite
 import monix.execution.atomic.PaddingStrategy._
 import scala.util.control.NonFatal
+import scala.annotation.nowarn
 
 abstract class GenericAtomicSuite[A, R <: Atomic[A]](
   builder: AtomicBuilder[A, R],
@@ -157,10 +158,10 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
   }
 
   test("should transformAndGet with dirty self") {
-    var inst = Atomic(zero)
+    @nowarn var inst = Atomic(zero)
     def r = inst
-    assertEquals(r.get(), zero)
 
+    assertEquals(r.get(), zero)
     assert(r.transformAndGet(x => valueFromInt(valueToInt(x) + 1)) == one)
     assert(r.transformAndGet(x => valueFromInt(valueToInt(x) + 1)) == two)
     assertEquals(r.get(), two)
@@ -208,7 +209,8 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
   }
 
   test("should getAndTransform with dirty self") {
-    var inst = Atomic(zero)
+    @nowarn var inst = Atomic(zero)
+
     def r = inst
     assertEquals(r.get(), zero)
 
@@ -263,7 +265,8 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
   }
 
   test("should transformAndExtract with dirty self") {
-    var inst = Atomic(zero)
+    @nowarn var inst = Atomic(zero)
+
     def r = inst
     assertEquals(r.get(), zero)
 
@@ -304,7 +307,7 @@ object GenericAtomicNumberAnyNoPadding
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     NoPadding,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = true,
     allowUnsafe = true)
@@ -396,7 +399,7 @@ object GenericAtomicNumberAnyLeft64
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Left64,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = true,
     allowUnsafe = true)
@@ -488,7 +491,7 @@ object GenericAtomicNumberAnyRight64
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Right64,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = true,
     allowUnsafe = true)
@@ -580,7 +583,7 @@ object GenericAtomicNumberAnyLeftRight128
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     LeftRight128,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = true,
     allowUnsafe = true)
@@ -672,7 +675,7 @@ object GenericAtomicNumberAnyLeft128
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Left128,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = true,
     allowUnsafe = true)
@@ -764,7 +767,7 @@ object GenericAtomicNumberAnyRight128
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Right128,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = true,
     allowUnsafe = true)
@@ -856,7 +859,7 @@ object GenericAtomicNumberAnyLeftRight256
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     LeftRight256,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = true,
     allowUnsafe = true)
@@ -950,7 +953,7 @@ object GenericAtomicNumberAnyNoPaddingJava7Suite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     NoPadding,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
     allowUnsafe = true)
@@ -1042,7 +1045,7 @@ object GenericAtomicNumberAnyLeft64Java7Suite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Left64,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
     allowUnsafe = true)
@@ -1134,7 +1137,7 @@ object GenericAtomicNumberAnyRight64Java7Suite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Right64,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
     allowUnsafe = true)
@@ -1226,7 +1229,7 @@ object GenericAtomicNumberAnyLeftRight128Java7Suite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     LeftRight128,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
     allowUnsafe = true)
@@ -1318,7 +1321,7 @@ object GenericAtomicNumberAnyLeft128Java7Suite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Left128,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
     allowUnsafe = true)
@@ -1410,7 +1413,7 @@ object GenericAtomicNumberAnyRight128Java7Suite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Right128,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
     allowUnsafe = true)
@@ -1502,7 +1505,7 @@ object GenericAtomicNumberAnyLeftRight256Java7Suite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     LeftRight256,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
     allowUnsafe = true)
@@ -1596,7 +1599,7 @@ object GenericAtomicNumberAnyNoPaddingJavaXSuite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     NoPadding,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
     allowUnsafe = false)
@@ -1688,7 +1691,7 @@ object GenericAtomicNumberAnyLeft64JavaXSuite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Left64,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
     allowUnsafe = false)
@@ -1780,7 +1783,7 @@ object GenericAtomicNumberAnyRight64JavaXSuite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Right64,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
     allowUnsafe = false)
@@ -1872,7 +1875,7 @@ object GenericAtomicNumberAnyLeftRight128JavaXSuite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     LeftRight128,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
     allowUnsafe = false)
@@ -1964,7 +1967,7 @@ object GenericAtomicNumberAnyLeft128JavaXSuite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Left128,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
     allowUnsafe = false)
@@ -2056,7 +2059,7 @@ object GenericAtomicNumberAnyRight128JavaXSuite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Right128,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
     allowUnsafe = false)
@@ -2148,7 +2151,7 @@ object GenericAtomicNumberAnyLeftRight256JavaXSuite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     LeftRight256,
-    x => BoxedLong(x),
+    x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
     allowUnsafe = false)

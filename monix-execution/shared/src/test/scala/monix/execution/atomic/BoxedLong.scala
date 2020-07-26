@@ -35,7 +35,7 @@ object BoxedLong {
     def negate(x: BoxedLong): BoxedLong =
       BoxedLong(-1 * x.value)
     def fromInt(x: Int): BoxedLong =
-      BoxedLong(x)
+      BoxedLong(x.toLong)
     def toLong(x: BoxedLong): Long =
       x.value
     def times(x: BoxedLong, y: BoxedLong): BoxedLong =

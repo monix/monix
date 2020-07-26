@@ -82,6 +82,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
       s.scheduleOnce(10, TimeUnit.SECONDS, action {
         firstBatch += 1
       })
+      ()
     })
 
     s.scheduleOnce(20, TimeUnit.SECONDS, action {
@@ -90,6 +91,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
       s.scheduleOnce(10, TimeUnit.SECONDS, action {
         secondBatch += 1
       })
+      ()
     })
 
     s.tick()
@@ -121,7 +123,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, None)
 
     s.tick(10.seconds)
-    intercept[TimeoutException](f.value.get.get)
+    intercept[TimeoutException] { f.value.get.get; () }
     ()
   }
 
@@ -327,7 +329,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     // catching the exception here, for non-useless stack traces
     val err = Try(throw new TimeoutException)
     val promise = Promise[A]()
-    val task = s.scheduleOnce(timeout.length, timeout.unit, action(promise.tryComplete(err)))
+    val task = s.scheduleOnce(timeout.length, timeout.unit, action { promise.tryComplete(err); () })
 
     f1.onComplete { result =>
       // canceling task to prevent waisted CPU resources and memory leaks

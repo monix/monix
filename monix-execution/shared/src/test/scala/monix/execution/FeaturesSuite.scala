@@ -61,7 +61,7 @@ object FeaturesSuite extends SimpleTestSuite with Checkers {
 
   test("Features.+") {
     check2 { (f: Features, i: Int) =>
-      val flag = Features.flag(1 << Math.floorMod(i, 64))
+      val flag = Features.flag((1 << Math.floorMod(i, 64)).toLong)
       val f2 = f + flag
       f2.contains(flag)
     }
