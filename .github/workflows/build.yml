@@ -39,6 +39,7 @@ jobs:
           ./.github/scripts/build
         env:
           SCALA_VERSION: ${{ matrix.scala }}
+          PLATFORM: ${{ matrix.java }}
           SBT_COMMAND: ci-jvm
               
   js-tests:
@@ -79,6 +80,7 @@ jobs:
         env:
           SCALA_VERSION: ${{ matrix.scala }}
           SCALAJS_VERSION: ${{ matrix.scalaJS }}
+          PLATFORM: ${{ matrix.java }}
           SBT_COMMAND: ci-js
   
   mima:
