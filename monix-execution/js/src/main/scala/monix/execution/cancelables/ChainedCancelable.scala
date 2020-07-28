@@ -144,8 +144,6 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
     * }}}
     */
   def forwardTo(other: ChainedCancelable): Unit = {
-    type CC = ChainedCancelable
-
     // Short-circuit in case we have the same reference
     val newRoot = {
       var cursor = other

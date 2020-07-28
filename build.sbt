@@ -94,6 +94,8 @@ lazy val sharedSettings = Seq(
 
   // Turning off fatal warnings for doc generation
   scalacOptions.in(Compile, doc) ~= filterConsoleScalacOptions,
+  // Silence everything in auto-generated files
+  scalacOptions += "-P:silencer:pathFilters=.*[/]src_managed[/].*",
 
   // For working with partially-applied types
   addCompilerPlugin("org.typelevel" % "kind-projector" % kindProjectorVersion cross CrossVersion.full),

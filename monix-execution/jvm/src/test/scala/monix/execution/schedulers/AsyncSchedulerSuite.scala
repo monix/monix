@@ -55,6 +55,7 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
 
     intercept[TimeoutException] {
       Await.result(p.future, 150.millis)
+      ()
     }
     ()
   }
@@ -136,18 +137,22 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
 
     intercept[IllegalArgumentException] {
       monix.execution.Scheduler.cached("dummy", -1, 2, 1.second)
+      ()
     }
 
     intercept[IllegalArgumentException] {
       monix.execution.Scheduler.cached("dummy", 0, 0, 1.second)
+      ()
     }
 
     intercept[IllegalArgumentException] {
       monix.execution.Scheduler.cached("dummy", 2, 1, 1.second)
+      ()
     }
 
     intercept[IllegalArgumentException] {
       monix.execution.Scheduler.cached("dummy", 2, 10, -1.second)
+      ()
     }
 
     implicit val s: Scheduler = monix.execution.Scheduler

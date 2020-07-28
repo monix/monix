@@ -43,6 +43,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
   override def tearDown(env: SchedulerService): Unit = {
     env.shutdown()
     env.awaitTermination(10.seconds)
+    ()
   }
 
   test("Callback.safe is thread-safe onSuccess") { implicit sc =>
@@ -233,7 +234,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
     isForked: Boolean = false,
     retries: Int = RETRIES)(implicit sc: Scheduler): Unit = {
 
-    def run(trigger: Callback[Throwable, Int] => Unit): Unit = {
+    def run(trigger: Callback[Throwable, Int] => Any): Unit = {
       for (_ <- 0 until retries) {
         var effect = 0
         val awaitCallbacks = if (isForked) new CountDownLatch(1) else null
@@ -275,7 +276,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
     isForked: Boolean = false,
     retries: Int = RETRIES)(implicit sc: Scheduler): Unit = {
 
-    def run(trigger: Callback[Throwable, String] => Unit): Unit = {
+    def run(trigger: Callback[Throwable, String] => Any): Unit = {
       for (_ <- 0 until retries) {
         var effect = 0
         val awaitCallbacks = if (isForked) new CountDownLatch(1) else null
@@ -309,7 +310,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
       catch { case _: CallbackCalledMultipleTimesException => () })
   }
 
-  def runConcurrently(sc: Scheduler)(f: => Unit): Unit = {
+  def runConcurrently(sc: Scheduler)(f: => Any): Unit = {
     val latchWorkersStart = new CountDownLatch(WORKERS)
     val latchWorkersFinished = new CountDownLatch(WORKERS)
 
@@ -317,7 +318,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
       sc.executeAsync { () =>
         latchWorkersStart.countDown()
         try {
-          f
+          f; ()
         } finally {
           latchWorkersFinished.countDown()
         }
@@ -330,6 +331,6 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
 
   def await(latch: CountDownLatch): Unit = {
     val seconds = 10
-    assert(latch.await(seconds, TimeUnit.SECONDS), s"latch.await($seconds seconds)")
+    assert(latch.await(seconds.toLong, TimeUnit.SECONDS), s"latch.await($seconds seconds)")
   }
 }

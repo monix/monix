@@ -32,7 +32,7 @@ private[catnap] abstract class FutureLiftForPlatform {
     F.flatMap(fa) { cf =>
       F.cancelable { cb =>
         subscribeToCompletable(cf, cb)
-        F.delay(cf.cancel(true))
+        F.delay { cf.cancel(true); () }
       }
     }
 
@@ -97,5 +97,6 @@ private[catnap] abstract class FutureLiftForPlatform {
         }
       }
     })
+    ()
   }
 }

@@ -76,6 +76,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
 
     intercept[TimeoutException] {
       Await.result(p.future, 150.millis)
+      ()
     }
     ()
   }
@@ -212,6 +213,7 @@ object ForkJoinSchedulerSuite extends ExecutorSchedulerSuite {
         blocking {
           latch.countDown()
           finish.await(15, TimeUnit.MINUTES)
+          ()
         }
       }
 

@@ -49,7 +49,7 @@ import scala.concurrent.Promise
   *   for {
   *     semaphore <- Semaphore[IO](provisioned = 10)
   *     tasks = for (_ <- 0 until 1000) yield {
-  *       semaphore.withPermit(makeRequest(???))
+  *       semaphore.withPermit(makeRequest(HttpRequest()))
   *     }
   *     // Execute in parallel; note that due to the `semaphore`
   *     // no more than 10 tasks will be allowed to execute in parallel

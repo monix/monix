@@ -155,7 +155,7 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     import scala.concurrent.ExecutionContext.Implicits.global
 
     val task = repeatTest(10) {
-      val available = 6
+      val available = 6L
       val semaphore = Semaphore.unsafe[IO](provisioned = available)
       val count = if (Platform.isJVM) 10000 else 50
       val allReleased = Promise[Unit]()
@@ -164,7 +164,7 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
         allReleased.completeWith(semaphore.awaitAvailable(available).unsafeToFuture())
 
         val futures = for (i <- 0 until count) yield {
-          semaphore.withPermitN(Math.floorMod(Random.nextInt(), 3) + 1) {
+          semaphore.withPermitN(Math.floorMod(Random.nextInt(), 3).toLong + 1) {
             IO(1).map { x =>
               assert(!allReleased.isCompleted, s"!allReleased.isCompleted (index $i)")
               x
