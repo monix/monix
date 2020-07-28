@@ -32,4 +32,4 @@ then
 else
    sbt -J-Xmx6144m ++$SCALA_VERSION $SBT_COMMAND
 fi
-exit 0
+exit 0 

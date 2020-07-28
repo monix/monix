@@ -50,7 +50,7 @@ For the stable release (compatible with Cats and Cats-Effect 2.x):
 ```scala
 libraryDependencies += "io.monix" %% "monix" % "3.2.2"
 ```
-
+  
 ### Sub-projects
 
 Monix 3.x is modular by design, so you can pick and choose:
