@@ -246,7 +246,8 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
 
     val gen = for {
       byteSize  <- Gen.choose(0, 4096)
-      chunkSize <- Gen.choose(Math.floorDiv(byteSize, 2).max(1), byteSize * 2)
+      minChunkSize = Math.floorDiv(byteSize, 2).max(1)
+      chunkSize <- Gen.choose[Int](minChunkSize, Math.max(minChunkSize, byteSize * 2))
     } yield (byteSize, chunkSize)
 
     val prop = Prop
