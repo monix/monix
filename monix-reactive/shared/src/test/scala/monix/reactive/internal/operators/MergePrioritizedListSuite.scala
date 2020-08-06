@@ -29,8 +29,8 @@ import scala.concurrent.duration._
 object MergePrioritizedListSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) =
     Some {
-      val sources = (1 to sourceCount).map(i => Observable.fromIterable(Seq.fill(4)(i.toLong)))
-      val o = Observable.mergePrioritizedList(sources: _*)(1 to sourceCount)
+      val sources = (1 to sourceCount).map(i => (i, Observable.fromIterable(Seq.fill(4)(i.toLong))))
+      val o = Observable.mergePrioritizedList(sources: _*)
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
 
@@ -49,8 +49,8 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample] = None
 
   override def cancelableObservables(): Seq[Sample] = {
-    val sources1 = (1 to 100).map(_ => Observable.range(0, 100).delayExecution(2.second))
-    val sample1 = Observable.mergePrioritizedList(sources1: _*)(1 to 100)
+    val sources1 = (1 to 100).map(i => (i, Observable.range(0, 100).delayExecution(2.second)))
+    val sample1 = Observable.mergePrioritizedList(sources1: _*)
     Seq(
       Sample(sample1, 0, 0, 0.seconds, 0.seconds),
       Sample(sample1, 0, 0, 1.seconds, 0.seconds)
@@ -58,26 +58,12 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
   }
 
   test("should return Observable.empty if sources empty") { implicit s =>
-    assertEquals(Observable.mergePrioritizedList()(Seq.empty), Observable.empty)
-  }
-
-  test("should throw if sources.size < priorities.size") { implicit s =>
-    intercept[IllegalArgumentException] {
-      Observable.mergePrioritizedList(Observable.empty)(Seq(2, 1))
-    }
-    ()
-  }
-
-  test("should throw if sources.size > priorities.size") { implicit s =>
-    intercept[IllegalArgumentException] {
-      Observable.mergePrioritizedList(Observable.empty)(Seq.empty)
-    }
-    ()
+    assertEquals(Observable.mergePrioritizedList(), Observable.empty)
   }
 
   test("should pick items in priority order") { implicit s =>
-    val sources = (1 to 10).map(i => Observable.now(i * 1L))
-    val source = Observable.mergePrioritizedList(sources: _*)(1 to 10)
+    val sources = (1 to 10).map(i => (i, Observable.now(i * 1L)))
+    val source = Observable.mergePrioritizedList(sources: _*)
     var last = 0L
     source.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long): Future[Ack] = {
@@ -104,7 +90,7 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
 
   test("should push all items downstream before calling onComplete") { implicit s =>
     val source =
-      Observable.mergePrioritizedList(Observable.now(1L), Observable.now(1L))(Seq(1, 1))
+      Observable.mergePrioritizedList((1, Observable.now(1L)), (1, Observable.now(1L)))
     var count = 0L
     source.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long): Future[Ack] = {

@@ -27,14 +27,13 @@ import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
 
-/** Given an observable sequence and associated priorities, it combines them
+/** Given a sequence of priority, observable pairs, combines them
   * into a new observable, preferring higher-priority sources when multiple
   * sources have items available. If items are available from sources with the
   * same priority, the order is undefined.
   */
-private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[Observable[A]], priorities: Seq[Int])
+private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[(Int, Observable[A])])
   extends Observable[A] {
-  require(sources.size == priorities.size, "sources.size != priorities.size")
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     import out.scheduler
@@ -135,8 +134,8 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[Obs
 
     val composite = CompositeCancelable()
 
-    sources.zip(priorities).foreach { pair =>
-      composite += pair._1.unsafeSubscribeFn(new Subscriber[A] {
+    sources.foreach { case (pri, obs) =>
+      composite += obs.unsafeSubscribeFn(new Subscriber[A] {
         implicit val scheduler: Scheduler = out.scheduler
 
         def onNext(elem: A): Future[Ack] =
@@ -145,7 +144,7 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[Obs
               Stop
             } else {
               val p = Promise[Ack]()
-              pq.enqueue(PQElem(elem, p, pair._2))
+              pq.enqueue(PQElem(elem, p, pri))
               signalOnNext()
               p.future
             }

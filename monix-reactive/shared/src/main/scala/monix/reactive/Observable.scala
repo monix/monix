@@ -6056,16 +6056,16 @@ object Observable extends ObservableDeprecatedBuilders {
     }
   }
 
-  /** Given an observable sequence and associated priorities, it combines them
+  /** Given a sequence of priority, observable pairs, combines them
     * into a new observable, preferring higher-priority sources when multiple
     * sources have items available. If items are available from sources with the
     * same priority, the order is undefined.
     */
-  def mergePrioritizedList[A](sources: Observable[A]*)(priorities: Seq[Int]): Observable[A] = {
+  def mergePrioritizedList[A](sources: (Int, Observable[A])*): Observable[A] = {
     if (sources.isEmpty) {
       Observable.empty
     } else {
-      new MergePrioritizedListObservable[A](sources, priorities)
+      new MergePrioritizedListObservable[A](sources)
     }
   }
 
