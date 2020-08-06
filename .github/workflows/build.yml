@@ -45,7 +45,7 @@ jobs:
   js-tests:
     name: scalajs-${{ matrix.scalajs }} scala-${{ matrix.scala }} jdk-${{ matrix.java }}   tests
     runs-on: ubuntu-latest
-
+    needs: jvm-tests
     strategy:
       fail-fast: true
       matrix:
@@ -85,6 +85,7 @@ jobs:
   
   mima:
     name: Mima binary compatibility test
+    needs: [js-tests]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
