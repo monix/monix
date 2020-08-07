@@ -6056,7 +6056,7 @@ object Observable extends ObservableDeprecatedBuilders {
     }
   }
 
-  /** Given a sequence of priority, observable pairs, combines them
+  /** Given a sequence of priority/observable pairs, combines them
     * into a new observable, preferring higher-priority sources when multiple
     * sources have items available. If items are available from sources with the
     * same priority, the order is undefined.
