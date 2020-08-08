@@ -19,17 +19,17 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
+import monix.execution.cancelables.AssignableCancelable
 import monix.reactive.Observable
-import monix.reactive.Observable.Operator
+import monix.reactive.observables.ChainedObservable
 import monix.reactive.observers.Subscriber
-
 import scala.collection.mutable
 
-private[reactive] final class TakeLastOperator[A](n: Int) extends Operator[A, A] {
+private[reactive] final class TakeLastObservable[A](source: Observable[A], n: Int)
+  extends ChainedObservable[A] {
 
-  def apply(out: Subscriber[A]): Subscriber[A] = {
-    require(n > 0, "n should be strictly positive")
-    new Subscriber.Sync[A] {
+  override def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
+    ChainedObservable.subscribe(source, conn, new Subscriber[A] {
       implicit val scheduler = out.scheduler
       private[this] val queue = mutable.Queue.empty[A]
       private[this] var queued = 0
@@ -40,16 +40,18 @@ private[reactive] final class TakeLastOperator[A](n: Int) extends Operator[A, A]
           queued += 1
         else
           queue.dequeue()
+
         Continue
       }
 
       def onComplete(): Unit = {
-        Observable.fromIterable(queue).unsafeSubscribeFn(out)
+        val other = Observable.fromIterable(queue)
+        ChainedObservable.subscribe(other, conn, out)
       }
 
       def onError(ex: Throwable): Unit = {
         out.onError(ex)
       }
-    }
+    })
   }
 }

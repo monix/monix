@@ -89,19 +89,21 @@ private[reactive] final class ReactiveSubscriberAsMonixSubscriber[A] private (
       isComplete = true
       if (firstEvent) subscriber.onSubscribe(createSubscription())
       ack.syncOnContinue(subscriber.onComplete())
+      ()
     }
 
-  private def createSubscription() = new Subscription {
-    def cancel(): Unit = self.cancel()
+  private def createSubscription(): Subscription =
+    new Subscription {
+      def cancel(): Unit = self.cancel()
 
-    def request(n: Long): Unit = {
-      try requests.request(n)
-      catch {
-        case ex: IllegalArgumentException =>
-          subscriber.onError(ex)
-      }
+      def request(n: Long): Unit =
+        try {
+          requests.request(n)
+        } catch {
+          case ex: IllegalArgumentException =>
+            subscriber.onError(ex)
+        }
     }
-  }
 }
 
 private[reactive] object ReactiveSubscriberAsMonixSubscriber {

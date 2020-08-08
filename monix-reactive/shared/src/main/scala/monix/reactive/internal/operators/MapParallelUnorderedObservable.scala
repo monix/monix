@@ -68,7 +68,7 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
 
     implicit val scheduler = out.scheduler
     // Ensures we don't execute more than a maximum number of tasks in parallel
-    private[this] val semaphore = AsyncSemaphore(parallelism)
+    private[this] val semaphore = AsyncSemaphore(parallelism.toLong)
     // Buffer with the supplied  overflow strategy.
     private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy, MultiProducer)
 
@@ -176,7 +176,7 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
       // We need to wait for all semaphore permits to be
       // released, otherwise we can lose events and that's
       // not acceptable for onComplete!
-      semaphore.awaitAvailable(parallelism).foreach { _ =>
+      semaphore.awaitAvailable(parallelism.toLong).foreach { _ =>
         if (!isDone) {
           isDone = true
           lastAck = Stop

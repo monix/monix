@@ -107,9 +107,14 @@ private[reactive] final class DoOnTerminateOperator[A](
         }
       }
 
-      def onComplete(): Unit =
+      def onComplete(): Unit = {
         onFinish(None).runAsync(Callback.empty)
-      def onError(ex: Throwable): Unit =
+        ()
+      }
+
+      def onError(ex: Throwable): Unit = {
         onFinish(Some(ex)).runAsync(Callback.empty)
+        ()
+      }
     }
 }

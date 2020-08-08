@@ -42,6 +42,8 @@ object MimaFilters {
     exclude[MissingClassProblem]("monix.eval.internal.CoevalDeprecated$Companion"),
     exclude[MissingClassProblem]("monix.eval.internal.CoevalDeprecated$Extensions"),
     exclude[MissingClassProblem]("monix.eval.internal.CoevalDeprecated"),
-    exclude[MissingClassProblem]("monix.eval.internal.CoevalDeprecated$")
+    exclude[MissingClassProblem]("monix.eval.internal.CoevalDeprecated$"),
+    // Fixed observable.takeLast, replaced with TakeLastObservable
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.TakeLastOperator")
   )
 }

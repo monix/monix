@@ -348,6 +348,7 @@ private[reactive] final class FlatScanObservable[A, R](
             // stop it and we are free to send the final error
             out.onError(ex)
             asyncUpstreamAck.trySuccess(Stop)
+            ()
 
           case WaitComplete(otherEx, _) =>
             // Branch happens when the main subscriber has already
@@ -359,6 +360,7 @@ private[reactive] final class FlatScanObservable[A, R](
             // Send our immediate error downstream and stop everything
             out.onError(ex)
             asyncUpstreamAck.trySuccess(Stop)
+            ()
 
           case Cancelled =>
             // User cancelled, but we have to log errors somewhere
@@ -383,9 +385,10 @@ private[reactive] final class FlatScanObservable[A, R](
               case None =>
                 asyncUpstreamAck.completeWith(ack)
             }
-
+            ()
           case Cancelled =>
             asyncUpstreamAck.trySuccess(Stop)
+            ()
 
           case WaitComplete(exOpt, _) =>
             // An `onComplete` or `onError` event happened since

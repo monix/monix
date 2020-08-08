@@ -62,6 +62,7 @@ private[reactive] final class DelayByTimespanObservable[A](source: Observable[A]
         lastAck.syncTryFlatten.syncOnContinue {
           if (!isDone.getAndSet(true)) out.onComplete()
         }
+        ()
       }
 
       // Method `onError` is concurrent with run(), so we need to synchronize
@@ -92,6 +93,7 @@ private[reactive] final class DelayByTimespanObservable[A](source: Observable[A]
             case Stop => ack.success(Stop)
             case async => ack.completeWith(async)
           }
+          ()
         }
       }
     })

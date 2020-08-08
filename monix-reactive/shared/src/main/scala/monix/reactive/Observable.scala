@@ -2163,7 +2163,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * buffer gets dropped and the error gets emitted immediately.
     */
   final def takeLast(n: Int): Observable[A] =
-    if (n <= 0) Observable.empty else self.liftByOperator(new TakeLastOperator(n))
+    if (n <= 0) Observable.empty else new TakeLastObservable[A](self, n)
 
   /** Maps elements from the source using a function that can do
     * asynchronous processing by means of [[monix.eval.Task Task]].
@@ -2652,7 +2652,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecover[B >: A](pf: PartialFunction[Throwable, B]): Observable[B] =
-    onErrorHandleWith(ex => (pf.andThen(Observable.now _).applyOrElse(ex, Observable.raiseError _)))
+    onErrorHandleWith(ex => (pf.andThen(b => Observable.now(b)).applyOrElse(ex, Observable.raiseError _)))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -3154,14 +3154,9 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def tail: Observable[A] = drop(1L)
 
-  /** Drops the first `n` elements (from the start).
-    *
-    * @param n the number (Int) of elements to drop
-    * @return a new Observable that drops the first ''n'' elements
-    *         emitted by the source
-    */
+  /** Overload of [[drop(n:Long* drop(Long)]]. */
   final def drop(n: Int): Observable[A] =
-    self.liftByOperator(new DropFirstOperator(n))
+    self.liftByOperator(new DropFirstOperator(n.toLong))
 
   /** Drops the first `n` elements (from the start).
     *
@@ -4795,7 +4790,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *    }
     * }}}
     */
-  def tailRecM[A, B](a: A)(f: (A) => Observable[Either[A, B]]): Observable[B] =
+  def tailRecM[A, B](a: A)(f: A => Observable[Either[A, B]]): Observable[B] =
     new builders.TailRecMObservable[A, B](a, f)
 
   /** Given a subscribe function, lifts it into an [[Observable]].
@@ -5340,7 +5335,7 @@ object Observable extends ObservableDeprecatedBuilders {
     * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
     * supported data-type into [[Observable]].
     */
-  def liftFrom[F[_]](implicit F: ObservableLike[F]): (F ~> Observable) = F
+  def liftFrom[F[_]](implicit F: ObservableLike[F]): F ~> Observable = F
 
   /** Alias for [[defer]]. */
   def suspend[A](fa: => Observable[A]): Observable[A] = defer(fa)
