@@ -39,7 +39,7 @@ object FutureUtils {
   def timeout[A](source: Future[A], atMost: FiniteDuration)(implicit s: Scheduler): Future[A] = {
     val err = new TimeoutException
     val promise = Promise[A]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit, new Runnable { def run() = promise.tryFailure(err) })
+    val task = s.scheduleOnce(atMost.length, atMost.unit, new Runnable { def run() = { promise.tryFailure(err); () } })
 
     source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks

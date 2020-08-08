@@ -76,23 +76,35 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     var firstBatch = 0
     var secondBatch = 0
 
-    s.scheduleOnce(10, TimeUnit.SECONDS, action {
-      firstBatch += 1
-      s.execute(action { firstBatch += 1 })
-      s.scheduleOnce(10, TimeUnit.SECONDS, action {
+    s.scheduleOnce(
+      10,
+      TimeUnit.SECONDS,
+      action {
         firstBatch += 1
+        s.execute(action { firstBatch += 1 })
+        s.scheduleOnce(
+          10,
+          TimeUnit.SECONDS,
+          action {
+            firstBatch += 1
+          })
+        ()
       })
-      ()
-    })
 
-    s.scheduleOnce(20, TimeUnit.SECONDS, action {
-      secondBatch += 1
-      s.execute(action { secondBatch += 1 })
-      s.scheduleOnce(10, TimeUnit.SECONDS, action {
+    s.scheduleOnce(
+      20,
+      TimeUnit.SECONDS,
+      action {
         secondBatch += 1
+        s.execute(action { secondBatch += 1 })
+        s.scheduleOnce(
+          10,
+          TimeUnit.SECONDS,
+          action {
+            secondBatch += 1
+          })
+        ()
       })
-      ()
-    })
 
     s.tick()
     assert(firstBatch == 0 && secondBatch == 0)
@@ -322,7 +334,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
   def delayedResult[A](delay: FiniteDuration, timeout: FiniteDuration)(r: => A)(implicit s: Scheduler) = {
     val f1 = {
       val p = Promise[A]()
-      s.scheduleOnce(delay.length, delay.unit, action(p.success(r)))
+      s.scheduleOnce(delay.length, delay.unit, action { p.success(r); () })
       p.future
     }
 

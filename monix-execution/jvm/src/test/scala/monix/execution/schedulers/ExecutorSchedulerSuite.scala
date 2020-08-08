@@ -57,21 +57,23 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
   test("scheduleOnce with delay") { scheduler =>
     val p = Promise[Long]()
     val startedAt = System.nanoTime()
-    scheduleOnce(scheduler, 100.millis)(p.success(System.nanoTime()))
-
+    scheduleOnce(scheduler, 100.millis) {
+      p.success(System.nanoTime())
+      ()
+    }
     val timeTaken = Await.result(p.future, 3.second)
     assert((timeTaken - startedAt).nanos.toMillis >= 100)
   }
 
   test("scheduleOnce with delay lower than 1.milli") { scheduler =>
     val p = Promise[Int]()
-    scheduleOnce(scheduler, 20.nanos)(p.success(1))
+    scheduleOnce(scheduler, 20.nanos) { p.success(1); () }
     assert(Await.result(p.future, 3.seconds) == 1)
   }
 
   test("scheduleOnce with delay and cancel") { scheduler =>
     val p = Promise[Int]()
-    val task = scheduleOnce(scheduler, 100.millis)(p.success(1))
+    val task = scheduleOnce(scheduler, 100.millis) { p.success(1); () }
     task.cancel()
 
     intercept[TimeoutException] {
@@ -86,15 +88,20 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
     val p = Promise[Int]()
     var value = 0
 
-    sub := scheduler.scheduleWithFixedDelay(10, 50, TimeUnit.MILLISECONDS, runnableAction {
-      if (value + 1 == 4) {
-        value += 1
-        sub.cancel()
-        p.success(value)
-      } else if (value < 4) {
-        value += 1
-      }
-    })
+    sub := scheduler.scheduleWithFixedDelay(
+      10,
+      50,
+      TimeUnit.MILLISECONDS,
+      runnableAction {
+        if (value + 1 == 4) {
+          value += 1
+          sub.cancel()
+          p.success(value)
+          ()
+        } else if (value < 4) {
+          value += 1
+        }
+      })
 
     assert(Await.result(p.future, 5.second) == 4)
   }
@@ -104,15 +111,20 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
     val p = Promise[Int]()
     var value = 0
 
-    sub := scheduler.scheduleAtFixedRate(10, 50, TimeUnit.MILLISECONDS, runnableAction {
-      if (value + 1 == 4) {
-        value += 1
-        sub.cancel()
-        p.success(value)
-      } else if (value < 4) {
-        value += 1
-      }
-    })
+    sub := scheduler.scheduleAtFixedRate(
+      10,
+      50,
+      TimeUnit.MILLISECONDS,
+      runnableAction {
+        if (value + 1 == 4) {
+          value += 1
+          sub.cancel()
+          p.success(value)
+          ()
+        } else if (value < 4) {
+          value += 1
+        }
+      })
 
     assert(Await.result(p.future, 5.second) == 4)
   }
@@ -173,10 +185,13 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
     try {
       val ex = DummyException("dummy")
 
-      scheduler.scheduleOnce(1, TimeUnit.MILLISECONDS, new Runnable {
-        override def run() =
-          throw ex
-      })
+      scheduler.scheduleOnce(
+        1,
+        TimeUnit.MILLISECONDS,
+        new Runnable {
+          override def run() =
+            throw ex
+        })
 
       assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
       self.synchronized(assertEquals(lastReportedFailure, ex))
