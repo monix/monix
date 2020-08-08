@@ -27,6 +27,7 @@ import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
 import monix.execution.internal.Platform.fusionMaxStackDepth
+import monix.execution.internal.syntax.returnAs
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.mutable
@@ -657,9 +658,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * as obviously nothing gets executed at this point.
     */
   final def foreachL(f: A => Unit): Coeval[Unit] =
-    self.map { a =>
-      f(a); ()
-    }
+    self.map { a => f(a).returnUnit }
 
   /** Triggers the evaluation of the source, executing
     * the given function for the generated element.
@@ -813,7 +812,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   /** Given a predicate function, keep retrying the
     * coeval until the function returns true.
     */
-  final def restartUntil(p: (A) => Boolean): Coeval[A] =
+  final def restartUntil(p: A => Boolean): Coeval[A] =
     self.flatMap(a => if (p(a)) Coeval.now(a) else self.restartUntil(p))
 
   /** Creates a new coeval that will try recovering from an error by
@@ -1320,7 +1319,7 @@ object Coeval extends CoevalInstancesLevel0 {
     *   }
     * }}}
     */
-  def liftTo[F[_]](implicit F: CoevalLift[F]): (Coeval ~> F) = F
+  def liftTo[F[_]](implicit F: CoevalLift[F]): Coeval ~> F = F
 
   /**
     * Generates `Coeval ~> F` function values (`FunctionK`) for converting
@@ -1332,7 +1331,7 @@ object Coeval extends CoevalInstancesLevel0 {
     * Prefer to use [[liftTo]], this alternative is provided in order to
     * force the usage of `cats.effect.Sync`, since [[CoevalLift]] is lawless.
     */
-  def liftToSync[F[_]](implicit F: Sync[F]): (Coeval ~> F) =
+  def liftToSync[F[_]](implicit F: Sync[F]): Coeval ~> F =
     CoevalLift.toSync[F]
 
   /**
@@ -1360,7 +1359,7 @@ object Coeval extends CoevalInstancesLevel0 {
     *
     * See [[https://typelevel.org/cats/datatypes/functionk.html cats.arrow.FunctionK]].
     */
-  def liftFrom[F[_]](implicit F: CoevalLike[F]): (F ~> Coeval) = F
+  def liftFrom[F[_]](implicit F: CoevalLike[F]): F ~> Coeval = F
 
   /**
     * Deprecated operations, described as extension methods.
@@ -1476,9 +1475,9 @@ object Coeval extends CoevalInstancesLevel0 {
       super[Coeval].toString
   }
 
-  private val nowConstructor: (Any => Coeval[Nothing]) =
+  private val nowConstructor: Any => Coeval[Nothing] =
     ((a: Any) => new Now(a)).asInstanceOf[Any => Coeval[Nothing]]
-  private val raiseConstructor: (Throwable => Coeval[Nothing]) =
+  private val raiseConstructor: Throwable => Coeval[Nothing] =
     (e: Throwable) => new Error(e)
 
   /** Used as optimization by [[Coeval.failed]]. */

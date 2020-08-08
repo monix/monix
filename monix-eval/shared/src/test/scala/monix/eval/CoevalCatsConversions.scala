@@ -21,6 +21,7 @@ import cats.Eval
 import cats.effect.IO
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
+import monix.execution.internal.syntax.returnAs
 
 import scala.util.{Failure, Success}
 
@@ -32,7 +33,7 @@ object CoevalCatsConversions extends BaseTestSuite {
   test("Coeval.raiseError(e).to[Eval]") { _ =>
     val dummy = DummyException("dummy")
     val eval = Coeval.raiseError(dummy).to[Eval]
-    intercept[DummyException] { eval.value }; ()
+    intercept[DummyException](eval.value).returnUnit
   }
 
   test("Coeval.eval(thunk).to[Eval]") { _ =>
@@ -58,7 +59,7 @@ object CoevalCatsConversions extends BaseTestSuite {
   test("Coeval.raiseError(e).to[IO]") { _ =>
     val dummy = DummyException("dummy")
     val ioRef = Coeval.raiseError(dummy).to[IO]
-    intercept[DummyException] { ioRef.unsafeRunSync() }; ()
+    intercept[DummyException](ioRef.unsafeRunSync()).returnUnit
   }
 
   test("Coeval.eval(thunk).to[IO]") { _ =>
@@ -99,7 +100,7 @@ object CoevalCatsConversions extends BaseTestSuite {
   }
 
   test("Coeval.from protects against user error") { implicit s =>
-    val dummy = new DummyException("dummy")
+    val dummy = DummyException("dummy")
     val eval = Coeval.from(Eval.always { throw dummy })
     assertEquals(eval.runTry(), Failure(dummy))
   }

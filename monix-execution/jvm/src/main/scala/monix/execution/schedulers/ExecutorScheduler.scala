@@ -18,11 +18,15 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{ExecutorService, ScheduledExecutorService}
+
 import monix.execution.internal.forkJoin.{AdaptedForkJoinPool, DynamicWorkerThreadFactory, StandardWorkerThreadFactory}
+import monix.execution.internal.syntax.returnAs
+
 import scala.util.control.NonFatal
 import monix.execution.{Features, Scheduler}
 import monix.execution.{Cancelable, UncaughtExceptionReporter}
-import scala.concurrent.{blocking, ExecutionContext, Future, Promise}
+
+import scala.concurrent.{ExecutionContext, Future, Promise, blocking}
 import monix.execution.internal.{InterceptRunnable, Platform, ScheduledExecutors}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
@@ -225,18 +229,18 @@ object ExecutorScheduler {
         Cancelable.empty
       } else {
         val task = s.schedule(r, initialDelay, unit)
-        Cancelable(() => { task.cancel(true); () })
+        Cancelable(() => task.cancel(true).returnUnit)
       }
     }
 
     override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
       val task = s.scheduleWithFixedDelay(r, initialDelay, delay, unit)
-      Cancelable(() => { task.cancel(false); () })
+      Cancelable(() => task.cancel(false).returnUnit)
     }
 
     override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable = {
       val task = s.scheduleAtFixedRate(r, initialDelay, period, unit)
-      Cancelable(() => { task.cancel(false); () })
+      Cancelable(() => task.cancel(false).returnUnit)
     }
 
     override def withExecutionModel(em: ExecModel): SchedulerService =

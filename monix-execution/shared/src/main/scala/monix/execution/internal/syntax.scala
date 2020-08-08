@@ -15,26 +15,18 @@
  * limitations under the License.
  */
 
-package monix.execution.schedulers
+package monix.execution.internal
 
-import scala.concurrent.ExecutionContext
-import scala.scalajs.js
+import scala.annotation.nowarn
 
-/** Utils for quickly using Javascript's `setTimeout` and
-  * `clearTimeout`.
-  */
-private[schedulers] object JSTimer {
-  def setTimeout(ec: ExecutionContext, delayMillis: Long, r: Runnable): js.Dynamic = {
-    val lambda: js.Function = () =>
-      try {
-        r.run()
-      } catch { case t: Throwable => ec.reportFailure(t) }
+private[monix] object syntax {
+  @inline
+  private[monix] implicit final class returnAs[A](val self: A)
+    extends AnyVal {
 
-    js.Dynamic.global.setTimeout(lambda, delayMillis.toDouble)
-  }
+    @inline def returnAs[B](b: B): B = b
 
-  def clearTimeout(task: js.Dynamic): Unit = {
-    js.Dynamic.global.clearTimeout(task)
-    ()
+    @nowarn("msg=side-effecting")
+    @inline def returnUnit: Unit = ()
   }
 }

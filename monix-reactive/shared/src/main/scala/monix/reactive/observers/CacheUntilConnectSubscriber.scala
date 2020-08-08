@@ -18,6 +18,7 @@
 package monix.reactive.observers
 
 import monix.execution.Ack.{Continue, Stop}
+import monix.execution.internal.syntax.returnAs
 import monix.execution.{Ack, CancelableFuture}
 import monix.reactive.Observable
 
@@ -53,7 +54,7 @@ final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) 
   @volatile private[this] var isConnected = false
 
   // Only accessible in `connect()`
-  private[this] var connectionRef: CancelableFuture[Ack] = null
+  private[this] var connectionRef: CancelableFuture[Ack] = _
 
   /** Connects the underling observer to the upstream publisher.
     *
@@ -119,7 +120,8 @@ final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) 
           def onComplete(): Unit = {
             // Applying back-pressure, otherwise the next onNext might
             // break the back-pressure contract.
-            ack.syncOnContinue(bufferWasDrained.trySuccess(Continue))
+            ack.syncOnContinue(bufferWasDrained.trySuccess(Continue).returnUnit)
+              .returnUnit
           }
 
           def onError(ex: Throwable): Unit = {
@@ -181,6 +183,7 @@ final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) 
     // we cannot take a fast path here
     connectedFuture.syncTryFlatten
       .syncOnContinue(downstream.onComplete())
+    ()
   }
 
   /** The [[Subscriber.onError]] method that pushes an
@@ -193,6 +196,7 @@ final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) 
     // we cannot take a fast path here
     connectedFuture.syncTryFlatten
       .syncOnContinue(downstream.onError(ex))
+    ()
   }
 }
 

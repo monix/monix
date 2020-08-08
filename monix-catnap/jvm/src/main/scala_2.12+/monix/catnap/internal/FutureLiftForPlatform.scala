@@ -22,6 +22,7 @@ import java.util.concurrent.{CancellationException, CompletableFuture, Completio
 import java.util.function.BiFunction
 
 import cats.effect.{Async, Concurrent}
+import monix.execution.internal.syntax.returnAs
 
 private[catnap] abstract class FutureLiftForPlatform {
   /**
@@ -32,7 +33,7 @@ private[catnap] abstract class FutureLiftForPlatform {
     F.flatMap(fa) { cf =>
       F.cancelable { cb =>
         subscribeToCompletable(cf, cb)
-        F.delay { cf.cancel(true); () }
+        F.delay { cf.cancel(true).returnUnit }
       }
     }
 

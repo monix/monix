@@ -19,8 +19,10 @@ package monix.execution
 package schedulers
 
 import java.util.concurrent.TimeUnit
+
 import monix.execution.schedulers.JSTimer.{clearTimeout, setTimeout}
 import monix.execution.{ExecutionModel => ExecModel}
+
 import scala.concurrent.ExecutionContext
 import monix.execution.internal.InterceptRunnable
 
@@ -45,7 +47,7 @@ final class AsyncScheduler private (
       if (v < 0) 0L else v
     }
     val task = setTimeout(context, millis, r)
-    Cancelable(() => { clearTimeout(task); () })
+    Cancelable(() => clearTimeout(task))
   }
 
   override def reportFailure(t: Throwable): Unit =
