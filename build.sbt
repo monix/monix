@@ -56,6 +56,7 @@ val implicitBoxVersion = "0.2.0"
 val kindProjectorVersion = "0.11.0"
 val betterMonadicForVersion = "0.3.1"
 val silencerVersion = "1.7.0"
+val scalaCompatVersion = "2.1.6"
 val customScalaJSVersion = Option(System.getenv("SCALAJS_VERSION"))
 
 // The Monix version with which we must keep binary compatibility.
@@ -108,7 +109,10 @@ lazy val sharedSettings = Seq(
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % betterMonadicForVersion),
   addCompilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full),
 
-  // ScalaDoc settings
+  libraryDependencies +=
+    "org.scala-lang.modules" %% "scala-collection-compat" % scalaCompatVersion % "optional;provided",
+
+      // ScalaDoc settings
   autoAPIMappings := true,
   scalacOptions in ThisBuild ++= Seq(
     // Note, this is used by the doc-source-url feature to determine the

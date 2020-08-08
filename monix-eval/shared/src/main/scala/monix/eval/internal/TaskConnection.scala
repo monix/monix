@@ -152,13 +152,16 @@ private[eval] object TaskConnection {
     val cancel = Task.suspend {
       state.transformAndExtract {
         case (Nil, p) =>
-          (Task[Unit](p.success(())), (null, p))
-        case (null, p) => (TaskFromFuture.strict(p.future), (null, p))
+          (Task[Unit] { p.success(()); () }, (null, p))
+        case (null, p) =>
+          (TaskFromFuture.strict(p.future), (null, p))
         case (list, p) =>
           val task = UnsafeCancelUtils
             .cancelAllUnsafe(list)
-            .redeemWith[Unit](ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)), _ => Task(p.success(())))
-
+            .redeemWith[Unit](
+              ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)),
+              _ => Task { p.success(()); () }
+            )
           (task, (null, p))
       }
     }
@@ -178,7 +181,7 @@ private[eval] object TaskConnection {
       state.get() match {
         case (null, _) =>
           UnsafeCancelUtils.triggerCancel(cancelable)
-        case current@(list, p) =>
+        case current @ (list, p) =>
           val update = cancelable :: list
           if (!state.compareAndSet(current, (update, p))) {
             // $COVERAGE-OFF$
@@ -194,7 +197,7 @@ private[eval] object TaskConnection {
     @tailrec def pop(): CancelToken[Task] =
       state.get() match {
         case (null, _) | (Nil, _) => Task.unit
-        case current @(x :: xs, p) =>
+        case current @ (x :: xs, p) =>
           if (state.compareAndSet(current, (xs, p)))
             UnsafeCancelUtils.getToken(x)
           else {

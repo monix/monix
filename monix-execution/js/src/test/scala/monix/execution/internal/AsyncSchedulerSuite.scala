@@ -51,6 +51,7 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
         s.executeAsync { () =>
           effect += 3
           p.success(effect)
+          ()
         }
       }
     }
@@ -80,7 +81,7 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
     import concurrent.duration._
     val p = Promise[Unit]()
     val startAt = s.clockMonotonic(MILLISECONDS)
-    s.scheduleOnce(100.millis)(p.success(()))
+    s.scheduleOnce(100.millis) { p.success(()); () }
 
     for (_ <- p.future) yield {
       val duration = s.clockMonotonic(MILLISECONDS) - startAt
@@ -98,6 +99,7 @@ object AsyncSchedulerSuite extends TestSuite[Scheduler] {
       if (count == 500) {
         c.cancel()
         p.success(())
+        ()
       }
     }
     c // trigger evaluation

@@ -241,7 +241,10 @@ private[monix] object TaskBracket {
     final def cancel: Task[Unit] =
       Task.suspend {
         if (waitsForResult.compareAndSet(expect = true, update = false))
-          releaseOnCancel(a).redeemWith(ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)), _ => Task(p.success(())))
+          releaseOnCancel(a).redeemWith(
+            ex => Task { p.success(()); () }.flatMap(_ => Task.raiseError(ex)),
+            _ => Task { p.success(()); () }
+          )
         else
           TaskFromFuture.strict(p.future)
       }

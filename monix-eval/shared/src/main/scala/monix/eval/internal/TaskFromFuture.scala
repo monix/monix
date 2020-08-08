@@ -84,6 +84,7 @@ private[eval] object TaskFromFuture {
         val ref = SingleAssignCancelable()
         conn.push(ref)
         ref := p.subscribe(trampolinedCB(cb, conn))
+        ()
       }
     }
 
