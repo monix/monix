@@ -39,8 +39,7 @@ object FutureUtils {
   def timeout[A](source: Future[A], atMost: FiniteDuration)(implicit s: Scheduler): Future[A] = {
     val err = new TimeoutException
     val promise = Promise[A]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit,
-      new Runnable { def run() = promise.tryFailure(err) })
+    val task = s.scheduleOnce(atMost.length, atMost.unit, new Runnable { def run() = promise.tryFailure(err) })
 
     source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks
@@ -64,18 +63,18 @@ object FutureUtils {
     * @return a new future that will either complete with the result of our
     *         source or with the fallback in case the timeout is reached
     */
-  def timeoutTo[A](source: Future[A], atMost: FiniteDuration, fallback: => Future[A])
-    (implicit s: Scheduler): Future[A] = {
+  def timeoutTo[A](source: Future[A], atMost: FiniteDuration, fallback: => Future[A])(implicit
+    s: Scheduler): Future[A] = {
 
     val promise = Promise[Option[Try[A]]]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit,
-      new Runnable { def run() = promise.trySuccess(None) })
+    val task = s.scheduleOnce(atMost.length, atMost.unit, new Runnable { def run() = { promise.trySuccess(None); () } })
 
     source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks
       // if the task has been executed already, this has no effect
       task.cancel()
       promise.trySuccess(Some(r))
+      ()
     }
 
     promise.future.flatMap {
@@ -93,8 +92,7 @@ object FutureUtils {
   def materialize[A](source: Future[A])(implicit ec: ExecutionContext): Future[Try[A]] = {
     if (source.isCompleted) {
       Future.successful(source.value.get)
-    }
-    else {
+    } else {
       val p = Promise[Try[A]]()
       source.onComplete(p.success)(immediate)
       p.future
@@ -106,7 +104,7 @@ object FutureUtils {
     *
     * Similar to `Future.transform` from Scala 2.12.
     */
-  def transform[A,B](source: Future[A], f: Try[A] => Try[B])(implicit ec: ExecutionContext): Future[B] = {
+  def transform[A, B](source: Future[A], f: Try[A] => Try[B])(implicit ec: ExecutionContext): Future[B] = {
     source match {
       case ref: CancelableFuture[_] =>
         // CancelableFuture already implements transform
@@ -114,7 +112,9 @@ object FutureUtils {
       case _ =>
         val p = Promise[B]()
         source.onComplete { result =>
-          val b = try f(result) catch { case t if NonFatal(t) => Failure(t) }
+          val b =
+            try f(result)
+            catch { case t if NonFatal(t) => Failure(t) }
           p.complete(b)
         }
         p.future
@@ -126,7 +126,7 @@ object FutureUtils {
     *
     * Similar to `Future.transformWith` from Scala 2.12.
     */
-  def transformWith[A,B](source: Future[A], f: Try[A] => Future[B])(implicit ec: ExecutionContext): Future[B] = {
+  def transformWith[A, B](source: Future[A], f: Try[A] => Future[B])(implicit ec: ExecutionContext): Future[B] = {
     source match {
       case ref: CancelableFuture[_] =>
         // CancelableFuture already implements transformWith
@@ -143,10 +143,11 @@ object FutureUtils {
     if (source.isCompleted)
       source.value.get match {
         case Failure(error) => Future.failed(error)
-        case Success(value) => value match {
-          case Success(success) => Future.successful(success)
-          case Failure(error) => Future.failed(error)
-        }
+        case Success(value) =>
+          value match {
+            case Success(success) => Future.successful(success)
+            case Failure(error) => Future.failed(error)
+          }
       }
     else {
       val p = Promise[A]()
@@ -163,7 +164,7 @@ object FutureUtils {
     */
   def delayedResult[A](delay: FiniteDuration)(result: => A)(implicit s: Scheduler): Future[A] = {
     val p = Promise[A]()
-    s.scheduleOnce(delay.length, delay.unit, new Runnable { def run() = p.complete(Try(result)) })
+    s.scheduleOnce(delay.length, delay.unit, new Runnable { def run() = { p.complete(Try(result)); () } })
     p.future
   }
 
@@ -176,8 +177,7 @@ object FutureUtils {
         FutureUtils.timeout(source, atMost)
 
       /** [[FutureUtils.timeoutTo]] exposed as an extension method. */
-      def timeoutTo[U >: A](atMost: FiniteDuration, fallback: => Future[U])
-        (implicit s: Scheduler): Future[U] =
+      def timeoutTo[U >: A](atMost: FiniteDuration, fallback: => Future[U])(implicit s: Scheduler): Future[U] =
         FutureUtils.timeoutTo(source, atMost, fallback)
 
       /** [[FutureUtils.materialize]] exposed as an extension method. */
