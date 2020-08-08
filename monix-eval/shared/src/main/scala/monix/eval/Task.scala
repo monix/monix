@@ -932,6 +932,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     val opts2 = opts.withSchedulerFeatures
     Local.bindCurrentIf(opts2.localContextPropagation) {
       TaskRunLoop.startLight(this, s, opts2, Callback.fromAttempt(cb), isCancelable = false)
+      ()
     }
   }
 

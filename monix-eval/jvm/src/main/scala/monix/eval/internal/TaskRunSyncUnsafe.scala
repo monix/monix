@@ -25,15 +25,17 @@ import monix.eval.internal.TaskRunLoop._
 import monix.eval.Task
 import monix.execution.{Callback, Scheduler}
 import monix.execution.internal.collection.ChunkedArrayStack
-import scala.util.control.NonFatal
 
+import scala.annotation.nowarn
 import scala.concurrent.blocking
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.util.control.NonFatal
 
 private[eval] object TaskRunSyncUnsafe {
   /** Run-loop specialization that evaluates the given task and blocks for the result
     * if the given task is asynchronous.
     */
+  @nowarn("msg=dead\\s+code")
   def apply[A](source: Task[A], timeout: Duration, scheduler: Scheduler, opts: Task.Options): A = {
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
@@ -172,11 +174,13 @@ private[eval] object TaskRunSyncUnsafe {
     def onSuccess(value: A): Unit = {
       success = value
       latch.releaseShared(1)
+      ()
     }
 
     def onError(ex: Throwable): Unit = {
       error = ex
       latch.releaseShared(1)
+      ()
     }
   }
 

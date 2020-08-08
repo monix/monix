@@ -502,7 +502,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     assertEquals(first.future.value, None)
 
     val second = Promise[Int]()
-    val c2 = task.runAsync(Callback.fromPromise(second))
+    task.runAsync(Callback.fromPromise(second))
     val third = Promise[Int]()
     val c3 = task.runAsync(Callback.fromPromise(third))
 
