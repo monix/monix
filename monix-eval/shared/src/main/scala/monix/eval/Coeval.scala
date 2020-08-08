@@ -17,12 +17,11 @@
 
 package monix.eval
 
-import cats.Monoid
-import cats.~>
 import cats.effect.{ExitCase, Sync}
 import cats.kernel.Semigroup
+import cats.{Monoid, ~>}
 import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
-import monix.eval.internal.{CoevalBracket, CoevalDeprecated, CoevalRunLoop, LazyVal, StackFrame}
+import monix.eval.internal._
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
@@ -1363,7 +1362,7 @@ object Coeval extends CoevalInstancesLevel0 {
   /**
     * Deprecated operations, described as extension methods.
     */
-  implicit final class DeprecatedExtensions[+A](val self: Coeval[A]) extends AnyVal with CoevalDeprecated.Extensions[A]
+  implicit final class DeprecatedExtensions[+A](val self: Coeval[A]) extends AnyVal with CoevalDeprecatedExtensions[A]
 
   /** The `Eager` type represents a strict, already evaluated result
     * of a [[Coeval]] that either resulted in success, wrapped in a
@@ -1525,7 +1524,7 @@ object Coeval extends CoevalInstancesLevel0 {
     new CatsMonadToMonoid[Coeval, A]()(CatsSyncForCoeval, A)
 }
 
-private[eval] abstract class CoevalInstancesLevel0 extends CoevalDeprecated.Companion {
+private[eval] abstract class CoevalInstancesLevel0 extends CoevalDeprecatedCompanion {
   /** Given an `A` type that has a `cats.Semigroup[A]` implementation,
     * then this provides the evidence that `Coeval[A]` also has
     * a `Semigroup[Coeval[A]]` implementation.

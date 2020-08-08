@@ -21,95 +21,93 @@ package internal
 import cats.Eval
 import cats.effect.{IO, SyncIO}
 
-private[eval] object CoevalDeprecated {
+/**
+  * Extension methods describing deprecated `Task` operations.
+  */
+private[eval] trait CoevalDeprecatedExtensions[+A] extends Any {
+  def self: Coeval[A]
+
   /**
-    * Extension methods describing deprecated `Task` operations.
+    * DEPRECATED — Converts the source [[Coeval]] into a `cats.effect.IO`.
+    *
+    * Please switch to [[Coeval.to]]:
+    * {{{
+    *   import cats.effect.IO
+    *   import monix.eval._
+    *
+    *   val value = Coeval { 1 + 1 }
+    *
+    *   val result: IO[Int] = value.to[IO]
+    * }}}
     */
-  private[eval] trait Extensions[+A] extends Any {
-    def self: Coeval[A]
-
-    /**
-      * DEPRECATED — Converts the source [[Coeval]] into a `cats.effect.IO`.
-      *
-      * Please switch to [[Coeval.to]]:
-      * {{{
-      *   import cats.effect.IO
-      *   import monix.eval._
-      *
-      *   val value = Coeval { 1 + 1 }
-      *
-      *   val result: IO[Int] = value.to[IO]
-      * }}}
-      */
-    @deprecated("Use value.to[IO]", "3.0.0")
-    final def toIO: IO[A] = {
-      // $COVERAGE-OFF$
-      self.to[IO]
-      // $COVERAGE-ON$
-    }
-
-    /**
-      * DEPRECATED — Converts the source [[Coeval]] into a `cats.Eval`.
-      *
-      * Please switch to [[Coeval.to]]:
-      * {{{
-      *   import cats.Eval
-      *   import monix.eval._
-      *
-      *   val value = Coeval { 1 + 1 }
-      *
-      *   val result: Eval[Int] = value.to[Eval]
-      * }}}
-      */
-    @deprecated("Use value.to[Eval]", "3.0.0")
-    final def toEval: Eval[A] = {
-      // $COVERAGE-OFF$
-      self.to[Eval]
-      // $COVERAGE-ON$
-    }
-
-    /**
-      * DEPRECATED — Converts the source [[Coeval]] into a [[Task]].
-      *
-      * Please switch to [[Coeval.to]]:
-      * {{{
-      *   import monix.eval._
-      *
-      *   val value = Coeval { 1 + 1 }
-      *
-      *   val result: Task[Int] = value.to[Task]
-      * }}}
-      */
-    @deprecated("Use value.to[Task]", "3.0.0")
-    final def task: Task[A] = {
-      // $COVERAGE-OFF$
-      self.to[Task]
-      // $COVERAGE-ON$
-    }
+  @deprecated("Use value.to[IO]", "3.0.0")
+  final def toIO: IO[A] = {
+    // $COVERAGE-OFF$
+    self.to[IO]
+    // $COVERAGE-ON$
   }
 
   /**
-    * Deprecated builders.
+    * DEPRECATED — Converts the source [[Coeval]] into a `cats.Eval`.
+    *
+    * Please switch to [[Coeval.to]]:
+    * {{{
+    *   import cats.Eval
+    *   import monix.eval._
+    *
+    *   val value = Coeval { 1 + 1 }
+    *
+    *   val result: Eval[Int] = value.to[Eval]
+    * }}}
     */
-  private[eval] abstract class Companion {
-    /**
-      * DEPRECATED — please switch to [[Coeval.from]].
-      */
-    @deprecated("Switch to Coeval.from", since = "3.0.0-RC3")
-    def fromEval[A](a: Eval[A]): Coeval[A] = {
-      // $COVERAGE-OFF$
-      Coeval.from(a)
-      // $COVERAGE-ON$
-    }
+  @deprecated("Use value.to[Eval]", "3.0.0")
+  final def toEval: Eval[A] = {
+    // $COVERAGE-OFF$
+    self.to[Eval]
+    // $COVERAGE-ON$
+  }
 
-    /**
-      * DEPRECATED — please switch to [[Coeval.from]].
-      */
-    @deprecated("Switch to Coeval.from", since = "3.0.0-RC3")
-    def fromSyncIO[A](a: SyncIO[A]): Coeval[A] = {
-      // $COVERAGE-OFF$
-      Coeval(a.unsafeRunSync())
-      // $COVERAGE-ON$
-    }
+  /**
+    * DEPRECATED — Converts the source [[Coeval]] into a [[Task]].
+    *
+    * Please switch to [[Coeval.to]]:
+    * {{{
+    *   import monix.eval._
+    *
+    *   val value = Coeval { 1 + 1 }
+    *
+    *   val result: Task[Int] = value.to[Task]
+    * }}}
+    */
+  @deprecated("Use value.to[Task]", "3.0.0")
+  final def task: Task[A] = {
+    // $COVERAGE-OFF$
+    self.to[Task]
+    // $COVERAGE-ON$
+  }
+}
+
+/**
+  * Deprecated builders.
+  */
+private[eval] abstract class CoevalDeprecatedCompanion {
+  /**
+    * DEPRECATED — please switch to [[Coeval.from]].
+    */
+  @deprecated("Switch to Coeval.from", since = "3.0.0-RC3")
+  def fromEval[A](a: Eval[A]): Coeval[A] = {
+    // $COVERAGE-OFF$
+    Coeval.from(a)
+    // $COVERAGE-ON$
+  }
+
+  /**
+    * DEPRECATED — please switch to [[Coeval.from]].
+    */
+  @deprecated("Switch to Coeval.from", since = "3.0.0-RC3")
+  def fromSyncIO[A](a: SyncIO[A]): Coeval[A] = {
+    // $COVERAGE-OFF$
+    Coeval(a.unsafeRunSync())
+    // $COVERAGE-ON$
   }
 }

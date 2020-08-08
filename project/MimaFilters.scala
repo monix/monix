@@ -34,6 +34,14 @@ object MimaFilters {
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue#Java8MPSC.this"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue#Java7.this"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue#Java8SPMC.this"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.buffers.ConcurrentQueue#FromMessagePassingQueue.this")
+    exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.buffers.ConcurrentQueue#FromMessagePassingQueue.this"),
+    // Fixed annoying incremental compilation error with Coeval deprecations
+    exclude[MissingTypesProblem]("monix.eval.CoevalInstancesLevel0"),
+    exclude[MissingTypesProblem]("monix.eval.Coeval$DeprecatedExtensions"),
+    exclude[MissingTypesProblem]("monix.eval.Coeval$"),
+    exclude[MissingClassProblem]("monix.eval.internal.CoevalDeprecated$Companion"),
+    exclude[MissingClassProblem]("monix.eval.internal.CoevalDeprecated$Extensions"),
+    exclude[MissingClassProblem]("monix.eval.internal.CoevalDeprecated"),
+    exclude[MissingClassProblem]("monix.eval.internal.CoevalDeprecated$")
   )
 }
