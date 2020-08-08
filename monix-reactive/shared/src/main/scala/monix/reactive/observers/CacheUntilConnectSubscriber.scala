@@ -18,10 +18,8 @@
 package monix.reactive.observers
 
 import monix.execution.Ack.{Continue, Stop}
-import monix.execution.internal.syntax.returnAs
 import monix.execution.{Ack, CancelableFuture}
 import monix.reactive.Observable
-
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
@@ -32,7 +30,6 @@ import scala.util.{Failure, Success}
   * subsequent events are pushed directly.
   */
 final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) extends Subscriber[A] { self =>
-
   implicit val scheduler = downstream.scheduler
   // MUST BE synchronized by `self`, only available if isConnected == false
   private[this] var queue = mutable.ArrayBuffer.empty[A]
@@ -120,8 +117,11 @@ final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) 
           def onComplete(): Unit = {
             // Applying back-pressure, otherwise the next onNext might
             // break the back-pressure contract.
-            ack.syncOnContinue(bufferWasDrained.trySuccess(Continue).returnUnit)
-              .returnUnit
+            ack.syncOnContinue {
+              bufferWasDrained.trySuccess(Continue)
+              ()
+            }
+            ()
           }
 
           def onError(ex: Throwable): Unit = {

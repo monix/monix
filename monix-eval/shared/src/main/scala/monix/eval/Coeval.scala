@@ -27,7 +27,6 @@ import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
 import monix.execution.internal.Platform.fusionMaxStackDepth
-import monix.execution.internal.syntax.returnAs
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.mutable
@@ -658,7 +657,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * as obviously nothing gets executed at this point.
     */
   final def foreachL(f: A => Unit): Coeval[Unit] =
-    self.map { a => f(a).returnUnit }
+    self.map { a => f(a); () }
 
   /** Triggers the evaluation of the source, executing
     * the given function for the generated element.

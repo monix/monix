@@ -22,7 +22,6 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 import minitest.TestSuite
 import minitest.api.{AssertionException, MiniTestException}
 import monix.execution.exceptions.{CallbackCalledMultipleTimesException, DummyException}
-import monix.execution.internal.syntax.returnAs
 import monix.execution.schedulers.SchedulerService
 
 import scala.concurrent.Promise
@@ -318,7 +317,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
     for (_ <- 0 until WORKERS) {
       sc.executeAsync { () =>
         latchWorkersStart.countDown()
-        try f.returnUnit
+        try { f; () }
         finally latchWorkersFinished.countDown()
       }
     }

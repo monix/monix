@@ -21,7 +21,6 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.{CallbackCalledMultipleTimesException, DummyException}
-import monix.execution.internal.syntax.returnAs
 import monix.execution.schedulers.SchedulerService
 import monix.execution.{Callback, Scheduler}
 
@@ -91,9 +90,9 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite {
       }
     }
 
-    run(_.tryOnSuccess(1).returnUnit)
-    run(_.tryApply(Right(1)).returnUnit)
-    run(_.tryApply(Success(1)).returnUnit)
+    run { cb => cb.tryOnSuccess(1); () }
+    run { cb => cb.tryApply(Right(1)); () }
+    run { cb => cb.tryApply(Success(1)); () }
 
     run(cb =>
       try cb.onSuccess(1)
@@ -107,9 +106,9 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite {
 
     val dummy = DummyException("dummy")
 
-    run(_.tryOnError(dummy).returnUnit)
-    run(_.tryApply(Left(dummy)).returnUnit)
-    run(_.tryApply(Failure(dummy)).returnUnit)
+    run { cb => cb.tryOnError(dummy); () }
+    run { cb => cb.tryApply(Left(dummy)); () }
+    run { cb => cb.tryApply(Failure(dummy)); () }
 
     run(cb =>
       try cb.onError(dummy)

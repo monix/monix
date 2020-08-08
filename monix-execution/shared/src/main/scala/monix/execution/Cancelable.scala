@@ -19,12 +19,10 @@ package monix.execution
 
 import monix.execution.atomic.AtomicAny
 import monix.execution.internal.Platform
-
-import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolinedRunnable
-
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Promise
+import scala.util.control.NonFatal
 
 /** Represents a one-time idempotent action that can be used
   * to cancel async computations, or to release resources that

@@ -20,9 +20,6 @@ package internal
 
 import java.util.concurrent.{CancellationException, CompletableFuture, CompletionException}
 import java.util.function.BiFunction
-
-import monix.execution.internal.syntax.returnAs
-
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
@@ -49,7 +46,7 @@ private[execution] abstract class CancelableFutureForPlatform {
           }
         }
       })
-      Cancelable(() => cfa.cancel(true).returnUnit)
+      Cancelable(() => { cfa.cancel(true); () })
     })
 
   /**

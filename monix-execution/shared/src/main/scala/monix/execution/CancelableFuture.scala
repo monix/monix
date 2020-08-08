@@ -22,7 +22,6 @@ import monix.execution.CancelableFuture.{Async, Never, Pure}
 import monix.execution.cancelables.{ChainedCancelable, SingleAssignCancelable}
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-
 import scala.concurrent._
 import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
@@ -336,7 +335,9 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     def value: Option[Try[A]] = underlying.value
 
     def onComplete[U](f: (Try[A]) => U)(implicit executor: ExecutionContext): Unit =
-      executor.execute(new Runnable { def run(): Unit = { f(immediate); () } })
+      executor.execute(new Runnable {
+        def run(): Unit = { f(immediate); () }
+      })
   }
 
   /** An actual [[CancelableFuture]] implementation; internal. */

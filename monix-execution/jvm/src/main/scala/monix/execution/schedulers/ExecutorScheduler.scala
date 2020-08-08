@@ -18,19 +18,15 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{ExecutorService, ScheduledExecutorService}
-
 import monix.execution.internal.forkJoin.{AdaptedForkJoinPool, DynamicWorkerThreadFactory, StandardWorkerThreadFactory}
-import monix.execution.internal.syntax.returnAs
-
-import scala.util.control.NonFatal
-import monix.execution.{Features, Scheduler}
-import monix.execution.{Cancelable, UncaughtExceptionReporter}
-
-import scala.concurrent.{ExecutionContext, Future, Promise, blocking}
 import monix.execution.internal.{InterceptRunnable, Platform, ScheduledExecutors}
+import monix.execution.{Cancelable, UncaughtExceptionReporter}
+import monix.execution.{Features, Scheduler}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
+import scala.concurrent.{ExecutionContext, Future, Promise, blocking}
 import scala.concurrent.duration.TimeUnit
+import scala.util.control.NonFatal
 
 /** An [[ExecutorScheduler]] is a class for building a
   * [[monix.execution.schedulers.SchedulerService SchedulerService]]
@@ -229,18 +225,18 @@ object ExecutorScheduler {
         Cancelable.empty
       } else {
         val task = s.schedule(r, initialDelay, unit)
-        Cancelable(() => task.cancel(true).returnUnit)
+        Cancelable(() => { task.cancel(true); () })
       }
     }
 
     override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
       val task = s.scheduleWithFixedDelay(r, initialDelay, delay, unit)
-      Cancelable(() => task.cancel(false).returnUnit)
+      Cancelable(() => { task.cancel(false); () })
     }
 
     override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable = {
       val task = s.scheduleAtFixedRate(r, initialDelay, period, unit)
-      Cancelable(() => task.cancel(false).returnUnit)
+      Cancelable(() => { task.cancel(false); () })
     }
 
     override def withExecutionModel(em: ExecModel): SchedulerService =
