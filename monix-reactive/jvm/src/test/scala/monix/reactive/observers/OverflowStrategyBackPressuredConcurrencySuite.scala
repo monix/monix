@@ -491,10 +491,10 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
       BackPressure(totalCount)
     )
 
-    (0 until (totalCount - 1)).foreach(x => buffer.onNext(x))
+    (0 until (totalCount - 1)).foreach { x => buffer.onNext(x); () }
     buffer.onError(new RuntimeException)
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
-    assertEquals(sum, (0 until (totalCount - 1)).sum)
+    assertEquals(sum, (0 until (totalCount - 1)).sum.toLong)
   }
 }

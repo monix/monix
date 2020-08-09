@@ -40,7 +40,7 @@ object RepeatOneObservableSuite extends TestSuite[TestScheduler] {
 
   test("should do synchronous execution in batches") { implicit s =>
     var received = 0
-    Observable.repeat(1).take(Platform.recommendedBatchSize * 2).subscribe { x =>
+    Observable.repeat(1).take(Platform.recommendedBatchSize.toLong * 2).subscribe { x =>
       received += 1; Continue
     }
 

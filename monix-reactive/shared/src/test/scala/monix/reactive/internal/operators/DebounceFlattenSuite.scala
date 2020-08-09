@@ -26,7 +26,7 @@ object DebounceFlattenSuite extends BaseOperatorSuite {
       .now(1L)
       .delayOnComplete(1.day)
       .debounceTo(1.second, (x: Long) => Observable.interval(1.second).map(_ => x))
-      .take(sourceCount)
+      .take(sourceCount.toLong)
 
     val count = sourceCount
     val sum = sourceCount

@@ -34,7 +34,7 @@ import scala.util.{Failure, Random}
 
 object MapTaskSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).mapEval(x => Task.evalAsync(x))
+    val o = Observable.range(0L, sourceCount.toLong).mapEval(x => Task.evalAsync(x))
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
@@ -48,7 +48,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     if (sourceCount == 1) None
     else
       Some {
-        val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+        val o = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
           .mapEval(i => Task.now(i))
 
         Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -59,7 +59,7 @@ object MapTaskSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).mapEval { i =>
+    val o = Observable.range(0L, sourceCount.toLong).mapEval { i =>
       if (i == sourceCount - 1)
         throw ex
       else
@@ -96,7 +96,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     var received = 0
     var total = 0L
 
-    val obs = Observable.range(0, sourceCount).mapEval(x => Task.now(x))
+    val obs = Observable.range(0L, sourceCount.toLong).mapEval(x => Task.now(x))
     obs.unsafeSubscribeFn(new Observer[Long] {
       private[this] var sum = 0L
 
@@ -119,7 +119,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     var received = 0
     var total = 0L
 
-    val obs = Observable.range(0, sourceCount).mapEval(x => Task.evalAsync(x))
+    val obs = Observable.range(0L, sourceCount.toLong).mapEval(x => Task.evalAsync(x))
     obs.unsafeSubscribeFn(new Observer[Long] {
       private[this] var sum = 0L
 

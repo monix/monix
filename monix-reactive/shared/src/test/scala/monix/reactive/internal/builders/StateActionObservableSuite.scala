@@ -47,7 +47,7 @@ object StateActionObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     Observable
       .fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
-      .take(Platform.recommendedBatchSize * 2)
+      .take(Platform.recommendedBatchSize.toLong * 2)
       .subscribe { _ =>
         received += 1; Continue
       }

@@ -28,7 +28,7 @@ import scala.concurrent.duration._
 object DelayExecutionWithSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val trigger = Task.now(1).delayExecution(1.second)
-    val o = Observable.range(0, sourceCount).delayExecutionWithF(trigger)
+    val o = Observable.range(0L, sourceCount.toLong).delayExecutionWithF(trigger)
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 

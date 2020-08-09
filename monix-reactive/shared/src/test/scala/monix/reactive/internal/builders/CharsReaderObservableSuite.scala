@@ -63,8 +63,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
     val in = new StringReader(str)
 
     val error = intercept[IllegalArgumentException] {
-      Observable
-        .fromCharsReaderUnsafe(in, 0)
+      Observable.fromCharsReaderUnsafe(in, 0)
+      ()
     }
     assert(error.getMessage.contains("chunkSize"))
   }
@@ -74,8 +74,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
     val in = new StringReader(str)
 
     val error = intercept[IllegalArgumentException] {
-      Observable
-        .fromCharsReaderUnsafe(in, -1)
+      Observable.fromCharsReaderUnsafe(in, -1)
+      ()
     }
     assert(error.getMessage.contains("chunkSize"))
   }

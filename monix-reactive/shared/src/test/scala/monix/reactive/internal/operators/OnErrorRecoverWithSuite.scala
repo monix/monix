@@ -45,7 +45,7 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
     else
       Some {
         val fallback = Observable.range(0, 10)
-        val source = Observable.range(0, sourceCount).endWithError(ex)
+        val source = Observable.range(0L, sourceCount.toLong).endWithError(ex)
 
         val obs = source.onErrorHandleWith {
           case DummyException("not happening") =>

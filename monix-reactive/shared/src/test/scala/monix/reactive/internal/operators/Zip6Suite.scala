@@ -23,8 +23,8 @@ import scala.concurrent.duration.Duration.Zero
 
 object Zip6Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o1 = Observable.range(0, sourceCount).executeAsync
-    val o2 = Observable.range(0, sourceCount + 1).executeAsync
+    val o1 = Observable.range(0L, sourceCount.toLong).executeAsync
+    val o2 = Observable.range(0, sourceCount.toLong + 1).executeAsync
     val o3 = Observable.range(0, sourceCount + 2).executeAsync
     val o4 = Observable.range(0, sourceCount + 3).executeAsync
     val o5 = Observable.range(0, sourceCount + 4).executeAsync
@@ -38,24 +38,24 @@ object Zip6Suite extends BaseOperatorSuite {
   def sum(sourceCount: Int) = (sourceCount * (sourceCount - 1)) / 2 * 6
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o1 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o2 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o3 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o4 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o5 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o6 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+    val o1 = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
+    val o2 = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
+    val o3 = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
+    val o4 = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
+    val o5 = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
+    val o6 = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
 
     val o = Observable.zipMap6(o1, o2, o3, o4, o5, o6)(_ + _ + _ + _ + _ + _)
     Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o1 = Observable.range(0, sourceCount).executeAsync
+    val o1 = Observable.range(0L, sourceCount.toLong).executeAsync
     val o2 = Observable.range(0, sourceCount + 100).executeAsync
-    val o3 = Observable.range(0, sourceCount).executeAsync
-    val o4 = Observable.range(0, sourceCount).executeAsync
-    val o5 = Observable.range(0, sourceCount).executeAsync
-    val o6 = Observable.range(0, sourceCount).executeAsync
+    val o3 = Observable.range(0L, sourceCount.toLong).executeAsync
+    val o4 = Observable.range(0L, sourceCount.toLong).executeAsync
+    val o5 = Observable.range(0L, sourceCount.toLong).executeAsync
+    val o6 = Observable.range(0L, sourceCount.toLong).executeAsync
 
     val o = Observable.zipMap6(o1, o2, o3, o4, o5, o6) { (x1, x2, x3, x4, x5, x6) =>
       if (x2 < sourceCount - 1) x1 + x2 + x3 + x4 + x5 + x6

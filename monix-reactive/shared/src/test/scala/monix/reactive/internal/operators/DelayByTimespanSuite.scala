@@ -26,14 +26,14 @@ import scala.concurrent.duration._
 object DelayByTimespanSuite extends BaseOperatorSuite {
   def createObservable(cnt: Int) = Some {
     val sourceCount = 20
-    val source = Observable.range(0, sourceCount)
+    val source = Observable.range(0L, sourceCount.toLong)
     val o = source.delayOnNext(1.second)
     val c = sourceCount
-    Sample(o, c, c * (c - 1) / 2, 1.second, 1.second)
+    Sample(o, c, (c * (c - 1) / 2).toLong, 1.second, 1.second)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val source = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+    val source = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
     val o = source.delayOnNext(1.second)
     val c = sourceCount
     Sample(o, c - 1, (c - 1) * (c - 2) / 2, 1.second, 1.second)

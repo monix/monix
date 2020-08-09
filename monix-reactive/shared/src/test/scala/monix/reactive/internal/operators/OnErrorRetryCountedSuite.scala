@@ -39,7 +39,7 @@ object OnErrorRetryCountedSuite extends BaseOperatorSuite {
     if (sourceCount <= 1) None
     else
       Some {
-        val o = Observable.range(0, sourceCount).endWithError(ex).onErrorRestart(3)
+        val o = Observable.range(0L, sourceCount.toLong).endWithError(ex).onErrorRestart(3)
 
         val count = sourceCount * 4
         val sum = 1L * sourceCount * (sourceCount - 1) / 2 * 4

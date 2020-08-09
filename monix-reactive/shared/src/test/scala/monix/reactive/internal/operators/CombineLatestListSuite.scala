@@ -27,7 +27,7 @@ object CombineLatestListSuite extends BaseOperatorSuite {
   val NumberOfObservables: Int = 10000 // We want to test with MANY observables to ensure it is stack-safe.
 
   def createObservable(sourceCount: Int) = Some {
-    val source = Observable.range(0, sourceCount)
+    val source = Observable.range(0L, sourceCount.toLong)
     val sources = (1 to NumberOfObservables).map(_ => Observable.now(1L))
     val o: Observable[Long] =
       Observable.combineLatestList((sources :+ source): _*).map { seq =>
@@ -35,7 +35,7 @@ object CombineLatestListSuite extends BaseOperatorSuite {
       }
 
     val sum = (0 until sourceCount).map(_ + NumberOfObservables).sum
-    Sample(o, sourceCount, sum, Zero, Zero)
+    Sample(o, sourceCount, sum.toLong, Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = None

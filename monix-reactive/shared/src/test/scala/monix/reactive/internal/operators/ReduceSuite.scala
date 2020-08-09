@@ -45,7 +45,7 @@ object ReduceSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount + 1).reduce { (acc, elem) =>
+    val o = Observable.range(0, sourceCount.toLong + 1).reduce { (acc, elem) =>
       if (elem == sourceCount)
         throw ex
       else

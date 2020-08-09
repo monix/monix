@@ -27,7 +27,7 @@ import scala.concurrent.duration.Duration.Zero
 
 object DematerializeSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).materialize.dematerialize
+    val o = Observable.range(0L, sourceCount.toLong).materialize.dematerialize
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }

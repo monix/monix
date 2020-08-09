@@ -48,7 +48,7 @@ object DumpSuite extends BaseOperatorSuite {
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+    val o = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
       .dump("o", dummyOut())
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)

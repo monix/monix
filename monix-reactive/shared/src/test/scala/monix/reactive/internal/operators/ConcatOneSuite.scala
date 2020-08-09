@@ -49,7 +49,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
     if (sourceCount == 1) None
     else
       Some {
-        val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+        val o = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
           .flatMap(i => Observable.now(i))
 
         Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -60,7 +60,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).flatMap { i =>
+    val o = Observable.range(0L, sourceCount.toLong).flatMap { i =>
       if (i == sourceCount - 1)
         throw ex
       else

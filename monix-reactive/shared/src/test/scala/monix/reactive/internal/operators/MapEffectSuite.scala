@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 
 object MapEffectSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).mapEvalF(x => IO(x))
+    val o = Observable.range(0L, sourceCount.toLong).mapEvalF(x => IO(x))
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
@@ -38,7 +38,7 @@ object MapEffectSuite extends BaseOperatorSuite {
     if (sourceCount == 1) None
     else
       Some {
-        val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+        val o = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
           .mapEvalF(i => IO.pure(i))
 
         Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -49,7 +49,7 @@ object MapEffectSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).mapEvalF { i =>
+    val o = Observable.range(0L, sourceCount.toLong).mapEvalF { i =>
       if (i == sourceCount - 1)
         throw ex
       else

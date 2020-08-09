@@ -51,7 +51,7 @@ object ExecuteAsyncObservableSuite extends TestSuite[TestScheduler] {
 
   test("Observer.executeWithModel should work") { implicit s =>
     val count = Platform.recommendedBatchSize * 4
-    val obs = Observable.range(0, count).executeWithModel(SynchronousExecution)
+    val obs = Observable.range(0L, count.toLong).executeWithModel(SynchronousExecution)
     val sum = obs.sumL.runToFuture
 
     s.tickOne()

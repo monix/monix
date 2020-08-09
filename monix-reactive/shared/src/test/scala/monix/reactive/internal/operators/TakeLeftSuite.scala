@@ -35,7 +35,7 @@ object TakeLeftSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           Observable.range(1, 10).take(1)
         else
-          Observable.range(1, sourceCount * 2).take(sourceCount)
+          Observable.range(1, sourceCount * 2).take(sourceCount.toLong)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -50,7 +50,7 @@ object TakeLeftSuite extends BaseOperatorSuite {
             .take(2)
         else
           createObservableEndingInError(Observable.range(1, sourceCount), ex)
-            .take(sourceCount)
+            .take(sourceCount.toLong)
 
       Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
     }

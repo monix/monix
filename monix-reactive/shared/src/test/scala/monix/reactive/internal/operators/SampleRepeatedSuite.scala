@@ -29,7 +29,7 @@ object SampleRepeatedSuite extends BaseOperatorSuite {
       .now(1L)
       .delayOnComplete(sourceCount.minutes)
       .sampleRepeated(500.millis)
-      .take(sourceCount)
+      .take(sourceCount.toLong)
 
     Sample(o, sourceCount, sourceCount, waitFirst, waitNext)
   }

@@ -28,7 +28,7 @@ import scala.concurrent.duration._
 
 object Interleave2Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Option {
-    val source = Observable.range(0, sourceCount)
+    val source = Observable.range(0L, sourceCount.toLong)
     val o = source.interleave(source)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }

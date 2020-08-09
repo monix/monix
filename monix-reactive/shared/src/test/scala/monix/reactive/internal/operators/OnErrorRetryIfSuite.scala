@@ -57,7 +57,7 @@ object OnErrorRetryIfSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val retriesCount = Atomic(0)
-    val o = Observable.range(0, sourceCount).endWithError(DummyException("unexpected")).onErrorRestartIf { _ =>
+    val o = Observable.range(0L, sourceCount.toLong).endWithError(DummyException("unexpected")).onErrorRestartIf { _ =>
       if (retriesCount.incrementAndGet() <= 3)
         true
       else

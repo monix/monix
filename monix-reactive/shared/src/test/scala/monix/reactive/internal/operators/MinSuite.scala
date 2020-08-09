@@ -28,7 +28,7 @@ object MinSuite extends BaseOperatorSuite {
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).endWithError(ex).min
+    val o = Observable.range(0L, sourceCount.toLong).endWithError(ex).min
     Sample(o, 0, 0, Zero, Zero)
   }
 
@@ -39,7 +39,7 @@ object MinSuite extends BaseOperatorSuite {
       def compare(x: Long, y: Long): Int = throw ex
     }
 
-    val o = Observable.range(0, sourceCount + 1).min(ord)
+    val o = Observable.range(0, sourceCount.toLong + 1).min(ord)
     Some(Sample(o, 0, 0, Zero, Zero))
   }
 

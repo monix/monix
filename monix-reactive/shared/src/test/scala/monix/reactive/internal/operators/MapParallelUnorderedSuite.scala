@@ -32,7 +32,7 @@ import scala.util.{Failure, Random}
 
 object MapParallelUnorderedSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).mapParallelUnordered(parallelism = 4)(x => Task.evalAsync(x))
+    val o = Observable.range(0L, sourceCount.toLong).mapParallelUnordered(parallelism = 4)(x => Task.evalAsync(x))
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
@@ -71,7 +71,7 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
       var received = 0
       var total = 0L
 
-      val obs = Observable.range(0, sourceCount).mapParallelUnordered(parallelism = 4)(x => Task.now(x))
+      val obs = Observable.range(0L, sourceCount.toLong).mapParallelUnordered(parallelism = 4)(x => Task.now(x))
       obs.unsafeSubscribeFn(new Observer[Long] {
         private[this] var sum = 0L
 
@@ -100,7 +100,7 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
       var received = 0
       var total = 0L
 
-      val obs = Observable.range(0, sourceCount).mapParallelUnordered(parallelism = 4)(x => Task.evalAsync(x))
+      val obs = Observable.range(0L, sourceCount.toLong).mapParallelUnordered(parallelism = 4)(x => Task.evalAsync(x))
       obs.unsafeSubscribeFn(new Observer[Long] {
         private[this] var sum = 0L
 

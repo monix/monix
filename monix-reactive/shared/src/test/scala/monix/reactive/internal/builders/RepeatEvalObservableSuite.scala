@@ -42,7 +42,7 @@ object RepeatEvalObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     Observable
       .repeatEval(1)
-      .take(Platform.recommendedBatchSize * 2)
+      .take(Platform.recommendedBatchSize.toLong * 2)
       .subscribe { x =>
         received += 1; Continue
       }

@@ -52,7 +52,7 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           createObservableEndingInError(Observable.range(1, 10).take(1), ex)
         else
-          createObservableEndingInError(Observable.range(1, sourceCount * 2).take(sourceCount), ex)
+          createObservableEndingInError(Observable.range(1, sourceCount * 2).take(sourceCount.toLong), ex)
 
       val o = source.takeByTimespan(1.day)
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)

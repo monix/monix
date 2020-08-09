@@ -42,10 +42,10 @@ object ConcatManySuite extends BaseOperatorSuite {
     if (sourceCount == 1) None
     else
       Some {
-        val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+        val o = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
           .flatMap(_ => Observable.fromIterable(Seq(1L, 1L, 1L)))
 
-        Sample(o, count(sourceCount), count(sourceCount) - 2, waitFirst, waitNext)
+        Sample(o, count(sourceCount), count(sourceCount).toLong - 2, waitFirst, waitNext)
       }
 
   def sum(sourceCount: Int) = {
@@ -53,7 +53,7 @@ object ConcatManySuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).flatMap { i =>
+    val o = Observable.range(0L, sourceCount.toLong).flatMap { i =>
       if (i == sourceCount - 1)
         throw ex
       else
@@ -66,10 +66,10 @@ object ConcatManySuite extends BaseOperatorSuite {
   override def cancelableObservables(): Seq[Sample] = {
     val sourceCount = Platform.recommendedBatchSize * 3
     val o = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .flatMap(i =>
         Observable
-          .range(0, sourceCount)
+          .range(0L, sourceCount.toLong)
           .map(_ => 1L)
           .delayExecution(1.second))
 

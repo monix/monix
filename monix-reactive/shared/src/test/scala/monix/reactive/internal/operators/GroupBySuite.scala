@@ -46,14 +46,14 @@ object GroupBySuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) =
     if (sourceCount <= 1) None
     else {
-      val source = Observable.range(0, sourceCount) ++ Observable.raiseError(ex).executeAsync
+      val source = Observable.range(0L, sourceCount.toLong) ++ Observable.raiseError(ex).executeAsync
       val o = source.groupBy(_ % 5).mergeMap(o => o.map(x => o.key + x))
 
       Some(Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero))
     }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).groupBy(x => (throw ex): Long).concat
+    val o = Observable.range(0L, sourceCount.toLong).groupBy(x => (throw ex): Long).concat
     Sample(o, 0, 0, Zero, Zero)
   }
 

@@ -25,7 +25,7 @@ object DebounceSuite extends BaseOperatorSuite {
     val o = Observable
       .interval(2.seconds)
       .debounce(1.second)
-      .take(sourceCount)
+      .take(sourceCount.toLong)
 
     val count = sourceCount
     val sum = sourceCount * (sourceCount - 1) / 2
@@ -38,7 +38,7 @@ object DebounceSuite extends BaseOperatorSuite {
     val o = createObservableEndingInError(
       Observable
         .interval(2.seconds)
-        .take(sourceCount),
+        .take(sourceCount.toLong),
       ex)
       .debounce(1.second)
 

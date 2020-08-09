@@ -31,7 +31,7 @@ object SwitchMapSuite extends BaseOperatorSuite {
         .switchMap(i => Observable.interval(1.second))
         .bufferTimed(mainPeriod)
         .map(_.sum)
-        .take(sourceCount)
+        .take(sourceCount.toLong)
 
       val sum = 3 * sourceCount
       Sample(o, sourceCount, sum, waitFirst, waitNext)
@@ -44,7 +44,7 @@ object SwitchMapSuite extends BaseOperatorSuite {
     Some {
       val mainPeriod = 2.seconds + 500.millis
       val o =
-        createObservableEndingInError(Observable.interval(mainPeriod).take(sourceCount), ex)
+        createObservableEndingInError(Observable.interval(mainPeriod).take(sourceCount.toLong), ex)
           .switchMap(_ => Observable.eval(1L) ++ Observable.intervalAtFixedRate(1.second, 1.second))
           .bufferTimed(mainPeriod)
           .map(_.sum)

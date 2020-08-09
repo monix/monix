@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 
 object ScanEffectSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).scanEvalF(IO.pure(0L)) { (s, x) =>
+    val o = Observable.range(0L, sourceCount.toLong).scanEvalF(IO.pure(0L)) { (s, x) =>
       IO(s + x)
     }
 
@@ -44,7 +44,7 @@ object ScanEffectSuite extends BaseOperatorSuite {
     if (sourceCount == 1) None
     else
       Some {
-        val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+        val o = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
           .scanEvalF(IO.pure(0L)) { (s, x) =>
             IO(s + x)
           }

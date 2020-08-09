@@ -128,7 +128,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
       val completed = new CountDownLatch(1)
       val total = 10000L
 
-      var received = 0
+      var received = 0L
       var sum = 0L
 
       val underlying = new Observer[Long] {
@@ -152,12 +152,14 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
         def onError(ex: Throwable): Unit =
           s.reportFailure(ex)
 
-        def onComplete(): Unit =
+        def onComplete(): Unit = {
           ack.syncOnContinue(completed.countDown())
+          ()
+        }
       }
 
       val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
-      for (i <- 1 to total.toInt) buffer.onNext(i)
+      for (i <- 1 to total.toInt) { buffer.onNext(i.toLong); () }
       buffer.onComplete()
 
       blocking {
@@ -190,8 +192,10 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
       def onError(ex: Throwable): Unit =
         s.reportFailure(ex)
 
-      def onComplete(): Unit =
+      def onComplete(): Unit = {
         ack.syncOnContinue(completed.countDown())
+        ()
+      }
     }
 
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
@@ -326,7 +330,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
 
     val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x); () }
     buffer.onComplete()
 
     blocking {
@@ -351,13 +355,13 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
 
     val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x); () }
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
     blocking {
       assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
-      assertEquals(sum, (0 until 9999).sum)
+      assertEquals(sum, (0 until 9999).sum.toLong)
     }
   }
 
@@ -375,12 +379,15 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
 
     val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x =>
+      buffer.onNext(x)
+      ()
+    }
     buffer.onError(new RuntimeException)
 
     blocking {
       assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
-      assertEquals(sum, (0 until 9999).sum)
+      assertEquals(sum, (0 until 9999).sum.toLong)
     }
   }
 }

@@ -28,7 +28,7 @@ import scala.concurrent.duration._
 
 object Zip2Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o1 = Observable.range(0, sourceCount)
+    val o1 = Observable.range(0L, sourceCount.toLong)
     val o2 = Observable.range(0, sourceCount + 2)
 
     val o = Observable.zipMap2(o1, o2) { (x1, x2) =>
@@ -41,8 +41,8 @@ object Zip2Suite extends BaseOperatorSuite {
   def sum(sourceCount: Int) = sourceCount * (sourceCount - 1)
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o1 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o2 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+    val o1 = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
+    val o2 = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
 
     val o = Observable.zipMap2(o1, o2) { (x1, x2) =>
       x1 + x2
@@ -51,7 +51,7 @@ object Zip2Suite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o1 = Observable.range(0, sourceCount)
+    val o1 = Observable.range(0L, sourceCount.toLong)
     val o2 = Observable.range(0, sourceCount + 100)
 
     val o = Observable.zipMap2(o1, o2) { (x1, x2) =>

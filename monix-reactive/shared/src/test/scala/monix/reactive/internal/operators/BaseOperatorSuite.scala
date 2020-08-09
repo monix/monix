@@ -86,7 +86,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
           def onComplete(): Unit = wasCompleted = true
         })
 
-        s.tick(waitForFirst + waitForNext * (count - 1))
+        s.tick(waitForFirst + waitForNext * (count - 1).toLong)
         assertEquals(received, count)
         s.tick(waitForNext)
         assert(wasCompleted)
@@ -116,7 +116,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
             total = sum
         })
 
-        s.tick(waitForFirst + waitForNext * count)
+        s.tick(waitForFirst + waitForNext * count.toLong)
         assertEquals(received, count)
         assertEquals(total, sum)
     }
@@ -148,11 +148,13 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
 
           def onError(ex: Throwable): Unit =
             throw ex
-          def onComplete(): Unit =
+          def onComplete(): Unit = {
             ack.syncOnContinue { total = sum }
+            ()
+          }
         })
 
-        s.tick(waitForFirst + waitForNext * count + 100.millis * count)
+        s.tick(waitForFirst + waitForNext * count.toLong + 100.millis * count.toLong)
         assertEquals(received, count)
         assertEquals(total, sum)
     }
@@ -166,7 +168,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
 
     createObservable(sourceCount) match {
       case None => ignore()
-      case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+      case Some(Sample(obs, count, _, waitForFirst, waitForNext)) =>
         obs.unsafeSubscribeFn(new Observer[Long] {
           def onNext(elem: Long): Future[Ack] = {
             received += 1
@@ -222,7 +224,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
             thrownError = ex
         })
 
-        s.tick(waitForFirst + waitForNext * (count - 1))
+        s.tick(waitForFirst + waitForNext * (count - 1).toLong)
         assertEquals(received, count)
         assertEquals(receivedSum, sum)
         assertEquals(thrownError, DummyException("dummy"))
@@ -234,7 +236,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
   test("should not break the contract on user-level error") { implicit s =>
     brokenUserCodeObservable(1, DummyException("dummy")) match {
       case None => ignore()
-      case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+      case Some(Sample(obs, count, _, waitForFirst, waitForNext)) =>
         var thrownError: Throwable = null
         var received = 0
         var onCompleteReceived = false
@@ -251,7 +253,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
             thrownError = ex
         })
 
-        s.tick(waitForFirst + waitForNext * (count - 1))
+        s.tick(waitForFirst + waitForNext * (count - 1).toLong)
         assertEquals(received, count)
         assertEquals(thrownError, DummyException("dummy"))
         assert(!onCompleteReceived, "!onCompleteReceived")
@@ -263,7 +265,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
     val sourceCount = Random.nextInt(300) + 100
 
     observableInError(sourceCount, DummyException("dummy")) match {
-      case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) if count > 0 =>
+      case Some(Sample(obs, count, _, waitForFirst, waitForNext)) if count > 0 =>
         var thrownError: Throwable = null
         var received = 0
 
@@ -277,7 +279,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
           def onComplete(): Unit = throw new IllegalStateException()
         })
 
-        s.tick(waitForFirst + waitForNext * count)
+        s.tick(waitForFirst + waitForNext * count.toLong)
         assertEquals(received, count)
         assertEquals(thrownError, DummyException("dummy"))
 
@@ -358,14 +360,14 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
       })
 
       s.tick(waitFirst)
-      assertEquals(received, count)
+      assertEquals(received, count.toLong)
       assertEquals(wasCompleted, 0)
       assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
 
       cancelable.cancel()
       s.tick(waitNext)
 
-      assertEquals(received, count)
+      assertEquals(received, count.toLong)
       assertEquals(wasCompleted, 0)
       assert(s.state.tasks.isEmpty, "tasks.isEmpty")
     }

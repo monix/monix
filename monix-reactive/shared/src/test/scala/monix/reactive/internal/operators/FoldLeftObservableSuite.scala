@@ -26,12 +26,12 @@ import scala.util.Failure
 
 object FoldLeftObservableSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val obs = Observable.range(0, sourceCount).foldLeft(0L)(_ + _)
+    val obs = Observable.range(0L, sourceCount.toLong).foldLeft(0L)(_ + _)
     Sample(obs, 1, (sourceCount - 1) * sourceCount / 2, 0.seconds, 0.seconds)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val obs = Observable.range(0, sourceCount).endWithError(ex).foldLeft(0L)(_ + _)
+    val obs = Observable.range(0L, sourceCount.toLong).endWithError(ex).foldLeft(0L)(_ + _)
     Sample(obs, 0, 0, 0.seconds, 0.seconds)
   }
 
@@ -41,7 +41,7 @@ object FoldLeftObservableSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val obs = Observable.range(0, sourceCount).endWithError(ex).foldLeft(0L)((_, _) => throw ex)
+    val obs = Observable.range(0L, sourceCount.toLong).endWithError(ex).foldLeft(0L)((_, _) => throw ex)
     Sample(obs, 0, 0, 0.seconds, 0.seconds)
   }
 

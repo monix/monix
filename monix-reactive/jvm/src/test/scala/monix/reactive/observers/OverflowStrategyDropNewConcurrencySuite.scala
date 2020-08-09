@@ -31,7 +31,7 @@ import scala.util.Random
 object OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
   test("merge test should work") { implicit s =>
     val num = 100000
-    val source = Observable.repeat(1L).take(num)
+    val source = Observable.repeat(1L).take(num.toLong)
     val o1 = source.map(_ + 2)
     val o2 = source.map(_ + 3)
     val o3 = source.map(_ + 4)
@@ -135,16 +135,18 @@ object OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
         def onError(ex: Throwable): Unit =
           s.reportFailure(ex)
 
-        def onComplete(): Unit =
+        def onComplete(): Unit = {
           ack.syncOnContinue(completed.countDown())
+          ()
+        }
       }
 
       val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), DropNew(total.toInt))
-      for (i <- 1 to total.toInt) buffer.onNext(i)
+      for (i <- 1 to total.toInt) { buffer.onNext(i.toLong); () }
       buffer.onComplete()
 
       assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
-      assertEquals(received, total)
+      assertEquals(received.toLong, total)
       assertEquals(sum, total * (total + 1) / 2)
     }
   }
@@ -335,7 +337,7 @@ object OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
       DropNew(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x); () }
     buffer.onComplete()
     startConsuming.success(Continue)
 
@@ -360,7 +362,7 @@ object OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
       DropNew(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x); () }
     buffer.onComplete()
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
@@ -385,12 +387,12 @@ object OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
       DropNew(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x); () }
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
-    assertEquals(sum, (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
   test("should do onError only after all the queue was drained, test2") { implicit s =>
@@ -411,10 +413,10 @@ object OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
       DropNew(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x); () }
     buffer.onError(new RuntimeException)
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
-    assertEquals(sum, (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum.toLong)
   }
 }

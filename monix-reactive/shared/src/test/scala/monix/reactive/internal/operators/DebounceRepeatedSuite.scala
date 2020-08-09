@@ -26,7 +26,7 @@ object DebounceRepeatedSuite extends BaseOperatorSuite {
       .now(1L)
       .delayOnComplete(1.day)
       .debounceRepeated(1.second)
-      .take(sourceCount)
+      .take(sourceCount.toLong)
 
     val count = sourceCount
     val sum = sourceCount

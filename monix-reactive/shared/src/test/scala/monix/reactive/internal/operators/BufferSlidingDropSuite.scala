@@ -30,14 +30,14 @@ object BufferSlidingDropSuite extends BaseOperatorSuite {
     if (sourceCount > 1) Some {
       val sc = sourceCount / 8 * 8
       val o = Observable
-        .range(0, sc)
+        .range(0L, sc.toLong)
         .map(_ % 8)
         .bufferSliding(4, 8)
         .flatMap(Observable.fromIterable)
 
       val count = 2 + (sc - 4) / 2
       val sum = count / 4 * 6
-      Sample(o, count, sum, waitFirst, waitNext)
+      Sample(o, count, sum.toLong, waitFirst, waitNext)
     } else
       Some {
         val o = Observable
@@ -54,7 +54,7 @@ object BufferSlidingDropSuite extends BaseOperatorSuite {
 
   override def cancelableObservables() = {
     val o = Observable
-      .range(0, Platform.recommendedBatchSize)
+      .range(0, Platform.recommendedBatchSize.toLong)
       .delayOnNext(1.second)
       .map(_ % 8)
       .bufferSliding(4, 8)

@@ -30,7 +30,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
   def createObservable(sc: Int) = Some {
     val sourceCount = 10
     val o1 = Observable.now(1)
-    val o2 = Observable.range(0, sourceCount)
+    val o2 = Observable.range(0L, sourceCount.toLong)
     val o = Observable.combineLatestMap2(o1, o2) { (x1, x2) =>
       x1 + x2
     }
@@ -43,7 +43,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val unit = Observable.now(1)
-    val flawed = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+    val flawed = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
     val o = Observable.combineLatestMap2(unit, flawed) { (x1, x2) =>
       x1 + x2
     }
@@ -54,7 +54,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val dummy = DummyException("dummy")
     val o1 = Observable.now(1)
-    val o2 = Observable.range(0, sourceCount)
+    val o2 = Observable.range(0L, sourceCount.toLong)
     val o = Observable.combineLatestMap2(o1, o2) { (a1, a2) =>
       if (a2 == sourceCount - 1) throw dummy else a1 + a2
     }
