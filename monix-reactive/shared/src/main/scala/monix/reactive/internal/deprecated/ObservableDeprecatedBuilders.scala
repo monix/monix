@@ -177,15 +177,4 @@ private[reactive] trait ObservableDeprecatedBuilders extends Any {
     Observable.from(fa)
     // $COVERAGE-ON$
   }
-
-  /**
-    * [[Observable.range]] changed from usage of default parameters, to usage
-    * of method overloads.
-    */
-  @deprecated("Switch to new Observable.range signature", "3.3.0")
-  def `range$default$3`(): Long = {
-    // $COVERAGE-OFF$
-    1L
-    // $COVERAGE-ON$
-  }
 }

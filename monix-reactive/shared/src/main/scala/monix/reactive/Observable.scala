@@ -5443,17 +5443,8 @@ object Observable extends ObservableDeprecatedBuilders {
     * @param until the range end
     * @param step increment step, either positive or negative
     */
-  def range(from: Long, until: Long, step: Long): Observable[Long] =
+  def range(from: Long, until: Long, step: Long = 1L): Observable[Long] =
     new builders.RangeObservable(from, until, step)
-
-  def range(from: Long, until: Long): Observable[Long] =
-    range(from, until, 1L)
-
-  def range(from: Int, until: Int, step: Int): Observable[Long] =
-    range(from.toLong, until.toLong, step.toLong)
-
-  def range(from: Int, until: Int): Observable[Long] =
-    range(from.toLong, until.toLong, 1L)
 
   /** Given an initial state and a generator function that produces the
     * next state and the next element in the sequence, creates an
