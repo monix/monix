@@ -41,7 +41,7 @@ object BufferTumblingSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "count must be strictly positive")
     Some {
-      val o = Observable.range(0, sourceCount * 10).bufferTumbling(10).map(_.sum)
+      val o = Observable.range(0L, sourceCount.toLong * 10).bufferTumbling(10).map(_.sum)
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
@@ -49,7 +49,7 @@ object BufferTumblingSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "count must be strictly positive")
     Some {
-      val o = createObservableEndingInError(Observable.range(0, sourceCount * 10), ex)
+      val o = createObservableEndingInError(Observable.range(0, sourceCount.toLong * 10), ex)
         .bufferTumbling(10)
         .map(_.sum)
 
@@ -62,7 +62,7 @@ object BufferTumblingSuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[BufferTumblingSuite.Sample] = {
     val o = Observable
-      .range(0, Platform.recommendedBatchSize)
+      .range(0L, Platform.recommendedBatchSize.toLong)
       .delayOnNext(1.second)
       .bufferTumbling(10)
       .map(_.sum)
@@ -72,7 +72,7 @@ object BufferTumblingSuite extends BaseOperatorSuite {
 
   test("should emit buffer onComplete") { implicit s =>
     val count = 157
-    val obs = Observable.range(0, count * 10).bufferTumbling(20).map(_.sum)
+    val obs = Observable.range(0L, count.toLong * 10).bufferTumbling(20).map(_.sum)
 
     var wasCompleted = false
     var received = 0
@@ -89,7 +89,7 @@ object BufferTumblingSuite extends BaseOperatorSuite {
       def onComplete(): Unit = wasCompleted = true
     })
 
-    s.tick(waitFirst + waitNext * (count - 1))
+    s.tick(waitFirst + waitNext * (count - 1).toLong)
     assertEquals(received, count / 2 + 1)
     assertEquals(total, sum(count))
     s.tick(waitNext)
@@ -99,7 +99,7 @@ object BufferTumblingSuite extends BaseOperatorSuite {
   test("should drop buffer onError") { implicit s =>
     val count = 157
     val dummy = DummyException("dummy")
-    val obs = createObservableEndingInError(Observable.range(0, count * 10), dummy)
+    val obs = createObservableEndingInError(Observable.range(0L, count.toLong * 10), dummy)
       .bufferTumbling(20)
       .map(_.sum)
 
@@ -118,7 +118,7 @@ object BufferTumblingSuite extends BaseOperatorSuite {
       def onComplete(): Unit = ()
     })
 
-    s.tick(waitFirst + waitNext * (count - 1))
+    s.tick(waitFirst + waitNext * (count - 1).toLong)
     assertEquals(received, 156 / 2)
     assertEquals(total, sum(156))
     s.tick(waitNext)
@@ -130,7 +130,7 @@ object BufferTumblingSuite extends BaseOperatorSuite {
     var wasCompleted = false
 
     createObservable(1) match {
-      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+      case Some(Sample(obs, _, _, waitForFirst, waitForNext)) =>
         var onNextReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {

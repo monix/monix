@@ -27,7 +27,7 @@ object RepeatSuite extends BaseOperatorSuite {
   }
 
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, 5).repeat.take(sourceCount)
+    val o = Observable.range(0, 5).repeat.take(sourceCount.toLong)
     Sample(o, sourceCount, sum(sourceCount), Zero, Zero)
   }
 

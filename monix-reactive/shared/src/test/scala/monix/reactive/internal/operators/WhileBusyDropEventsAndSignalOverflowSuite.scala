@@ -63,21 +63,21 @@ object WhileBusyDropEventsAndSignalOverflowSuite extends TestSuite[TestScheduler
         }
       })
 
-    source.onNext(1)
+    source.onNext(1L)
     s.tick()
-    assertEquals(received, 1)
+    assertEquals(received, 1L)
 
-    for (i <- 0 until 100) source.onNext(i)
-    assertEquals(received, 1)
+    for (i <- 0 until 100) source.onNext(i.toLong)
+    assertEquals(received, 1L)
 
     p.success(Continue)
     s.tick()
-    assertEquals(received, 1)
+    assertEquals(received, 1L)
 
     source.onNext(1)
-    assertEquals(received, 1 + 1 + 100)
+    assertEquals(received, 1L + 1 + 100)
     source.onNext(1)
-    assertEquals(received, 102 + 1)
+    assertEquals(received, 102L + 1)
   }
 
   test("should send number of dropped events when onComplete") { implicit s =>

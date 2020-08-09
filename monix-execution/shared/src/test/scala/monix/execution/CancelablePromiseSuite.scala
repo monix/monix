@@ -31,7 +31,7 @@ object CancelablePromiseSuite extends SimpleTestSuite {
     val f1 = p.future
     val f2 = p.future
     val p3 = Promise[Int]()
-    p.subscribe(p3.complete)
+    p.subscribe { v => p3.complete(v); () }
 
     assert(f1 ne f2, "f1 != f2")
 
@@ -44,7 +44,7 @@ object CancelablePromiseSuite extends SimpleTestSuite {
     assertEquals(p.future.value, Some(Success(99)))
 
     val p4 = Promise[Int]()
-    p.subscribe(p4.complete)
+    p.subscribe { v => p4.complete(v); () }
     assertEquals(p4.future.value, Some(Success(99)))
   }
 
@@ -55,7 +55,7 @@ object CancelablePromiseSuite extends SimpleTestSuite {
     val f1 = p.future
     val f2 = p.future
     val p3 = Promise[Int]()
-    p.subscribe(p3.complete)
+    p.subscribe { v => p3.complete(v); () }
 
     assert(f1 ne f2, "f1 != f2")
 
@@ -69,7 +69,7 @@ object CancelablePromiseSuite extends SimpleTestSuite {
     assertEquals(p.future.value, Some(Failure(dummy)))
 
     val p4 = Promise[Int]()
-    p.subscribe(p4.complete)
+    p.subscribe { v => p4.complete(v); () }
     assertEquals(p4.future.value, Some(Failure(dummy)))
   }
 
@@ -93,13 +93,13 @@ object CancelablePromiseSuite extends SimpleTestSuite {
     val p = CancelablePromise[Int]()
 
     val p1 = Promise[Int]()
-    val c1 = p.subscribe(p1.complete)
+    val c1 = p.subscribe { v => p1.complete(v); () }
 
     val p2 = Promise[Int]()
-    p.subscribe(p2.complete)
+    p.subscribe { v => p2.complete(v); () }
 
     val p3 = Promise[Int]()
-    val c3 = p.subscribe(p3.complete)
+    val c3 = p.subscribe { v => p3.complete(v); () }
 
     c1.cancel()
     c3.cancel()
@@ -116,7 +116,7 @@ object CancelablePromiseSuite extends SimpleTestSuite {
     assert(p.isCompleted)
 
     val p1 = Promise[Int]()
-    p.subscribe(p1.complete)
+    p.subscribe { v => p1.complete(v); () }
     assertEquals(p1.future.value, Some(Success(1)))
 
     val f = p.future
@@ -134,7 +134,7 @@ object CancelablePromiseSuite extends SimpleTestSuite {
     assert(p.isCompleted)
 
     val p1 = Promise[Int]()
-    p.subscribe(p1.complete)
+    p.subscribe { v => p1.complete(v); () }
     assertEquals(p1.future.value, Some(Failure(dummy)))
 
     val f = p.future

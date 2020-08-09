@@ -177,7 +177,7 @@ private[observers] final class DropNewBufferedSubscriber[A] private (
               if (onOverflow == null || droppedCount.get() == 0)
                 null.asInstanceOf[A]
               else
-                onOverflow(droppedCount.getAndSet(0)).value() match {
+                onOverflow(droppedCount.getAndSet(0).toLong).value() match {
                   case Some(value) => value
                   case None => null.asInstanceOf[A]
                 }

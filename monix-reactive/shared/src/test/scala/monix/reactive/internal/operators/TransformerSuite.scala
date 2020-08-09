@@ -19,25 +19,23 @@ package monix.reactive.internal.operators
 
 import monix.execution.exceptions.DummyException
 import monix.reactive.Observable
-import monix.reactive.internal.operators.MapSuite.{count, sum}
-
 import scala.concurrent.duration.Duration.Zero
-import scala.util.Success
 import scala.concurrent.duration._
+import scala.util.Success
 
 object TransformerSuite extends BaseOperatorSuite {
-
   def sum(sourceCount: Int): Long = (0 until sourceCount).sum.toLong * 2
   def count(sourceCount: Int) = sourceCount
 
-  def dummyTransformer(ob: Observable[Long]): Observable[Long] = ob.map(_ * 2)
-
-  def aT(ob: Observable[Long]): Observable[Long] = ob.map(_ * 1)
+  def dummyTransformer(ob: Observable[Long]): Observable[Long] =
+    ob.map(_ * 2)
+  def aT(ob: Observable[Long]): Observable[Long] =
+    ob.map(_ * 1)
 
   def createObservable(sourceCount: Int) = Some {
     val o =
         Observable
-          .range(0, sourceCount)
+          .range(0L, sourceCount.toLong)
           .transform(dummyTransformer)
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -51,14 +49,15 @@ object TransformerSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           createObservableEndingInError(Observable.now(1L), ex).transform(dummyTransformer)
         else
-          createObservableEndingInError(Observable.range(1, sourceCount + 1, 1), ex)
+          createObservableEndingInError(Observable.range(1, sourceCount.toLong + 1, 1), ex)
               .transform(dummyTransformer)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
   }
 
-  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Option.empty
+  def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
+    Option.empty
 
   override def cancelableObservables(): Seq[Sample] = {
     val obs = Observable.range(0, 1000).delayOnNext(1.second).map(_ + 1)
@@ -67,9 +66,7 @@ object TransformerSuite extends BaseOperatorSuite {
 
   test("should transform the observable using the given transformer") { implicit s =>
     val l = List(1L, 2, 3, 4)
-
-    val f = Observable.from(l).transform(dummyTransformer).toListL.runToFuture;
-
+    val f = Observable.from(l).transform(dummyTransformer).toListL.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(l.map(_ * 2))))
   }

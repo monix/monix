@@ -471,7 +471,6 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
 
   test("should protect against user code on synchronous downstream Stop") { implicit s =>
     val ex = DummyException("dummy")
-    var errorThrown: Throwable = null
 
     Observable
       .range(0, 100)

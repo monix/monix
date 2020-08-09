@@ -318,8 +318,10 @@ private[reactive] object LoadBalanceConsumer {
             val update = Available[In](Queue.empty, canceledIDs, ac)
             if (!stateRef.compareAndSet(current, update))
               offer(value)
-            else
+            else {
               promise.success(value)
+              ()
+            }
           }
       }
 
@@ -359,8 +361,10 @@ private[reactive] object LoadBalanceConsumer {
           val update: State[In] = Available(Queue.empty, canceledIDs, 0)
           if (!stateRef.compareAndSet(current, update))
             deactivateAll()
-          else
+          else {
             promise.success(null)
+            ()
+          }
       }
 
     @tailrec

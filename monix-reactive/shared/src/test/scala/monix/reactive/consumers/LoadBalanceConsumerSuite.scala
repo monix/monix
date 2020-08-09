@@ -37,6 +37,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
   test("trigger error when parallelism < 1") { implicit s =>
     intercept[IllegalArgumentException] {
       Consumer.loadBalance(0, Consumer.head[Int])
+      ()
     }
     ()
   }
@@ -44,6 +45,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
   test("trigger error when array of consumers is empty") { implicit s =>
     intercept[IllegalArgumentException] {
       new LoadBalanceConsumer(1, Array.empty[Consumer[Int, Int]])
+      ()
     }
     ()
   }

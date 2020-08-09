@@ -42,6 +42,7 @@ private[reactive] final class ResourceCaseObservable[A](
         conn := new StreamOne(value)
           .guaranteeCase(e => release(value, e))
           .unsafeSubscribeFn(subscriber)
+        ()
       }
 
       def onError(ex: Throwable): Unit =

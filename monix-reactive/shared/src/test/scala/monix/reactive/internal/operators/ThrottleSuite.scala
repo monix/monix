@@ -32,7 +32,7 @@ object ThrottleSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount must be strictly positive")
 
     val o = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .throttle(1.second, 2)
 
     Sample(o, sourceCount, sum(sourceCount), 1.second, 1.second)

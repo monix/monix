@@ -26,7 +26,7 @@ import monix.execution.{ExecutionModel => ExecModel}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 
-object AsyncSchedulerSuite extends SimpleTestSuite {
+object AsyncSchedulerJVMSuite extends SimpleTestSuite {
   val s: Scheduler = monix.execution.Scheduler.global
 
   def scheduleOnce(s: Scheduler, delay: FiniteDuration)(action: => Unit): Cancelable = {
@@ -36,7 +36,7 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
   test("scheduleOnce with delay") {
     val p = Promise[Long]()
     val startedAt = System.nanoTime()
-    scheduleOnce(s, 100.millis)(p.success(System.nanoTime()))
+    scheduleOnce(s, 100.millis) { p.success(System.nanoTime()); () }
 
     val timeTaken = Await.result(p.future, 3.second)
     assert((timeTaken - startedAt).nanos.toMillis >= 100)
@@ -44,17 +44,18 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
 
   test("scheduleOnce with delay lower than 1.milli") {
     val p = Promise[Int]()
-    scheduleOnce(s, 20.nanos)(p.success(1))
+    scheduleOnce(s, 20.nanos) { p.success(1); () }
     assert(Await.result(p.future, 3.seconds) == 1)
   }
 
   test("scheduleOnce with delay and cancel") {
     val p = Promise[Int]()
-    val task = scheduleOnce(s, 100.millis)(p.success(1))
+    val task = scheduleOnce(s, 100.millis) { p.success(1); () }
     task.cancel()
 
     intercept[TimeoutException] {
       Await.result(p.future, 150.millis)
+      ()
     }
     ()
   }
@@ -64,15 +65,20 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
     val p = Promise[Int]()
     var value = 0
 
-    sub := s.scheduleWithFixedDelay(10, 50, TimeUnit.MILLISECONDS, runnableAction {
-      if (value + 1 == 4) {
-        value += 1
-        sub.cancel()
-        p.success(value)
-      } else if (value < 4) {
-        value += 1
-      }
-    })
+    sub := s.scheduleWithFixedDelay(
+      10,
+      50,
+      TimeUnit.MILLISECONDS,
+      runnableAction {
+        if (value + 1 == 4) {
+          value += 1
+          sub.cancel()
+          p.success(value)
+          ()
+        } else if (value < 4) {
+          value += 1
+        }
+      })
 
     assert(Await.result(p.future, 5.second) == 4)
   }
@@ -82,15 +88,20 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
     val p = Promise[Int]()
     var value = 0
 
-    sub := s.scheduleAtFixedRate(10, 50, TimeUnit.MILLISECONDS, runnableAction {
-      if (value + 1 == 4) {
-        value += 1
-        sub.cancel()
-        p.success(value)
-      } else if (value < 4) {
-        value += 1
-      }
-    })
+    sub := s.scheduleAtFixedRate(
+      10,
+      50,
+      TimeUnit.MILLISECONDS,
+      runnableAction {
+        if (value + 1 == 4) {
+          value += 1
+          sub.cancel()
+          p.success(value)
+          ()
+        } else if (value < 4) {
+          value += 1
+        }
+      })
 
     assert(Await.result(p.future, 5.second) == 4)
   }
@@ -136,18 +147,22 @@ object AsyncSchedulerSuite extends SimpleTestSuite {
 
     intercept[IllegalArgumentException] {
       monix.execution.Scheduler.cached("dummy", -1, 2, 1.second)
+      ()
     }
 
     intercept[IllegalArgumentException] {
       monix.execution.Scheduler.cached("dummy", 0, 0, 1.second)
+      ()
     }
 
     intercept[IllegalArgumentException] {
       monix.execution.Scheduler.cached("dummy", 2, 1, 1.second)
+      ()
     }
 
     intercept[IllegalArgumentException] {
       monix.execution.Scheduler.cached("dummy", 2, 10, -1.second)
+      ()
     }
 
     implicit val s: Scheduler = monix.execution.Scheduler

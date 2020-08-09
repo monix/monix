@@ -45,7 +45,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
     Some {
       val o = Observable
         .intervalAtFixedRate(100.millis)
-        .take(sourceCount * 10)
+        .take(sourceCount.toLong * 10)
         .bufferTimed(1.second)
         .map(_.sum)
 
@@ -58,7 +58,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
       val o = createObservableEndingInError(
         Observable
           .intervalAtFixedRate(100.millis, 100.millis)
-          .take(sourceCount),
+          .take(sourceCount.toLong),
         ex)
         .bufferTimed(1.second)
         .map(_.sum)
@@ -71,7 +71,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val o = Observable
-      .range(0, Platform.recommendedBatchSize)
+      .range(0L, Platform.recommendedBatchSize.toLong)
       .delayOnNext(1.second)
       .bufferTimed(1.second)
       .map(_.sum)
@@ -84,7 +84,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
 
     val obs = Observable
       .intervalAtFixedRate(100.millis)
-      .take(count * 10)
+      .take(count.toLong * 10)
       .bufferTimed(2.seconds)
       .map(_.sum)
 
@@ -103,7 +103,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
       def onComplete(): Unit = wasCompleted = true
     })
 
-    s.tick(waitNext + waitFirst * (count - 1))
+    s.tick(waitNext + waitFirst * (count - 1).toLong)
     assertEquals(received, count / 2 + 1)
     assertEquals(total, sum(count))
     s.tick(waitFirst)
@@ -115,6 +115,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
       Observable
         .intervalAtFixedRate(100.millis)
         .bufferTimed(Duration.Zero - 1.second)
+      ()
     }
     ()
   }
@@ -124,7 +125,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
     var wasCompleted = false
 
     createObservable(1) match {
-      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+      case Some(Sample(obs, _, _, waitForFirst, waitForNext)) =>
         var onNextReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {
@@ -186,6 +187,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
       Observable
         .range(0, 1000)
         .bufferTimedAndCounted(10.seconds, -1)
+      ()
     }
     ()
   }

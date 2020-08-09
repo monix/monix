@@ -75,7 +75,7 @@ class ChunkedEvalFilterMapSumBenchmark {
   def setup(): Unit = {
     val chunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
     allElements = chunks.flatten
-    expectedSum = allElements.sum
+    expectedSum = allElements.sum.toLong
   }
 
   @Benchmark
@@ -135,6 +135,7 @@ class ChunkedEvalFilterMapSumBenchmark {
       .foldLeftL(0L)(_ + _)
 
     testResult(stream.runSyncUnsafe())
+    ()
   }
 
   @Benchmark

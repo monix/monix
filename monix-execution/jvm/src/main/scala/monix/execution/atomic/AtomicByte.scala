@@ -29,40 +29,51 @@ final class AtomicByte private (private[this] val ref: BoxedInt) extends AtomicN
 
   private[this] val mask = 255
 
-  def get(): Byte = (ref.volatileGet() & mask).asInstanceOf[Byte]
-  def set(update: Byte): Unit = ref.volatileSet(update)
+  def get(): Byte = 
+    (ref.volatileGet() & mask).asInstanceOf[Byte]
+
+  def set(update: Byte): Unit = 
+    ref.volatileSet(update.asInstanceOf[Int])
 
   def lazySet(update: Byte): Unit =
-    ref.lazySet(update)
+    ref.lazySet(update.asInstanceOf[Int])
 
   def compareAndSet(expect: Byte, update: Byte): Boolean =
-    ref.compareAndSet(expect, update)
+    ref.compareAndSet(expect.asInstanceOf[Int], update.asInstanceOf[Int])
 
   def getAndSet(update: Byte): Byte =
-    (ref.getAndSet(update) & mask).asInstanceOf[Byte]
+    (ref.getAndSet(update.asInstanceOf[Int]) & mask).asInstanceOf[Byte]
 
-  def increment(v: Int = 1): Unit =
-    ref.getAndAdd(v)
+  def increment(v: Int = 1): Unit = {
+    ref.getAndAdd(v.asInstanceOf[Int])
+    ()
+  }
 
-  def add(v: Byte): Unit =
-    ref.getAndAdd(v)
+  def add(v: Byte): Unit = {
+    ref.getAndAdd(v.asInstanceOf[Int])
+    ()
+  }
 
   def incrementAndGet(v: Int = 1): Byte =
-    ((ref.getAndAdd(v) + v) & mask).asInstanceOf[Byte]
+    ((ref.getAndAdd(v.asInstanceOf[Int]) + v) & mask).asInstanceOf[Byte]
 
   def addAndGet(v: Byte): Byte =
-    ((ref.getAndAdd(v) + v) & mask).asInstanceOf[Byte]
+    ((ref.getAndAdd(v.asInstanceOf[Int]) + v) & mask).asInstanceOf[Byte]
 
   def getAndIncrement(v: Int = 1): Byte =
-    (ref.getAndAdd(v) & mask).asInstanceOf[Byte]
+    (ref.getAndAdd(v.asInstanceOf[Int]) & mask).asInstanceOf[Byte]
 
   def getAndAdd(v: Byte): Byte =
-    (ref.getAndAdd(v) & mask).asInstanceOf[Byte]
+    (ref.getAndAdd(v.asInstanceOf[Int]) & mask).asInstanceOf[Byte]
 
-  def subtract(v: Byte): Unit =
+  def subtract(v: Byte): Unit = {
     ref.getAndAdd(-v.asInstanceOf[Int])
+    ()
+  }
+
   def subtractAndGet(v: Byte): Byte =
     ((ref.getAndAdd(-v.asInstanceOf[Int]) - v) & mask).asInstanceOf[Byte]
+
   def getAndSubtract(v: Byte): Byte =
     (ref.getAndAdd(-v.asInstanceOf[Int]) & mask).asInstanceOf[Byte]
 
@@ -114,7 +125,7 @@ object AtomicByte {
   def create(initialValue: Byte, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicByte =
     new AtomicByte(
       Factory.newBoxedInt(
-        initialValue,
+        initialValue.toInt,
         boxStrategyToPaddingStrategy(padding),
         true, // allowUnsafe
         allowPlatformIntrinsics
@@ -138,7 +149,7 @@ object AtomicByte {
   def safe(initialValue: Byte, padding: PaddingStrategy): AtomicByte = {
     new AtomicByte(
       Factory.newBoxedInt(
-        initialValue,
+        initialValue.toInt,
         boxStrategyToPaddingStrategy(padding),
         false, // allowUnsafe
         false // allowJava8Intrinsics

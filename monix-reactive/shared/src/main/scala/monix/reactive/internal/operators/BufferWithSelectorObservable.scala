@@ -94,6 +94,7 @@ private[reactive] final class BufferWithSelectorObservable[+A, S](
           upstreamSubscriber.synchronized {
             upstreamIsDone = true
             signalNext()
+            ()
           }
 
         // MUST BE synchronized by `self`

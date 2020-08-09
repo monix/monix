@@ -23,9 +23,6 @@ import monix.execution.Callback
 import monix.execution.atomic.{Atomic, AtomicInt}
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
 import scala.util.{Failure, Random, Success, Try}
 
 object TaskFlatMapSuite extends BaseTestSuite {

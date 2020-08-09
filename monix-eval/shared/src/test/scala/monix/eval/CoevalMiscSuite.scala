@@ -46,6 +46,7 @@ object CoevalMiscSuite extends BaseTestSuite {
   test("Coeval.fail should fail for successful values") { implicit s =>
     intercept[NoSuchElementException] {
       Coeval.eval(10).failed.value()
+      ()
     }
     ()
   }

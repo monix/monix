@@ -55,6 +55,7 @@ private[reactive] final class DelayExecutionWithTriggerObservable[A](source: Obs
           if (!isDone) {
             isDone = true
             cancelable.orderedUpdate(source.unsafeSubscribeFn(subscriber), order = 2)
+            ()
           }
       })
 

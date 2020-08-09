@@ -449,6 +449,7 @@ final class ConcurrentChannel[F[_], E, A] private (
           // Maybe notify that the number of consumers has decreased
           if (listener ne null) {
             listener.complete(Constants.successOfUnit)
+            ()
           }
         }
         (consumer, cancel)
@@ -728,6 +729,7 @@ object ConcurrentChannel {
       if (ref ne null) {
         if (consumersAwait.compareAndSet(ref, null)) {
           ref.complete(Constants.successOfUnit)
+          ()
         } else {
           notifyConsumers()
         }
@@ -809,6 +811,7 @@ object ConcurrentChannel {
         if (ref ne null) {
           if (producersAwait.compareAndSet(ref, null)) {
             ref.complete(Constants.successOfUnit)
+            ()
           } else {
             notifyProducers()
           }

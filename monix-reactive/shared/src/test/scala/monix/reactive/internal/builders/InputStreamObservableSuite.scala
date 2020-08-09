@@ -62,6 +62,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
     val in = new ByteArrayInputStream(byteArray)
     val error = intercept[IllegalArgumentException] {
       Observable.fromInputStreamUnsafe(in, 0)
+      ()
     }
     assert(error.getMessage.contains("chunkSize"))
   }
@@ -71,6 +72,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
     val in = new ByteArrayInputStream(byteArray)
     val error = intercept[IllegalArgumentException] {
       Observable.fromInputStreamUnsafe(in, -1)
+      ()
     }
     assert(error.getMessage.contains("chunkSize"))
   }
@@ -220,6 +222,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
 
     intercept[IllegalArgumentException] {
       f.value.get.get
+      ()
     }
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }

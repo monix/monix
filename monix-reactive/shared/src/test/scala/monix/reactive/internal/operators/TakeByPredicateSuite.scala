@@ -39,7 +39,7 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           Observable.range(1, 10).takeWhile(_ <= 1)
         else
-          Observable.range(1, sourceCount * 2).takeWhile(_ <= sourceCount)
+          Observable.range(1L, sourceCount.toLong * 2).takeWhile(_ <= sourceCount)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -49,7 +49,7 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      val o = createObservableEndingInError(Observable.range(1, sourceCount + 1), ex)
+      val o = createObservableEndingInError(Observable.range(1, sourceCount.toLong + 1), ex)
         .takeWhile(_ <= sourceCount * 2)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -60,7 +60,7 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      val o = Observable.range(1, sourceCount * 2).takeWhile { x =>
+      val o = Observable.range(1L, sourceCount.toLong * 2).takeWhile { x =>
         if (x < sourceCount) true else throw ex
       }
 
@@ -73,7 +73,7 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
     var wasCompleted = 0
 
     createObservable(1) match {
-      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+      case Some(Sample(obs, _, _, waitForFirst, waitForNext)) =>
         var onNextReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {

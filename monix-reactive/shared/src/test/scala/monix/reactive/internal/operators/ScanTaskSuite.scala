@@ -31,7 +31,7 @@ import scala.util.Failure
 
 object ScanTaskSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).scanEval(Task.now(0L)) { (s, x) =>
+    val o = Observable.range(0L, sourceCount.toLong).scanEval(Task.now(0L)) { (s, x) =>
       if (x % 2 == 0) Task.evalAsync(s + x) else Task.eval(s + x)
     }
 
@@ -50,7 +50,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
     if (sourceCount == 1) None
     else
       Some {
-        val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+        val o = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
           .scanEval(Task.now(0L)) { (s, x) =>
             if (x % 2 == 0) Task.evalAsync(s + x) else Task.eval(s + x)
           }
@@ -60,7 +60,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .scanEval(Task.now(0L)) { (s, i) =>
         if (i == sourceCount - 1)
           throw ex
@@ -211,6 +211,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
         sc.scheduleOnce(1, TimeUnit.SECONDS, new Runnable {
           def run() = cb.onError(ex)
         })
+        ()
       }
 
     val dummy = DummyException("dummy")

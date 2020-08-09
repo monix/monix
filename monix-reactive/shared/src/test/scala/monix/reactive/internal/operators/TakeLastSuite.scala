@@ -36,7 +36,7 @@ object TakeLastSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           Observable.range(1, 10).takeLast(1)
         else
-          Observable.range(1, sourceCount * 2).takeLast(sourceCount)
+          Observable.range(1L, sourceCount.toLong * 2).takeLast(sourceCount)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -51,7 +51,7 @@ object TakeLastSuite extends BaseOperatorSuite {
           createObservableEndingInError(Observable.range(1, 10), ex)
             .takeLast(1)
         else
-          createObservableEndingInError(Observable.range(1, sourceCount * 2), ex)
+          createObservableEndingInError(Observable.range(1L, sourceCount.toLong * 2), ex)
             .takeLast(sourceCount)
 
       Sample(o, 0, 0, Zero, Zero)

@@ -103,7 +103,6 @@ object IterantConsumeSuite extends BaseTestSuite {
   }
 
   testAsync("Iterant.channel") { _ =>
-    import cats.implicits._
     implicit val ec: Scheduler = Scheduler.Implicits.global
 
     val task = Iterant[Task].channel[Int]().flatMap {

@@ -20,7 +20,6 @@ package internal
 
 import java.util.concurrent.{CancellationException, CompletableFuture, CompletionException}
 import java.util.function.BiFunction
-
 import cats.effect.{Async, Concurrent}
 
 private[catnap] abstract class FutureLiftForPlatform {
@@ -32,7 +31,7 @@ private[catnap] abstract class FutureLiftForPlatform {
     F.flatMap(fa) { cf =>
       F.cancelable { cb =>
         subscribeToCompletable(cf, cb)
-        F.delay(cf.cancel(true))
+        F.delay { cf.cancel(true); () }
       }
     }
 
@@ -97,5 +96,6 @@ private[catnap] abstract class FutureLiftForPlatform {
         }
       }
     })
+    ()
   }
 }

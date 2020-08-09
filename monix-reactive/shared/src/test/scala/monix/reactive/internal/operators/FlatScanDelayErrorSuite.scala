@@ -31,13 +31,13 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
 
   def create(sourceCount: Int, ex: Throwable = null) = Some {
     val source =
-      if (ex == null) Observable.range(0, sourceCount)
-      else Observable.range(0, sourceCount).endWithError(ex)
+      if (ex == null) Observable.range(0L, sourceCount.toLong)
+      else Observable.range(0L, sourceCount.toLong).endWithError(ex)
 
     val o = source.flatScanDelayErrors(1L)((acc, elem) =>
       Observable
         .repeat(acc + elem)
-        .take(3)
+        .take(3L)
         .endWithError(SomeException(10)))
 
     val recovered = o.onErrorHandleWith {
@@ -80,7 +80,7 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
   }
 
   test("flatScan0DelayErrors.drop(1) <-> flatScanDelayErrors") { implicit s =>
-    check2 { (obs: Observable[Int], seed: Long) =>
+    check2 { (obs: Observable[Long], seed: Long) =>
       obs.flatScan0DelayErrors(seed)((a, b) => Observable(a, b)).drop(1) <->
         obs.flatScanDelayErrors(seed)((a, b) => Observable(a, b))
     }

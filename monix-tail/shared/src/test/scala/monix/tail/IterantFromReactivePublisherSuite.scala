@@ -149,7 +149,7 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
                 var requested = self.requested.get()
                 var toSend = requested
 
-                while (toSend > 0 && isInRange(index, until, step) && !cancelled.get()) {
+                while (toSend > 0 && isInRange(index.toLong, until.toLong, step.toLong) && !cancelled.get()) {
                   s.onNext(index)
                   index += step
                   toSend -= 1
@@ -160,7 +160,7 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
                   }
                 }
 
-                if (!isInRange(index, until, step))
+                if (!isInRange(index.toLong, until.toLong, step.toLong))
                   finish match {
                     case None =>
                       s.onComplete()
@@ -173,7 +173,10 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
 
         def cancel(): Unit = {
           cancelled.set(true)
-          if (onCancel != null) onCancel.success(())
+          if (onCancel != null) {
+            onCancel.success(())
+            ()
+          }
         }
       })
     }

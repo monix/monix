@@ -264,7 +264,7 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
       Unbounded
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
     startConsuming.success(Continue)
 
@@ -290,7 +290,7 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
       Unbounded
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
     s.tick()
 
@@ -316,13 +316,13 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
       Unbounded
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onError(DummyException("dummy"))
     startConsuming.success(Continue)
 
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
-    assertEquals(sum, (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
   test("should do onError only after all the queue was drained, test2") { implicit s =>
@@ -342,12 +342,12 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
       Unbounded
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onError(DummyException("dummy"))
 
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
-    assertEquals(sum, (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
   test("should do synchronous execution in batches") { implicit s =>
@@ -364,14 +364,14 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
       val scheduler = s
     }, Unbounded)
 
-    for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i)
+    for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i.toLong)
     buffer.onComplete()
     assertEquals(received, 0)
 
     s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize)
+    assertEquals(received, Platform.recommendedBatchSize.toLong)
     s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize * 2)
+    assertEquals(received, Platform.recommendedBatchSize.toLong * 2)
     s.tickOne()
     assertEquals(wasCompleted, true)
   }
@@ -395,7 +395,7 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
       Unbounded
     )
 
-    for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) {}
+    for (i <- 0 until 1000; ack = buffer.onNext(i.toLong); if ack == Continue) {}
     s.tick()
 
     // Should not onComplete because of Stop
@@ -422,7 +422,7 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
       Unbounded
     )
 
-    for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) s.tick()
+    for (i <- 0 until 1000; ack = buffer.onNext(i.toLong); if ack == Continue) s.tick()
 
     // Should not onComplete because of Stop
     assert(!wasCompleted, "!wasCompleted")
@@ -448,7 +448,7 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
       Unbounded
     )
 
-    for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) {}
+    for (i <- 0 until 1000; ack = buffer.onNext(i.toLong); if ack == Continue) {}
     s.tick()
 
     // Should not onComplete because of Stop
@@ -475,7 +475,7 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
       Unbounded
     )
 
-    for (i <- 0 until 1000; ack = buffer.onNext(i); if ack == Continue) s.tick()
+    for (i <- 0 until 1000; ack = buffer.onNext(i.toLong); if ack == Continue) s.tick()
 
     // Should not onComplete because of Stop
     assert(!wasCompleted, "!wasCompleted")

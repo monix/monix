@@ -103,7 +103,8 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
 
   test("should throw if step is zero") { implicit s =>
     intercept[IllegalArgumentException] {
-      Observable.range(0, 10, 0)
+      Observable.range(0L, 10L, 0L)
+      ()
     }
     ()
   }
@@ -112,7 +113,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     val batchSize = s.executionModel.recommendedBatchSize
     var received = 0
 
-    Observable.range(0, batchSize * 20).map(_ => 1).subscribe { x =>
+    Observable.range(0L, batchSize.toLong * 20).map(_ => 1).subscribe { x =>
       received += 1; Continue
     }
 
@@ -125,7 +126,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
   test("should be cancelable") { implicit s =>
     var received = 0
     var wasCompleted = 0
-    val source = Observable.range(0, Platform.recommendedBatchSize * 10)
+    val source = Observable.range(0L, Platform.recommendedBatchSize.toLong * 10)
 
     val cancelable = source.unsafeSubscribeFn(new Subscriber[Long] {
       implicit val scheduler = s

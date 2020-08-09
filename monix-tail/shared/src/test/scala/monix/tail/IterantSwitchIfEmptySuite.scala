@@ -48,6 +48,7 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
     val source = Iterant[Coeval].raiseError[Int](ex).switchIfEmpty(backupStream)
     intercept[DummyException] {
       source.toListL.value()
+      ()
     }
     ()
   }

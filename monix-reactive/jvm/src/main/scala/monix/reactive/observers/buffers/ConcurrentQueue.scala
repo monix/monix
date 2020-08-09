@@ -89,7 +89,6 @@ private[buffers] object ConcurrentQueue {
 
   /** Builds an instance from a `MessagePassingQueue`. */
   private final class FromMessagePassingQueue[A](underlying: MessagePassingQueue[A]) extends ConcurrentQueue[A] {
-
     def isEmpty: Boolean =
       underlying.isEmpty
     def offer(elem: A): Boolean =
@@ -98,8 +97,14 @@ private[buffers] object ConcurrentQueue {
       underlying.relaxedPoll()
 
     def drainToBuffer(buffer: mutable.Buffer[A], limit: Int): Unit = {
-      val consumer: Consumer[A] = new Consumer[A] { def accept(e: A): Unit = buffer += e }
+      val consumer: Consumer[A] = new Consumer[A] {
+        def accept(e: A): Unit = {
+          buffer += e
+          ()
+        }
+      }
       underlying.drain(consumer, limit)
+      ()
     }
   }
 }

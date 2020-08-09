@@ -32,7 +32,7 @@ object SampleOnceSuite extends BaseOperatorSuite {
     val o = Observable
       .intervalAtFixedRate(500.millis, 1.second)
       .sample(1.second)
-      .take(sourceCount)
+      .take(sourceCount.toLong)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
@@ -46,7 +46,7 @@ object SampleOnceSuite extends BaseOperatorSuite {
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val source = Observable.intervalAtFixedRate(1.second).take(sourceCount + 1)
+    val source = Observable.intervalAtFixedRate(1.second).take(sourceCount.toLong + 1)
     val o = createObservableEndingInError(source, ex).sample(500.millis)
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }

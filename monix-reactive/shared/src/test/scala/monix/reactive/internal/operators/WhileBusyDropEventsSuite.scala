@@ -61,15 +61,15 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(received, 1)
 
-    for (i <- 0 until 100) source.onNext(i)
+    for (i <- 0 until 100) source.onNext(i.toLong)
     assertEquals(received, 1)
 
     p.success(Continue)
     s.tick()
     assertEquals(received, 1)
 
-    for (i <- 100 until 200) source.onNext(i)
-    assertEquals(received, (100 until 200).sum + 1)
+    for (i <- 100 until 200) source.onNext(i.toLong)
+    assertEquals(received, (100 until 200).sum.toLong + 1)
   }
 
   test("onComplete should not apply back-pressure") { implicit s =>
@@ -92,7 +92,7 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
         }
       })
 
-    source.onNext(1); s.tick()
+    source.onNext(1L); s.tick()
     assertEquals(received, 0)
 
     source.onComplete(); s.tick()
@@ -123,7 +123,7 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
 
     val ex = DummyException("dummy")
 
-    source.onNext(1); s.tick()
+    source.onNext(1L); s.tick()
     assertEquals(received, 0)
 
     source.onError(ex); s.tick()

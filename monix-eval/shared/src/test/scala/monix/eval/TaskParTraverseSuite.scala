@@ -21,6 +21,7 @@ import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
 import concurrent.duration._
+import scala.annotation.nowarn
 import scala.util.{Failure, Success}
 
 object TaskParTraverseSuite extends BaseTestSuite {
@@ -79,7 +80,7 @@ object TaskParTraverseSuite extends BaseTestSuite {
 
   test("Task.parTraverse should be stack safe for synchronous tasks") { implicit s =>
     val count = if (Platform.isJVM) 200000 else 5000
-    val seq = for (i <- 0 until count) yield 1
+    val seq = for (_ <- 0 until count) yield 1
     val composite = Task.parTraverse(seq)(Task.now).map(_.sum)
     val result = composite.runToFuture
     s.tick()
@@ -108,8 +109,10 @@ object TaskParTraverseSuite extends BaseTestSuite {
 
   test("Task.parTraverse should wrap exceptions in the function") { implicit s =>
     val ex = DummyException("dummy")
+
+    @nowarn("msg=dead code")
     val task1 = Task.parTraverse(Seq(0)) { i =>
-      throw ex
+      if (1 + 1 == 2) throw ex
       Task.now(i)
     }
 

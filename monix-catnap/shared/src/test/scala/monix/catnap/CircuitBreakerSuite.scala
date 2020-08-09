@@ -203,13 +203,21 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     for (_ <- 0 until 30) {
       val now = s.clockMonotonic(MILLISECONDS)
       val nextTimeout = {
-        val value = resetTimeout * 2
+        val value = resetTimeout * 2.toLong
         if (value > 10.minutes) 10.minutes else value
       }
 
-      intercept[ExecutionRejectedException](taskInError.unsafeToFuture().value.get.get)
+      intercept[ExecutionRejectedException] {
+        taskInError.unsafeToFuture().value.get.get
+        ()
+      }
+
       s.tick(resetTimeout - 1.second)
-      intercept[ExecutionRejectedException](taskInError.unsafeToFuture().value.get.get)
+
+      intercept[ExecutionRejectedException] {
+        taskInError.unsafeToFuture().value.get.get
+        ()
+      }
 
       // After 1 minute we should attempt a reset
       s.tick(1.second)
@@ -233,8 +241,14 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
       }
 
       // Rejecting all other tasks
-      intercept[ExecutionRejectedException](taskInError.unsafeToFuture().value.get.get)
-      intercept[ExecutionRejectedException](taskInError.unsafeToFuture().value.get.get)
+      intercept[ExecutionRejectedException] {
+        taskInError.unsafeToFuture().value.get.get
+        ()
+      }
+      intercept[ExecutionRejectedException] {
+        taskInError.unsafeToFuture().value.get.get
+        ()
+      }
 
       // Should migrate back into Open
       s.tick(1.second)
@@ -247,7 +261,10 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
           fail(s"Invalid state: $other")
       }
 
-      intercept[ExecutionRejectedException](taskInError.unsafeToFuture().value.get.get)
+      intercept[ExecutionRejectedException] {
+        taskInError.unsafeToFuture().value.get.get
+        ()
+      }
 
       // Calculate next reset timeout
       resetTimeout = nextTimeout
@@ -266,7 +283,10 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         fail(s"Invalid state: $other")
     }
 
-    intercept[ExecutionRejectedException](taskInError.unsafeToFuture().value.get.get)
+    intercept[ExecutionRejectedException] {
+      taskInError.unsafeToFuture().value.get.get
+      ()
+    }
 
     s.tick(1.second)
     assertEquals(delayedResult.value, Some(Success(1)))
@@ -285,6 +305,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         maxFailures = -1,
         resetTimeout = 1.minute
       )
+      ()
     }
 
     intercept[IllegalArgumentException] {
@@ -293,6 +314,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         maxFailures = 2,
         resetTimeout = -1.minute
       )
+      ()
     }
 
     intercept[IllegalArgumentException] {
@@ -302,6 +324,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         resetTimeout = 1.minute,
         exponentialBackoffFactor = 0.5
       )
+      ()
     }
 
     intercept[IllegalArgumentException] {
@@ -312,6 +335,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         exponentialBackoffFactor = 2,
         maxResetTimeout = Duration.Zero
       )
+      ()
     }
     ()
   }

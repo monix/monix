@@ -60,8 +60,9 @@ private[tail] object IterantFromReactivePublisher {
         if (initialize()) {
           sub.request(
             // Requesting unlimited?
-            if (bufferSize < Int.MaxValue) bufferSize
-            else Long.MaxValue)
+            if (bufferSize < Int.MaxValue) bufferSize.toLong
+            else Long.MaxValue
+          )
         }
         // Go, go, go
         take(cb)
@@ -73,10 +74,14 @@ private[tail] object IterantFromReactivePublisher {
     private[this] val generate: (Int => F[Iterant[F, A]]) = {
       if (eagerBuffer) {
         val task = F.async[Iterant[F, A]](take)
-        toReceive => { if (toReceive == 0) sub.request(bufferSize); task }
+        toReceive => {
+          if (toReceive == 0) sub.request(bufferSize.toLong)
+          task
+        }
       } else { toReceive =>
         F.async { cb =>
-          if (toReceive == 0) sub.request(bufferSize); take(cb)
+          if (toReceive == 0) sub.request(bufferSize.toLong)
+          take(cb)
         }
       }
     }

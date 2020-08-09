@@ -23,7 +23,7 @@ import scala.concurrent.duration.Duration.Zero
 
 object MaxSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int): Option[Sample] = Some {
-    val o = Observable.range(0, sourceCount + 1).max
+    val o = Observable.range(0, sourceCount.toLong + 1).max
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -31,7 +31,7 @@ object MaxSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int) = sourceCount
 
   def observableInError(sourceCount: Int, ex: Throwable): Option[Sample] = Some {
-    val o = Observable.range(0, sourceCount).endWithError(ex).max
+    val o = Observable.range(0L, sourceCount.toLong).endWithError(ex).max
     Sample(o, 0, 0, Zero, Zero)
   }
 
@@ -40,7 +40,7 @@ object MaxSuite extends BaseOperatorSuite {
       def compare(x: Long, y: Long): Int = throw ex
     }
 
-    val o = Observable.range(0, sourceCount + 1).max[Long](ord)
+    val o = Observable.range(0, sourceCount.toLong + 1).max[Long](ord)
     Some(Sample(o, 0, 0, Zero, Zero))
   }
 

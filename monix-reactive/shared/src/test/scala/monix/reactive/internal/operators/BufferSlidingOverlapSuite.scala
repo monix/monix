@@ -29,14 +29,14 @@ object BufferSlidingOverlapSuite extends BaseOperatorSuite {
     if (sourceCount > 1) Some {
       val divBy4 = sourceCount / 4 * 4
       val o = Observable
-        .range(0, divBy4)
+        .range(0L, divBy4.toLong)
         .map(_ % 4)
         .bufferSliding(8, 4)
         .flatMap(x => Observable.fromIterable(x))
 
       val count = 8 + (divBy4 - 8) * 2
       val sum = (count / 4) * 6
-      Sample(o, count, sum, waitFirst, waitNext)
+      Sample(o, count, sum.toLong, waitFirst, waitNext)
     } else
       Some {
         val o = Observable

@@ -51,6 +51,7 @@ private[reactive] final class ExecuteOnObservable[+A](source: Observable[A], s: 
       }
 
       conn := source.unsafeSubscribeFn(out2)
+      ()
     }
   }
 }

@@ -37,7 +37,7 @@ object DropByTimespanSuite extends BaseOperatorSuite {
 
     val o = Observable
       .intervalAtFixedRate(500.millis)
-      .take(sourceCount + 5)
+      .take(sourceCount.toLong + 5)
       .dropByTimespan(2300.millis)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -48,7 +48,7 @@ object DropByTimespanSuite extends BaseOperatorSuite {
     Some {
       val source = Observable
         .intervalAtFixedRate(500.millis)
-        .take(sourceCount + 5)
+        .take(sourceCount.toLong + 5)
       val o = createObservableEndingInError(source, ex)
         .dropByTimespan(2300.millis)
 

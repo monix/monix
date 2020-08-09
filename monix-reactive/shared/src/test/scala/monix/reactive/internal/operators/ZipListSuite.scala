@@ -23,7 +23,7 @@ import scala.concurrent.duration.Duration.Zero
 
 object ZipListSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val source = Observable.range(0, sourceCount)
+    val source = Observable.range(0L, sourceCount.toLong)
     val o = Observable.zipList(source, source, source, source, source, source).map {
       case Seq(t1, t2, t3, t4, t5, t6) => t1 + t2 + t3 + t4 + t5 + t6
     }

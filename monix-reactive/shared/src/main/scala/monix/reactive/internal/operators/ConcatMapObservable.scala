@@ -373,7 +373,7 @@ private[reactive] final class ConcatMapObservable[A, B](
             // stop it and we are free to send the final error
             out.onError(ex)
             asyncUpstreamAck.trySuccess(Stop)
-
+            ()
           case WaitComplete(otherEx, _) =>
             // Branch happens when the main subscriber has already
             // finished - we were in `Active` until now, so it is
@@ -384,7 +384,7 @@ private[reactive] final class ConcatMapObservable[A, B](
             // Send our immediate error downstream and stop everything
             out.onError(ex)
             asyncUpstreamAck.trySuccess(Stop)
-
+            ()
           case Cancelled =>
             // User cancelled, but we have to log errors somewhere
             scheduler.reportFailure(ex)
@@ -397,7 +397,6 @@ private[reactive] final class ConcatMapObservable[A, B](
         stateRef.getAndSet(WaitOnNextChild(ack)) match {
           case WaitOnActiveChild =>
             () // Optimization, do nothing else
-
           case WaitOnNextChild(_) | Active(_) =>
             // Branch happens when this child had asynchronous execution and
             // the main subscriber is still active; this child is thus giving it
@@ -408,10 +407,10 @@ private[reactive] final class ConcatMapObservable[A, B](
               case None =>
                 asyncUpstreamAck.completeWith(ack)
             }
-
+            ()
           case Cancelled =>
             asyncUpstreamAck.trySuccess(Stop)
-
+            ()
           case WaitComplete(exOpt, _) =>
             // An `onComplete` or `onError` event happened since
             // `onNext` was called, so we are now responsible for

@@ -91,6 +91,7 @@ object IterantZipWithIndexSuite extends BaseTestSuite {
 
       intercept[DummyException] {
         stream.zipWithIndex.toListL.value()
+        ()
       }
       cancelable.isCanceled
     }

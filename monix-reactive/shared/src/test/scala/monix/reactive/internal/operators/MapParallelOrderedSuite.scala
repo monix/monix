@@ -34,7 +34,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
 
   def createObservable(sourceCount: Int): Some[MapParallelOrderedSuite.Sample] = {
     Some {
-      val o = Observable.range(0, sourceCount).mapParallelOrdered(parallelism = 4)(x => Task(x))
+      val o = Observable.range(0L, sourceCount.toLong).mapParallelOrdered(parallelism = 4)(x => Task(x))
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
   }
@@ -112,7 +112,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
       var received = 0
       var total = 0L
 
-      val obs = Observable.range(0, sourceCount).mapParallelOrdered(parallelism = 4)(x => Task.now(x))
+      val obs = Observable.range(0L, sourceCount.toLong).mapParallelOrdered(parallelism = 4)(x => Task.now(x))
       obs.unsafeSubscribeFn(new Observer[Long] {
         private[this] var sum = 0L
 
@@ -131,7 +131,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
 
       s.tick()
       assertEquals(received, count(sourceCount))
-      assertEquals(total, sum(sourceCount))
+      assertEquals(total, sum(sourceCount).toLong)
     }
   }
 
@@ -142,7 +142,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
       var received = 0
       var total = 0L
 
-      val obs = Observable.range(0, sourceCount).mapParallelOrdered(parallelism = 4)(x => Task(x))
+      val obs = Observable.range(0L, sourceCount.toLong).mapParallelOrdered(parallelism = 4)(x => Task(x))
       obs.unsafeSubscribeFn(new Observer[Long] {
         private[this] var sum = 0L
 
@@ -161,7 +161,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
 
       s.tick()
       assertEquals(received, count(sourceCount))
-      assertEquals(total, sum(sourceCount))
+      assertEquals(total, sum(sourceCount).toLong)
     }
   }
 
@@ -342,7 +342,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
     val totalCount = Platform.recommendedBatchSize * 4
 
     Observable
-      .range(0, totalCount)
+      .range(0, totalCount.toLong)
       .doOnNext(_ => Task(initiated += 1))
       .mapParallelOrdered(parallelism = 4)(x => Task.evalAsync(x))
       .unsafeSubscribeFn(new Observer[Long] {
@@ -377,7 +377,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
     val totalCount = Platform.recommendedBatchSize * 4
 
     Observable
-      .range(0, totalCount)
+      .range(0, totalCount.toLong)
       .doOnNext(_ => Task(initiated += 1))
       .mapParallelOrdered(parallelism = 4)(x => Task(x))(OverflowStrategy.DropNew(Platform.recommendedBatchSize))
       .unsafeSubscribeFn(new Observer[Long] {

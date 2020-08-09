@@ -23,12 +23,12 @@ import scala.concurrent.duration.Duration.Zero
 
 object MinBySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(sourceCount, 0, -1).minBy(x => sourceCount - x)
+    val o = Observable.range(sourceCount.toLong, 0, -1).minBy(x => sourceCount - x)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).endWithError(ex).minBy(x => x)
+    val o = Observable.range(0L, sourceCount.toLong).endWithError(ex).minBy(x => x)
     Sample(o, 0, 0, Zero, Zero)
   }
 
@@ -37,7 +37,7 @@ object MinBySuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable
-      .range(0, sourceCount + 1)
+      .range(0, sourceCount.toLong + 1)
       .minBy(x => if (x == sourceCount - 1) throw ex else x)
 
     Sample(o, 0, 0, Zero, Zero)

@@ -65,13 +65,13 @@ class MapParallelObservableBenchmark {
 
   @Benchmark
   def mapOrdered(): Long = {
-    val stream = Observable.range(0, size).mapParallelOrdered(parallelism)(x =>  Task.eval(x + 1))
+    val stream = Observable.range(0, size.toLong).mapParallelOrdered(parallelism)(x =>  Task.eval(x + 1))
     sum(stream)
   }
 
   @Benchmark
   def mapUnordered(): Long = {
-    val stream = Observable.range(0, size).mapParallelUnordered(parallelism)(x =>  Task.eval(x + 1))
+    val stream = Observable.range(0, size.toLong).mapParallelUnordered(parallelism)(x =>  Task.eval(x + 1))
     sum(stream)
   }
 
@@ -81,10 +81,16 @@ class MapParallelObservableBenchmark {
       val scheduler = global
       private[this] var sum: Long = 0
 
-      def onError(ex: Throwable): Unit =
+      def onError(ex: Throwable): Unit = {
         p.failure(ex)
-      def onComplete(): Unit =
+        ()
+      }
+
+      def onComplete(): Unit = {
         p.success(sum)
+        ()
+      }
+
       def onNext(elem: Long) = {
         sum += elem
         Continue

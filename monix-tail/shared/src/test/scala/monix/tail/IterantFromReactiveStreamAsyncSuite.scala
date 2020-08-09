@@ -43,7 +43,7 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
         .runToFuture
 
       for (r <- f) yield {
-        assertEquals(r, (count.toLong * (count - 1)) / 2)
+        assertEquals(r, (count * (count - 1)) / 2)
       }
     }
 
@@ -116,7 +116,7 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
         .runToFuture
 
       for (r <- f) yield {
-        assertEquals(effect.get(), (count.toLong * (count - 1)) / 2)
+        assertEquals(effect.get(), (count * (count - 1)) / 2)
         assertEquals(r, Left(dummy))
       }
     }
@@ -209,7 +209,7 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
                 var toSend = requested
                 var isCanceled = self.cancelled.get() && self.finished.get()
 
-                while (toSend > 0 && isInRange(index, until, step) && !isCanceled) {
+                while (toSend > 0 && isInRange(index.toLong, until.toLong, step.toLong) && !isCanceled) {
                   s.onNext(index)
                   index += step
                   toSend -= 1
@@ -222,20 +222,27 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
                   }
                 }
 
-                if (!isInRange(index, until, step) && !isCanceled && finished.compareAndSet(false, true))
+                if (!isInRange(index.toLong, until.toLong, step.toLong) &&
+                  !isCanceled &&
+                  finished.compareAndSet(expect = false, update = true)
+                ) {
                   finish match {
                     case None =>
                       s.onComplete()
                     case Some(e) =>
                       s.onError(e)
                   }
+                }
               }
             })
         }
 
         def cancel(): Unit = {
           cancelled.set(true)
-          if (onCancel != null) onCancel.success(())
+          if (onCancel != null) {
+            onCancel.success(())
+            ()
+          }
         }
       })
     }

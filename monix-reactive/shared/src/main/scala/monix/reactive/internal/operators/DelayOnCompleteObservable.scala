@@ -52,8 +52,8 @@ private[reactive] final class DelayOnCompleteObservable[A](source: Observable[A]
           val scheduled = scheduler.scheduleOnce(delay.length, delay.unit, new Runnable {
             def run(): Unit = out.onComplete()
           })
-
           task.orderedUpdate(scheduled, order = 2)
+          ()
         }
     })
 

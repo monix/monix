@@ -253,6 +253,7 @@ object CancelablePromise {
           f(result)
         case p: Promise[A] =>
           p.complete(result)
+          ()
       }
 
     @tailrec def unsafeSubscribe(cb: AnyRef): Cancelable =

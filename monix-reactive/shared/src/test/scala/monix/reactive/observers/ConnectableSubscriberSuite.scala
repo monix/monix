@@ -117,6 +117,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
 
     intercept[IllegalStateException] {
       downstream.pushFirstAll(Seq(1, 2, 3))
+      ()
     }
     ()
   }
@@ -159,6 +160,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
 
     intercept[IllegalStateException] {
       downstream.pushComplete()
+      ()
     }
     ()
   }
@@ -201,6 +203,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
 
     intercept[IllegalStateException] {
       downstream.pushError(DummyException("dummy"))
+      ()
     }
     ()
   }

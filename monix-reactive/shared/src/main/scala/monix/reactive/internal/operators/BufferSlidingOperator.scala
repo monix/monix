@@ -92,8 +92,10 @@ private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int) ex
               out.onComplete()
               buffer = null // GC purposes
             }
-          } else
+            ()
+          } else {
             out.onComplete()
+          }
         }
     }
 }

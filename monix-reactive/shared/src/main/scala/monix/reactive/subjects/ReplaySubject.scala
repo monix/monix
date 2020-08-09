@@ -41,9 +41,7 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A]) exte
 
   @tailrec
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    def streamOnDone(buffer: Iterable[A], errorThrown: Throwable): Cancelable = {
-      implicit val s = subscriber.scheduler
-
+    def streamOnDone(buffer: Iterable[A], errorThrown: Throwable): Cancelable =
       Observable
         .fromIterable(buffer)
         .unsafeSubscribeFn(new Subscriber[A] {
@@ -60,7 +58,6 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A]) exte
             else
               subscriber.onComplete()
         })
-    }
 
     val state = stateRef.get()
     val buffer = state.buffer

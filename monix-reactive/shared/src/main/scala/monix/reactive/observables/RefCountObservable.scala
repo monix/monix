@@ -52,7 +52,6 @@ final class RefCountObservable[+A] private (source: ConnectableObservable[A]) ex
       // retry
       unsafeSubscribeFn(subscriber)
     } else {
-      implicit val s = subscriber.scheduler
       // Protecting the countdown call is important, otherwise canceling this
       // subscription can be concurrent with a downstream stop.
       val countdown = Cancelable(() => countDownToConnectionCancel())

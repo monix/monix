@@ -29,6 +29,7 @@ import monix.reactive.OverflowStrategy._
 import monix.reactive.observers.buffers.AbstractEvictingBufferedSubscriber._
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
+import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -257,7 +258,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
               if (onOverflow == null || droppedCount.get() == 0)
                 null.asInstanceOf[A]
               else
-                onOverflow(droppedCount.getAndSet(0)).value() match {
+                onOverflow(droppedCount.getAndSet(0).toLong).value() match {
                   case Some(value) => value
                   case None => null.asInstanceOf[A]
                 }
@@ -361,7 +362,7 @@ private[observers] object AbstractEvictingBufferedSubscriber {
       current.queue
     }
 
-    def offer(a: A): Int = {
+    @tailrec def offer(a: A): Int = {
       val current = bufferRef.get()
       val length = current.length
       val queue = current.queue
