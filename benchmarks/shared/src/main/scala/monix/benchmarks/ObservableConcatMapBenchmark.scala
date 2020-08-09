@@ -80,10 +80,16 @@ class ObservableConcatMapBenchmark {
       val scheduler = global
       private[this] var sum: Long = 0
 
-      def onError(ex: Throwable): Unit =
+      def onError(ex: Throwable): Unit = {
         p.failure(ex)
-      def onComplete(): Unit =
+        ()
+      }
+
+      def onComplete(): Unit = {
         p.success(sum)
+        ()
+      }
+
       def onNext(elem: Long) = {
         sum += elem
         Continue
