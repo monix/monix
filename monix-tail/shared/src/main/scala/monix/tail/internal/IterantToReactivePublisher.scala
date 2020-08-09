@@ -199,7 +199,7 @@ private[tail] object IterantToReactivePublisher {
               if (n > 0) {
                 if (n < Long.MaxValue) {
                   // Processing requests in batches
-                  val toProcess = math.min(Platform.recommendedBatchSize, n)
+                  val toProcess = math.min(Platform.recommendedBatchSize.toLong, n)
                   val update = n - toProcess
                   if (!parent.state.compareAndSet(current, Request(update)))
                     continue = true
@@ -208,7 +208,7 @@ private[tail] object IterantToReactivePublisher {
                     if (cb ne null) cb(rightUnit)
                   }
                 } else {
-                  requested = Platform.recommendedBatchSize
+                  requested = Platform.recommendedBatchSize.toLong
                   if (cb ne null) cb(rightUnit)
                 }
               } else if (cb ne null) {

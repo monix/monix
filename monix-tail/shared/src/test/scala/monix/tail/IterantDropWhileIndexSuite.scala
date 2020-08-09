@@ -25,9 +25,7 @@ import monix.execution.internal.Platform
 import monix.tail.batches.BatchCursor
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
-
 import scala.annotation.tailrec
-import scala.collection.immutable.Stream.Empty
 
 object IterantDropWhileIndexSuite extends BaseTestSuite {
   override lazy val checkConfig: Parameters = {

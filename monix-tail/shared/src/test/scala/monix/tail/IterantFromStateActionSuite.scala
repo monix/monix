@@ -55,8 +55,8 @@ object IterantFromStateActionSuite extends BaseTestSuite {
 
   test("Iterant.fromStateAction protects against exceptions in f") { implicit s =>
     val dummy = DummyException("dummy")
-    val received = Iterant[Coeval].fromStateAction[Int, Int](_ => (throw dummy, throw dummy))(0).attempt.toListL
-
+    def throwDummy: Int = throw dummy
+    val received = Iterant[Coeval].fromStateAction[Int, Int](_ => (throwDummy, throwDummy))(0).attempt.toListL
     assertEquals(received.value(), List(Left(dummy)))
   }
 

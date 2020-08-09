@@ -18,7 +18,7 @@
 package monix.tail
 
 import cats.Monoid
-import cats.effect.{Resource, Sync}
+import cats.effect.Sync
 import cats.implicits._
 import cats.laws._
 import cats.laws.discipline._

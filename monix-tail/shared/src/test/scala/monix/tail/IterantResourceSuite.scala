@@ -113,7 +113,7 @@ object IterantResourceSuite extends BaseTestSuite {
     val rs = new Resource
     val dummy = DummyException("dummy")
     val bracketed = Iterant
-      .resource(Coeval.raiseError(dummy).flatMap(_ => rs.acquire))(_.release)
+      .resource(Coeval.raiseError[Int](dummy).flatMap(_ => rs.acquire))(_.release)
       .flatMap { _ =>
         Iterant.empty[Coeval, Int]
       }
@@ -185,7 +185,7 @@ object IterantResourceSuite extends BaseTestSuite {
     val rs = new Resource
     val dummy = DummyException("dummy")
 
-    def withEmpty(ctor: (Coeval[Iterant[Coeval, Int]]) => Iterant[Coeval, Int]) =
+    def withEmpty(ctor: Coeval[Iterant[Coeval, Int]] => Iterant[Coeval, Int]) =
       Iterant.resource(rs.acquire)(_.release).flatMap(_ => ctor(Coeval(Iterant.empty)))
 
     val broken = Array(
@@ -207,7 +207,7 @@ object IterantResourceSuite extends BaseTestSuite {
   test("Iterant.resource handles broken `next` continuations") { _ =>
     val rs = new Resource
     val dummy = DummyException("dummy")
-    def withError(ctor: (Coeval[Iterant[Coeval, Int]]) => Iterant[Coeval, Int]) =
+    def withError(ctor: Coeval[Iterant[Coeval, Int]] => Iterant[Coeval, Int]) =
       Iterant.resource(rs.acquire)(_.release).flatMap(_ => ctor(Coeval.raiseError(dummy)))
 
     val broken = Array(
