@@ -55,7 +55,7 @@ val scalaTestVersion = "3.0.8"
 val implicitBoxVersion = "0.2.0"
 val kindProjectorVersion = "0.11.0"
 val betterMonadicForVersion = "0.3.1"
-val silencerVersion = "1.7.0"
+val silencerVersion = "1.7.1"
 val scalaCompatVersion = "2.1.6"
 val customScalaJSVersion = Option(System.getenv("SCALAJS_VERSION"))
 
