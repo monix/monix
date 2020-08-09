@@ -26,7 +26,7 @@ import monix.execution.{ExecutionModel => ExecModel}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
 
-object AsyncSchedulerSuite extends SimpleTestSuite {
+object AsyncSchedulerJVMSuite extends SimpleTestSuite {
   val s: Scheduler = monix.execution.Scheduler.global
 
   def scheduleOnce(s: Scheduler, delay: FiniteDuration)(action: => Unit): Cancelable = {

@@ -25,7 +25,7 @@ import monix.execution.{ExecutionModel, Scheduler, UncaughtExceptionReporter}
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 
-object AsyncSchedulerSuite extends TestSuite[Scheduler] {
+object AsyncSchedulerJSSuite extends TestSuite[Scheduler] {
   val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
 
   val lastReported = Atomic(null: Throwable)
