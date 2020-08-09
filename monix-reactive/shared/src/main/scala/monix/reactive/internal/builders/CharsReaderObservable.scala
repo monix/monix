@@ -42,7 +42,7 @@ private[reactive] final class CharsReaderObservable(in: Reader, chunkSize: Int) 
   private[this] val wasSubscribed = Atomic(false)
 
   def unsafeSubscribeFn(out: Subscriber[Array[Char]]): Cancelable = {
-    if (wasSubscribed.getAndSet(true)) {
+    if (!wasSubscribed.compareAndSet(false, true)) {
       out.onError(APIContractViolationException("ReaderObservable does not support multiple subscribers"))
       Cancelable.empty
     } else {
@@ -52,7 +52,6 @@ private[reactive] final class CharsReaderObservable(in: Reader, chunkSize: Int) 
       val em = out.scheduler.executionModel
       // Schedule first cycle
       reschedule(Continue, buffer, out, cancelable, em)(out.scheduler)
-
       cancelable
     }
   }
@@ -121,8 +120,10 @@ private[reactive] final class CharsReaderObservable(in: Reader, chunkSize: Int) 
       if (!c.isCanceled) {
         if (nextIndex > 0)
           fastLoop(buffer, out, c, em, nextIndex)
-        else if (nextIndex >= 0)
+        else if (nextIndex == 0)
           reschedule(ack, buffer, out, c, em)
+        else
+          () // Stop!
       }
     } else {
       // Dealing with unexpected errors
@@ -135,14 +136,17 @@ private[reactive] final class CharsReaderObservable(in: Reader, chunkSize: Int) 
 
   @tailrec
   private def fillBuffer(in: Reader, buffer: Array[Char], nTotalCharsRead: Int = 0): Int = {
-    if (nTotalCharsRead >= buffer.length) nTotalCharsRead
-    else {
+    if (nTotalCharsRead >= buffer.length) {
+      nTotalCharsRead
+    } else {
       val nCharsRead = in.read(buffer, nTotalCharsRead, buffer.length - nTotalCharsRead)
-      if (nCharsRead >= 0) fillBuffer(in, buffer, nTotalCharsRead + nCharsRead)
-      else { // stream has ended
+      if (nCharsRead >= 0) {
+        fillBuffer(in, buffer, nTotalCharsRead + nCharsRead)
+      } else { // stream has ended
         if (nTotalCharsRead <= 0)
           nCharsRead // no more chars (-1 via Reader.read contract) available, end the observable
-        else nTotalCharsRead // we read the last chars available
+        else
+          nTotalCharsRead // we read the last chars available
       }
     }
   }
