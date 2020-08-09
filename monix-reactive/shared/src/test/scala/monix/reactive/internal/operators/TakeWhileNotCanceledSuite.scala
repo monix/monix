@@ -73,7 +73,7 @@ object TakeWhileNotCanceledSuite extends BaseOperatorSuite {
         createObservableEndingInError(Observable.now(1), ex)
           .takeWhileNotCanceled(c)
       else
-        createObservableEndingInError(Observable.range(1, sourceCount + 1), ex)
+        createObservableEndingInError(Observable.range(1, sourceCount.toLong + 1), ex)
           .takeWhileNotCanceled(c)
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)

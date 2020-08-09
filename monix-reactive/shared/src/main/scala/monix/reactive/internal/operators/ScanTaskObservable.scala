@@ -51,6 +51,7 @@ private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], se
           finally subscriber.cancel()
         }
         conn.orderedUpdate(c, 2)
+        ()
       }
 
       def onError(ex: Throwable): Unit =

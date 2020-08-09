@@ -49,7 +49,7 @@ object TransformerSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           createObservableEndingInError(Observable.now(1L), ex).transform(dummyTransformer)
         else
-          createObservableEndingInError(Observable.range(1, sourceCount + 1, 1), ex)
+          createObservableEndingInError(Observable.range(1, sourceCount.toLong + 1, 1), ex)
               .transform(dummyTransformer)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)

@@ -166,8 +166,10 @@ private[reactive] object ReactiveSubscriberAsMonixSubscriber {
 
           if (!state.compareAndSet(oldState, newState))
             request(n)
-          else
+          else {
             p.success(n)
+            ()
+          }
 
         case oldState @ ActiveState(Queue(requested), promises) if requested > 0 =>
           val r = requested + n

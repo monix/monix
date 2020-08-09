@@ -105,6 +105,7 @@ private[reactive] final class MergeMapObservable[A, B](
               refID.cancel()
               // GC purposes
               composite -= childTask
+              ()
             }
           })
 

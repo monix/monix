@@ -173,7 +173,10 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
 
         def cancel(): Unit = {
           cancelled.set(true)
-          if (onCancel != null) onCancel.success(())
+          if (onCancel != null) {
+            onCancel.success(())
+            ()
+          }
         }
       })
     }

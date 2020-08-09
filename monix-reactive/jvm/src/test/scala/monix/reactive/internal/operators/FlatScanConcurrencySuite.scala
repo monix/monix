@@ -65,7 +65,7 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
     def never(): (Future[Unit], Observable[Int]) = {
       val isCancelled = Promise[Unit]()
       val ref = Observable.unsafeCreate[Int] { _ =>
-        Cancelable(() => isCancelled.success(()))
+        Cancelable { () => isCancelled.success(()); () }
       }
       (isCancelled.future, ref)
     }

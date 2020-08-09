@@ -36,6 +36,7 @@ private[reactive] final class ConsObservable[+A](head: A, tail: Observable[A]) e
     import out.scheduler
     out.onNext(head).syncOnContinue {
       conn := tail.unsafeSubscribeFn(out)
+      ()
     }
     ()
   }

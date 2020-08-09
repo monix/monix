@@ -39,7 +39,7 @@ object DropFirstSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = createObservableEndingInError(Observable.range(1, sourceCount + 2), ex).drop(1)
+      val o = createObservableEndingInError(Observable.range(1, sourceCount.toLong + 2), ex).drop(1)
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
   }

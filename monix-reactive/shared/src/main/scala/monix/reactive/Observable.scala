@@ -3837,6 +3837,7 @@ abstract class Observable[+A] extends Serializable { self =>
           SafeSubscriber(
             Subscriber.fromReactiveSubscriber(subscriber, subscription)
           ))
+        ()
       }
     }
 

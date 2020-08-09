@@ -50,7 +50,7 @@ object TakeByPredicateInclusiveSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      val o = createObservableEndingInError(Observable.range(1, sourceCount + 1), ex)
+      val o = createObservableEndingInError(Observable.range(1, sourceCount.toLong + 1), ex)
         .takeWhileInclusive(_ < sourceCount * 2)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)

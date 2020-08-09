@@ -99,6 +99,7 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
                   case Success(Continue) =>
                     semaphore.release()
                     composite -= head.cancelable
+                    ()
                   case Failure(ex) =>
                     lastAck = Stop
                     self.onError(ex)

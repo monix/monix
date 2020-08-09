@@ -98,7 +98,10 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
     val promise = Promise[Unit]()
     val future = FutureIO(() => promise.future)
 
-    s.scheduleOnce(3.seconds)(promise.complete(Success(())))
+    s.scheduleOnce(3.seconds) {
+      promise.complete(Success(()))
+      ()
+    }
 
     val obs = Observable
       .intervalAtFixedRate(2.seconds, 2.seconds)

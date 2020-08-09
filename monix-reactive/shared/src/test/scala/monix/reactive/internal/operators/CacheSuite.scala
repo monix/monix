@@ -24,7 +24,7 @@ import scala.util.Success
 
 object CacheSuite extends BaseOperatorSuite {
   def createObservable(c: Int) = Some {
-    val o = Observable.range(0, c).cache
+    val o = Observable.range(0, c.toLong).cache
     Sample(o, c, (c * (c - 1) / 2).toLong, Zero, Zero)
   }
 

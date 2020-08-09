@@ -49,7 +49,7 @@ object TakeLeftSuite extends BaseOperatorSuite {
           createObservableEndingInError(Observable.range(1, 2), ex)
             .take(2L)
         else
-          createObservableEndingInError(Observable.range(1, sourceCount), ex)
+          createObservableEndingInError(Observable.range(1, sourceCount.toLong), ex)
             .take(sourceCount.toLong)
 
       Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)

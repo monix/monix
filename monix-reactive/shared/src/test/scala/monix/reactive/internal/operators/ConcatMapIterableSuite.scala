@@ -39,7 +39,7 @@ object ConcatMapIterableSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           Observable.now(1L).concatMapIterable(i => List(i, i * 10))
         else
-          Observable.range(1, sourceCount + 1, 1).concatMapIterable(i => List(i, i * 10))
+          Observable.range(1, sourceCount.toLong + 1, 1).concatMapIterable(i => List(i, i * 10))
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -54,7 +54,7 @@ object ConcatMapIterableSuite extends BaseOperatorSuite {
           createObservableEndingInError(Observable.now(1L), ex)
             .concatMapIterable(i => List(i, i * 10))
         else
-          createObservableEndingInError(Observable.range(1, sourceCount + 1, 1), ex)
+          createObservableEndingInError(Observable.range(1, sourceCount.toLong + 1, 1), ex)
             .concatMapIterable(i => List(i, i * 10))
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -68,7 +68,7 @@ object ConcatMapIterableSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           Observable.now(1).concatMapIterable(_ => throw ex)
         else
-          Observable.range(1, sourceCount + 1, 1).concatMapIterable { x =>
+          Observable.range(1, sourceCount.toLong + 1, 1).concatMapIterable { x =>
             if (x == sourceCount)
               throw ex
             else

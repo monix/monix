@@ -165,7 +165,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
 
     val requested = 100
     Observable
-      .range(0, requested)
+      .range(0, requested.toLong)
       .toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 1))
 

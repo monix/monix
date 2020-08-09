@@ -153,6 +153,7 @@ private[tail] object IterantToReactivePublisher {
         token.unsafeRunAsync(
           AttemptCallback.empty(UncaughtExceptionReporter.default)
         ))
+      ()
     }
 
     private final class Loop extends Iterant.Visitor[F, A, F[Unit]] {

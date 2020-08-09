@@ -48,7 +48,7 @@ object BufferWithSelectorSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount must be strictly positive")
     val cnt = (sourceCount / 10) * 10 + 1
     val o = Observable
-      .range(0, cnt)
+      .range(0, cnt.toLong)
       .endWithError(ex)
       .bufferTimedWithPressure(waitNext, 10)
       .map(_.sum)

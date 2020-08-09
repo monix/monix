@@ -42,7 +42,7 @@ object CollectWhileSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           Observable.range(1, 10).collectWhile { case x if x <= 1 => x }
         else
-          Observable.range(1, sourceCount * 2 + 1).collectWhile { case x if x <= sourceCount => x }
+          Observable.range(1, sourceCount.toLong * 2 + 1).collectWhile { case x if x <= sourceCount => x }
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -52,7 +52,7 @@ object CollectWhileSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val ex = DummyException("dummy")
-      val o = createObservableEndingInError(Observable.range(1, sourceCount + 1), ex).collectWhile {
+      val o = createObservableEndingInError(Observable.range(1, sourceCount.toLong + 1), ex).collectWhile {
         case x if x <= sourceCount * 2 => x
       }
 

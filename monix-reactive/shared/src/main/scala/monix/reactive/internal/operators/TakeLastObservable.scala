@@ -40,12 +40,11 @@ private[reactive] final class TakeLastObservable[A](source: Observable[A], n: In
           queued += 1
         else
           queue.dequeue()
-
         Continue
       }
 
       def onComplete(): Unit = {
-        val other = Observable.fromIterable(queue)
+        val other = Observable.fromIteratorUnsafe(queue.iterator)
         ChainedObservable.subscribe(other, conn, out)
       }
 

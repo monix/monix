@@ -342,7 +342,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
     val totalCount = Platform.recommendedBatchSize * 4
 
     Observable
-      .range(0, totalCount)
+      .range(0, totalCount.toLong)
       .doOnNext(_ => Task(initiated += 1))
       .mapParallelOrdered(parallelism = 4)(x => Task.evalAsync(x))
       .unsafeSubscribeFn(new Observer[Long] {
@@ -377,7 +377,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
     val totalCount = Platform.recommendedBatchSize * 4
 
     Observable
-      .range(0, totalCount)
+      .range(0, totalCount.toLong)
       .doOnNext(_ => Task(initiated += 1))
       .mapParallelOrdered(parallelism = 4)(x => Task(x))(OverflowStrategy.DropNew(Platform.recommendedBatchSize))
       .unsafeSubscribeFn(new Observer[Long] {

@@ -25,9 +25,9 @@ object Zip5Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o1 = Observable.range(0L, sourceCount.toLong).executeAsync
     val o2 = Observable.range(0, sourceCount.toLong + 1).executeAsync
-    val o3 = Observable.range(0, sourceCount + 2).executeAsync
-    val o4 = Observable.range(0, sourceCount + 3).executeAsync
-    val o5 = Observable.range(0, sourceCount + 4).executeAsync
+    val o3 = Observable.range(0, sourceCount.toLong + 2).executeAsync
+    val o4 = Observable.range(0, sourceCount.toLong + 3).executeAsync
+    val o5 = Observable.range(0, sourceCount.toLong + 4).executeAsync
 
     val o = Observable.zipMap5(o1, o2, o3, o4, o5)(_ + _ + _ + _ + _)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -49,7 +49,7 @@ object Zip5Suite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o1 = Observable.range(0L, sourceCount.toLong).executeAsync
-    val o2 = Observable.range(0, sourceCount + 100).executeAsync
+    val o2 = Observable.range(0, sourceCount.toLong + 100).executeAsync
     val o3 = Observable.range(0L, sourceCount.toLong).executeAsync
     val o4 = Observable.range(0L, sourceCount.toLong).executeAsync
     val o5 = Observable.range(0L, sourceCount.toLong).executeAsync

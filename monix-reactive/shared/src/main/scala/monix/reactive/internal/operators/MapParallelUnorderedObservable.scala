@@ -108,6 +108,7 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
                 case Success(Continue) =>
                   semaphore.release()
                   composite -= subscription
+                  ()
                 case Failure(ex) =>
                   lastAck = Stop
                   composite -= subscription

@@ -87,7 +87,7 @@ object CollectSuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[CollectSuite.Sample] = {
     val o = Observable
-      .range(0, Platform.recommendedBatchSize)
+      .range(0, Platform.recommendedBatchSize.toLong)
       .delayOnNext(1.second)
       .collect { case x if x % 2 == 0 => x }
 

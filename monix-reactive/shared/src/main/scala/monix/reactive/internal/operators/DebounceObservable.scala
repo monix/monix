@@ -52,6 +52,7 @@ private[reactive] final class DebounceObservable[A](source: Observable[A], timeo
         // No need to synchronize this assignment, since we have a
         // happens-before relationship between scheduleOnce invocations.
         task := scheduler.scheduleOnce(delayMillis, TimeUnit.MILLISECONDS, self)
+        ()
       }
 
       def run(): Unit = self.synchronized {

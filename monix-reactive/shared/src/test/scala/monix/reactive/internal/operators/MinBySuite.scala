@@ -23,7 +23,7 @@ import scala.concurrent.duration.Duration.Zero
 
 object MinBySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(sourceCount, 0, -1).minBy(x => sourceCount - x)
+    val o = Observable.range(sourceCount.toLong, 0, -1).minBy(x => sourceCount - x)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 

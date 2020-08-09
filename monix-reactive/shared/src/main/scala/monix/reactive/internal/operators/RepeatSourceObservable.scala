@@ -70,6 +70,7 @@ private[reactive] final class RepeatSourceObservable[A](source: Observable[A]) e
     // We need to do an `orderedUpdate`, because `onComplete` might have
     // already executed and we might be resubscribed by now.
     task.orderedUpdate(cancelable, index)
+    ()
   }
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
