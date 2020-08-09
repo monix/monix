@@ -75,13 +75,15 @@ lazy val sharedSettings = Seq(
   scalaVersion := "2.13.3",
   crossScalaVersions := Seq("2.11.12", "2.12.12", "2.13.3"),
 
-  // Enable this to debug warnings
+  /*
+  // Enable this to debug warnings...
   scalacOptions in Compile ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, 13)) => Seq("-Wconf:any:warning-verbose")
       case _ => Seq.empty
     }
   },
+  */
 
   // Disabled from the sbt-tpolecat set
   scalacOptions in Compile ~= { options: Seq[String] =>
