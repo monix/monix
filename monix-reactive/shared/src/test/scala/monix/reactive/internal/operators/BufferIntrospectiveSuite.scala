@@ -97,7 +97,7 @@ object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {
       .doOnEarlyStop(Task { wasEarlyStopped = true })
       .bufferIntrospective(3)
       .delayOnNext(1.second)
-      .take(3)
+      .take(3L)
       .completedL
       .runToFuture
 

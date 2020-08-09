@@ -49,7 +49,7 @@ object MergeOneSuite extends BaseOperatorSuite {
     } else
       Some {
         val o = Observable
-          .range(0, sourceCount)
+          .range(0L, sourceCount.toLong)
           .endWithError(ex)
           .mergeMap(i => Observable.now(i))
 

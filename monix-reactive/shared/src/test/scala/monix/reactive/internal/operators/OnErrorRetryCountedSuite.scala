@@ -25,14 +25,14 @@ object OnErrorRetryCountedSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val ex = DummyException("expected")
     val o = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .endWithError(ex)
       .onErrorRestart(3)
       .onErrorHandle { case _ => 10L }
 
     val count = sourceCount * 4 + 1
     val sum = 1L * sourceCount * (sourceCount - 1) / 2 * 4 + 10
-    Sample(o, count, sum, Duration.Zero, Duration.Zero)
+    Sample(o, count, sum.toLong, Duration.Zero, Duration.Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) =
@@ -43,7 +43,7 @@ object OnErrorRetryCountedSuite extends BaseOperatorSuite {
 
         val count = sourceCount * 4
         val sum = 1L * sourceCount * (sourceCount - 1) / 2 * 4
-        Sample(o, count, sum, Duration.Zero, Duration.Zero)
+        Sample(o, count, sum.toLong, Duration.Zero, Duration.Zero)
       }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None

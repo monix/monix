@@ -222,6 +222,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
 
     intercept[IllegalArgumentException] {
       f.value.get.get
+      ()
     }
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }

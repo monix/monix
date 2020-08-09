@@ -30,7 +30,7 @@ object DebounceFlattenSuite extends BaseOperatorSuite {
 
     val count = sourceCount
     val sum = sourceCount
-    Sample(o, count, sum, 1.second, 1.second)
+    Sample(o, count, sum.toLong, 1.second, 1.second)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = None
@@ -41,7 +41,7 @@ object DebounceFlattenSuite extends BaseOperatorSuite {
       .now(1L)
       .delayOnComplete(1.day)
       .debounceTo(1.second, (x: Long) => Observable.interval(1.second).map(_ => 1L))
-      .take(10)
+      .take(10L)
 
     Seq(Sample(sample, 2, 2, 2.seconds, 2.seconds))
   }

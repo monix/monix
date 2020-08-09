@@ -54,7 +54,7 @@ object ScanEffectSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .scanEvalF(IO.pure(0L)) { (s, i) =>
         if (i == sourceCount - 1)
           throw ex

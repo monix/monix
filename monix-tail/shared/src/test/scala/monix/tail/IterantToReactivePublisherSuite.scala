@@ -229,6 +229,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   test("protects against invalid subscriber") { implicit s =>
     intercept[NullPointerException] {
       Iterant[Task].of(1).toReactivePublisher.subscribe(null)
+      ()
     }
     ()
   }

@@ -39,7 +39,7 @@ object TakeWhileNotCanceledSuite extends BaseOperatorSuite {
           Observable.range(1, 10).takeWhileNotCanceled(c).map { x =>
             c.cancel(); x
           } else
-          Observable.range(1, sourceCount * 2).takeWhileNotCanceled(c).map { x =>
+          Observable.range(1L, sourceCount.toLong * 2).takeWhileNotCanceled(c).map { x =>
             if (x == sourceCount) c.cancel(); x
           }
 
@@ -61,7 +61,7 @@ object TakeWhileNotCanceledSuite extends BaseOperatorSuite {
           throw ex
     }
 
-    val o = Observable.range(1, sourceCount * 2).takeWhileNotCanceled(c)
+    val o = Observable.range(1L, sourceCount.toLong * 2).takeWhileNotCanceled(c)
     Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
   }
 

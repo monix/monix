@@ -203,7 +203,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     for (_ <- 0 until 30) {
       val now = s.clockMonotonic(MILLISECONDS)
       val nextTimeout = {
-        val value = resetTimeout * 2
+        val value = resetTimeout * 2.toLong
         if (value > 10.minutes) 10.minutes else value
       }
 
@@ -211,7 +211,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         taskInError.unsafeToFuture().value.get.get
         ()
       }
-      
+
       s.tick(resetTimeout - 1.second)
 
       intercept[ExecutionRejectedException] {
@@ -261,7 +261,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
           fail(s"Invalid state: $other")
       }
 
-      intercept[ExecutionRejectedException] { 
+      intercept[ExecutionRejectedException] {
         taskInError.unsafeToFuture().value.get.get
         ()
       }

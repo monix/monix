@@ -26,7 +26,7 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val fallback = Observable.range(0, 10)
     val source = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .endWithError(DummyException("expected"))
 
     val obs = source.onErrorHandleWith {
@@ -60,7 +60,7 @@ object OnErrorRecoverWithSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val source = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .endWithError(DummyException("expected"))
 
     val obs = source.onErrorHandleWith {

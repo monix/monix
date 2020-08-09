@@ -335,7 +335,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
       def onComplete() = complete.countDown()
     })
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
     startConsuming.success(Continue)
 

@@ -131,7 +131,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
 
       s.tick()
       assertEquals(received, count(sourceCount))
-      assertEquals(total, sum(sourceCount))
+      assertEquals(total, sum(sourceCount).toLong)
     }
   }
 
@@ -161,7 +161,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
 
       s.tick()
       assertEquals(received, count(sourceCount))
-      assertEquals(total, sum(sourceCount))
+      assertEquals(total, sum(sourceCount).toLong)
     }
   }
 

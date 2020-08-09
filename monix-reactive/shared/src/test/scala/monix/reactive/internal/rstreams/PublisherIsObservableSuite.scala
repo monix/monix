@@ -142,11 +142,11 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
             isPublisherActive := false
 
           override def request(n: Long): Unit = {
-            assertEquals(n, requestSize)
+            assertEquals(n, requestSize.toLong)
             requested.increment(requestSize)
             if (isPublisherActive.get()) {
               s.executeTrampolined { () =>
-                for (_ <- 0 until n.toInt) subscriber.onNext(1)
+                for (_ <- 0 until n.toInt) subscriber.onNext(1L)
               }
             }
           }

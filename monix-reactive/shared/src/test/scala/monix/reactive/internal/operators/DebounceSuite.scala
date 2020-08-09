@@ -29,7 +29,7 @@ object DebounceSuite extends BaseOperatorSuite {
 
     val count = sourceCount
     val sum = sourceCount * (sourceCount - 1) / 2
-    Sample(o, count, sum, 1.second, 2.second)
+    Sample(o, count, sum.toLong, 1.second, 2.second)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
@@ -44,7 +44,7 @@ object DebounceSuite extends BaseOperatorSuite {
 
     val count = sourceCount - 1
     val sum = sourceCount * (sourceCount - 1) / 2
-    Sample(o, count, sum, 1.second, 2.second)
+    Sample(o, count, sum.toLong, 1.second, 2.second)
   }
 
   override def cancelableObservables(): Seq[Sample] = {

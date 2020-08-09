@@ -33,7 +33,20 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
     count: Int,
     sum: Long,
     waitFirst: FiniteDuration,
-    waitNext: FiniteDuration)
+    waitNext: FiniteDuration
+  )
+
+  object Sample {
+    def apply(
+      observable: Observable[Long],
+      count: Int,
+      sum: Int,
+      waitFirst: FiniteDuration,
+      waitNext: FiniteDuration
+    ): Sample = {
+      apply(observable, count, sum.toLong, waitFirst, waitNext)
+    }
+  }
 
   /** Returns an observable that emits from its data-source
     * the specified `sourceCount` number of items. The `sourceCount`
@@ -333,7 +346,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
         s.tick(waitForFirst)
         assert(!wasCompleted)
         assertEquals(received, 1)
-        s.tick(waitForNext * 2)
+        s.tick(waitForNext * 2.toLong)
         assertEquals(received, 1)
         assert(!wasCompleted)
     }

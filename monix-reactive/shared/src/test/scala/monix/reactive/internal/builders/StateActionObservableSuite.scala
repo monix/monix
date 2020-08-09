@@ -36,7 +36,7 @@ object StateActionObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     Observable
       .fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
-      .take(1)
+      .take(1L)
       .subscribe { _ =>
         received += 1; Continue
       }

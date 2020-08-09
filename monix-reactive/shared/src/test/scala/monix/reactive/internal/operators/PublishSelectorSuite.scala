@@ -51,7 +51,7 @@ object PublishSelectorSuite extends BaseTestSuite {
       .publishSelector { source =>
         source.map(_ => 1)
       }
-      .take(2000)
+      .take(2000L)
       .sumL
       .runToFuture
 

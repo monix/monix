@@ -30,8 +30,8 @@ object CoevalCatsConversions extends BaseTestSuite {
 
   test("Coeval.raiseError(e).to[Eval]") { _ =>
     val dummy = DummyException("dummy")
-    val eval = Coeval.raiseError(dummy).to[Eval]
-    intercept[DummyException](eval.value)
+    val eval = Coeval.raiseError[Unit](dummy).to[Eval]
+    intercept[DummyException] { eval.value; () }
     ()
   }
 
@@ -57,8 +57,8 @@ object CoevalCatsConversions extends BaseTestSuite {
 
   test("Coeval.raiseError(e).to[IO]") { _ =>
     val dummy = DummyException("dummy")
-    val ioRef = Coeval.raiseError(dummy).to[IO]
-    intercept[DummyException](ioRef.unsafeRunSync())
+    val ioRef = Coeval.raiseError[Unit](dummy).to[IO]
+    intercept[DummyException] { ioRef.unsafeRunSync(); () }
     ()
   }
 

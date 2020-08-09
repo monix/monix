@@ -31,8 +31,8 @@ import scala.util.Failure
 object FlatScanSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable
-      .range(0, sourceCount)
-      .flatScan(1L)((acc, elem) => Observable.repeat(acc + elem).take(3))
+      .range(0L, sourceCount.toLong)
+      .flatScan(1L)((acc, elem) => Observable.repeat(acc + elem).take(3L))
 
     val sum = (0 until sourceCount).map(x => (1 to x).sum + 1L).sum * 3
     Sample(o, sourceCount * 3, sum, Zero, Zero)
@@ -43,7 +43,7 @@ object FlatScanSuite extends BaseOperatorSuite {
     else
       Some {
         val o = Observable
-          .range(0, sourceCount)
+          .range(0L, sourceCount.toLong)
           .endWithError(ex)
           .flatScan(1L)((acc, elem) => Observable.fromIterable(Seq(1L, 1L, 1L)))
 
@@ -52,9 +52,10 @@ object FlatScanSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val o = Observable.range(0, sourceCount.toLong + 1).flatScan(1L) { (acc, elem) =>
-      if (elem == sourceCount) throw ex
+      if (elem == sourceCount)
+        throw ex
       else
-        Observable.repeat(acc + elem).take(3)
+        Observable.repeat(acc + elem).take(3L)
     }
 
     val sum = (0 until sourceCount).map(x => (1 to x).sum + 1L).sum * 3
@@ -84,7 +85,7 @@ object FlatScanSuite extends BaseOperatorSuite {
   }
 
   test("flatScan0.drop(1) <-> flatScan") { implicit s =>
-    check2 { (obs: Observable[Int], seed: Long) =>
+    check2 { (obs: Observable[Long], seed: Long) =>
       obs.flatScan0(seed)((a, b) => Observable(a, b)).drop(1) <->
         obs.flatScan(seed)((a, b) => Observable(a, b))
     }

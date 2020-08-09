@@ -58,7 +58,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
           earlyStopDone = true
         }))
 
-    bracketed.take(1).completedL.runToFuture
+    bracketed.take(1L).completedL.runToFuture
     s.tick()
     assert(earlyStopDone)
   }
@@ -80,7 +80,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
     val bracketed = Observable
       .resource(rs.acquire)(_.release)
       .flatMap(_ => Observable.range(1, 10))
-      .take(1)
+      .take(1L)
 
     bracketed.completedL.runToFuture
     s.tick()

@@ -337,7 +337,7 @@ object OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
       DropNew(10000)
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
     startConsuming.success(Continue)
 
@@ -362,7 +362,7 @@ object OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
       DropNew(10000)
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
@@ -387,7 +387,7 @@ object OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
       DropNew(10000)
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
@@ -413,7 +413,7 @@ object OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
       DropNew(10000)
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onError(new RuntimeException)
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")

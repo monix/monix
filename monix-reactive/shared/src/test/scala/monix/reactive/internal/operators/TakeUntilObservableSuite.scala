@@ -29,15 +29,14 @@ import scala.util.Success
 object TakeUntilObservableSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val source = Observable.intervalAtFixedRate(2.seconds, 2.seconds)
-    val trigger = Observable.now(1).delayExecution(2.seconds * sourceCount + 1.second)
+    val trigger = Observable.now(1).delayExecution(2.seconds * sourceCount.toLong + 1.second)
     val obs = source.takeUntil(trigger)
-
     Sample(obs, sourceCount, sourceCount * (sourceCount - 1) / 2, 2.seconds, 2.seconds)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val source = Observable.intervalAtFixedRate(2.seconds, 2.seconds)
-    val trigger = Observable.raiseError(ex).delayExecution(2.seconds * sourceCount + 1.second)
+    val trigger = Observable.raiseError(ex).delayExecution(2.seconds * sourceCount.toLong + 1.second)
     val obs = source.takeUntil(trigger)
 
     Sample(obs, sourceCount, sourceCount * (sourceCount - 1) / 2, 2.seconds, 2.seconds)
@@ -47,7 +46,7 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
 
   def cancelableObservables() = {
     val source = Observable.intervalAtFixedRate(2.seconds, 2.seconds)
-    val trigger = Observable.now(1).delayExecution(2.seconds * 10)
+    val trigger = Observable.now(1).delayExecution(2.seconds * 10.toLong)
     val obs = source.takeUntil(trigger)
 
     Seq(

@@ -40,7 +40,7 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
 
     val o = Observable
       .intervalAtFixedRate(1.second)
-      .takeByTimespan(1.second * sourceCount - 1.milli)
+      .takeByTimespan(1.second * sourceCount.toLong - 1.milli)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
@@ -50,9 +50,9 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
     Some {
       val source =
         if (sourceCount == 1)
-          createObservableEndingInError(Observable.range(1, 10).take(1), ex)
+          createObservableEndingInError(Observable.range(1, 10).take(1L), ex)
         else
-          createObservableEndingInError(Observable.range(1, sourceCount * 2).take(sourceCount.toLong), ex)
+          createObservableEndingInError(Observable.range(1L, sourceCount.toLong * 2).take(sourceCount.toLong), ex)
 
       val o = source.takeByTimespan(1.day)
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)

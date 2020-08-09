@@ -19,20 +19,7 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
-import cats.{
-  ~>,
-  Alternative,
-  Applicative,
-  Apply,
-  CoflatMap,
-  Eq,
-  FlatMap,
-  Functor,
-  FunctorFilter,
-  Monoid,
-  NonEmptyParallel,
-  Order
-}
+import cats.{Alternative, Applicative, Apply, CoflatMap, Eq, FlatMap, Functor, FunctorFilter, Monoid, NonEmptyParallel, Order, ~>}
 import cats.effect.{Bracket, Effect, ExitCase, Resource}
 import monix.eval.{Coeval, Task, TaskLift, TaskLike}
 import monix.eval.Task.defaultOptions
@@ -4238,7 +4225,7 @@ abstract class Observable[+A] extends Serializable { self =>
   /** Only emits the first element emitted by the source observable,
     * after which it's completed immediately.
     */
-  final def head: Observable[A] = take(1)
+  final def head: Observable[A] = take(1L)
 
   /** Selects the first `n` elements (from the start).
     *
@@ -5456,8 +5443,17 @@ object Observable extends ObservableDeprecatedBuilders {
     * @param until the range end
     * @param step increment step, either positive or negative
     */
-  def range(from: Long, until: Long, step: Long = 1L): Observable[Long] =
+  def range(from: Long, until: Long, step: Long): Observable[Long] =
     new builders.RangeObservable(from, until, step)
+
+  def range(from: Long, until: Long): Observable[Long] =
+    range(from, until, 1L)
+
+  def range(from: Int, until: Int, step: Int): Observable[Long] =
+    range(from.toLong, until.toLong, step.toLong)
+
+  def range(from: Int, until: Int): Observable[Long] =
+    range(from.toLong, until.toLong, 1L)
 
   /** Given an initial state and a generator function that produces the
     * next state and the next element in the sequence, creates an

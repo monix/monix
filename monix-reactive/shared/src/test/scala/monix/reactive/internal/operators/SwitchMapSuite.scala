@@ -17,9 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.eval.Task
 import monix.reactive.Observable
-
 import scala.concurrent.duration._
 
 object SwitchMapSuite extends BaseOperatorSuite {
@@ -93,11 +91,11 @@ object SwitchMapSuite extends BaseOperatorSuite {
   test("Observable.unit.switchMap(_ => a) <-> a") { implicit s =>
     val expectedCount = 100
     val size = Observable.unit
-      .switchMap(_ => Observable.interval(1.second).take(expectedCount))
+      .switchMap(_ => Observable.interval(1.second).take(expectedCount.toLong))
       .countL
       .runToFuture
 
     s.tick(1.day)
-    assertEquals(size.value.get.get, expectedCount)
+    assertEquals(size.value.get.get, expectedCount.toLong)
   }
 }

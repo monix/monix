@@ -26,7 +26,7 @@ import scala.concurrent.duration._
 object ConcatManySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .flatMap(i => Observable.fromIterable(Seq(i, i, i)))
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)

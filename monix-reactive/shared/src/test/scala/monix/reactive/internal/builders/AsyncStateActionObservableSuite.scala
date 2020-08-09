@@ -40,7 +40,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     Observable
       .fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
-      .take(1)
+      .take(1L)
       .subscribe { x =>
         received += 1; Continue
       }

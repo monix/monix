@@ -33,7 +33,7 @@ object FoldWhileObservableSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val obs = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .endWithError(ex)
       .foldWhileLeft(0L)((acc, e) => Left(acc + e))
 
@@ -51,7 +51,7 @@ object FoldWhileObservableSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val obs = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .endWithError(ex)
       .foldWhileLeft(0L)((_, _) => throw ex)
 

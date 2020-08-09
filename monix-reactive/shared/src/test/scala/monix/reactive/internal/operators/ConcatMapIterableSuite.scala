@@ -29,7 +29,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 
 object ConcatMapIterableSuite extends BaseOperatorSuite {
-  def sum(sourceCount: Int): Long = (1 to sourceCount).flatMap(i => List(i, i * 10)).sum
+  def sum(sourceCount: Int): Long = (1 to sourceCount).flatMap(i => List(i, i * 10)).sum.toLong
   def count(sourceCount: Int) = 2 * sourceCount
 
   def createObservable(sourceCount: Int) = {

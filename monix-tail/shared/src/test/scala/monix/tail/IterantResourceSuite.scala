@@ -88,6 +88,7 @@ object IterantResourceSuite extends BaseTestSuite {
 
     intercept[DummyException] {
       bracketed.completedL.value()
+      ()
     }
     assertEquals(rs.acquired, 1)
     assertEquals(rs.released, 1)
@@ -102,6 +103,7 @@ object IterantResourceSuite extends BaseTestSuite {
 
     intercept[DummyException] {
       bracketed.completedL.value()
+      ()
     }
     assertEquals(rs.acquired, 1)
     assertEquals(rs.released, 1)
@@ -118,6 +120,7 @@ object IterantResourceSuite extends BaseTestSuite {
 
     intercept[DummyException] {
       bracketed.completedL.value()
+      ()
     }
     assertEquals(rs.acquired, 0)
     assertEquals(rs.released, 0)
@@ -143,6 +146,7 @@ object IterantResourceSuite extends BaseTestSuite {
 
     intercept[DummyException] {
       bracketed.completedL.value()
+      ()
     }
     assert(released)
   }
@@ -156,6 +160,7 @@ object IterantResourceSuite extends BaseTestSuite {
 
     intercept[DummyException] {
       bracketed.completedL.value()
+      ()
     }
     assert(released)
   }
@@ -171,6 +176,7 @@ object IterantResourceSuite extends BaseTestSuite {
 
     intercept[DummyException] {
       bracketed.completedL.value()
+      ()
     }
     assert(released)
   }
@@ -190,6 +196,7 @@ object IterantResourceSuite extends BaseTestSuite {
     for (iter <- broken) {
       intercept[DummyException] {
         iter.completedL.value()
+        ()
       }
     }
 
@@ -213,6 +220,7 @@ object IterantResourceSuite extends BaseTestSuite {
     for (iter <- broken) {
       intercept[DummyException] {
         iter.completedL.value()
+        ()
       }
     }
     assertEquals(rs.acquired, broken.length)
@@ -250,6 +258,7 @@ object IterantResourceSuite extends BaseTestSuite {
     for (method <- completes) {
       intercept[DummyException] {
         method(faulty).value()
+        ()
       }
     }
     assertEquals(rs.acquired, completes.length * 2)
@@ -262,6 +271,7 @@ object IterantResourceSuite extends BaseTestSuite {
     for (method <- completes) {
       intercept[DummyException] {
         method(broken).value()
+        ()
       }
     }
 

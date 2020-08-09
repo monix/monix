@@ -31,7 +31,7 @@ object DropLastSuite extends BaseOperatorSuite {
   }
 
   def sum(sourceCount: Int): Long = {
-    sourceCount * (sourceCount - 1) / 2
+    sourceCount.toLong * (sourceCount - 1) / 2
   }
 
   def count(sourceCount: Int) =

@@ -33,9 +33,9 @@ object TakeLeftSuite extends BaseOperatorSuite {
     Some {
       val o =
         if (sourceCount == 1)
-          Observable.range(1, 10).take(1)
+          Observable.range(1, 10).take(1L)
         else
-          Observable.range(1, sourceCount * 2).take(sourceCount.toLong)
+          Observable.range(1L, sourceCount.toLong * 2).take(sourceCount.toLong)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -47,7 +47,7 @@ object TakeLeftSuite extends BaseOperatorSuite {
       val o =
         if (sourceCount == 1)
           createObservableEndingInError(Observable.range(1, 2), ex)
-            .take(2)
+            .take(2L)
         else
           createObservableEndingInError(Observable.range(1, sourceCount), ex)
             .take(sourceCount.toLong)
@@ -64,7 +64,7 @@ object TakeLeftSuite extends BaseOperatorSuite {
     var wasCompleted = false
 
     createObservable(1) match {
-      case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+      case Some(Sample(obs, _, _, waitForFirst, waitForNext)) =>
         var onNextReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {
@@ -89,7 +89,7 @@ object TakeLeftSuite extends BaseOperatorSuite {
       1
     }
 
-    val task = Observable.repeatEval(inc()).take(0).toListL
+    val task = Observable.repeatEval(inc()).take(0L).toListL
     task.runToFuture
 
     s.tick()
@@ -97,7 +97,7 @@ object TakeLeftSuite extends BaseOperatorSuite {
   }
 
   override def cancelableObservables() = {
-    val o = Observable.range(1, 10).delayOnNext(1.second).take(1)
+    val o = Observable.range(1, 10).delayOnNext(1.second).take(1L)
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 }

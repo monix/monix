@@ -86,10 +86,12 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
   test(s"concatMap should be cancellable, test 2, count $cancelIterations (issue #468)") { implicit s =>
     def one(p: Promise[Unit])(x: Long): Observable[Long] =
       Observable.unsafeCreate { sub =>
-        val ref = BooleanCancelable(() => p.trySuccess(()))
+        val ref = BooleanCancelable { () => p.trySuccess(()); () }
         sub.scheduler.executeAsync { () =>
-          if (!ref.isCanceled)
+          if (!ref.isCanceled) {
             Observable.now(x).unsafeSubscribeFn(sub)
+            ()
+          }
         }
         ref
       }
@@ -100,9 +102,9 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
         .range(0, Long.MaxValue)
         .executeAsync
         .uncancelable
-        .doOnError(e => Task(p.tryFailure(e)))
-        .doOnComplete(Task(p.trySuccess(new IllegalStateException("complete"))))
-        .doOnEarlyStop(Task(p.trySuccess(())))
+        .doOnError(e => Task { p.tryFailure(e); () })
+        .doOnComplete(Task { p.tryFailure(new IllegalStateException("complete")); () })
+        .doOnEarlyStop(Task { p.trySuccess(()); () })
         .flatMap(one(p))
         .subscribe()
 
@@ -119,9 +121,9 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
         .range(0, Long.MaxValue)
         .executeAsync
         .uncancelable
-        .doOnError(e => Task(p.tryFailure(e)))
-        .doOnComplete(Task(p.trySuccess(new IllegalStateException("complete"))))
-        .doOnEarlyStop(Task(p.trySuccess(())))
+        .doOnError(e => Task { p.tryFailure(e); () })
+        .doOnComplete(Task { p.tryFailure(new IllegalStateException("complete")); () })
+        .doOnEarlyStop(Task { p.trySuccess(()); () })
         .flatMap(x => Observable.now(x).executeAsync)
         .subscribe()
 

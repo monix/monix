@@ -24,13 +24,13 @@ object DropByPredicateSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = Observable.range(1, sourceCount * 2).dropWhile(_ < sourceCount)
+      val o = Observable.range(1L, sourceCount.toLong * 2).dropWhile(_ < sourceCount)
       Sample(o, count(sourceCount), sum(sourceCount), 0.seconds, 0.seconds)
     }
   }
 
   def sum(sourceCount: Int): Long =
-    (1 until sourceCount * 2).drop(sourceCount - 1).sum
+    (1 until sourceCount * 2).drop(sourceCount - 1).sum.toLong
 
   def count(sourceCount: Int) =
     sourceCount
@@ -46,7 +46,7 @@ object DropByPredicateSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(1, sourceCount * 2).dropWhile { elem =>
+    val o = Observable.range(1L, sourceCount.toLong * 2).dropWhile { elem =>
       if (elem < sourceCount) true else throw ex
     }
 

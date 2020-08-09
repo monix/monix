@@ -32,7 +32,7 @@ object RepeatOneObservableSuite extends TestSuite[TestScheduler] {
 
   test("first execution is synchronous") { implicit s =>
     var received = 0
-    Observable.repeat(1).take(1).subscribe { x =>
+    Observable.repeat(1).take(1L).subscribe { x =>
       received += x; Continue
     }
     assertEquals(received, 1)

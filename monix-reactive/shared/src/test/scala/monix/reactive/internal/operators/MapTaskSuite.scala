@@ -55,7 +55,7 @@ object MapTaskSuite extends BaseOperatorSuite {
       }
 
   def sum(sourceCount: Int) = {
-    sourceCount * (sourceCount - 1) / 2
+    sourceCount.toLong * (sourceCount - 1) / 2
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
@@ -401,7 +401,7 @@ object MapTaskSuite extends BaseOperatorSuite {
 
     val f = Observable
       .intervalAtFixedRate(1.second, 4.seconds)
-      .take(10)
+      .take(10L)
       .doOnNext(x => Task { sumBeforeMap += x + 1 })
       .mapEval(x => Task.eval(x + 1).delayExecution(2.seconds))
       .doOnNext(x => Task { sumAfterMap += x + 1 })
@@ -426,7 +426,7 @@ object MapTaskSuite extends BaseOperatorSuite {
 
     val f = Observable
       .intervalAtFixedRate(1.second, 4.seconds)
-      .take(10)
+      .take(10L)
       .doOnNext(x => Task { sumBeforeMap += x + 1 })
       .mapEval(x => Task.eval(x + 1).delayExecution(2.seconds))
       .doOnNext(x => Task { sumAfterMap += x + 1 })
@@ -451,7 +451,7 @@ object MapTaskSuite extends BaseOperatorSuite {
 
     val f = Observable
       .intervalAtFixedRate(1.second, 4.seconds)
-      .take(10)
+      .take(10L)
       .doOnNext(x => Task { sumBeforeMap += x + 1 })
       .mapEval(x => Task.eval(x + 1).delayExecution(2.seconds))
       .doOnNext(x => Task { sumAfterMap += x + 1 })
@@ -477,7 +477,7 @@ object MapTaskSuite extends BaseOperatorSuite {
 
     val f = Observable
       .intervalAtFixedRate(1.second, 4.seconds)
-      .take(10)
+      .take(10L)
       .doOnNext(x => Task { sumBeforeMapTask += x + 1 })
       .mapEval(x => Task.eval(x + 1).delayExecution(2.seconds))
       .doOnNext(x => Task { sumAfterMapTask += x + 1 })

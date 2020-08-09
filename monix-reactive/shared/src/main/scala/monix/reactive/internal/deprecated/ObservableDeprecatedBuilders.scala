@@ -15,13 +15,12 @@
  * limitations under the License.
  */
 
-package monix.reactive
-package internal
-package deprecated
+package monix.reactive.internal.deprecated
 
 import cats.Eval
 import cats.effect.IO
 import monix.execution.Scheduler
+import monix.reactive.{Observable, OverflowStrategy}
 
 private[reactive] trait ObservableDeprecatedBuilders extends Any {
   /** DEPRECATED — please use [[Observable!.executeAsync .executeAsync]].
@@ -176,6 +175,17 @@ private[reactive] trait ObservableDeprecatedBuilders extends Any {
   def fromIO[A](fa: IO[A]): Observable[A] = {
     // $COVERAGE-OFF$
     Observable.from(fa)
+    // $COVERAGE-ON$
+  }
+
+  /**
+    * [[Observable.range]] changed from usage of default parameters, to usage
+    * of method overloads.
+    */
+  @deprecated("Switch to new Observable.range signature", "3.3.0")
+  def `range$default$3`(): Long = {
+    // $COVERAGE-OFF$
+    1L
     // $COVERAGE-ON$
   }
 }

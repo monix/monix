@@ -26,7 +26,7 @@ import scala.concurrent.duration._
 object IntersperseSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Option {
     val sample = Observable.range(0L, sourceCount.toLong).intersperse(1L)
-    Sample(sample, count(sourceCount), sum(sourceCount), 0.seconds, 0.seconds)
+    Sample(sample, count(sourceCount), sum(sourceCount).toLong, 0.seconds, 0.seconds)
   }
 
   def count(sourceCount: Int) = sourceCount * 2 - 1
@@ -34,7 +34,7 @@ object IntersperseSuite extends BaseOperatorSuite {
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val sample = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex).intersperse(0L)
-    Sample(sample, count(sourceCount), sum(sourceCount), 0.seconds, 0.seconds)
+    Sample(sample, count(sourceCount), sum(sourceCount).toLong, 0.seconds, 0.seconds)
   }
 
   override def cancelableObservables(): Seq[Sample] = {

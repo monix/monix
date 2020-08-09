@@ -118,7 +118,7 @@ object BufferTumblingSuite extends BaseOperatorSuite {
       def onComplete(): Unit = ()
     })
 
-    s.tick(waitFirst + waitNext * (count - 1))
+    s.tick(waitFirst + waitNext * (count - 1).toLong)
     assertEquals(received, 156 / 2)
     assertEquals(total, sum(156))
     s.tick(waitNext)
@@ -130,7 +130,7 @@ object BufferTumblingSuite extends BaseOperatorSuite {
     var wasCompleted = false
 
     createObservable(1) match {
-      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+      case Some(Sample(obs, _, _, waitForFirst, waitForNext)) =>
         var onNextReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {

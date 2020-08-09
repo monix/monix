@@ -61,7 +61,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   test("Task.raiseError(dummy).to[IO]") { implicit s =>
     val dummy = DummyException("dummy")
     intercept[DummyException] {
-      Task.raiseError(dummy).to[IO].unsafeRunSync()
+      Task.raiseError[Unit](dummy).to[IO].unsafeRunSync()
     }
     ()
   }

@@ -33,7 +33,7 @@ import scala.util.{Failure, Random, Try}
 object ConcatOneSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .flatMap(i => Observable.now(i))
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)

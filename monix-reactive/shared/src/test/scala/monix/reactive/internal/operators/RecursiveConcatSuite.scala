@@ -38,8 +38,8 @@ object RecursiveConcatSuite extends BaseOperatorSuite {
     if (sourceCount <= 1) None
     else
       Some {
-        val o = range(0, sourceCount)
-        Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
+        val o = range(0L, sourceCount.toLong)
+        Sample(o, count(sourceCount), sum(sourceCount.toLong), Zero, Zero)
       }
   }
 
@@ -49,8 +49,8 @@ object RecursiveConcatSuite extends BaseOperatorSuite {
 
   test("stack safety") { implicit s =>
     val count = 10000
-    val f = range(0, count).sumL.runToFuture; s.tick()
-    assertEquals(f.value, Some(Success(sum(count))))
+    val f = range(0, count.toLong).sumL.runToFuture; s.tick()
+    assertEquals(f.value, Some(Success(sum(count.toLong))))
   }
 
   val nats: Observable[Long] = {

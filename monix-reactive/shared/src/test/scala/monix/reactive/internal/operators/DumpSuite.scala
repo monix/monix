@@ -41,7 +41,7 @@ object DumpSuite extends BaseOperatorSuite {
 
   def createObservable(sourceCount: Int) = Some {
     val o = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .dump("o", dummyOut())
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)

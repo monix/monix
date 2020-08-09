@@ -306,7 +306,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
 
     val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
     startConsuming.success(Continue)
 
@@ -330,7 +330,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
 
     val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
 
-    (0 until 9999).foreach { x => buffer.onNext(x); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
 
     blocking {
@@ -355,7 +355,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
 
     val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
 
-    (0 until 9999).foreach { x => buffer.onNext(x); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
@@ -380,7 +380,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
 
     val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
     (0 until 9999).foreach { x =>
-      buffer.onNext(x)
+      buffer.onNext(x.toLong)
       ()
     }
     buffer.onError(new RuntimeException)

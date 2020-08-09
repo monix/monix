@@ -96,7 +96,6 @@ object DoOnStartSuite extends TestSuite[TestScheduler] {
     val dummy = DummyException("ex")
     var wasTriggered = 0
     var wasCompleted = 0
-    var onNextCalled = 0
     var errorThrown: Throwable = null
 
     Observable
