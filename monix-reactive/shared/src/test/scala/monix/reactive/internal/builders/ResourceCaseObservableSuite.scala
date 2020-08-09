@@ -247,7 +247,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
     val rs = new Resource
     val dummy = DummyException("dummy")
     val bracketed = Observable
-      .resource(Task.raiseError(dummy).flatMap(_ => rs.acquire))(_.release)
+      .resource(Task.raiseError[Int](dummy).flatMap(_ => rs.acquire))(_.release)
       .flatMap { _ =>
         Observable.empty[Int]
       }

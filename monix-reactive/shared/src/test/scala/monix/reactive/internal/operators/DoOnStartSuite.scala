@@ -99,7 +99,7 @@ object DoOnStartSuite extends TestSuite[TestScheduler] {
     var errorThrown: Throwable = null
 
     Observable
-      .raiseError(dummy)
+      .raiseError[Long](dummy)
       .doOnStart(_ => Task.eval { wasTriggered += 1 })
       .unsafeSubscribeFn(new Subscriber[Long] {
         val scheduler = s
