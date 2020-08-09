@@ -65,13 +65,13 @@ class MapParallelObservableBenchmark {
 
   @Benchmark
   def mapOrdered(): Long = {
-    val stream = Observable.range(0, size).mapParallelOrdered(parallelism)(x =>  Task.eval(x + 1))
+    val stream = Observable.range(0, size.toLong).mapParallelOrdered(parallelism)(x =>  Task.eval(x + 1))
     sum(stream)
   }
 
   @Benchmark
   def mapUnordered(): Long = {
-    val stream = Observable.range(0, size).mapParallelUnordered(parallelism)(x =>  Task.eval(x + 1))
+    val stream = Observable.range(0, size.toLong).mapParallelUnordered(parallelism)(x =>  Task.eval(x + 1))
     sum(stream)
   }
 
