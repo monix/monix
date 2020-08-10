@@ -5,7 +5,7 @@ on: [ push, pull_request ]
 jobs:
   
   jvm-tests:
-    name: JVM - scala-${{ matrix.scala }} jdk-${{ matrix.java }}
+    name: JVM / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-latest
     strategy:
       # fail-fast: true
@@ -44,7 +44,7 @@ jobs:
           SBT_COMMAND: ci-jvm
               
   js-tests:
-    name: JS - scala-${{ matrix.scala }} js-${{ matrix.scalajs }} jdk-${{ matrix.java }}
+    name: JS / scala ${{ matrix.scala }}, sjs ${{ matrix.scalajs }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-latest
     strategy:
       # fail-fast: true
@@ -88,7 +88,7 @@ jobs:
           SBT_COMMAND: ci-js
   
   mima:
-    name: Mima
+    name: Mima / scala ${{ matrix.scala }}, sjs ${{ matrix.scalajs }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-latest
     strategy:
       # fail-fast: true
@@ -113,7 +113,7 @@ jobs:
           SBT_COMMAND: mimaReportBinaryIssues
       
   unidoc:
-    name: Unidoc
+    name: Unidoc / scala ${{ matrix.scala }}, sjs ${{ matrix.scalajs }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-latest
     strategy:
       # fail-fast: true
