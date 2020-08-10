@@ -19,22 +19,6 @@ jobs:
         with:
           java-version: "adopt@1.${{ matrix.java }}"
           
-      - name: Cache sbt Coursier directory
-        uses: actions/cache@v1
-        with:
-          path: ~/.cache/coursier/v1
-          key: ${{ runner.os }}-coursier-${{ hashFiles('**/*.sbt') }}
-          restore-keys: |
-            ${{ runner.os }}-coursier-
-      
-      - name: Cache sbt directory
-        uses: actions/cache@v1
-        with:
-          path: ~/.sbt
-          key: |
-            ${{ runner.os }}-sbt-${{ hashFiles('project/build.properties') }}-${{ hashFiles('project/plugins.sbt') }}
-          restore-keys: ${{ runner.os }}-sbt-
-          
       - name: sbt ci-jvm
         run: |
           ./.github/scripts/build
@@ -61,23 +45,7 @@ jobs:
       - uses: olafurpg/setup-scala@v7
         with:
           java-version: "adopt@1.${{ matrix.java }}"
-          
-      - name: Cache sbt Coursier directory
-        uses: actions/cache@v1
-        with:
-          path: ~/.cache/coursier/v1
-          key: ${{ runner.os }}-coursier-${{ hashFiles('**/*.sbt') }}
-          restore-keys: |
-            ${{ runner.os }}-coursier-
-      
-      - name: Cache sbt directory
-        uses: actions/cache@v1
-        with:
-          path: ~/.sbt
-          key: |
-            ${{ runner.os }}-sbt-${{ hashFiles('project/build.properties') }}-${{ hashFiles('project/plugins.sbt') }}
-          restore-keys: ${{ runner.os }}-sbt-
-          
+                    
       - name: sbt ci-js
         run: |
           ./.github/scripts/build
