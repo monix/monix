@@ -144,7 +144,7 @@ lazy val testDependencies = Seq(
 lazy val gitHubTreeTagOrHash =
   settingKey[String]("Identifies GitHub's version tag or commit sha")
 
-lazy val sharedSettings = sharedSourcesSettings ++ Seq(
+lazy val sharedSettings = Seq(
   organization := "io.monix",
   scalaVersion := "2.13.3",
   crossScalaVersions := Seq("2.11.12", "2.12.12", "2.13.3"),
@@ -273,9 +273,17 @@ lazy val sharedSettings = sharedSourcesSettings ++ Seq(
     ))
 )
 
+lazy val sharedSourcesSettings = Seq(
+  unmanagedSourceDirectories in Compile += {
+    baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
+  },
+  unmanagedSourceDirectories in Test += {
+    baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+  }
+)
 
 def scalaPartV = Def setting (CrossVersion partialVersion scalaVersion.value)
-lazy val crossVersionSharedSources: Seq[Setting[_]] =
+lazy val crossVersionSourcesSettings: Seq[Setting[_]] =
   Seq(Compile, Test).map { sc =>
     (unmanagedSourceDirectories in sc) ++= {
       (unmanagedSourceDirectories in sc).value.flatMap { dir =>
@@ -297,15 +305,6 @@ lazy val crossVersionSharedSources: Seq[Setting[_]] =
       }
     }
   }
-
-lazy val sharedSourcesSettings = Seq(
-  unmanagedSourceDirectories in Compile += {
-    baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
-  },
-  unmanagedSourceDirectories in Test += {
-    baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
-  }
-)
 
 lazy val doNotPublishArtifactSettings = Seq(
   publishArtifact := false,
@@ -392,7 +391,7 @@ lazy val doctestTestSettings = Seq(
 // ------------------------------------------------------------------------------------------------
 // Configuration profiles
 
-def commonSettingsAndPluginsProfile(publishArtifacts: Boolean): Project ⇒ Project =
+def baseSettingsAndPlugins(publishArtifacts: Boolean): Project ⇒ Project =
   pr => {
     val withCoverage = sys.env.getOrElse("SBT_PROFILE", "") match {
       case "coverage" => pr
@@ -402,7 +401,6 @@ def commonSettingsAndPluginsProfile(publishArtifacts: Boolean): Project ⇒ Proj
       .enablePlugins(AutomateHeaderPlugin)
       .enablePlugins(ReproducibleBuildsPlugin)
       .settings(sharedSettings)
-      .settings(crossVersionSharedSources)
       .settings(if (publishArtifacts) Seq.empty else doNotPublishArtifactSettings)
       .settings(filterOutMultipleDependenciesFromGeneratedPomXml(
         "groupId" -> "org.scoverage".r :: Nil,
@@ -410,23 +408,32 @@ def commonSettingsAndPluginsProfile(publishArtifacts: Boolean): Project ⇒ Proj
       ))
   }
 
-def jvmProfile(
+def monixSubModule(
+  projectName: String,
+  publishArtifacts: Boolean,
+): Project => Project = pr => {
+  pr.configure(baseSettingsAndPlugins(publishArtifacts = publishArtifacts))
+    .settings(sharedSourcesSettings)
+    .settings(crossVersionSourcesSettings)
+    .settings(name := projectName)
+}
+
+def jvmModule(
   projectName: String,
   withMimaChecks: Boolean,
   withDocTests: Boolean,
   publishArtifacts: Boolean,
 ): Project => Project =
   pr => {
-    pr.configure(commonSettingsAndPluginsProfile(publishArtifacts = publishArtifacts))
+    pr.configure(monixSubModule(projectName, publishArtifacts = publishArtifacts))
       .settings(testDependencies)
-      .settings(name := projectName)
       .settings(if (withDocTests) doctestTestSettings else Seq.empty)
       .settings(if (withMimaChecks) mimaSettings(projectName) else Seq.empty)
   }
 
 def jsProfile(projectName: String, publishArtifacts: Boolean): Project => Project =
   pr => {
-    pr.configure(commonSettingsAndPluginsProfile(publishArtifacts = publishArtifacts))
+    pr.configure(monixSubModule(projectName, publishArtifacts = publishArtifacts))
       .enablePlugins(ScalaJSPlugin)
       .settings(testDependencies)
       .settings(sharedScalaJSSettings)
@@ -440,7 +447,7 @@ def crossModule(
   crossSettings: Seq[sbt.Def.SettingsDefinition] = Nil): CrossModule = {
 
   CrossModule(
-    jvm = jvmProfile(
+    jvm = jvmModule(
       projectName = projectName,
       withMimaChecks = withMimaChecks,
       withDocTests = withDocTests,
@@ -457,9 +464,7 @@ def crossModule(
 // Projects
 
 lazy val monix = project.in(file("."))
-  .configure(commonSettingsAndPluginsProfile(
-    publishArtifacts = false
-  ))
+  .configure(baseSettingsAndPlugins(publishArtifacts = false))
   .enablePlugins(ScalaUnidocPlugin)
   .aggregate(coreJVM, coreJS)
   .settings(unidocSettings)
@@ -496,7 +501,7 @@ lazy val coreJS = project.in(file("monix/js"))
 // monix-internal-jctools (shaded lib)
 
 lazy val executionShadedJCTools = project.in(file("monix-execution/shaded/jctools"))
-  .configure(jvmProfile(
+  .configure(jvmModule(
     projectName = "monix-internal-jctools",
     withMimaChecks = false,
     withDocTests = false,
@@ -617,7 +622,7 @@ lazy val reactiveJS = project.in(file("monix-reactive/js"))
 // monix-java
 
 lazy val javaJVM = project.in(file("monix-java"))
-  .configure(jvmProfile(
+  .configure(jvmModule(
     projectName = "monix-java",
     withMimaChecks = true,
     withDocTests = true,
@@ -630,7 +635,8 @@ lazy val javaJVM = project.in(file("monix-java"))
 // monix-reactive-tests (not published)
 
 lazy val reactiveTests = project.in(file("reactiveTests"))
-  .configure(commonSettingsAndPluginsProfile(
+  .configure(monixSubModule(
+    "monix-reactive-tests",
     publishArtifacts = false
   ))
   .dependsOn(reactiveJVM, tailJVM)
@@ -641,11 +647,12 @@ lazy val reactiveTests = project.in(file("reactiveTests"))
     ))
 
 // --------------------------------------------
-// benchmarks (not published)
+// monix-benchmarks-{prev,next} (not published)
 
 lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .enablePlugins(JmhPlugin)
-  .configure(commonSettingsAndPluginsProfile(
+  .configure(monixSubModule(
+    "monix-benchmarks-prev",
     publishArtifacts = false
   ))
   .settings(
@@ -657,7 +664,8 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .enablePlugins(JmhPlugin)
-  .configure(commonSettingsAndPluginsProfile(
+  .configure(monixSubModule(
+    projectName = "monix-benchmarks-next",
     publishArtifacts = false
   ))
   .dependsOn(reactiveJVM, tailJVM)
