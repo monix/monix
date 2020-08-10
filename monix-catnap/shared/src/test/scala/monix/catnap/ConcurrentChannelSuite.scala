@@ -25,7 +25,7 @@ import monix.execution.ChannelType.{MPMC, MPSC, SPMC, SPSC}
 import monix.execution.exceptions.APIContractViolationException
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import monix.execution.{BufferCapacity, Scheduler}
+import monix.execution.{BufferCapacity, Scheduler, TestUtils}
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
@@ -54,13 +54,13 @@ object ConcurrentChannelFakeSuite extends BaseConcurrentChannelSuite[TestSchedul
     Bounded(256)
 }
 
-abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] {
+abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] with TestUtils {
   val boundedConfigForConcurrentSum: Bounded
 
   val iterationsCount = {
     if (Platform.isJVM) {
       // Discriminate CI
-      if (System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
+      if (isCI)
         1000
       else
         10000

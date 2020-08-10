@@ -29,7 +29,7 @@ object IterantConsumeSuite extends BaseTestSuite {
   val iterationsCount = {
     if (Platform.isJVM) {
       // Discriminate CI
-      if (System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
+      if (isCI)
         2000
       else
         10000

@@ -22,18 +22,14 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.{CallbackCalledMultipleTimesException, DummyException}
 import monix.execution.schedulers.SchedulerService
-import monix.execution.{Callback, Scheduler}
+import monix.execution.{Callback, Scheduler, TestUtils}
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-object TaskCallbackSafetyJVMSuite extends SimpleTestSuite {
-  val isTravis = {
-    System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
-  }
-
+object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
   val WORKERS = 10
-  val RETRIES = if (!isTravis) 1000 else 100
+  val RETRIES = if (!isCI) 1000 else 100
 
   test("Task.async has a safe callback") {
     runConcurrentCallbackTest(Task.async)
