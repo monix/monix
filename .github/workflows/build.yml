@@ -120,7 +120,6 @@ jobs:
       max-parallel: 1
       matrix:
         scalajs: ["", 0.6.33, 1.1.1]
-        command: [ci-release]
 
     runs-on: ubuntu-20.04
     steps:
@@ -139,4 +138,4 @@ jobs:
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          SCALAJS_VERSION: ${{ matrix.scalaJS }}
+          SCALAJS_VERSION: ${{ matrix.scalajs }}
