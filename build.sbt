@@ -16,11 +16,10 @@ val benchmarkProjects = List(
 ).map(_ + "/compile")
 
 addCommandAlias("ci",          ";ci-jvm ;ci-js")
-addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;mimaReportBinaryIssues ;unidoc")
-addCommandAlias("ci-js",       s";clean ;coreJS/test:compile ;${(allProjects.filter(_ != "java").map(_ + "JS/test") ++ benchmarkProjects).mkString(" ;")}")
-addCommandAlias("ci-jvm",      s";clean ;coreJVM/test:compile ;${(allProjects.map(_ + "JVM/test") ++ benchmarkProjects).mkString(" ;")}")
-addCommandAlias("ci-jvm-mima", s";ci-jvm ;mimaReportBinaryIssues")
-addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc")
+addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;ci-meta")
+addCommandAlias("ci-js",       s";clean ;coreJS/test:compile ;${(allProjects.filter(_ != "java").map(_ + "JS/test") ++ benchmarkProjects).mkString(" ;")} ;coreJS/package")
+addCommandAlias("ci-jvm",      s";clean ;coreJVM/test:compile ;${(allProjects.map(_ + "JVM/test") ++ benchmarkProjects).mkString(" ;")} ;coreJVM/package")
+addCommandAlias("ci-meta",     s";mimaReportBinaryIssues ;unidoc")
 addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
 
 lazy val catsVersion = settingKey[String]("cats version")
