@@ -233,22 +233,7 @@ lazy val sharedSettings = Seq(
   // -- Settings meant for deployment on oss.sonatype.org
   sonatypeProfileName := organization.value,
 
-  credentials += Credentials(
-    "Sonatype Nexus Repository Manager",
-    "oss.sonatype.org",
-    sys.env.getOrElse("SONATYPE_USER", ""),
-    sys.env.getOrElse("SONATYPE_PASS", "")
-  ),
-
   publishMavenStyle := true,
-  publishTo := Some(
-    if (isSnapshot.value)
-      Opts.resolver.sonatypeSnapshots
-    else
-      Opts.resolver.sonatypeStaging
-  ),
-
-  isSnapshot := version.value endsWith "SNAPSHOT",
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies
 
