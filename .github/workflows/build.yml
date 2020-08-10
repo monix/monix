@@ -25,12 +25,31 @@ jobs:
         with:
           java-version: "adopt@1.${{ matrix.java }}"
 
+      - name: Cache ivy2
+        uses: actions/cache@v1
+        with:
+          path: ~/.ivy2/cache
+          key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Cache coursier (linux)
+        if: contains(runner.os, 'linux')
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/coursier/v1
+          key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Cache sbt
+        uses: actions/cache@v1
+        with:
+          path: ~/.sbt
+          key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
       - name: sbt ci-jvm
         run: |
           if [[ "$SCALA_VERSION"~="2.11" ]]; then
             export SCALAJS_VERSION="0.6.33"
           fi
-          ./.github/scripts/build
+          ./.github/scripts/exec-sbt-command
         env:
           SCALA_VERSION: ${{ matrix.scala }}
           PLATFORM: ${{ matrix.java }}
@@ -57,9 +76,28 @@ jobs:
         with:
           java-version: "adopt@1.${{ matrix.java }}"
 
+      - name: Cache ivy2
+        uses: actions/cache@v1
+        with:
+          path: ~/.ivy2/cache
+          key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Cache coursier (linux)
+        if: contains(runner.os, 'linux')
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/coursier/v1
+          key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Cache sbt
+        uses: actions/cache@v1
+        with:
+          path: ~/.sbt
+          key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
       - name: sbt ci-js
         run: |
-          ./.github/scripts/build
+          ./.github/scripts/exec-sbt-command
         env:
           SCALA_VERSION: ${{ matrix.scala }}
           SCALAJS_VERSION: ${{ matrix.scalaJS }}
@@ -83,9 +121,28 @@ jobs:
         with:
           java-version: "adopt@1.${{ matrix.java }}"
 
+      - name: Cache ivy2
+        uses: actions/cache@v1
+        with:
+          path: ~/.ivy2/cache
+          key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Cache coursier (linux)
+        if: contains(runner.os, 'linux')
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/coursier/v1
+          key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Cache sbt
+        uses: actions/cache@v1
+        with:
+          path: ~/.sbt
+          key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
       - name: sbt mimaReportBinaryIssues
         run: |
-          ./.github/scripts/build
+          ./.github/scripts/exec-sbt-command
         env:
           SCALA_VERSION: ${{ matrix.scala }}
           SCALAJS_VERSION: ${{ matrix.scalaJS }}
@@ -106,9 +163,28 @@ jobs:
         with:
           java-version: "adopt@1.${{ matrix.java }}"
 
+      - name: Cache ivy2
+        uses: actions/cache@v1
+        with:
+          path: ~/.ivy2/cache
+          key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Cache coursier (linux)
+        if: contains(runner.os, 'linux')
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/coursier/v1
+          key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Cache sbt
+        uses: actions/cache@v1
+        with:
+          path: ~/.sbt
+          key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
       - name: sbt unidoc
         run: |
-          ./.github/scripts/build
+          ./.github/scripts/exec-sbt-command
         env:
           SCALA_VERSION: ${{ matrix.scala }}
           SCALAJS_VERSION: ${{ matrix.scalaJS }}
@@ -126,7 +202,7 @@ jobs:
 
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - uses: olafurpg/setup-gpg@v2
       - uses: olafurpg/setup-scala@v2
         with:
