@@ -1,7 +1,6 @@
 benchmarks/results
 test-output/
 TODO
-.*
 !/.gitignore
 !/.scalafmt.conf
 .tags*
@@ -14,5 +13,5 @@ project/target/
 .classpath
 TAGS
 .tags
-metals.sbt
 .metals
+.bloop

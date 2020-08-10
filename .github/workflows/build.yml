@@ -1,0 +1,125 @@
+name: build
+
+on: [ push, pull_request ]
+
+jobs:
+  
+  jvm-tests:
+    name: scala-${{ matrix.scala }} jdk-${{ matrix.java }} tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        java: [ 8, 11 ]
+        scala: [ 2.11.12, 2.12.11, 2.13.1 ]
+    
+    steps:
+      - uses: actions/checkout@v2
+      - uses: olafurpg/setup-scala@v7
+        with:
+          java-version: "adopt@1.${{ matrix.java }}"
+          
+      - name: Cache SBT Coursier directory
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/coursier/v1
+          key: ${{ runner.os }}-coursier-${{ hashFiles('**/*.sbt') }}
+          restore-keys: |
+            ${{ runner.os }}-coursier-
+      - name: Cache SBT directory
+        uses: actions/cache@v1
+        with:
+          path: ~/.sbt
+          key: |
+            ${{ runner.os }}-sbt-${{ hashFiles('project/build.properties') }}-${{ hashFiles('project/plugins.sbt') }}
+          restore-keys: ${{ runner.os }}-sbt-
+          
+      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}
+        run: |
+          ./.github/scripts/build
+        env:
+          SCALA_VERSION: ${{ matrix.scala }}
+          PLATFORM: ${{ matrix.java }}
+          SBT_COMMAND: ci-jvm
+              
+  js-tests:
+    name: scalajs-${{ matrix.scalajs }} scala-${{ matrix.scala }} jdk-${{ matrix.java }}   tests
+    runs-on: ubuntu-latest
+    needs: jvm-tests
+    strategy:
+      fail-fast: true
+      matrix:
+        java: [ 8 ]
+        scala: [ 2.11.12, 2.12.11, 2.13.1 ]
+        scalajs: [ 0.6.32, 1.0.0 ]
+    
+    steps:
+      - uses: actions/checkout@v2
+      - uses: olafurpg/setup-scala@v7
+        with:
+          java-version: "adopt@1.${{ matrix.java }}"
+          
+      - name: Cache SBT Coursier directory
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/coursier/v1
+          key: ${{ runner.os }}-coursier-${{ hashFiles('**/*.sbt') }}
+          restore-keys: |
+            ${{ runner.os }}-coursier-
+      - name: Cache SBT directory
+        uses: actions/cache@v1
+        with:
+          path: ~/.sbt
+          key: |
+            ${{ runner.os }}-sbt-${{ hashFiles('project/build.properties') }}-${{ hashFiles('project/plugins.sbt') }}
+          restore-keys: ${{ runner.os }}-sbt-
+          
+      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}, ScalaJS ${{ matrix.scalajs }}
+        run: |
+          ./.github/scripts/build
+        env:
+          SCALA_VERSION: ${{ matrix.scala }}
+          SCALAJS_VERSION: ${{ matrix.scalaJS }}
+          PLATFORM: ${{ matrix.java }}
+          SBT_COMMAND: ci-js
+  
+  mima:
+    name: Mima binary compatibility test
+    needs: [js-tests]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        java: [ 8 ]
+        scala: [ 2.11.12  ]
+        scalajs: [ 0.6.32 ]
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: olafurpg/setup-scala@v7
+        with:
+          java-version: "adopt@1.${{ matrix.java }}"
+     
+      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}, ScalaJS ${{ matrix.scalajs }}
+        run: |
+          ./.github/scripts/build
+        env:
+          SCALA_VERSION: ${{ matrix.scala }}
+          SCALAJS_VERSION: ${{ matrix.scalaJS }}
+          SBT_COMMAND: ci-jvm-mima
+      
+  publish:
+    needs: [ jvm-tests, js-tests,  mima ]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: olafurpg/setup-scala@v2
+      - uses: olafurpg/setup-gpg@v2
+      - name: Publish ${{ github.ref }}
+        run: sbt ci-release
+        env:
+          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+          PGP_SECRET: ${{ secrets.PGP_SECRET }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
