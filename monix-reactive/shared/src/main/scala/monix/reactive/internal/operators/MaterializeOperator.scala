@@ -45,6 +45,7 @@ private[reactive] final class MaterializeOperator[A] extends Operator[A, Notific
             out.onNext(OnError(ex))
             out.onComplete()
           }
+          ()
         }
 
       def onComplete(): Unit =
@@ -54,6 +55,7 @@ private[reactive] final class MaterializeOperator[A] extends Operator[A, Notific
             out.onNext(OnComplete)
             out.onComplete()
           }
+          ()
         }
     }
 }

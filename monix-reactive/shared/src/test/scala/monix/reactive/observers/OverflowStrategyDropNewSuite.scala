@@ -290,7 +290,7 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
       DropNew(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
     startConsuming.success(Continue)
 
@@ -316,7 +316,7 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
       DropNew(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
     s.tick()
 
@@ -342,13 +342,13 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
       DropNew(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onError(DummyException("dummy"))
     startConsuming.success(Continue)
 
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
-    assertEquals(sum, (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
   test("should do onError only after all the queue was drained, test2") { implicit s =>
@@ -368,12 +368,12 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
       DropNew(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onError(DummyException("dummy"))
 
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
-    assertEquals(sum, (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
   test("subscriber STOP after a synchronous onNext") { implicit s =>
@@ -619,6 +619,7 @@ object OverflowStrategyDropNewSuite extends TestSuite[TestScheduler] {
   test("buffer size is required to be greater than 1") { implicit s =>
     intercept[IllegalArgumentException] {
       BufferedSubscriber[Int](Subscriber.empty[Int], DropNew(1))
+      ()
     }
     ()
   }

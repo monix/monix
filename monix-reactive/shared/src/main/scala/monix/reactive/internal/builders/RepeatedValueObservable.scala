@@ -59,6 +59,7 @@ private[reactive] final class RepeatedValueObservable[A](initialDelay: FiniteDur
         // No need to synchronize, since we have a happens-before
         // relationship between scheduleOnce invocations.
         task := s.scheduleOnce(initialDelay, TimeUnit.MILLISECONDS, self)
+        ()
       }
 
       def asyncScheduleNext(r: Try[Ack]): Unit = r match {

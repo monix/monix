@@ -18,7 +18,6 @@
 package monix.execution
 
 import minitest.TestSuite
-import cats.Monad
 import monix.execution.cancelables.{BooleanCancelable, ChainedCancelable}
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
@@ -54,7 +53,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
 
   test("cancellation works") { implicit s =>
     val p = Promise[Unit]()
-    val task = s.scheduleOnce(10.seconds)(p.success(()))
+    val task = s.scheduleOnce(10.seconds) { p.success(()); () }
     val f = CancelableFuture(p.future, task)
 
     s.tick()
@@ -92,7 +91,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     val b = BooleanCancelable()
     val fa = CancelableFuture.async[Int] { _ =>
       val ch = ChainedCancelable()
-      s.executeAsync(() => ch := b)
+      s.executeAsync(() => { ch := b; () })
       ch
     }
 
@@ -108,7 +107,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     val b = BooleanCancelable()
     val fa = CancelableFuture.async[Int] { _ =>
       val ch = ChainedCancelable()
-      s.executeAsync(() => ch := b)
+      s.executeAsync(() => { ch := b; () })
       ch
     }
 
@@ -528,9 +527,11 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     val first = CancelableFuture.successful(())
 
     val f = first.flatMap { _ =>
-      CancelableFuture(CancelableFuture.never[Unit], Cancelable { () =>
-        c.cancel()
-      })
+      CancelableFuture(
+        CancelableFuture.never[Unit],
+        Cancelable { () =>
+          c.cancel()
+        })
     }
 
     assert(first.isCompleted, "!first.isCompleted")

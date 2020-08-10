@@ -89,19 +89,21 @@ private[reactive] final class ReactiveSubscriberAsMonixSubscriber[A] private (
       isComplete = true
       if (firstEvent) subscriber.onSubscribe(createSubscription())
       ack.syncOnContinue(subscriber.onComplete())
+      ()
     }
 
-  private def createSubscription() = new Subscription {
-    def cancel(): Unit = self.cancel()
+  private def createSubscription(): Subscription =
+    new Subscription {
+      def cancel(): Unit = self.cancel()
 
-    def request(n: Long): Unit = {
-      try requests.request(n)
-      catch {
-        case ex: IllegalArgumentException =>
-          subscriber.onError(ex)
-      }
+      def request(n: Long): Unit =
+        try {
+          requests.request(n)
+        } catch {
+          case ex: IllegalArgumentException =>
+            subscriber.onError(ex)
+        }
     }
-  }
 }
 
 private[reactive] object ReactiveSubscriberAsMonixSubscriber {
@@ -122,7 +124,7 @@ private[reactive] object ReactiveSubscriberAsMonixSubscriber {
 
     @tailrec
     def await(): Future[Long] = {
-      state.get match {
+      state.get() match {
         case CancelledState =>
           Future.successful(0)
 
@@ -154,7 +156,7 @@ private[reactive] object ReactiveSubscriberAsMonixSubscriber {
         "n must be strictly positive, according to " +
           "the Reactive Streams contract, rule 3.9")
 
-      state.get match {
+      state.get() match {
         case CancelledState =>
           () // do nothing
 
@@ -164,8 +166,10 @@ private[reactive] object ReactiveSubscriberAsMonixSubscriber {
 
           if (!state.compareAndSet(oldState, newState))
             request(n)
-          else
+          else {
             p.success(n)
+            ()
+          }
 
         case oldState @ ActiveState(Queue(requested), promises) if requested > 0 =>
           val r = requested + n
@@ -183,7 +187,7 @@ private[reactive] object ReactiveSubscriberAsMonixSubscriber {
 
     @tailrec
     def cancel(): Unit = {
-      state.get match {
+      state.get() match {
         case CancelledState =>
           () // do nothing
 

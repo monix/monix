@@ -314,6 +314,7 @@ final class AsyncQueue[A] private[monix] (
     if (ref ne null) {
       if (consumersAwaiting.compareAndSet(ref, null)) {
         ref.complete(Constants.successOfUnit)
+        ()
       } else {
         notifyConsumers()
       }
@@ -332,6 +333,7 @@ final class AsyncQueue[A] private[monix] (
       if (ref ne null) {
         if (producersAwaiting.compareAndSet(ref, null)) {
           ref.complete(Constants.successOfUnit)
+          ()
         } else {
           notifyProducers()
         }
@@ -391,11 +393,13 @@ final class AsyncQueue[A] private[monix] (
       val value = f()
       if (filter(value)) {
         cb.success(map(value))
+        ()
       } else {
         // Awaits on promise, then repeats
         token := p.subscribe { _ =>
           sleepThenRepeat_Step3Awaken(state, f, filter, map, cb, token)
         }
+        ()
       }
     }
   }
@@ -412,6 +416,7 @@ final class AsyncQueue[A] private[monix] (
     val value = f()
     if (filter(value)) {
       cb.success(map(value))
+      ()
     } else {
       // Go to sleep again
       sleepThenRepeat(state, f, filter, map, cb, token)
@@ -473,8 +478,8 @@ object AsyncQueue {
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
-  def withConfig[A](capacity: BufferCapacity, channelType: ChannelType)(
-    implicit scheduler: Scheduler): AsyncQueue[A] = {
+  def withConfig[A](capacity: BufferCapacity, channelType: ChannelType)(implicit
+    scheduler: Scheduler): AsyncQueue[A] = {
 
     new AsyncQueue[A](capacity, channelType)
   }

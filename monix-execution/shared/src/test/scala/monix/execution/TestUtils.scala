@@ -24,6 +24,9 @@ import scala.util.control.NonFatal
   * INTERNAL API — test utilities.
   */
 trait TestUtils {
+  lazy val isCI =
+    System.getenv("TRAVIS") == "true" ||
+    System.getenv("CI") == "true"
 
   /**
     * Silences `System.err`, only printing the output in case exceptions are

@@ -37,13 +37,13 @@ private[monix] final class DynamicWorkerThreadFactory(
   private[this] val currentNumberOfThreads = AtomicInt(0)
 
   @tailrec private def reserveThread(): Boolean =
-    currentNumberOfThreads.get match {
+    currentNumberOfThreads.get() match {
       case `maxThreads` | Int.`MaxValue` => false
       case other => currentNumberOfThreads.compareAndSet(other, other + 1) || reserveThread()
     }
 
   @tailrec private def deregisterThread(): Boolean =
-    currentNumberOfThreads.get match {
+    currentNumberOfThreads.get() match {
       case 0 => false
       case other => currentNumberOfThreads.compareAndSet(other, other - 1) || deregisterThread()
     }
@@ -61,9 +61,14 @@ private[monix] final class DynamicWorkerThreadFactory(
     else
       wire(new Thread(new Runnable {
         // We have to decrement the current thread count when the thread exits
-        override def run() =
-          try runnable.run()
-          finally deregisterThread()
+        override def run() = {
+          try {
+            runnable.run()
+          } finally { 
+            deregisterThread()
+            ()
+          }
+        }
       }))
 
   def newThread(fjp: ForkJoinPool): ForkJoinWorkerThread =
@@ -71,8 +76,10 @@ private[monix] final class DynamicWorkerThreadFactory(
     else {
       wire(new ForkJoinWorkerThread(fjp) with BlockContext {
         // We have to decrement the current thread count when the thread exits
-        final override def onTermination(exception: Throwable): Unit =
+        final override def onTermination(exception: Throwable): Unit = {
           deregisterThread()
+          ()
+        }
 
         final override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
           var result: T = null.asInstanceOf[T]

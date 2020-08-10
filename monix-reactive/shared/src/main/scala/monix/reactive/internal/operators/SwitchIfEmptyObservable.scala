@@ -40,10 +40,12 @@ private[reactive] final class SwitchIfEmptyObservable[+A](source: Observable[A],
 
       def onComplete(): Unit = {
         // If the source was empty, switch to the backup.
-        if (isEmpty)
+        if (isEmpty) {
           cancelable.orderedUpdate(backup.unsafeSubscribeFn(out), 2)
-        else
+          ()
+        } else {
           out.onComplete()
+        }
       }
 
       def onError(ex: Throwable): Unit =

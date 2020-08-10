@@ -33,8 +33,6 @@ private[eval] object TaskDoOnCancel {
     } else {
       val start = (context: Context, onFinish: Callback[Throwable, A]) => {
         implicit val s = context.scheduler
-        implicit val o = context.options
-
         context.connection.push(callback)
         Task.unsafeStartNow(self, context, new CallbackThatPops(context, onFinish))
       }

@@ -148,7 +148,7 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
     import scala.concurrent.ExecutionContext.Implicits.global
 
     repeatTest(100) { () =>
-      val available = 6
+      val available = 6L
       val semaphore = AsyncSemaphore(provisioned = available)
       val count = if (Platform.isJVM) 10000 else 100
       val allReleased = Promise[Unit]()
@@ -157,7 +157,8 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
         allReleased.completeWith(semaphore.awaitAvailable(available))
 
         val futures = for (i <- 0 until count) yield {
-          semaphore.withPermitN(Math.floorMod(Random.nextInt(), 3) + 1) { () =>
+          val n = (Math.floorMod(Random.nextInt(), 3) + 1).toLong
+          semaphore.withPermitN(n) { () =>
             Future(1).map { x =>
               assert(!allReleased.isCompleted, s"!allReleased.isCompleted (index $i)")
               x
@@ -180,19 +181,19 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
     // Executing Futures on the global scheduler!
     import scala.concurrent.ExecutionContext.Implicits.global
 
-    def acquireN(semaphore: AsyncSemaphore, n: Int): Future[Unit] =
+    def acquireN(semaphore: AsyncSemaphore, n: Long): Future[Unit] =
       Future(semaphore.tryAcquireN(n)).flatMap {
         case true => Future.successful(())
         case false => acquireN(semaphore, n)
       }
 
-    def withPermitN[A](semaphore: AsyncSemaphore, n: Int)(f: () => Future[A]): Future[A] =
+    def withPermitN[A](semaphore: AsyncSemaphore, n: Long)(f: () => Future[A]): Future[A] =
       acquireN(semaphore, n).flatMap { _ =>
         FutureUtils.transform[A, A](f(), r => { semaphore.releaseN(n); r })
       }
 
     repeatTest(10) { () =>
-      val available = 6
+      val available = 6L
       val semaphore = AsyncSemaphore(provisioned = available)
       val count = if (Platform.isJVM) 1000 else 100
       val allReleased = Promise[Unit]()
@@ -201,7 +202,7 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
         allReleased.completeWith(semaphore.awaitAvailable(available))
 
         val futures = for (i <- 0 until count) yield {
-          withPermitN(semaphore, Math.floorMod(Random.nextInt(), 3) + 1) { () =>
+          withPermitN(semaphore, (Math.floorMod(Random.nextInt(), 3) + 1).toLong) { () =>
             Future(1).map { x =>
               assert(!allReleased.isCompleted, s"!allReleased.isCompleted (index $i)")
               x
@@ -217,7 +218,7 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
         assertEquals(r, count)
         assertEquals(semaphore.available(), available)
       }
-    }
+    }    
   }
 
   def repeatTest(n: Int)(f: () => Future[Unit])(implicit ec: ExecutionContext): Future[Unit] =

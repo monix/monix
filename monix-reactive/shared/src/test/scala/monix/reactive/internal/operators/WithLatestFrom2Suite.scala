@@ -38,7 +38,7 @@ object WithLatestFrom2Suite extends BaseOperatorSuite {
             .withLatestFrom2(other, other)(_ + _ + _)
         else
           Observable
-            .range(1, sourceCount + 1, 1)
+            .range(1, sourceCount.toLong + 1, 1)
             .delayExecution(1.second)
             .withLatestFrom2(other, other)(_ + _ + _)
 
@@ -57,7 +57,7 @@ object WithLatestFrom2Suite extends BaseOperatorSuite {
           .withLatestFrom2(other, other)(_ + _ + _)
       else
         Observable
-          .range(1, sourceCount + 1, 1)
+          .range(1, sourceCount.toLong + 1, 1)
           .delayExecution(1.second)
           .endWithError(ex)
           .withLatestFrom2(other, other)(_ + _ + _)
@@ -77,7 +77,7 @@ object WithLatestFrom2Suite extends BaseOperatorSuite {
             .withLatestFrom2(other, other)((x1, x2, x3) => throw ex)
         else
           Observable
-            .range(1, sourceCount + 1, 1)
+            .range(1, sourceCount.toLong + 1, 1)
             .delayExecution(1.second)
             .withLatestFrom2(other, other) { (x1, x2, x3) =>
               if (x1 == sourceCount)

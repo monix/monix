@@ -24,13 +24,13 @@ object DropByPredicateInclusiveSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = Observable.range(1, sourceCount * 2).dropWhileInclusive(_ < (sourceCount - 1))
+      val o = Observable.range(1L, sourceCount.toLong * 2).dropWhileInclusive(_ < (sourceCount - 1))
       Sample(o, count(sourceCount), sum(sourceCount), 0.seconds, 0.seconds)
     }
   }
 
   def sum(sourceCount: Int): Long =
-    (1 until sourceCount * 2).drop(sourceCount - 1).sum
+    (1 until sourceCount * 2).drop(sourceCount - 1).sum.toLong
 
   def count(sourceCount: Int) =
     sourceCount
@@ -38,7 +38,7 @@ object DropByPredicateInclusiveSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = createObservableEndingInError(Observable.range(1, sourceCount + 2), ex)
+      val o = createObservableEndingInError(Observable.range(1, sourceCount.toLong + 2), ex)
         .dropWhileInclusive(_ < 1)
 
       Sample(o, count(sourceCount), sum(sourceCount), 0.seconds, 0.seconds)
@@ -46,7 +46,7 @@ object DropByPredicateInclusiveSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(1, sourceCount * 2).dropWhileInclusive { elem =>
+    val o = Observable.range(1L, sourceCount.toLong * 2).dropWhileInclusive { elem =>
       if (elem < sourceCount) true else throw ex
     }
 

@@ -22,12 +22,12 @@ import minitest.SimpleTestSuite
 object ThreadLocalSuite extends SimpleTestSuite {
   test("ThreadLocal should work") {
     val tl = ThreadLocal(10)
-    assertEquals(tl.get, 10)
+    assertEquals(tl.get(), 10)
 
     tl.set(20)
-    assertEquals(tl.get, 20)
+    assertEquals(tl.get(), 20)
 
     tl.reset()
-    assertEquals(tl.get, 10)
+    assertEquals(tl.get(), 10)
   }
 }

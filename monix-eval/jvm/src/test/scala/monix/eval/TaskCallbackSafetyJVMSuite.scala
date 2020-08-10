@@ -18,20 +18,18 @@
 package monix.eval
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
+
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.{CallbackCalledMultipleTimesException, DummyException}
 import monix.execution.schedulers.SchedulerService
-import monix.execution.{Callback, Scheduler}
+import monix.execution.{Callback, Scheduler, TestUtils}
+
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-object TaskCallbackSafetyJVMSuite extends SimpleTestSuite {
-  val isTravis = {
-    System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
-  }
-
+object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
   val WORKERS = 10
-  val RETRIES = if (!isTravis) 1000 else 100
+  val RETRIES = if (!isCI) 1000 else 100
 
   test("Task.async has a safe callback") {
     runConcurrentCallbackTest(Task.async)
@@ -88,9 +86,9 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite {
       }
     }
 
-    run(_.tryOnSuccess(1))
-    run(_.tryApply(Right(1)))
-    run(_.tryApply(Success(1)))
+    run { cb => cb.tryOnSuccess(1); () }
+    run { cb => cb.tryApply(Right(1)); () }
+    run { cb => cb.tryApply(Success(1)); () }
 
     run(cb =>
       try cb.onSuccess(1)
@@ -104,9 +102,9 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite {
 
     val dummy = DummyException("dummy")
 
-    run(_.tryOnError(dummy))
-    run(_.tryApply(Left(dummy)))
-    run(_.tryApply(Failure(dummy)))
+    run { cb => cb.tryOnError(dummy); () }
+    run { cb => cb.tryApply(Left(dummy)); () }
+    run { cb => cb.tryApply(Failure(dummy)); () }
 
     run(cb =>
       try cb.onError(dummy)
@@ -140,6 +138,6 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite {
 
   def await(latch: CountDownLatch): Unit = {
     val seconds = 10
-    assert(latch.await(seconds, TimeUnit.SECONDS), s"latch.await($seconds seconds)")
+    assert(latch.await(seconds.toLong, TimeUnit.SECONDS), s"latch.await($seconds seconds)")
   }
 }

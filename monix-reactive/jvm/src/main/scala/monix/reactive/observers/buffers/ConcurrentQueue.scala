@@ -21,9 +21,9 @@ import java.util
 import monix.execution.internal.Platform
 import monix.execution.internal.atomic.UnsafeAccess
 import monix.execution.internal.math.nextPowerOf2
-import org.jctools.queues._
-import org.jctools.queues.MessagePassingQueue.Consumer
-import org.jctools.queues.atomic.{MpscAtomicArrayQueue, MpscLinkedAtomicQueue}
+import monix.execution.internal.jctools.queues._
+import monix.execution.internal.jctools.queues.MessagePassingQueue.Consumer
+import monix.execution.internal.jctools.queues.atomic.{MpscAtomicArrayQueue, MpscLinkedAtomicQueue}
 import scala.collection.mutable
 
 /** A simple internal interface providing the needed commonality between
@@ -89,7 +89,6 @@ private[buffers] object ConcurrentQueue {
 
   /** Builds an instance from a `MessagePassingQueue`. */
   private final class FromMessagePassingQueue[A](underlying: MessagePassingQueue[A]) extends ConcurrentQueue[A] {
-
     def isEmpty: Boolean =
       underlying.isEmpty
     def offer(elem: A): Boolean =
@@ -98,8 +97,14 @@ private[buffers] object ConcurrentQueue {
       underlying.relaxedPoll()
 
     def drainToBuffer(buffer: mutable.Buffer[A], limit: Int): Unit = {
-      val consumer: Consumer[A] = new Consumer[A] { def accept(e: A): Unit = buffer += e }
+      val consumer: Consumer[A] = new Consumer[A] {
+        def accept(e: A): Unit = {
+          buffer += e
+          ()
+        }
+      }
       underlying.drain(consumer, limit)
+      ()
     }
   }
 }

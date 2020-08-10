@@ -58,7 +58,7 @@ private[tail] object IterantScanEval {
 
     def visit(ref: NextCursor[F, A]): Iterant[F, S] = {
       val cursor = ref.cursor
-      if (!cursor.hasNext)
+      if (!cursor.hasNext())
         Suspend[F, S](ref.rest.map(this))
       else {
         val head = cursor.next()

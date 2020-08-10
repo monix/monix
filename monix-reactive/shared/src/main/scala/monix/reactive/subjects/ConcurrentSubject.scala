@@ -241,6 +241,7 @@ object ConcurrentSubject {
       def subscribe(subscriber: RSubscriber[_ >: O]): Unit = {
         val sub = SingleAssignCancelable()
         sub := source.unsafeSubscribeFn(Subscriber.fromReactiveSubscriber(subscriber, sub))
+        ()
       }
 
       def onSubscribe(s: Subscription): Unit =

@@ -52,13 +52,13 @@ final class PublishToOneSubject[A] private () extends Subject[A, A] with Boolean
   val subscription = subscriptionP.future
 
   def size: Int =
-    ref.get match {
+    ref.get() match {
       case null | `pendingCompleteState` | `canceledState` => 0
       case _ => 1
     }
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable =
-    ref.get match {
+    ref.get() match {
       case null =>
         if (!ref.compareAndSet(null, subscriber))
           unsafeSubscribeFn(subscriber) // retry
@@ -86,7 +86,7 @@ final class PublishToOneSubject[A] private () extends Subject[A, A] with Boolean
     }
 
   def onNext(elem: A): Future[Ack] =
-    ref.get match {
+    ref.get() match {
       case null => Continue
       case subscriber =>
         subscriber.onNext(elem)
@@ -101,7 +101,7 @@ final class PublishToOneSubject[A] private () extends Subject[A, A] with Boolean
     signalComplete()
 
   @tailrec private def signalComplete(): Unit = {
-    ref.get match {
+    ref.get() match {
       case null =>
         if (!ref.compareAndSet(null, pendingCompleteState))
           signalComplete() // retry
@@ -118,7 +118,7 @@ final class PublishToOneSubject[A] private () extends Subject[A, A] with Boolean
   }
 
   def isCanceled: Boolean =
-    ref.get eq canceledState
+    ref.get() eq canceledState
 
   def cancel(): Unit =
     ref.set(canceledState)

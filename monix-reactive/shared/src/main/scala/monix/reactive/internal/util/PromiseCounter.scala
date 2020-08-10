@@ -38,11 +38,16 @@ private[monix] final class PromiseCounter[A] private (value: A, initial: Int) {
 
   def countdown(): Unit = {
     val update = counter.decrementAndGet()
-    if (update == 0) promise.success(value)
+    if (update == 0) {
+      promise.success(value)
+      ()
+    }
   }
 
-  def success(value: A): Unit =
+  def success(value: A): Unit = {
     promise.success(value)
+    ()
+  }
 }
 
 private[monix] object PromiseCounter {

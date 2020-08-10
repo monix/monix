@@ -4,7 +4,7 @@
 
 Asynchronous, Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
 
-[![Build Status](https://travis-ci.org/monix/monix.svg?branch=master)](https://travis-ci.org/monix/monix)
+[![Build status](https://github.com/monix/monix/workflows/build/badge.svg)](https://github.com/monix/monix/actions?query=workflow%3Abuild)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monix/monix?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 ## Overview
@@ -46,11 +46,11 @@ a project exemplifying Monix used both on the server and on the client.
 The packages are published on Maven Central.
 
 For the stable release (compatible with Cats and Cats-Effect 2.x):
-
+ 
 ```scala
 libraryDependencies += "io.monix" %% "monix" % "3.2.2"
 ```
-
+  
 ### Sub-projects
 
 Monix 3.x is modular by design, so you can pick and choose:

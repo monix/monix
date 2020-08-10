@@ -245,7 +245,7 @@ private[tail] object IterantZipMap {
         rhStackPop() match {
           case null =>
             val NextCursor(itemsA, restA) = lhRef
-            if (!itemsA.hasNext)
+            if (!itemsA.hasNext())
               Suspend(restA.map(lhLoop))
             else {
               val a = itemsA.next()
@@ -364,7 +364,7 @@ private[tail] object IterantZipMap {
       loop: Iterant.Visitor[F, B, Iterant[F, C]]): Iterant[F, C] = {
 
       val NextCursor(itemsB, restB) = refB
-      if (!itemsB.hasNext)
+      if (!itemsB.hasNext())
         Suspend(restB.map(loop))
       else
         processPair(a, restA, itemsB.next(), F.pure(refB))
@@ -373,7 +373,7 @@ private[tail] object IterantZipMap {
     def processSeqAOneB(refA: NextCursor[F, A], rh: Iterant[F, B], b: B, restB: F[Iterant[F, B]]): Iterant[F, C] = {
 
       val NextCursor(itemsA, restA) = refA
-      if (!itemsA.hasNext)
+      if (!itemsA.hasNext())
         Suspend(restA.map(lhLoop.withRh(rh)))
       else
         processPair(itemsA.next(), F.pure(refA), b, restB)
@@ -431,9 +431,9 @@ private[tail] object IterantZipMap {
           // We are not done, continue loop
           NextBatch(Batch.fromArray(array).asInstanceOf[Batch[C]], F.delay(loop(refA, refB)))
         }
-      } else if (!itemsA.hasNext)
+      } else if (!itemsA.hasNext())
         Suspend(restA.map(lhLoop.withRh(refB)))
-      else if (!itemsB.hasNext)
+      else if (!itemsB.hasNext())
         Suspend(restB.map(loop(refA, _)))
       else {
         val a = itemsA.next()

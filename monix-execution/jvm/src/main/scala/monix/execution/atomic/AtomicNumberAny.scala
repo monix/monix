@@ -50,14 +50,14 @@ final class AtomicNumberAny[A <: AnyRef: Numeric] private (private[this] val ref
 
   @tailrec
   def increment(v: Int = 1): Unit = {
-    val current = get
+    val current = get()
     if (!compareAndSet(current, ev.plus(current, ev.fromInt(v))))
       increment(v)
   }
 
   @tailrec
   def incrementAndGet(v: Int = 1): A = {
-    val current = get
+    val current = get()
     val update = ev.plus(current, ev.fromInt(v))
     if (!compareAndSet(current, update))
       incrementAndGet(v)
@@ -67,7 +67,7 @@ final class AtomicNumberAny[A <: AnyRef: Numeric] private (private[this] val ref
 
   @tailrec
   def getAndIncrement(v: Int = 1): A = {
-    val current = get
+    val current = get()
     val update = ev.plus(current, ev.fromInt(v))
     if (!compareAndSet(current, update))
       getAndIncrement(v)
@@ -77,7 +77,7 @@ final class AtomicNumberAny[A <: AnyRef: Numeric] private (private[this] val ref
 
   @tailrec
   def getAndAdd(v: A): A = {
-    val current = get
+    val current = get()
     val update = ev.plus(current, v)
     if (!compareAndSet(current, update))
       getAndAdd(v)
@@ -87,7 +87,7 @@ final class AtomicNumberAny[A <: AnyRef: Numeric] private (private[this] val ref
 
   @tailrec
   def addAndGet(v: A): A = {
-    val current = get
+    val current = get()
     val update = ev.plus(current, v)
     if (!compareAndSet(current, update))
       addAndGet(v)
@@ -97,7 +97,7 @@ final class AtomicNumberAny[A <: AnyRef: Numeric] private (private[this] val ref
 
   @tailrec
   def add(v: A): Unit = {
-    val current = get
+    val current = get()
     val update = ev.plus(current, v)
     if (!compareAndSet(current, update))
       add(v)
@@ -105,7 +105,7 @@ final class AtomicNumberAny[A <: AnyRef: Numeric] private (private[this] val ref
 
   @tailrec
   def subtract(v: A): Unit = {
-    val current = get
+    val current = get()
     val update = ev.minus(current, v)
     if (!compareAndSet(current, update))
       subtract(v)
@@ -113,7 +113,7 @@ final class AtomicNumberAny[A <: AnyRef: Numeric] private (private[this] val ref
 
   @tailrec
   def getAndSubtract(v: A): A = {
-    val current = get
+    val current = get()
     val update = ev.minus(current, v)
     if (!compareAndSet(current, update))
       getAndSubtract(v)
@@ -123,7 +123,7 @@ final class AtomicNumberAny[A <: AnyRef: Numeric] private (private[this] val ref
 
   @tailrec
   def subtractAndGet(v: A): A = {
-    val current = get
+    val current = get()
     val update = ev.minus(current, v)
     if (!compareAndSet(current, update))
       subtractAndGet(v)

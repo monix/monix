@@ -33,8 +33,8 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     val p = Promise[Try[Option[A]]]()
     obs.unsafeSubscribeFn(new Observer.Sync[A] {
       def onNext(elem: A) = { p.trySuccess(Success(Some(elem))); Stop }
-      def onError(ex: Throwable): Unit = p.tryFailure(ex)
-      def onComplete(): Unit = p.trySuccess(Success(None))
+      def onError(ex: Throwable): Unit = { p.tryFailure(ex); () }
+      def onComplete(): Unit = { p.trySuccess(Success(None)); () }
     })
     p.future
   }
@@ -59,7 +59,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
       val result: Future[Try[Option[Long]]] =
         obs.countL.map(Some.apply).materialize.runToFuture
 
-      result <-> Future.successful(Success(Some(list.length)))
+      result <-> Future.successful(Success(Some(list.length.toLong)))
     }
   }
 
@@ -276,7 +276,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val sumRef = Atomic(0)
-      val result: Future[Int] = obs.foreachL(sumRef.increment).runToFuture.map(_ => sumRef.get)
+      val result: Future[Int] = obs.foreachL(sumRef.increment).runToFuture.map(_ => sumRef.get())
       result <-> Future.successful(list.sum)
     }
   }

@@ -243,7 +243,7 @@ final class CircuitBreaker[F[_]] private (
     * debugging purposes.
     */
   val state: F[CircuitBreaker.State] =
-    F.delay(stateRef.get)
+    F.delay(stateRef.get())
 
   /** Returns a new task that upon execution will execute the given
     * task, but with the protection of this circuit breaker.
@@ -271,7 +271,7 @@ final class CircuitBreaker[F[_]] private (
   def awaitClose(implicit F: Concurrent[F] OrElse Async[F]): F[Unit] = {
     val F0 = F.unify
     F0.suspend {
-      stateRef.get match {
+      stateRef.get() match {
         case ref: Open =>
           FutureLift.scalaToConcurrentOrAsync(F0.pure(ref.awaitClose.future))
         case ref: HalfOpen =>
@@ -293,7 +293,7 @@ final class CircuitBreaker[F[_]] private (
 
     // Recursive function because of going into CAS loop
     @tailrec def markFailure[A](result: Either[Throwable, A]): F[A] =
-      stateRef.get match {
+      stateRef.get() match {
         case current @ Closed(failures) =>
           result match {
             case Right(a) =>
@@ -391,7 +391,7 @@ final class CircuitBreaker[F[_]] private (
     }
 
   private def unsafeProtect[A](task: F[A]): F[A] =
-    stateRef.get match {
+    stateRef.get() match {
       case Closed(_) =>
         val bind = maybeMarkOrResetFailures.asInstanceOf[Either[Throwable, A] => F[A]]
         task.attempt.flatMap(bind)

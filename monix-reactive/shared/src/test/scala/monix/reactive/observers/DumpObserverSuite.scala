@@ -49,7 +49,7 @@ object DumpObserverSuite extends SimpleTestSuite {
     out.onComplete()
     out.onError(DummyException("dummy"))
 
-    assertEquals(counter.get, 4)
+    assertEquals(counter.get(), 4)
   }
 
   test("Subscriber.dump works") {
@@ -62,6 +62,6 @@ object DumpObserverSuite extends SimpleTestSuite {
     out.onComplete()
     out.onError(DummyException("dummy"))
 
-    assertEquals(counter.get, 4)
+    assertEquals(counter.get(), 4)
   }
 }

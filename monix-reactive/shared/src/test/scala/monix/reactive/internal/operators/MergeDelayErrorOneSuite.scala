@@ -28,8 +28,8 @@ object MergeDelayErrorOneSuite extends BaseOperatorSuite {
 
   def create(sourceCount: Int, ex: Throwable = null) = Some {
     val source =
-      if (ex == null) Observable.range(0, sourceCount)
-      else Observable.range(0, sourceCount).endWithError(ex)
+      if (ex == null) Observable.range(0L, sourceCount.toLong)
+      else Observable.range(0L, sourceCount.toLong).endWithError(ex)
 
     val o = source.mergeMapDelayErrors(i => Observable.now(i).endWithError(SomeException(10)))
 

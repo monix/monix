@@ -71,7 +71,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
       val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1, allowErrors = false)
         .guarantee(Coeval.eval(cancelable.cancel()))
 
-      stream.takeWhile(_ => false).toListL.value == Nil &&
+      stream.takeWhile(_ => false).toListL.value() == Nil &&
       (list.length < 2 || cancelable.isCanceled)
     }
   }
@@ -112,7 +112,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
       val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty))
       val stream = (iter.onErrorIgnore ++ suffix).guarantee(Coeval.eval(cancelable.cancel()))
 
-      intercept[DummyException] { stream.takeWhile(_ => true).toListL.value() }
+      intercept[DummyException] { stream.takeWhile(_ => true).toListL.value(); () }
       cancelable.isCanceled
     }
   }

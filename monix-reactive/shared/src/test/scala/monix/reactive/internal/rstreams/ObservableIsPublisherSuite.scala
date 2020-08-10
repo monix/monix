@@ -155,7 +155,7 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
 
         def onSubscribe(s: Subscription): Unit = {
           this.s = s
-          s.request(requested)
+          s.request(requested.toLong)
         }
 
         def onNext(elem: Long): Unit = {
@@ -163,7 +163,7 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
 
           requested -= 1
           if (requested == 0) {
-            s.request(chunkSize)
+            s.request(chunkSize.toLong)
             requested = chunkSize
           }
         }
@@ -198,13 +198,13 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
 
         def onSubscribe(s: Subscription): Unit = {
           this.s = s
-          s.request(requested)
+          s.request(requested.toLong)
         }
 
         def onNext(elem: Long): Unit = {
           requested -= 1
           if (requested == 0) {
-            s.request(chunkSize)
+            s.request(chunkSize.toLong)
             requested = chunkSize
           }
 

@@ -30,7 +30,7 @@ object ThrottleFirstSuite extends BaseOperatorSuite {
       val div2 = sourceCount / 2 * 2
       val o = Observable
         .intervalAtFixedRate(500.millis)
-        .take(div2)
+        .take(div2.toLong)
         .throttleFirst(1.second)
 
       val count = div2 / 2

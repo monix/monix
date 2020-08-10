@@ -25,7 +25,7 @@ import scala.concurrent.duration.Duration.Zero
 object OnErrorFallbackToSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val obs = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .endWithError(DummyException("expected"))
       .onErrorFallbackTo(Observable.range(0, 10))
 

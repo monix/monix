@@ -47,7 +47,7 @@ object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assertEquals(f.value, Some(Success(())))
-    assertEquals(sum.get, count * (count - 1) / 2)
+    assertEquals(sum.get(), count * (count - 1) / 2)
   }
 
   test("should interrupt with error") { implicit s =>

@@ -65,7 +65,7 @@ private[reactive] final class WhileBusyDropEventsAndSignalOperator[A](onOverflow
               }
 
             case Stop => Stop
-            case async =>
+            case _ =>
               eventsDropped += 1
               Continue
           }
@@ -83,7 +83,7 @@ private[reactive] final class WhileBusyDropEventsAndSignalOperator[A](onOverflow
 
           if (!hasOverflow)
             out.onComplete()
-          else
+          else {
             ack.syncOnContinue {
               // Protects calls to user code from within the operator and
               // stream the error downstream if it happens, but if the
@@ -100,6 +100,8 @@ private[reactive] final class WhileBusyDropEventsAndSignalOperator[A](onOverflow
                   out.onError(ex)
               }
             }
+          }
+          ()
         }
     }
 }

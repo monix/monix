@@ -161,6 +161,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
 
       intercept[DummyException] {
         stream.mapBatch(Batch.apply(_)).toListL.value()
+        ()
       }
       cancelable.isCanceled
     }

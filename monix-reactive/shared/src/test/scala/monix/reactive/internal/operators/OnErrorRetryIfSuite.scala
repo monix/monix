@@ -28,14 +28,14 @@ object OnErrorRetryIfSuite extends BaseOperatorSuite {
     val ex = DummyException("expected")
 
     val o = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .endWithError(ex)
       .onErrorRestartIf { case DummyException("expected") => retriesCount.incrementAndGet() <= 3 }
       .onErrorHandle(_ => 10L)
 
     val count = sourceCount * 4 + 1
     val sum = 1L * sourceCount * (sourceCount - 1) / 2 * 4 + 10
-    Sample(o, count, sum, Duration.Zero, Duration.Zero)
+    Sample(o, count, sum.toLong, Duration.Zero, Duration.Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) =
@@ -46,18 +46,18 @@ object OnErrorRetryIfSuite extends BaseOperatorSuite {
       val retriesCount = Atomic(0)
 
       val o = Observable
-        .range(0, sourceCount)
+        .range(0L, sourceCount.toLong)
         .endWithError(ex)
         .onErrorRestartIf(_ => retriesCount.incrementAndGet() <= 3)
 
       val count = sourceCount * 4
       val sum = 1L * sourceCount * (sourceCount - 1) / 2 * 4
-      Some(Sample(o, count, sum, Duration.Zero, Duration.Zero))
+      Some(Sample(o, count, sum.toLong, Duration.Zero, Duration.Zero))
     }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
     val retriesCount = Atomic(0)
-    val o = Observable.range(0, sourceCount).endWithError(DummyException("unexpected")).onErrorRestartIf { _ =>
+    val o = Observable.range(0L, sourceCount.toLong).endWithError(DummyException("unexpected")).onErrorRestartIf { _ =>
       if (retriesCount.incrementAndGet() <= 3)
         true
       else
@@ -66,7 +66,7 @@ object OnErrorRetryIfSuite extends BaseOperatorSuite {
 
     val count = sourceCount * 4
     val sum = 1L * sourceCount * (sourceCount - 1) / 2 * 4
-    Sample(o, count, sum, Duration.Zero, Duration.Zero)
+    Sample(o, count, sum.toLong, Duration.Zero, Duration.Zero)
   }
 
   override def cancelableObservables() = {

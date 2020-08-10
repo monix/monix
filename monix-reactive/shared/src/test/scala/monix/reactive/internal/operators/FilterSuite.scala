@@ -42,7 +42,7 @@ object FilterSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           Observable.now(2L).filter(_ % 2 == 0)
         else
-          Observable.range(1, sourceCount * 2 + 1, 1).filter(_ % 2 == 0)
+          Observable.range(1, sourceCount.toLong * 2 + 1, 1).filter(_ % 2 == 0)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -57,7 +57,7 @@ object FilterSuite extends BaseOperatorSuite {
           createObservableEndingInError(Observable.now(2L), ex)
             .filter(_ % 2 == 0)
         else
-          createObservableEndingInError(Observable.range(1, sourceCount * 2 + 1, 1), ex)
+          createObservableEndingInError(Observable.range(1, sourceCount.toLong * 2 + 1, 1), ex)
             .filter(_ % 2 == 0)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -71,7 +71,7 @@ object FilterSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           Observable.now(1L).filter(_ => throw ex)
         else
-          Observable.range(1, sourceCount * 2 + 1, 1).filter { x =>
+          Observable.range(1, sourceCount.toLong * 2 + 1, 1).filter { x =>
             if (x == sourceCount * 2)
               throw ex
             else

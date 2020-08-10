@@ -22,51 +22,51 @@ import minitest.SimpleTestSuite
 object AtomicBuilderSuite extends SimpleTestSuite {
   test("initialize AtomicChar") {
     val ref = Atomic('a')
-    assertEquals(ref.get, 'a')
+    assertEquals(ref.get(), 'a')
   }
 
   test("initialize AtomicBoolean") {
     val ref: AtomicBoolean = Atomic(true)
-    assertEquals(ref.get, true)
+    assertEquals(ref.get(), true)
   }
 
   test("initialize AtomicInt") {
     val ref: AtomicInt = Atomic(10)
-    assertEquals(ref.get, 10)
+    assertEquals(ref.get(), 10)
   }
 
   test("initialize AtomicLong") {
     val ref: AtomicLong = Atomic(10L)
-    assertEquals(ref.get, 10L)
+    assertEquals(ref.get(), 10L)
   }
 
   test("initialize AtomicByte") {
     val ref: AtomicByte = AtomicByte(10.toByte)
-    assertEquals(ref.get, 10.toByte)
+    assertEquals(ref.get(), 10.toByte)
   }
 
   test("initialize AtomicShort") {
     val ref: AtomicShort = AtomicShort(10.toShort)
-    assertEquals(ref.get, 10.toShort)
+    assertEquals(ref.get(), 10.toShort)
   }
 
   test("initialize AtomicFloat") {
     val ref: AtomicFloat = Atomic(0.10f)
-    assertEquals(ref.get, 0.10f)
+    assertEquals(ref.get(), 0.10f)
   }
 
   test("initialize AtomicDouble") {
     val ref: AtomicDouble = Atomic(0.10)
-    assertEquals(ref.get, 0.10)
+    assertEquals(ref.get(), 0.10)
   }
 
   test("initialize AtomicBigInt") {
     val ref: AtomicNumberAny[BigInt] = Atomic(BigInt("10"))
-    assertEquals(ref.get, BigInt("10"))
+    assertEquals(ref.get(), BigInt("10"))
   }
 
   test("initialize AtomicAny(AnyRef)") {
     val ref: AtomicAny[String] = Atomic("value")
-    assertEquals(ref.get, "value")
+    assertEquals(ref.get(), "value")
   }
 }

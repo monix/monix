@@ -30,7 +30,7 @@ object CoevalNowSuite extends BaseTestSuite {
 
     val task = Coeval.now(trigger())
     assert(wasTriggered, "wasTriggered")
-    val r = task.runTry
+    val r = task.runTry()
     assertEquals(r, Success("result"))
   }
 
@@ -46,7 +46,7 @@ object CoevalNowSuite extends BaseTestSuite {
 
     val task = Coeval.raiseError(trigger())
     assert(wasTriggered, "wasTriggered")
-    val r = task.runTry
+    val r = task.runTry()
     assertEquals(r, Failure(dummy))
   }
 

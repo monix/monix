@@ -55,11 +55,12 @@ private[reactive] final class IntervalFixedDelayObservable(initialDelay: FiniteD
 
       def run(): Unit = {
         val ack = o.onNext(counter)
-
-        if (ack == Continue)
+        if (ack == Continue) {
           scheduleNext()
-        else if (ack != Stop)
+          ()
+        } else if (ack != Stop) {
           asyncScheduleNext(ack)
+        }
       }
     }
 

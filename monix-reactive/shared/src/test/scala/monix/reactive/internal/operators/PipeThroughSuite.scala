@@ -35,7 +35,7 @@ object PipeThroughSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           Observable.now(1L).pipeThrough(pipe)
         else
-          Observable.range(1, sourceCount + 1, 1).pipeThrough(pipe)
+          Observable.range(1, sourceCount.toLong + 1, 1).pipeThrough(pipe)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -52,7 +52,7 @@ object PipeThroughSuite extends BaseOperatorSuite {
           createObservableEndingInError(Observable.now(1L), ex)
             .pipeThrough(pipe)
         else
-          createObservableEndingInError(Observable.range(1, sourceCount + 1, 1), ex)
+          createObservableEndingInError(Observable.range(1, sourceCount.toLong + 1, 1), ex)
             .pipeThrough(pipe)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)

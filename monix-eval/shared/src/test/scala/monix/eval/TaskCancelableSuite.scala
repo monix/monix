@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.effect.{CancelToken, ExitCase}
+import cats.effect.ExitCase
 import monix.execution.Callback
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException

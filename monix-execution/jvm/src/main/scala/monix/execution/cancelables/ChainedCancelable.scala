@@ -116,7 +116,7 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
     val state = this.state
 
     while (true) {
-      state.get match {
+      state.get() match {
         case Canceled =>
           value.cancel()
           return
@@ -172,7 +172,7 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
       while (continue) {
         // Short-circuit if we discover a cycle
         if (cursor eq this) return
-        cursor.state.get match {
+        cursor.state.get() match {
           case ref2: WeakReference[_] =>
             cursor = ref2.get.asInstanceOf[CC]
             if (cursor eq null) {

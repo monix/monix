@@ -37,7 +37,7 @@ object MapSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           Observable.now(1L).map(_ * 2)
         else
-          Observable.range(1, sourceCount + 1, 1).map(_ * 2)
+          Observable.range(1, sourceCount.toLong + 1, 1).map(_ * 2)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
@@ -52,7 +52,7 @@ object MapSuite extends BaseOperatorSuite {
           createObservableEndingInError(Observable.now(1L), ex)
             .map(_ * 2)
         else
-          createObservableEndingInError(Observable.range(1, sourceCount + 1, 1), ex)
+          createObservableEndingInError(Observable.range(1, sourceCount.toLong + 1, 1), ex)
             .map(_ * 2)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -66,7 +66,7 @@ object MapSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           Observable.now(1).map(_ => throw ex)
         else
-          Observable.range(1, sourceCount + 1, 1).map { x =>
+          Observable.range(1, sourceCount.toLong + 1, 1).map { x =>
             if (x == sourceCount)
               throw ex
             else

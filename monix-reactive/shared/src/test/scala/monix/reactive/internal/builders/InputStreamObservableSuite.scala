@@ -62,6 +62,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
     val in = new ByteArrayInputStream(byteArray)
     val error = intercept[IllegalArgumentException] {
       Observable.fromInputStreamUnsafe(in, 0)
+      ()
     }
     assert(error.getMessage.contains("chunkSize"))
   }
@@ -71,6 +72,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
     val in = new ByteArrayInputStream(byteArray)
     val error = intercept[IllegalArgumentException] {
       Observable.fromInputStreamUnsafe(in, -1)
+      ()
     }
     assert(error.getMessage.contains("chunkSize"))
   }
@@ -220,6 +222,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
 
     intercept[IllegalArgumentException] {
       f.value.get.get
+      ()
     }
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
@@ -245,13 +248,14 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
     implicit val s = TestScheduler()
 
     val gen = for {
-      byteSize  <- Gen.choose(0, 4096)
-      minChunkSize = Math.floorDiv(byteSize, 2).max(1)
-      chunkSize <- Gen.choose[Int](minChunkSize, Math.max(minChunkSize, byteSize * 2))
-    } yield (byteSize, chunkSize)
+      byteSize <- Gen.choose(1, 4096)
+      chunkSize <- Gen.choose(Math.floorDiv(byteSize, 2).max(1), byteSize * 2)
+    } yield {
+      (byteSize, chunkSize)
+    }
 
-    val prop = Prop
-      .forAllNoShrink(gen) { // do not shrink to avoid a zero for the chunkSize
+    check {
+      Prop.forAllNoShrink(gen) { // do not shrink to avoid a zero for the chunkSize
         case (byteSize, chunkSize) =>
           val byteArray = randomByteArray(byteSize, 10)
           val forcedReadSize = Math.floorDiv(byteSize, 10).max(1) // avoid zero-byte reads
@@ -268,9 +272,10 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
           val resultChunkSizes = f.value.get.get
           if (byteArray.length > chunkSize) // all values except the last should be equal to the chunkSize
             resultChunkSizes.init.forall(_ == chunkSize) && resultChunkSizes.last <= chunkSize
-          else resultChunkSizes.head <= chunkSize
+          else
+            resultChunkSizes.head <= chunkSize
       }
-    check(prop)
+    }
   }
 
   def inputWithStaggeredBytes(forcedReadSize: Int, underlying: ByteArrayInputStream): InputStream = {

@@ -44,7 +44,7 @@ private[reactive] final class DoOnErrorOperator[A](cb: Throwable => Task[Unit]) 
             case Left(err) =>
               scheduler.reportFailure(err)
               out.onError(ex)
-          }.runToFuture
+          }.runAsyncAndForget
         } catch {
           case err if NonFatal(err) =>
             scheduler.reportFailure(err)

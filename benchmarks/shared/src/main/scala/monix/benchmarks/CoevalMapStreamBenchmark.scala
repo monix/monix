@@ -71,7 +71,7 @@ object CoevalMapStreamBenchmark {
       stream = mapStream(addOne)(stream)
       i += 1
     }
-    sum(0)(stream).value
+    sum(0)(stream).value()
   }
 
   final case class Stream(value: Int, next: Coeval[Option[Stream]])

@@ -42,13 +42,18 @@ trait ReferenceScheduler extends Scheduler {
     val sub = OrderedCancelable()
 
     def loop(initialDelay: Long, delay: Long): Unit = {
-      if (!sub.isCanceled)
-        sub := scheduleOnce(initialDelay, unit, new Runnable {
-          def run(): Unit = {
-            r.run()
-            loop(delay, delay)
-          }
-        })
+      if (!sub.isCanceled) {
+        sub := scheduleOnce(
+          initialDelay,
+          unit,
+          new Runnable {
+            def run(): Unit = {
+              r.run()
+              loop(delay, delay)
+            }
+          })
+        ()
+      }
     }
 
     loop(initialDelay, delay)
@@ -81,6 +86,7 @@ trait ReferenceScheduler extends Scheduler {
             }
           }
         )
+        ()
       }
     }
 

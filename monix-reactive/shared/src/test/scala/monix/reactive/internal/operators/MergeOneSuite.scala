@@ -32,7 +32,7 @@ import scala.concurrent.duration._
 
 object MergeOneSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).mergeMap(i => Observable.now(i))
+    val o = Observable.range(0L, sourceCount.toLong).mergeMap(i => Observable.now(i))
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
@@ -49,7 +49,7 @@ object MergeOneSuite extends BaseOperatorSuite {
     } else
       Some {
         val o = Observable
-          .range(0, sourceCount)
+          .range(0L, sourceCount.toLong)
           .endWithError(ex)
           .mergeMap(i => Observable.now(i))
 
@@ -61,7 +61,7 @@ object MergeOneSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).flatMap { i =>
+    val o = Observable.range(0L, sourceCount.toLong).flatMap { i =>
       if (i == sourceCount - 1)
         throw ex
       else

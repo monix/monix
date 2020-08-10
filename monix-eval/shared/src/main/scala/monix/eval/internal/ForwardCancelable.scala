@@ -118,6 +118,7 @@ private[internal] object ForwardCancelable {
               // $COVERAGE-ON$
             }
         }
+        ()
       }
     })
 }

@@ -38,7 +38,10 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
   def timeout[A](source: Future[A], atMost: FiniteDuration)(implicit s: Scheduler): Future[A] = {
     val err = new TimeoutException
     val promise = Promise[A]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit, new Runnable { def run() = promise.tryFailure(err) })
+    val task = s.scheduleOnce(atMost.length, atMost.unit, 
+      new Runnable { 
+        def run() = { promise.tryFailure(err); () }
+      })
 
     source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks
@@ -66,7 +69,10 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
     implicit s: Scheduler): Future[A] = {
 
     val promise = Promise[Option[Try[A]]]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit, new Runnable { def run() = promise.trySuccess(None) })
+    val task = s.scheduleOnce(atMost.length, atMost.unit, 
+      new Runnable { 
+        def run() = { promise.trySuccess(None); () }
+      })
 
     source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks

@@ -31,12 +31,12 @@ object OnErrorRetryUnlimitedSuite extends BaseOperatorSuite {
         if (subscriptions < maxSubscriptions) {
           subscriptions += 1
           Observable
-            .range(0, sourceCount)
+            .range(0L, sourceCount.toLong)
             .endWithError(ex)
             .unsafeSubscribeFn(subscriber)
         } else {
           Observable
-            .range(0, sourceCount)
+            .range(0L, sourceCount.toLong)
             .unsafeSubscribeFn(subscriber)
         }
     }
@@ -47,7 +47,7 @@ object OnErrorRetryUnlimitedSuite extends BaseOperatorSuite {
 
     val count = sourceCount * 4
     val sum = 1L * sourceCount * (sourceCount - 1) / 2 * 4
-    Sample(o, count, sum, Duration.Zero, Duration.Zero)
+    Sample(o, count, sum.toLong, Duration.Zero, Duration.Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = None

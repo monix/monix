@@ -24,8 +24,8 @@ import scala.util.Success
 
 object CacheSuite extends BaseOperatorSuite {
   def createObservable(c: Int) = Some {
-    val o = Observable.range(0, c).cache
-    Sample(o, c, c * (c - 1) / 2, Zero, Zero)
+    val o = Observable.range(0, c.toLong).cache
+    Sample(o, c, (c * (c - 1) / 2).toLong, Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = None
@@ -43,6 +43,7 @@ object CacheSuite extends BaseOperatorSuite {
   test("should require capacity > 0") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable.empty[Int].cache(0)
+      ()
     }
     ()
   }

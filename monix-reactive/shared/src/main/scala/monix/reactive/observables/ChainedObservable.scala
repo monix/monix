@@ -72,6 +72,7 @@ object ChainedObservable {
           source.asInstanceOf[ChainedObservable[A]].unsafeSubscribeFn(conn, out)
         case _ =>
           conn := source.unsafeSubscribeFn(out)
+          ()
       }
     }
   }

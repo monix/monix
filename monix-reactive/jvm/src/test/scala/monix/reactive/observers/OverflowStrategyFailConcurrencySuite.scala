@@ -116,16 +116,18 @@ object OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
         def onError(ex: Throwable): Unit =
           s.reportFailure(ex)
 
-        def onComplete(): Unit =
+        def onComplete(): Unit = {
           ack.syncOnContinue(completed.countDown())
+          ()
+        }
       }
 
       val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Fail(total.toInt))
-      for (i <- 1 to total.toInt) buffer.onNext(i)
+      for (i <- 1 to total.toInt) { buffer.onNext(i.toLong); () }
       buffer.onComplete()
 
       assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
-      assertEquals(received, total)
+      assertEquals(received.toLong, total)
       assertEquals(sum, total * (total + 1) / 2)
     }
   }
@@ -326,7 +328,7 @@ object OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
       Fail(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong) }
     buffer.onComplete()
     startConsuming.success(Continue)
 
@@ -351,7 +353,7 @@ object OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
       Fail(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
@@ -376,12 +378,12 @@ object OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
       Fail(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
-    assertEquals(sum, (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
   test("should do onError only after all the queue was drained, test2") { implicit s =>
@@ -401,10 +403,10 @@ object OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
       Fail(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onError(new RuntimeException)
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
-    assertEquals(sum, (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum.toLong)
   }
 }

@@ -28,7 +28,7 @@ import scala.concurrent.duration.Duration.Zero
 
 object MaterializeSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).materialize.map {
+    val o = Observable.range(0L, sourceCount.toLong).materialize.map {
       case OnNext(x) => x
       case OnComplete => 10L
       case OnError(ex) => throw ex
