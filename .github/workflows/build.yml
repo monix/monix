@@ -11,7 +11,7 @@ jobs:
       fail-fast: true
       matrix:
         java: [ 8, 11 ]
-        scala: [ 2.11.12, 2.12.11, 2.13.1 ]
+        scala: [ 2.11.12, 2.12.12, 2.13.3 ]
     
     steps:
       - uses: actions/checkout@v2
@@ -50,8 +50,8 @@ jobs:
       fail-fast: true
       matrix:
         java: [ 8 ]
-        scala: [ 2.11.12, 2.12.11, 2.13.1 ]
-        scalajs: [ 0.6.32, 1.0.0 ]
+        scala: [ 2.11.12, 2.12.12, 2.13.3 ]
+        scalajs: [ 0.6.33, 1.1.1 ]
     
     steps:
       - uses: actions/checkout@v2
@@ -92,7 +92,7 @@ jobs:
       matrix:
         java: [ 8 ]
         scala: [ 2.11.12  ]
-        scalajs: [ 0.6.32 ]
+        scalajs: [ 0.6.33 ]
 
     steps:
       - uses: actions/checkout@v2

@@ -26,7 +26,7 @@ fi
 if [ $SCALA_VERSION = '2.11.12' ] && [ $SCALAJS_VERSION = '1.0.0' ]
 then
     echo "No tests were executed since sjs 1.0.0 and scala 2.11 are not compatible."
-elif [ $PLATFORM = '11' ] && ([ $SCALA_VERSION = '2.11.12' ] || [ $SCALA_VERSION = '2.12.11' ])
+elif [ $PLATFORM = '11' ] && ([ $SCALA_VERSION = '2.11.12' ] || [ $SCALA_VERSION = '2.12.12' ])
 then
     echo "No tests were executed."
 else
