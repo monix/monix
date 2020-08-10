@@ -12,7 +12,7 @@ jobs:
     name: JVM / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-20.04
     strategy:
-      # fail-fast: true
+      fail-fast: false
       matrix:
         java: [ 8, 11 ]
         # WARN: build.sbt depends on this key path, as scalaVersion and
@@ -27,6 +27,9 @@ jobs:
 
       - name: sbt ci-jvm
         run: |
+          if [[ "$SCALA_VERSION"~="2.11" ]]; then
+            export SCALAJS_VERSION="0.6.33"
+          fi
           ./.github/scripts/build
         env:
           SCALA_VERSION: ${{ matrix.scala }}
@@ -37,7 +40,7 @@ jobs:
     name: JS / scala ${{ matrix.scala }}, sjs ${{ matrix.scalajs }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-20.04
     strategy:
-      # fail-fast: true
+      fail-fast: false
       matrix:
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
@@ -67,7 +70,7 @@ jobs:
     name: Mima / scala ${{ matrix.scala }}, sjs ${{ matrix.scalajs }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-20.04
     strategy:
-      # fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - { java: 8, scala: 2.11.12, scalajs: 0.6.33 }
@@ -92,7 +95,7 @@ jobs:
     name: Unidoc / scala ${{ matrix.scala }}, sjs ${{ matrix.scalajs }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-20.04
     strategy:
-      # fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - { java: 8, scala: 2.13.3, scalajs: 1.1.1 }
