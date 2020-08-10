@@ -24,7 +24,7 @@ sjs_version_1x: &sjs_version_1x 1.1.1
 jobs:
   jvm-tests:
     name: JVM / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       # fail-fast: true
       matrix:
@@ -47,7 +47,7 @@ jobs:
 
   js-tests:
     name: JS / scala ${{ matrix.scala }}, sjs ${{ matrix.scalajs }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       # fail-fast: true
       matrix:
@@ -75,7 +75,7 @@ jobs:
 
   mima:
     name: Mima / scala ${{ matrix.scala }}, sjs ${{ matrix.scalajs }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       # fail-fast: true
       matrix:
@@ -100,7 +100,7 @@ jobs:
 
   unidoc:
     name: Unidoc / scala ${{ matrix.scala }}, sjs ${{ matrix.scalajs }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       # fail-fast: true
       matrix:
