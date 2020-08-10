@@ -1,5 +1,6 @@
 import sbt.Keys.version
 import sbt.Def
+import scala.collection.immutable.SortedSet
 import MonixBuildUtils._
 
 
@@ -144,10 +145,22 @@ lazy val testDependencies = Seq(
 lazy val gitHubTreeTagOrHash =
   settingKey[String]("Identifies GitHub's version tag or commit sha")
 
+val crossScalaVersionsFromBuildYaml =
+  settingKey[SortedSet[MonixScalaVersion]](
+    "Scala versions set in .github/workflows/build.yml as scala_version_XXX"
+  )
+
+crossScalaVersionsFromBuildYaml in Global := {
+  val manifest = (baseDirectory in ThisBuild).value / ".github" / "workflows" / "build.yml"
+  scalaVersionsFromBuildYaml(manifest, customScalaJS_Version)
+}
+
 lazy val sharedSettings = Seq(
   organization := "io.monix",
-  scalaVersion := "2.13.3",
-  crossScalaVersions := Seq("2.11.12", "2.12.12", "2.13.3"),
+  // Value extracted from .github/workflows/build.yml
+  scalaVersion := crossScalaVersionsFromBuildYaml.value.head.value,
+  // Value extracted from .github/workflows/build.yml
+  crossScalaVersions := crossScalaVersionsFromBuildYaml.value.toIndexedSeq.map(_.value),
 
   gitHubTreeTagOrHash := {
     val ver = s"v${version.value}"
@@ -362,7 +375,7 @@ lazy val unidocSettings = Seq(
     Opts.doc.version(s"${version.value}")
 )
 
-lazy val sharedScalaJSSettings = Seq(
+lazy val sharedJavaScriptSettings = Seq(
   coverageExcludedFiles := ".*",
   // Use globally accessible (rather than local) source paths in JS source maps
   scalacOptions += {
@@ -373,6 +386,10 @@ lazy val sharedScalaJSSettings = Seq(
   // Needed in order to publish for multiple Scala.js versions:
   // https://github.com/olafurpg/sbt-ci-release#how-do-i-publish-cross-built-scalajs-projects
   skip.in(publish) := customScalaJS_Version.isEmpty,
+)
+
+lazy val sharedJVMSettings = Seq(
+  skip.in(publish) := customScalaJS_Version.isDefined
 )
 
 def mimaSettings(projectName: String) = Seq(
@@ -426,6 +443,7 @@ def jvmModule(
 ): Project => Project =
   pr => {
     pr.configure(monixSubModule(projectName, publishArtifacts = publishArtifacts))
+      .settings(sharedJVMSettings)
       .settings(testDependencies)
       .settings(if (withDocTests) doctestTestSettings else Seq.empty)
       .settings(if (withMimaChecks) mimaSettings(projectName) else Seq.empty)
@@ -436,7 +454,7 @@ def jsProfile(projectName: String, publishArtifacts: Boolean): Project => Projec
     pr.configure(monixSubModule(projectName, publishArtifacts = publishArtifacts))
       .enablePlugins(ScalaJSPlugin)
       .settings(testDependencies)
-      .settings(sharedScalaJSSettings)
+      .settings(sharedJavaScriptSettings)
   }
 
 def crossModule(
@@ -444,9 +462,9 @@ def crossModule(
   withMimaChecks: Boolean = true,
   withDocTests: Boolean = true,
   publishArtifacts: Boolean = true,
-  crossSettings: Seq[sbt.Def.SettingsDefinition] = Nil): CrossModule = {
+  crossSettings: Seq[sbt.Def.SettingsDefinition] = Nil): MonixCrossModule = {
 
-  CrossModule(
+  MonixCrossModule(
     jvm = jvmModule(
       projectName = projectName,
       withMimaChecks = withMimaChecks,
