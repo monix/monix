@@ -12,7 +12,7 @@ jobs:
       matrix:
         java: [ 8, 11 ]
         scala: [ 2.11.12, 2.12.12, 2.13.3 ]
-    
+
     steps:
       - uses: actions/checkout@v2
       - uses: olafurpg/setup-scala@v7
@@ -92,9 +92,10 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        java: [ 8 ]
-        scala: [ 2.11.12, 2.13.3  ]
-        scalajs: [ 0.6.33 ]
+        include:
+          - { java: 8, scala: 2.11.12, scalajs: 0.6.33 }
+          - { java: 8, scala: 2.12.12, scalajs:  1.1.1 }
+          - { java: 8, scala:  2.13.3, scalajs:  1.1.1 }
 
     steps:
       - uses: actions/checkout@v2
@@ -102,7 +103,7 @@ jobs:
         with:
           java-version: "adopt@1.${{ matrix.java }}"
      
-      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}, ScalaJS ${{ matrix.scalajs }}
+      - name: sbt mimaReportBinaryIssues
         run: |
           ./.github/scripts/build
         env:
@@ -116,9 +117,8 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        java: [ 8 ]
-        scala: [ 2.13.3  ]
-        scalajs: [ 1.1.1 ]
+        include:
+          - { java: 8, scala: 2.13.3, scalajs: 1.1.1 }
 
     steps:
       - uses: actions/checkout@v2
@@ -126,7 +126,7 @@ jobs:
         with:
           java-version: "adopt@1.${{ matrix.java }}"
      
-      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}, ScalaJS ${{ matrix.scalajs }}
+      - name: sbt unidoc
         run: |
           ./.github/scripts/build
         env:
