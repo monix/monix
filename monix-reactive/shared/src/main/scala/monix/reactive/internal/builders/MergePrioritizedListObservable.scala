@@ -74,6 +74,7 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[(In
       if (isDone) Stop else out.onNext(a)
     }
 
+    // MUST BE synchronized by `lock`
     def processNext(): Future[Ack] = {
       val e = pq.dequeue()
       val fut = rawOnNext(e.data)
@@ -82,21 +83,19 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[(In
     }
 
     // MUST BE synchronized by `lock`
-    def signalOnNext(): Future[Ack] =
-      lock.synchronized {
-        lastAck = lastAck match {
-          case Continue => processNext()
-          case Stop => Stop
-          case async =>
-            async.flatMap {
-              // async execution, we have to re-sync
-              case Continue => lock.synchronized(processNext())
-              case Stop => Stop
-            }
-        }
-
-        lastAck
+    def signalOnNext(): Future[Ack] = {
+      lastAck = lastAck match {
+        case Continue => processNext()
+        case Stop => Stop
+        case async =>
+          async.flatMap {
+            // async execution, we have to re-sync
+            case Continue => lock.synchronized(processNext())
+            case Stop => Stop
+          }
       }
+      lastAck
+    }
 
     def signalOnError(ex: Throwable): Unit =
       lock.synchronized {
