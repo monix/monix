@@ -10,16 +10,16 @@ on:
 #
 # UPDATE here Scala versions!
 #
-scala_version_211: &scala_version_211 2.11.12
-scala_version_212: &scala_version_212 2.12.12
-scala_version_213: &scala_version_213 2.13.3
+scala_version_211: 2.11.12
+scala_version_212: 2.12.12
+scala_version_213: 2.13.3
 #
 # UPDATE here Scala.JS versions!
 #
 # WARN: js-tests dictates compatibility with Scala versions!
 #
-sjs_version_06x: &sjs_version_06x 0.6.33
-sjs_version_1x: &sjs_version_1x 1.1.1
+sjs_version_06x: 0.6.33
+sjs_version_1x: 1.1.1
 
 jobs:
   jvm-tests:
@@ -29,7 +29,7 @@ jobs:
       # fail-fast: true
       matrix:
         java: [ 8, 11 ]
-        scala: [ *scala_version_211, *scala_version_212, *scala_version_213 ]
+        scala: [ 2.11.12, 2.12.12, 2.13.3 ]
 
     steps:
       - uses: actions/checkout@v2
@@ -52,11 +52,11 @@ jobs:
       # fail-fast: true
       matrix:
         include:
-          - { java: 8, scala: *scala_version_211, scalajs: *sjs_version_06x }
-          - { java: 8, scala: *scala_version_212, scalajs: *sjs_version_06x }
-          - { java: 8, scala: *scala_version_212, scalajs: *sjs_version_1x }
-          - { java: 8, scala: *scala_version_213, scalajs: *sjs_version_06x }
-          - { java: 8, scala: *scala_version_213, scalajs: *sjs_version_1x }
+          - { java: 8, scala: 2.11.12, scalajs: 0.6.33 }
+          - { java: 8, scala: 2.12.12, scalajs: 0.6.33 }
+          - { java: 8, scala: 2.12.12, scalajs: 1.1.1 }
+          - { java: 8, scala: 2.13.3, scalajs: 0.6.33 }
+          - { java: 8, scala: 2.13.3, scalajs: 1.1.1 }
 
     steps:
       - uses: actions/checkout@v2
@@ -80,9 +80,9 @@ jobs:
       # fail-fast: true
       matrix:
         include:
-          - { java: 8, scala: *scala_version_211, scalajs: *sjs_version_06x }
-          - { java: 8, scala: *scala_version_212, scalajs: *sjs_version_1x }
-          - { java: 8, scala: *scala_version_213, scalajs: *sjs_version_1x }
+          - { java: 8, scala: 2.11.12, scalajs: 0.6.33 }
+          - { java: 8, scala: 2.12.12, scalajs: 1.1.1 }
+          - { java: 8, scala: 2.13.3, scalajs: 1.1.1 }
 
     steps:
       - uses: actions/checkout@v2
@@ -105,7 +105,7 @@ jobs:
       # fail-fast: true
       matrix:
         include:
-          - { java: 8, scala: *scala_version_213, scalajs: *sjs_version_1x }
+          - { java: 8, scala: 2.13.3, scalajs: 1.1.1 }
 
     steps:
       - uses: actions/checkout@v2
@@ -129,7 +129,7 @@ jobs:
       fail-fast: true
       max-parallel: 1
       matrix:
-        scalajs: ["", *sjs_version_06x, *sjs_version_1x]
+        scalajs: ["", 0.6.33, 1.1.1]
         command: [ci-release]
 
     runs-on: ubuntu-20.04
