@@ -5,7 +5,7 @@ on: [ push, pull_request ]
 jobs:
   
   jvm-tests:
-    name: scala-${{ matrix.scala }} jdk-${{ matrix.java }} tests
+    name: JVM - scala-${{ matrix.scala }} jdk-${{ matrix.java }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -26,6 +26,7 @@ jobs:
           key: ${{ runner.os }}-coursier-${{ hashFiles('**/*.sbt') }}
           restore-keys: |
             ${{ runner.os }}-coursier-
+      
       - name: Cache sbt directory
         uses: actions/cache@v1
         with:
@@ -34,7 +35,7 @@ jobs:
             ${{ runner.os }}-sbt-${{ hashFiles('project/build.properties') }}-${{ hashFiles('project/plugins.sbt') }}
           restore-keys: ${{ runner.os }}-sbt-
           
-      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}
+      - name: sbt ci-jvm
         run: |
           ./.github/scripts/build
         env:
@@ -43,7 +44,7 @@ jobs:
           SBT_COMMAND: ci-jvm
               
   js-tests:
-    name: scala-${{ matrix.scala }} js-${{ matrix.scalajs }} jdk-${{ matrix.java }} tests
+    name: JS - scala-${{ matrix.scala }} js-${{ matrix.scalajs }} jdk-${{ matrix.java }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -77,7 +78,7 @@ jobs:
             ${{ runner.os }}-sbt-${{ hashFiles('project/build.properties') }}-${{ hashFiles('project/plugins.sbt') }}
           restore-keys: ${{ runner.os }}-sbt-
           
-      - name: Run Tests for Java ${{ matrix.java }}, Scala ${{ matrix.scala }}, ScalaJS ${{ matrix.scalajs }}
+      - name: sbt ci-js
         run: |
           ./.github/scripts/build
         env:
@@ -87,7 +88,7 @@ jobs:
           SBT_COMMAND: ci-js
   
   mima:
-    name: Mima binary compatibility tests
+    name: Mima tests
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -112,7 +113,7 @@ jobs:
           SBT_COMMAND: mimaReportBinaryIssues
       
   unidoc:
-    name: Unidoc test
+    name: Unidoc tests
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
