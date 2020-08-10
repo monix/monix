@@ -50,7 +50,7 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
   // Stack-safety tests are very taxing, so reducing burden
   implicit val effectParams =
     EffectParameters.default.copy(stackSafeIterationsCount = {
-      if (Platform.isJS || System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
+      if (isCI)
         100
       else
         1000

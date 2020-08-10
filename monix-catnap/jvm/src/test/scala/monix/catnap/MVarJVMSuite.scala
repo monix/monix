@@ -18,12 +18,14 @@
 package monix.catnap
 
 import java.util.concurrent.atomic.AtomicBoolean
+
 import cats.implicits._
 import cats.effect._
 import cats.effect.concurrent.Deferred
 import minitest.TestSuite
-import monix.execution.Scheduler
+import monix.execution.{Scheduler, TestUtils}
 import monix.execution.schedulers.SchedulerService
+
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
 
@@ -97,7 +99,7 @@ object MVarFullJVMParallelism4Suite extends BaseMVarJVMSuite(4) {
 
 // -----------------------------------------------------------------
 
-abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerService] {
+abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerService] with TestUtils {
   def setup(): SchedulerService =
     Scheduler.computation(
       name = s"mvar-suite-par-$parallelism",
@@ -116,7 +118,6 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
 
   // ----------------------------------------------------------------------------
 
-  val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
   val iterations = if (isCI) 1000 else 10000
   val timeout = if (isCI) 30.seconds else 10.seconds
 

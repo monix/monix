@@ -21,7 +21,7 @@ import monix.execution.Scheduler.Implicits.global
 import monix.reactive.Observable
 import org.reactivestreams.Publisher
 import org.reactivestreams.tck.PublisherVerification
-import org.scalatest.testng.TestNGSuiteLike
+import org.scalatestplus.testng.TestNGSuiteLike
 import scala.util.Random
 
 class ObservableToPublisherTest extends PublisherVerification[Long](env())

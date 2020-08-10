@@ -28,13 +28,9 @@ import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
-  val isTravis = {
-    System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
-  }
-
+object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils {
   val WORKERS = 10
-  val RETRIES = if (!isTravis) 1000 else 100
+  val RETRIES = if (!isCI) 1000 else 100
   val DUMMY = DummyException("dummy")
 
   override def setup(): SchedulerService =
@@ -99,7 +95,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
   }
 
   test("Callback.fromAttempt is not thread-safe via onSuccess") { implicit sc =>
-    if (isTravis) ignore()
+    if (isCI) ignore()
 
     val wrap = { (cb: Callback[Throwable, Int]) =>
       val f = (r: Either[Throwable, Int]) => cb(r)
@@ -110,7 +106,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
   }
 
   test("Callback.fromAttempt is not thread-safe via onError") { implicit sc =>
-    if (isTravis) ignore()
+    if (isCI) ignore()
 
     val wrap = { (cb: Callback[Throwable, String]) =>
       val f = (r: Either[Throwable, String]) => cb(r)
@@ -121,7 +117,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
   }
 
   test("Callback.fromTry is not thread-safe via onSuccess") { implicit sc =>
-    if (isTravis) ignore()
+    if (isCI) ignore()
 
     val wrap = { (cb: Callback[Throwable, Int]) =>
       val f = (r: Try[Int]) => cb(r)
@@ -132,7 +128,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] {
   }
 
   test("Callback.fromTry is not thread-safe via onError") { implicit sc =>
-    if (isTravis) ignore()
+    if (isCI) ignore()
 
     val wrap = { (cb: Callback[Throwable, String]) =>
       val f = (r: Try[String]) => cb(r)

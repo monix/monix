@@ -26,7 +26,7 @@ import monix.tail.Iterant.{Halt, Last}
 import monix.tail.batches.{Batch, BatchCursor}
 import org.reactivestreams.Publisher
 import org.reactivestreams.tck.PublisherVerification
-import org.scalatest.testng.TestNGSuiteLike
+import org.scalatestplus.testng.TestNGSuiteLike
 
 import scala.util.Random
 

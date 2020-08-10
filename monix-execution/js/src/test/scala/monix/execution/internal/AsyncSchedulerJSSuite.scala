@@ -21,13 +21,12 @@ import minitest.TestSuite
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.schedulers.{AsyncScheduler, StandardContext}
-import monix.execution.{ExecutionModel, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{ExecutionModel, Scheduler, TestUtils, UncaughtExceptionReporter}
+
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 
-object AsyncSchedulerJSSuite extends TestSuite[Scheduler] {
-  val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
-
+object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
   val lastReported = Atomic(null: Throwable)
   val reporter = new StandardContext(new UncaughtExceptionReporter {
     def reportFailure(ex: Throwable): Unit =
@@ -80,6 +79,10 @@ object AsyncSchedulerJSSuite extends TestSuite[Scheduler] {
   }
 
   testAsync("schedule for execution with delay") { implicit s =>
+    if (isCI) {
+      ignore("Test is slow and flaky on top of underpowered machines, skipping")
+    }
+
     import concurrent.duration._
     val p = Promise[Unit]()
     val startAt = s.clockMonotonic(MILLISECONDS)
