@@ -20,7 +20,7 @@ addCommandAlias("ci-meta",     ";mimaReportBinaryIssues ;unidoc")
 
 val cats_GeneralVersion = "2.1.1"
 val cats_ForScala211Version = "2.0.0"
-val catsEffect_GeneralVersion = "2.1.3"
+val catsEffect_GeneralVersion = "2.1.4"
 val catsEffect_ForScala211Version = "2.0.0"
 val fs2_GeneralVersion = "2.4.0"
 val fs2_ForScala211Version = "2.1.0"
