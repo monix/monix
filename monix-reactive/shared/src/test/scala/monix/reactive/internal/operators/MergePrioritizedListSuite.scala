@@ -38,7 +38,7 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
     4 * sourceCount
 
   def observableInError(sourceCount: Int, ex: Throwable) = {
-    val o = Observable.range(0, sourceCount).mergeMap(_ => Observable.raiseError(ex))
+    val o = Observable.range(0L, sourceCount.toLong).mergeMap(_ => Observable.raiseError(ex))
     Some(Sample(o, 0, 0, Zero, Zero))
   }
 
