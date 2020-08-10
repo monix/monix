@@ -232,7 +232,8 @@ lazy val sharedSettings = Seq(
 
   // -- Settings meant for deployment on oss.sonatype.org
   sonatypeProfileName := organization.value,
-  dynverSeparator in ThisBuild := "-",
+  dynverSonatypeSnapshots in ThisBuild := false,
+  isSnapshot := !isVersionStable.value,
 
   publishMavenStyle := true,
   publishArtifact in Test := false,
