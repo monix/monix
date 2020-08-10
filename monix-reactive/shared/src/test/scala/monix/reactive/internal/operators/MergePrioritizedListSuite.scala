@@ -79,11 +79,9 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
       def onComplete(): Unit = ()
     })
 
-    s.tick(1.seconds)
-    assertEquals(last, 1L) // First observable's item always first since it's subscribed to first
-    (10L to 2L by -1).foreach { p =>
+    (10L to 1L by -1).foreach { p =>
       s.tick(1.seconds)
-      assertEquals(last, p) // 2nd, 3rd, ... observable's items chosen by priority
+      assertEquals(last, p)
     }
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }

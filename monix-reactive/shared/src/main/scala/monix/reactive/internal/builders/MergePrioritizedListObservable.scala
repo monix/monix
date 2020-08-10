@@ -27,10 +27,21 @@ import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
 
-/** Given a sequence of priority/observable pairs, combines them
-  * into a new observable, preferring higher-priority sources when multiple
-  * sources have items available. If items are available from sources with the
-  * same priority, the order is undefined.
+/** Given a sequence of priority/observable pairs, combines them into a new
+  * observable that eagerly emits source items downstream as soon as demand is
+  * signaled, choosing the item from the highest priority (greater numbers
+  * mean higher priority) source when items from multiple sources are
+  * available. If items are available from multiple sources with the same
+  * highest priority, one of them is chosen arbitrarily.
+  *
+  * Source items are buffered only to the extent necessary to accommodate
+  * backpressure from downstream, and thus if only a single item is available
+  * when demand is signaled, it will be emitted regardless of priority.
+  *
+  * Backpressure is propagated from downstream to the source observables, so
+  * that items from a given source will always be emitted downstream in the
+  * same order as received from the source, and at most a single item from a
+  * given source will be in flight at a time.
   */
 private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[(Int, Observable[A])])
   extends Observable[A] {
@@ -133,8 +144,9 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[(In
     }
 
     val composite = CompositeCancelable()
+    val priSources = sources.sorted(Ordering.by[(Int, Observable[A]), Int](_._1).reverse)
 
-    sources.foreach { case (pri, obs) =>
+    priSources.foreach { case (pri, obs) =>
       composite += obs.unsafeSubscribeFn(new Subscriber[A] {
         implicit val scheduler: Scheduler = out.scheduler
 
