@@ -401,7 +401,6 @@ def baseSettingsAndPlugins(publishArtifacts: Boolean): Project ⇒ Project =
     }
     withCoverage
       .enablePlugins(AutomateHeaderPlugin)
-      .enablePlugins(ReproducibleBuildsPlugin)
       .settings(sharedSettings)
       .settings(if (publishArtifacts) Seq.empty else doNotPublishArtifactSettings)
       .settings(filterOutMultipleDependenciesFromGeneratedPomXml(
@@ -415,6 +414,7 @@ def monixSubModule(
   publishArtifacts: Boolean,
 ): Project => Project = pr => {
   pr.configure(baseSettingsAndPlugins(publishArtifacts = publishArtifacts))
+    .enablePlugins(ReproducibleBuildsPlugin)
     .settings(sharedSourcesSettings)
     .settings(crossVersionSourcesSettings)
     .settings(name := projectName)
