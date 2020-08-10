@@ -7,20 +7,6 @@ on:
     branches: ['*']
     tags: ["v[0-9]+*"]
 
-#
-# UPDATE here Scala versions!
-#
-scala_version_211: 2.11.12
-scala_version_212: 2.12.12
-scala_version_213: 2.13.3
-#
-# UPDATE here Scala.JS versions!
-#
-# WARN: js-tests dictates compatibility with Scala versions!
-#
-sjs_version_06x: 0.6.33
-sjs_version_1x: 1.1.1
-
 jobs:
   jvm-tests:
     name: JVM / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
@@ -29,6 +15,8 @@ jobs:
       # fail-fast: true
       matrix:
         java: [ 8, 11 ]
+        # WARN: build.sbt depends on this key path, as scalaVersion and
+        # crossScalaVersions is determined from it
         scala: [ 2.11.12, 2.12.12, 2.13.3 ]
 
     steps:
@@ -51,6 +39,8 @@ jobs:
     strategy:
       # fail-fast: true
       matrix:
+        # WARN: build.sbt depends on this key path, as scalaVersion and
+        # crossScalaVersions is determined from it
         include:
           - { java: 8, scala: 2.11.12, scalajs: 0.6.33 }
           - { java: 8, scala: 2.12.12, scalajs: 0.6.33 }

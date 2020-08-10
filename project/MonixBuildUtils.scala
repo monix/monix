@@ -99,56 +99,67 @@ object MonixBuildUtils {
         .loadAs(fis, classOf[java.util.Map[Any, Any]])
         .asScala
 
-      val sjsVersion =
-        customScalaJSVersion.getOrElse {
-          val set = SortedSet(yaml.toList.collect {
-            case (k: String, v: String) if k.contains("sjs_version_") => MonixScalaVersion(v)
-          }:_*)
-          assert(set.nonEmpty, "Configuration Issue: sjs_version_* not found in build.yml")
-          set.head.value
+      val sjsAssocs = yaml
+        .get("jobs")
+        .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
+        .getOrElse(mutable.Map.empty[Any, Any])
+        .get("js-tests")
+        .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
+        .getOrElse(mutable.Map.empty[Any, Any])
+        .get("strategy")
+        .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
+        .getOrElse(mutable.Map.empty[Any, Any])
+        .get("matrix")
+        .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
+        .getOrElse(mutable.Map.empty[Any, Any])
+        .get("include")
+        .collect { case list: java.util.List[Any] @unchecked => list.asScala }
+        .getOrElse(Iterable.empty[Any])
+        .collect { case javaMap: java.util.Map[Any, Any]@unchecked =>
+          val map = javaMap.asScala
+          val scalaV = map.get("scala").collect { case s: String => s }
+          val sjsV = map.get("scalajs").collect { case s: String => s }
+          for (v1 <- sjsV; v2 <- scalaV) yield (v1, v2)
         }
+        .flatMap(x => x)
+        .toSeq
+
+      val allSjsVersions = SortedSet(sjsAssocs.map(v => MonixScalaVersion(v._1)):_*)
+      assert(allSjsVersions.nonEmpty, "Configuration Issue: Scala.js versions couldn't be extracted from build.yml")
+      val sjsVersion = customScalaJSVersion.getOrElse(allSjsVersions.head.value)
 
       // Super ugly, but whatever get gets the job done
       val isVersionValid: String => Boolean = {
-        val associations = yaml
-          .get("jobs")
-          .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
-          .getOrElse(mutable.Map.empty[Any, Any])
-          .get("js-tests")
-          .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
-          .getOrElse(mutable.Map.empty[Any, Any])
-          .get("strategy")
-          .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
-          .getOrElse(mutable.Map.empty[Any, Any])
-          .get("matrix")
-          .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
-          .getOrElse(mutable.Map.empty[Any, Any])
-          .get("include")
-          .collect { case list: java.util.List[Any] @unchecked => list.asScala }
-          .getOrElse(Iterable.empty[Any])
-          .collect { case javaMap: java.util.Map[Any, Any]@unchecked =>
-            val map = javaMap.asScala
-            val scalaV = map.get("scala").collect { case s: String => s }
-            val sjsV = map.get("scalajs").collect { case s: String => s }
-            for (v1 <- sjsV; v2 <- scalaV) yield (v1, v2)
-          }
-          .flatMap(x => x)
-          .toSeq
-          .foldLeft(Map.empty[String, Map[String, Boolean]]) { case (acc, (v1, v2)) =>
+        val map = sjsAssocs.foldLeft(Map.empty[String, Map[String, Boolean]]) {
+          case (acc, (v1, v2)) =>
             acc.updated(v1, acc.getOrElse(v1, Map.empty).updated(v2, true))
-          }
-
+        }
         scalaVersion => {
-          associations.get(sjsVersion).flatMap(_.get(scalaVersion)).getOrElse(false)
+          map.get(sjsVersion).flatMap(_.get(scalaVersion)).getOrElse(false)
         }
       }
 
-      val list = yaml.toList.collect {
-        case (k: String, v: String) if k.contains("scala_version_") && isVersionValid(v) =>
-          MonixScalaVersion(v)
-      }
-      assert(list.nonEmpty, "build.yml is corrupt, suitable scala_version_* keys missing")
-      SortedSet(list:_*)
+      val scalaVersions = yaml
+        .get("jobs")
+        .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
+        .getOrElse(mutable.Map.empty[Any, Any])
+        .get("jvm-tests")
+        .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
+        .getOrElse(mutable.Map.empty[Any, Any])
+        .get("strategy")
+        .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
+        .getOrElse(mutable.Map.empty[Any, Any])
+        .get("matrix")
+        .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
+        .getOrElse(mutable.Map.empty[Any, Any])
+        .get("scala")
+        .collect { case list: java.util.List[Any] @unchecked => list.asScala }
+        .getOrElse(Iterable.empty[Any])
+        .collect { case v: String if isVersionValid(v) => MonixScalaVersion(v) }
+        .toSeq
+
+      assert(scalaVersions.nonEmpty, "build.yml is corrupt, suitable scala_version_* keys missing")
+      SortedSet(scalaVersions:_*)
     }
   }
 }
