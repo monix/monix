@@ -222,19 +222,11 @@ lazy val sharedSettings = Seq(
   logBuffered in Test := false,
   logBuffered in IntegrationTest := false,
 
-  resolvers ++= Seq(
-    "Typesafe Releases" at "https://repo.typesafe.com/typesafe/releases",
-    Resolver.sonatypeRepo("releases")
-  ),
-
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
 
   // -- Settings meant for deployment on oss.sonatype.org
   sonatypeProfileName := organization.value,
-  dynverSonatypeSnapshots in ThisBuild := false,
-  isSnapshot := !isVersionStable.value,
-
   publishMavenStyle := true,
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies
