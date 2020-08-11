@@ -12,3 +12,5 @@ addSbtPlugin("com.eed3si9n"              % "sbt-assembly"            % "0.15.0")
 addSbtPlugin("net.bzzt"                  % "sbt-reproducible-builds" % "0.25")
 addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat"            % "0.1.13")
 addSbtPlugin("com.geirsson"              % "sbt-ci-release"          % "1.5.3")
+
+addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.9.4")

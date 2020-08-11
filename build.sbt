@@ -227,6 +227,14 @@ lazy val sharedSettings = Seq(
 
   // -- Settings meant for deployment on oss.sonatype.org
   sonatypeProfileName := organization.value,
+  dynverSonatypeSnapshots in ThisBuild := !isVersionStable.value,
+  sonatypeDefaultResolver := {
+    if (isVersionStable.value)
+      Opts.resolver.sonatypeStaging
+    else
+      Opts.resolver.sonatypeSnapshots
+  },
+
   publishMavenStyle := true,
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies
