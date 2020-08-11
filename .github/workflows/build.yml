@@ -195,35 +195,35 @@ jobs:
           SCALAJS_VERSION: ${{ matrix.scalaJS }}
           SBT_COMMAND: unidoc
 
-   publish:
-     name: Publish to Sonatype
-     if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master')
-     needs: [ jvm-tests, js-tests, mima, unidoc ]
-     strategy:
-       matrix:
-         scalajs: ["", 0.6.33, 1.1.1]
+  publish:
+    name: Publish to Sonatype
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master')
+    needs: [ jvm-tests, js-tests, mima, unidoc ]
+    strategy:
+      matrix:
+        scalajs: ["", 0.6.33, 1.1.1]
 
-     runs-on: ubuntu-20.04
-     steps:
-       - uses: actions/checkout@v1
-       - uses: olafurpg/setup-scala@v2
-         with:
-           java-version: "adopt@1.8"
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v1
+      - uses: olafurpg/setup-scala@v2
+        with:
+          java-version: "adopt@1.8"
 
-       - name: Install GnuPG2
-         run: |
-           ./.github/scripts/setup-pgp
-         env:
-           PGP_SECRET: ${{ secrets.PGP_SECRET }}
+      - name: Install GnuPG2
+        run: |
+          ./.github/scripts/setup-pgp
+        env:
+          PGP_SECRET: ${{ secrets.PGP_SECRET }}
 
-       - name: SCALAJS_VERSION=${{ matrix.scalajs }} sbt ci-release
-         run: |
-           echo "SCALAJS_VERSION=$SCALAJS_VERSION"
-           git fetch --tags
-           sbt ci-release
-         env:
-           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
-           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-           SCALAJS_VERSION: ${{ matrix.scalajs }}
-           PUBLISH_STABLE_VERSION: true
+      - name: SCALAJS_VERSION=${{ matrix.scalajs }} sbt ci-release
+        run: |
+          echo "SCALAJS_VERSION=$SCALAJS_VERSION"
+          git fetch --tags
+          sbt ci-release
+        env:
+          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SCALAJS_VERSION: ${{ matrix.scalajs }}
+          PUBLISH_STABLE_VERSION: true
