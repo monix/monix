@@ -243,13 +243,11 @@ lazy val sharedSettings = Seq(
   },
 
   // -- Settings meant for deployment on oss.sonatype.org
-  sonatypeProfileName in ThisBuild := organization.value,
-  sonatypeSessionName := {
-    s"[sbt-sonatype] ${name.value}${customScalaJS_Version.fold("-nojs")(v => s"-sjs$v")}-${version.value}"
-  },
   publishTo in ThisBuild := sonatypePublishToBundle.value,
   isSnapshot in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
   dynverSonatypeSnapshots in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
+  sonatypeProfileName in ThisBuild := organization.value,
+  sonatypeSessionName := s"[sbt-sonatype] ${name.value}${customScalaJS_Version.fold("-nojs")(v => s"-sjs$v")}-${version.value}",
 
   publishMavenStyle := true,
   publishArtifact in Test := false,
