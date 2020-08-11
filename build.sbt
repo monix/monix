@@ -343,8 +343,7 @@ lazy val assemblyShadeSettings = Seq(
   // prevent original dependency to be added to pom as runtime dep
   makePomConfiguration := makePomConfiguration.value.withConfigurations(Vector.empty),
   // package by running assembly
-  packageBin in Compile := ReproducibleBuildsPlugin
-    .postProcessJar((assembly in Compile).value),
+  packageBin in Compile := ReproducibleBuildsPlugin.postProcessJar((assembly in Compile).value),
   // disable publishing the main API jar
   Compile / packageDoc / publishArtifact := false,
   // disable publishing the main sources jar
