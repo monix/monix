@@ -164,9 +164,14 @@ publishStableMonixVersion in Global := {
     .exists(v => v == "true" || v == "1" || v == "yes")
 }
 
-lazy val pgpSettings = sys.env.get("PGP_KEY_HEX") match {
-  case None => Seq.empty
-  case Some(v) => Seq(usePgpKeyHex(v))
+lazy val pgpSettings = {
+  val withHex = sys.env.get("PGP_KEY_HEX").filter(_.nonEmpty) match {
+    case None => Seq.empty
+    case Some(v) => Seq(usePgpKeyHex(v))
+  }
+  withHex ++ Seq(
+    pgpPassphrase := sys.env.get("PGP_PASSPHRASE").filter(_.nonEmpty).map(_.toArray)
+  )
 }
 
 lazy val sharedSettings = pgpSettings ++ Seq(
