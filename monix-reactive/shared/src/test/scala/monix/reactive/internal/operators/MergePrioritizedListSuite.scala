@@ -20,7 +20,6 @@ package monix.reactive.internal.operators
 import monix.eval.Task
 import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.execution.Ack.{Continue, Stop}
-import monix.reactive.internal.builders.Debuggable
 import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}
 
@@ -116,7 +115,6 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
   test("should complete all upstream onNext promises when downstream stops early") { implicit s =>
     val sources = (1 to 10).map(i => (i, new OnNextExposingObservable(i * 1L)))
     val source = Observable.mergePrioritizedList(sources: _*)
-    source.asInstanceOf[Debuggable].setDebug(true)
 
     source.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long): Future[Ack] = {
@@ -138,7 +136,6 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
   test("should complete all upstream onNext promises when downstream errors early") { implicit s =>
     val sources = (1 to 10).map(i => (i, new OnNextExposingObservable(i * 1L)))
     val source = Observable.mergePrioritizedList(sources: _*)
-    source.asInstanceOf[Debuggable].setDebug(true)
 
     source.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long): Future[Ack] = {

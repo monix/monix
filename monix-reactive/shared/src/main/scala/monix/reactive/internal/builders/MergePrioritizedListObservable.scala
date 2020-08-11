@@ -46,8 +46,7 @@ import scala.util.control.NonFatal
   */
 private[reactive] final class MergePrioritizedListObservable[A](
     sources: Seq[(Int, Observable[A])])
-    extends Observable[A]
-    with Debuggable {
+    extends Observable[A] {
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     import out.scheduler
@@ -104,12 +103,12 @@ private[reactive] final class MergePrioritizedListObservable[A](
     def signalOnNext(): Future[Ack] = {
       lastAck = lastAck match {
         case Continue => processNext()
-        case Stop     => showPromises(); Stop
+        case Stop     => Stop
         case async =>
           async.flatMap {
             // async execution, we have to re-sync
             case Continue => lock.synchronized(processNext())
-            case Stop     => showPromises(); Stop
+            case Stop     => Stop
           }
       }
       lastAck
@@ -158,19 +157,7 @@ private[reactive] final class MergePrioritizedListObservable[A](
 
     // MUST BE synchronized by `lock`
     def completePromises(): Unit = {
-      if (debug) println("completePromises()")
       pq.iterator.foreach(e => e.promise.tryComplete(Success(Stop)))
-    }
-
-    def showPromises(): Unit = {
-      if (debug && !shown) {
-        shown = true
-        println("Promises completed?:")
-        pq.iterator.foreach { e =>
-          println(s"${e.promise.isCompleted}")
-        }
-        println("/Promises completed?:")
-      }
     }
 
     val composite = CompositeCancelable()
@@ -204,10 +191,4 @@ private[reactive] final class MergePrioritizedListObservable[A](
     }
     composite
   }
-}
-
-trait Debuggable {
-  var debug = false
-  var shown: Boolean = false
-  def setDebug(d: Boolean): Unit = debug = d
 }
