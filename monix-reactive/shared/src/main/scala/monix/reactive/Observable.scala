@@ -6050,6 +6050,30 @@ object Observable extends ObservableDeprecatedBuilders {
     }
   }
 
+  /** Given a sequence of priority/observable pairs, combines them into a new
+    * observable that eagerly emits source items downstream as soon as demand is
+    * signaled, choosing the item from the highest priority (greater numbers
+    * mean higher priority) source when items from multiple sources are
+    * available. If items are available from multiple sources with the same
+    * highest priority, one of them is chosen arbitrarily.
+    *
+    * Source items are buffered only to the extent necessary to accommodate
+    * backpressure from downstream, and thus if only a single item is available
+    * when demand is signaled, it will be emitted regardless of priority.
+    *
+    * Backpressure is propagated from downstream to the source observables, so
+    * that items from a given source will always be emitted downstream in the
+    * same order as received from the source, and at most a single item from a
+    * given source will be in flight at a time.
+    */
+  def mergePrioritizedList[A](sources: (Int, Observable[A])*): Observable[A] = {
+    if (sources.isEmpty) {
+      Observable.empty
+    } else {
+      new MergePrioritizedListObservable[A](sources)
+    }
+  }
+
   /** Given a list of source Observables, emits all of the items from
     * the first of these Observables to emit an item or to complete,
     * and cancel the rest.
