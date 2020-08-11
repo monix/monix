@@ -74,7 +74,7 @@ Monix 3.x is modular by design, so you can pick and choose:
 
 The versioning scheme follows the
 [Semantic Versioning](http://semver.org/) (semver) specification,
-meaning that stable versions have the form `$major.$minor.$patch`,
+meaning stable versions have the form `$major.$minor.$patch`,
 such that:
 
 1. `$major` version updates make binary incompatible API changes
@@ -82,28 +82,29 @@ such that:
    backwards-compatible manner, and
 3. `$patch` version updates makes backwards-compatible bug fixes
 
-For development snapshots may be published to Sonatype at any time.
-Development versions have the form: `$major.$minor.$patch-$hash`
-(example `3.0.0-d3288bb`).
+We publish intermediary versions, automatically, whenever PRs get merged to `master`.
+The project has a dynamic version setup, releases are via GitHub Actions with 
+versions such as `3.2.2+3-1234abcd`, where `3.2.2` is the base version, `+3` represents the 
+number of commits, the distance from that base version, and `1234abcd` represents the commit's
+"sha" (hash) prefix, identifying the commit in GitHub.
 
-The `$hash` is the 7 character git hash prefix of the commit from
-which the snapshot was published.  Thus, "snapshots" can be used as
-repeatable upstream dependencies if you're feeling courageous.  NO
-GUARANTEE is made for upgrades of development versions, use these at
-your own risk.
+We make NO GUARANTEES for these intermediary versions, but they are pretty high quality, they get
+ published on Maven Central too, and you can depend on them for testing purposes, or if you 
+ really, really need a new feature that's not published in a stable version yet.
 
 ## Documentation
 
 See:
 
 - Website: [Monix.io](https://monix.io/)
-- [Documentation for 3.x](https://monix.io/docs/3x/)
-- [Documentation for 2.x](https://monix.io/docs/2x/)
+- [Documentation (current)](https://monix.io/docs/current/) ([3.x](https://monix.io/docs/3x/))
+- [Documentation for 2.x (old)](https://monix.io/docs/2x/)
 - [Presentations](https://monix.io/presentations/)
 
 API Documentation:
 
-- [3.1](https://monix.io/api/3.1/)
+- [Current](https://monix.io/api/current/) 
+- [3.2](https://monix.io/api/3.2/)
 - [2.3](https://monix.io/api/2.3/)
 - [1.2](https://monix.io/api/1.2/)
 
@@ -139,32 +140,19 @@ If you'd like to donate in order to help with ongoing maintenance:
 All code in this repository is licensed under the Apache License,
 Version 2.0.  See [LICENCE.txt](./LICENSE.txt).
 
-## Acknowledgements
-
-<img src="https://raw.githubusercontent.com/wiki/monix/monix/assets/yklogo.png" align="right" />
-
-YourKit supports the Monix project with its full-featured Java Profiler.
-YourKit, LLC is the creator [YourKit Java Profiler](https://www.yourkit.com/java/profiler/index.jsp)
-and [YourKit .NET Profiler](https://www.yourkit.com/.net/profiler/index.jsp),
-innovative and intelligent tools for profiling Java and .NET applications.
-
-<img src="https://raw.githubusercontent.com/wiki/monix/monix/assets/logo-eloquentix@2x.png" align="right" width="130" />
-
-Development of Monix has been initiated by [Eloquentix](http://eloquentix.com/)
-engineers, with Monix being introduced at E.ON Connecting Energies,
-powering the next generation energy grid solutions.
-
-
 ## Adopters
 
-Here's a (non-exhaustive) list of companies that use Monix in production. Don't see yours? [You can add it in a PR!](https://github.com/monix/monix/edit/master/README.md)
+Here's a (non-exhaustive) list of companies that use Monix in production. Don't see yours? 
+Submit a PR ❤️ 
 
 - [Abacus](https://abacusfi.com)
+- [Agoda](https://www.agoda.com)
 - [commercetools](https://commercetools.com)
 - [Coya](https://www.coya.com/)
+- [E.ON Connecting Energies](https://www.eon.com/)
 - [eBay Inc.](https://www.ebay.com)
+- [Eloquentix](http://eloquentix.com/)
+- [Hypefactors](https://www.hypefactors.com)
 - [Iterators](https://www.iteratorshq.com)
 - [Sony Electronics](https://www.sony.com)
 - [Zalando](https://www.zalando.com)
-- [Agoda](https://www.agoda.com)
-- [Hypefactors](https://www.hypefactors.com)
