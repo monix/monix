@@ -202,7 +202,7 @@ jobs:
       fail-fast: true
       max-parallel: 1
       matrix:
-        scalajs: ["", 0.6.33, 1.1.1]
+        scalajs: ["", 0.6.33]
 
     runs-on: ubuntu-20.04
     steps:
@@ -245,7 +245,7 @@ jobs:
   #     fail-fast: true
   #     max-parallel: 1
   #     matrix:
-  #       scalajs: ["", 0.6.33, 1.1.1]
+  #       scalajs: ["", 0.6.33]
 
   #   runs-on: ubuntu-20.04
   #   steps:

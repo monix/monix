@@ -374,7 +374,7 @@ lazy val unidocSettings = Seq(
     Opts.doc.version(s"${version.value}")
 )
 
-lazy val sharedJavaScriptSettings = Seq(
+lazy val sharedJSSettings = Seq(
   coverageExcludedFiles := ".*",
   // Use globally accessible (rather than local) source paths in JS source maps
   scalacOptions += {
@@ -384,7 +384,7 @@ lazy val sharedJavaScriptSettings = Seq(
   },
   // Needed in order to publish for multiple Scala.js versions:
   // https://github.com/olafurpg/sbt-ci-release#how-do-i-publish-cross-built-scalajs-projects
-  skip.in(publish) := customScalaJS_Version.isEmpty,
+  // skip.in(publish) := customScalaJS_Version.isEmpty,
 )
 
 lazy val sharedJVMSettings = Seq(
@@ -453,7 +453,7 @@ def jsProfile(projectName: String, publishArtifacts: Boolean): Project => Projec
     pr.configure(monixSubModule(projectName, publishArtifacts = publishArtifacts))
       .enablePlugins(ScalaJSPlugin)
       .settings(testDependencies)
-      .settings(sharedJavaScriptSettings)
+      .settings(sharedJSSettings)
   }
 
 def crossModule(
