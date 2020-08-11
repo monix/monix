@@ -14,7 +14,6 @@ addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;ci-meta")
 addCommandAlias("ci-js",       ";clean ;coreJS/test:compile ;coreJS/test ;coreJS/package")
 addCommandAlias("ci-jvm",      ";clean ;coreJVM/test:compile ;coreJVM/test ;coreJVM/package")
 addCommandAlias("ci-meta",     ";mimaReportBinaryIssues ;unidoc")
-addCommandAlias("ci-release",  ";+clean ;+publishSigned ;sonatypeBundleRelease")
 
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions
@@ -244,7 +243,7 @@ lazy val sharedSettings = Seq(
 
   // -- Settings meant for deployment on oss.sonatype.org
   sonatypeProfileName in ThisBuild := organization.value,
-  publishTo in ThisBuild := sonatypePublishToBundle.value,
+  // publishTo in ThisBuild := sonatypePublishToBundle.value,
   isSnapshot in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
   dynverSonatypeSnapshots in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
 
