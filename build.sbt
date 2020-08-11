@@ -220,6 +220,10 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
 
+  // Series/4.x is unpublished.
+  // Delete this after the first release ...
+  dynverVTagPrefix in ThisBuild := false,
+
   // -- Settings meant for deployment on oss.sonatype.org
   publishTo in ThisBuild := sonatypePublishToBundle.value,
   isSnapshot in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),

@@ -1,12 +1,12 @@
 # Contributing to Monix
 
 The Monix project welcomes contributions from anybody wishing to participate.
-All code or documentation that is provided must be licensed with the same
-license that Monix is licensed with (Apache 2.0, see LICENSE.txt).
+All code or documentation that is provided must be licensed with Apache 2.0
+(see LICENSE.txt).
 
 ## Code of Conduct
 
-People are expected to follow the [Scala Code of Conduct](https://www.scala-lang.org/conduct/)
+You should follow the [Scala Code of Conduct](https://www.scala-lang.org/conduct/)
 when discussing Monix on the Github page, Gitter channel, or other venues.
 
 We hope that our community will be respectful, helpful, and kind. If you find 
@@ -26,26 +26,24 @@ escalate into larger problems.
 3. If you don't have write access to the repository, you should do
    your work in a local branch of your own fork and then submit a pull
    request. If you do have write access to the repository, never work
-   directly on master.
+   directly on main `series/*` branches.
    
-4. When the work is completed, verify it with following commands:
+4. When the work is completed, verify it with following command:
 
 ```
-sbt scalafmtAll
-sbt coreJVM/test
-sbt mimaReportBinaryIssues
+sbt ci-all
 ```
 
 If `mimaReportBinaryIssues` fails, it means there are binary incompatibilities.
-- If you're working on stable version (e.g. last released version is `3.0.0` or similar) then we will have to implement the change
+- If you're working on the stable version (e.g. last released version is `3.x.x` or similar) then we will have to implement the change
 in a way that passes this test. There are few useful guidelines [here](https://github.com/jatcwang/binary-compatibility-guide) 
 but do not hesitate to submit a Pull Request anyway and ask Maintainers for help.
-- If you're not working on stable version (e.g. last released version is `3.0.0-RC3` or similar), just add proper filter
+- If you're not working on the stable version (e.g. last released version is `3.0.0-RC3` or similar), just add proper filter
 [here](project/MimaFilters.scala). You should be able to find it in the failure output.
 
 5. Submit a Pull Request.
 
-6. Anyone can comment on a pull request and you are expected to
+6. Anyone can comment on a pull request, and you are expected to
    answer questions or to incorporate feedback.
 
 7. It is not allowed to force push to the branch on which the pull
@@ -53,14 +51,14 @@ but do not hesitate to submit a Pull Request anyway and ask Maintainers for help
 
 ## General Guidelines
 
-1. It is recommended that the work is accompanied by unit tests.
+1. We recommend for the work be accompanied by unit tests.
 
 2. The commit messages should be clear and short one lines, if more
    details are needed, specify a body.
 
 3. New source files should be accompanied by the copyright header.
 
-4. Follow the structure of the code in this repository and the
+4. Follow the structure of the code in this repository, and the
    indentation rules used.
 
 5. Your first commit request should be accompanied with a change to

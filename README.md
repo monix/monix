@@ -135,14 +135,10 @@ If you'd like to donate in order to help with ongoing maintenance:
 
 <a href="https://www.patreon.com/bePatron?u=6102596"><img label="Become a Patron!" src="https://c5.patreon.com/external/logo/become_a_patron_button@2x.png" height="40" /></a>
 
-## License
-
-All code in this repository is licensed under the Apache License,
-Version 2.0.  See [LICENCE.txt](./LICENSE.txt).
-
 ## Adopters
 
-Here's a (non-exhaustive) list of companies that use Monix in production. Don't see yours? [You can add it in a PR!](https://github.com/monix/monix/edit/master/README.md)
+Here's a (non-exhaustive) list of companies that use Monix in production. Don't see yours? 
+Submit a PR ❤️ 
 
 - [Abacus](https://abacusfi.com)
 - [Agoda](https://www.agoda.com)
@@ -155,3 +151,8 @@ Here's a (non-exhaustive) list of companies that use Monix in production. Don't 
 - [Iterators](https://www.iteratorshq.com)
 - [Sony Electronics](https://www.sony.com)
 - [Zalando](https://www.zalando.com)
+
+## License
+
+All code in this repository is licensed under the Apache License,
+Version 2.0.  See [LICENCE.txt](./LICENSE.txt).
