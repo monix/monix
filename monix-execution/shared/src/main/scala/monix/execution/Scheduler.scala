@@ -18,8 +18,10 @@
 package monix.execution
 
 import java.util.concurrent.Executor
+
 import monix.execution.internal.RunnableAction
-import monix.execution.schedulers.SchedulerCompanionImpl
+import monix.execution.schedulers.{SchedulerCompanionImpl, StartAsyncBatchRunnable, TrampolinedRunnable}
+
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, TimeUnit}
@@ -302,7 +304,48 @@ object Scheduler extends SchedulerCompanionImpl {
   val TRACING = Features.flag(2)
 
   /** Utilities complementing the `Scheduler` interface. */
-  implicit final class Extensions(val source: Scheduler) extends AnyVal with schedulers.ExecuteExtensions {
+  implicit final class Extensions(val source: Scheduler) extends AnyVal {
+    /** Schedules the given callback for asynchronous
+      * execution in the thread-pool.
+      *
+      * @param cb the callback to execute asynchronously
+      */
+    def executeAsync(cb: Runnable): Unit =
+      source.execute(cb)
+
+    /** Schedules the given callback for asynchronous
+      * execution in the thread-pool, but also indicates the
+      * start of a
+      * [[monix.execution.schedulers.TrampolinedRunnable thread-local trampoline]]
+      * in case the scheduler is a
+      * [[monix.execution.schedulers.BatchingScheduler BatchingScheduler]].
+      *
+      * This utility is provided as an optimization. If you don't understand
+      * what this does, then don't worry about it.
+      *
+      * On Scala < 2.12 it is described as a macro, so it
+      * has zero overhead. On Scala 2.12 because of the Java 8 SAM
+      * types integration, this extension macro is replaced with a
+      * method that takes a plain `TrampolinedRunnable` as parameter.
+      *
+      * @param cb the callback to execute asynchronously
+      */
+    def executeAsyncBatch(cb: TrampolinedRunnable): Unit = {
+      val r = StartAsyncBatchRunnable(cb, source)
+      source.execute(r)
+    }
+
+    /** Schedules the given callback for immediate execution as a
+      * [[monix.execution.schedulers.TrampolinedRunnable TrampolinedRunnable]].
+      * Depending on the execution context, it might
+      * get executed on the current thread by using an internal
+      * trampoline, so it is still safe from stack-overflow exceptions.
+      *
+      * @param cb the callback to execute asynchronously
+      */
+    def executeTrampolined(cb: TrampolinedRunnable): Unit =
+      source.execute(cb)
+
     /** Schedules a task to run in the future, after `initialDelay`.
       *
       * For example the following schedules a message to be printed to
