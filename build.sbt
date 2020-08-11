@@ -14,6 +14,7 @@ addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;ci-meta")
 addCommandAlias("ci-js",       ";clean ;coreJS/test:compile ;coreJS/test ;coreJS/package")
 addCommandAlias("ci-jvm",      ";clean ;coreJVM/test:compile ;coreJVM/test ;coreJVM/package")
 addCommandAlias("ci-meta",     ";mimaReportBinaryIssues ;unidoc")
+addCommandAlias("ci-release",  ";+clean ;+publishSigned ;sonatypeBundleRelease")
 
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions
@@ -243,7 +244,10 @@ lazy val sharedSettings = Seq(
 
   // -- Settings meant for deployment on oss.sonatype.org
   sonatypeProfileName in ThisBuild := organization.value,
-  // publishTo in ThisBuild := sonatypePublishToBundle.value,
+  sonatypeSessionName := {
+    s"[sbt-sonatype] ${name.value}${customScalaJS_Version.fold("-nojs")(v => s"-sjs$v")}-${version.value}"
+  },
+  publishTo in ThisBuild := sonatypePublishToBundle.value,
   isSnapshot in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
   dynverSonatypeSnapshots in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
 
@@ -383,7 +387,7 @@ lazy val sharedJSSettings = Seq(
   },
   // Needed in order to publish for multiple Scala.js versions:
   // https://github.com/olafurpg/sbt-ci-release#how-do-i-publish-cross-built-scalajs-projects
-  // skip.in(publish) := customScalaJS_Version.isEmpty,
+  skip.in(publish) := customScalaJS_Version.isEmpty,
 )
 
 lazy val sharedJVMSettings = Seq(
