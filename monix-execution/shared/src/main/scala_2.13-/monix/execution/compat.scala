@@ -21,16 +21,15 @@ import scala.collection.generic.CanBuildFrom
 import scala.collection.mutable
 
 object compat {
-
   type BuildFrom[-From, -A, +C] = CanBuildFrom[From, A, C]
 
   private[monix] object internal {
-
     type IterableOnce[+X] = scala.collection.GenTraversableOnce[X]
     def toIterator[X](i: IterableOnce[X]): Iterator[X] = i.toIterator
     def hasDefiniteSize[X](i: IterableOnce[X]): Boolean = i.hasDefiniteSize
 
-    def newBuilder[From, A, C](bf: BuildFrom[From, A, C], from: From): mutable.Builder[A, C] = bf.apply(from)
+    def newBuilder[From, A, C](bf: BuildFrom[From, A, C], from: From): mutable.Builder[A, C] =
+      bf.apply(from)
 
     @inline def toSeq[A](array: Array[AnyRef]): Seq[A] =
       new scala.collection.mutable.WrappedArray.ofRef(array).toSeq.asInstanceOf[Seq[A]]
