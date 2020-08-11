@@ -197,7 +197,7 @@ jobs:
 
   publish:
     name: Publish to Sonatype
-    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/series/3.x')
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/series/4.x')
     needs: [ jvm-tests, js-tests, mima, unidoc ]
     strategy:
       matrix:
@@ -221,12 +221,12 @@ jobs:
 
       - name: SCALAJS_VERSION=${{ matrix.scalajs }} sbt ci-release
         run: |
-          if [ "$AUTO_PUBLISH_SERIES_3X" = "true" ]; then
+          if [ "$AUTO_PUBLISH_SERIES_4X" = "true" ]; then
             echo "SCALAJS_VERSION=$SCALAJS_VERSION"
             git fetch --depth=100 origin +refs/tags/*:refs/tags/*
             sbt ci-release
           else
-            echo "Skipping due to AUTO_PUBLISH_SERIES_3X=false"
+            echo "Skipping due to AUTO_PUBLISH_SERIES_4X=false"
           fi
         env:
           PGP_KEY_HEX: ${{ secrets.PGP_KEY_HEX }}
@@ -235,4 +235,4 @@ jobs:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SCALAJS_VERSION: ${{ matrix.scalajs }}
           PUBLISH_STABLE_VERSION: true
-          AUTO_PUBLISH_SERIES_3X: ${{ secrets.AUTO_PUBLISH_SERIES_3X }}
+          AUTO_PUBLISH_SERIES_4X: ${{ secrets.AUTO_PUBLISH_SERIES_4X }}
