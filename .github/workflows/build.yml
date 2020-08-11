@@ -222,6 +222,7 @@ jobs:
           git fetch --tags
           sbt ci-release
         env:
+          PGP_KEY_HEX: ${{ secrets.PGP_KEY_HEX }}
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
