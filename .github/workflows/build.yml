@@ -205,7 +205,10 @@ jobs:
 
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 100
+
       - uses: olafurpg/setup-scala@v2
         with:
           java-version: "adopt@1.8"
@@ -219,7 +222,7 @@ jobs:
       - name: SCALAJS_VERSION=${{ matrix.scalajs }} sbt ci-release
         run: |
           echo "SCALAJS_VERSION=$SCALAJS_VERSION"
-          git fetch --tags
+          git fetch --depth=100 origin +refs/tags/*:refs/tags/*
           sbt ci-release
         env:
           PGP_KEY_HEX: ${{ secrets.PGP_KEY_HEX }}

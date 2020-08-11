@@ -244,14 +244,6 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
 
-  // Disable publishing of Scaladoc for Scala 2.11, because of too many issues
-  publishArtifact in (Compile, packageDoc) := {
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, y)) if y <= 11 => false
-      case _ => true
-    }
-  },
-
   // -- Settings meant for deployment on oss.sonatype.org
   publishTo in ThisBuild := sonatypePublishToBundle.value,
   isSnapshot in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
