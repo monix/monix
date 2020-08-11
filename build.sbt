@@ -14,6 +14,7 @@ addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;ci-meta")
 addCommandAlias("ci-js",       ";clean ;coreJS/test:compile ;coreJS/test ;coreJS/package")
 addCommandAlias("ci-jvm",      ";clean ;coreJVM/test:compile ;coreJVM/test ;coreJVM/package")
 addCommandAlias("ci-meta",     ";mimaReportBinaryIssues ;unidoc")
+addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions
@@ -155,7 +156,25 @@ crossScalaVersionsFromBuildYaml in Global := {
   scalaVersionsFromBuildYaml(manifest, customScalaJS_Version)
 }
 
-lazy val sharedSettings = Seq(
+lazy val publishStableMonixVersion =
+  settingKey[Boolean]("If it should publish stable versions to Sonatype staging repository, instead of a snapshot")
+
+publishStableMonixVersion in Global := {
+  sys.env.get("PUBLISH_STABLE_VERSION")
+    .exists(v => v == "true" || v == "1" || v == "yes")
+}
+
+lazy val pgpSettings = {
+  val withHex = sys.env.get("PGP_KEY_HEX").filter(_.nonEmpty) match {
+    case None => Seq.empty
+    case Some(v) => Seq(usePgpKeyHex(v))
+  }
+  withHex ++ Seq(
+    pgpPassphrase := sys.env.get("PGP_PASSPHRASE").filter(_.nonEmpty).map(_.toArray)
+  )
+}
+
+lazy val sharedSettings = pgpSettings ++ Seq(
   organization := "io.monix",
   // Value extracted from .github/workflows/build.yml
   scalaVersion := crossScalaVersionsFromBuildYaml.value.head.value,
@@ -225,15 +244,20 @@ lazy val sharedSettings = Seq(
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
 
-  // -- Settings meant for deployment on oss.sonatype.org
-  sonatypeProfileName := organization.value,
-  dynverSonatypeSnapshots in ThisBuild := !isVersionStable.value,
-  sonatypeDefaultResolver := {
-    if (isVersionStable.value)
-      Opts.resolver.sonatypeStaging
-    else
-      Opts.resolver.sonatypeSnapshots
+  // Disable publishing of Scaladoc for Scala 2.11, because of too many issues
+  publishArtifact in (Compile, packageDoc) := {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, y)) if y <= 11 => false
+      case _ => true
+    }
   },
+
+  // -- Settings meant for deployment on oss.sonatype.org
+  publishTo in ThisBuild := sonatypePublishToBundle.value,
+  isSnapshot in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
+  dynverSonatypeSnapshots in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
+  sonatypeProfileName in ThisBuild := organization.value,
+  sonatypeSessionName := s"[sbt-sonatype] ${name.value}${customScalaJS_Version.fold("-nojs")(v => s"-sjs$v")}-${version.value}",
 
   publishMavenStyle := true,
   publishArtifact in Test := false,
@@ -330,8 +354,7 @@ lazy val assemblyShadeSettings = Seq(
   // prevent original dependency to be added to pom as runtime dep
   makePomConfiguration := makePomConfiguration.value.withConfigurations(Vector.empty),
   // package by running assembly
-  packageBin in Compile := ReproducibleBuildsPlugin
-    .postProcessJar((assembly in Compile).value),
+  packageBin in Compile := ReproducibleBuildsPlugin.postProcessJar((assembly in Compile).value),
   // disable publishing the main API jar
   Compile / packageDoc / publishArtifact := false,
   // disable publishing the main sources jar
@@ -362,7 +385,7 @@ lazy val unidocSettings = Seq(
     Opts.doc.version(s"${version.value}")
 )
 
-lazy val sharedJavaScriptSettings = Seq(
+lazy val sharedJSSettings = Seq(
   coverageExcludedFiles := ".*",
   // Use globally accessible (rather than local) source paths in JS source maps
   scalacOptions += {
@@ -441,7 +464,7 @@ def jsProfile(projectName: String, publishArtifacts: Boolean): Project => Projec
     pr.configure(monixSubModule(projectName, publishArtifacts = publishArtifacts))
       .enablePlugins(ScalaJSPlugin)
       .settings(testDependencies)
-      .settings(sharedJavaScriptSettings)
+      .settings(sharedJSSettings)
   }
 
 def crossModule(
