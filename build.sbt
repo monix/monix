@@ -155,6 +155,14 @@ crossScalaVersionsFromBuildYaml in Global := {
   scalaVersionsFromBuildYaml(manifest, customScalaJS_Version)
 }
 
+lazy val publishStableMonixVersion =
+  settingKey[Boolean]("If it should publish stable versions to Sonatype staging repository, instead of a snapshot")
+
+publishStableMonixVersion in Global := {
+  sys.env.get("PUBLISH_STABLE_VERSION")
+    .exists(v => v == "true" || v == "1" || v == "yes")
+}
+
 lazy val sharedSettings = Seq(
   organization := "io.monix",
   // Value extracted from .github/workflows/build.yml
@@ -227,9 +235,11 @@ lazy val sharedSettings = Seq(
 
   // -- Settings meant for deployment on oss.sonatype.org
   sonatypeProfileName := organization.value,
-  dynverSonatypeSnapshots in ThisBuild := !isVersionStable.value,
+  // Force the publishing of stable versions in the staging,
+  // instead of the snapshots repository (default config of sbt-ci-release)
+  dynverSonatypeSnapshots in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
   sonatypeDefaultResolver := {
-    if (isVersionStable.value)
+    if (isVersionStable.value && publishStableMonixVersion.value)
       Opts.resolver.sonatypeStaging
     else
       Opts.resolver.sonatypeSnapshots
