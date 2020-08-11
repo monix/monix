@@ -281,14 +281,8 @@ lazy val crossVersionSourcesSettings: Seq[Setting[_]] =
       (unmanagedSourceDirectories in sc).value.flatMap { dir =>
         Seq(
           scalaPartV.value match {
-            case Some((2, y)) if y == 11 => Some(new File(dir.getPath + "_2.11"))
             case Some((2, y)) if y == 12 => Some(new File(dir.getPath + "_2.12"))
             case Some((2, y)) if y >= 13 => Some(new File(dir.getPath + "_2.13"))
-            case _ => None
-          },
-          scalaPartV.value match {
-            case Some((2, n)) if n >= 12 => Some(new File(dir.getPath + "_2.12+"))
-            case Some((2, _)) => Some(new File(dir.getPath + "_2.12-"))
             case _ => None
           },
           scalaPartV.value match {
