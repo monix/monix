@@ -59,15 +59,12 @@ private[monix] final class DynamicWorkerThreadFactory(
   def newThread(runnable: Runnable): Thread =
     if (!reserveThread()) null
     else
-      wire(new Thread(new Runnable {
-        // We have to decrement the current thread count when the thread exits
-        override def run() = {
-          try {
-            runnable.run()
-          } finally { 
-            deregisterThread()
-            ()
-          }
+      wire(new Thread(() => {
+        try {
+          runnable.run()
+        } finally {
+          deregisterThread()
+          ()
         }
       }))
 

@@ -36,7 +36,7 @@ private[reactive] final class RaiseErrorConsumer(ex: Throwable) extends Consumer
     }
 
     // Forcing async boundary to prevent problems
-    s.execute(new Runnable { def run() = cb.onError(ex) })
+    s.execute(() => cb.onError(ex))
     (out, AssignableCancelable.alreadyCanceled)
   }
 }

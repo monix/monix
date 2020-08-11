@@ -27,11 +27,9 @@ private[reactive] final class SubscribeOnObservable[+A](source: Observable[A], s
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val subscription = SingleAssignCancelable()
 
-    s.execute(new Runnable {
-      def run(): Unit = {
-        subscription := source.unsafeSubscribeFn(out)
-        ()
-      }
+    s.execute(() => {
+      subscription := source.unsafeSubscribeFn(out)
+      ()
     })
 
     subscription

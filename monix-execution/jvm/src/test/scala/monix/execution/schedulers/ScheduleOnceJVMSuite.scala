@@ -89,11 +89,9 @@ object ScheduleOnceJVMSuite extends SimpleTestSuite {
   def runTest(sc: Scheduler, threadPrefix: Option[String] = None): Unit = {
     def runAndGetThread(sc: Scheduler, delayMs: Int): Future[String] = {
       val p = Promise[String]()
-      sc.scheduleOnce(delayMs.toLong, MILLISECONDS, new Runnable {
-        def run(): Unit = {
-          p.success(Thread.currentThread().getName)
-          ()
-        }
+      sc.scheduleOnce(delayMs.toLong, MILLISECONDS, () => {
+        p.success(Thread.currentThread().getName)
+        ()
       })
       p.future
     }

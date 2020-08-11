@@ -329,7 +329,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
   }
 
   def action(f: => Unit): Runnable =
-    new Runnable { def run() = f }
+    () => f
 
   def delayedResult[A](delay: FiniteDuration, timeout: FiniteDuration)(r: => A)(implicit s: Scheduler) = {
     val f1 = {

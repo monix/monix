@@ -114,9 +114,7 @@ object AsyncSchedulerJVMSuite extends SimpleTestSuite {
     assertEquals(s.executionModel, AlwaysAsyncExecution)
 
     val latch = new CountDownLatch(1)
-    s.execute(new Runnable {
-      def run(): Unit = latch.countDown()
-    })
+    s.execute(() => latch.countDown())
 
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await")
   }
@@ -197,5 +195,5 @@ object AsyncSchedulerJVMSuite extends SimpleTestSuite {
   }
 
   def runnableAction(f: => Unit): Runnable =
-    new Runnable { def run() = f }
+    () => f
 }

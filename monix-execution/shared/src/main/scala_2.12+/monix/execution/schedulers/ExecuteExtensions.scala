@@ -31,14 +31,6 @@ private[execution] trait ExecuteExtensions extends Any {
   /** Schedules the given callback for asynchronous
     * execution in the thread-pool.
     *
-    * On Scala < 2.12 it is described as a macro, so it
-    * has zero overhead, being perfectly equivalent with
-    * `execute(new Runnable { ... })`.
-    *
-    * On Scala 2.12 because of the Java 8 SAM types integration,
-    * this extension macro is replaced with a method that takes
-    * a plain `Runnable` as parameter.
-    *
     * @param cb the callback to execute asynchronously
     */
   def executeAsync(cb: Runnable): Unit =
@@ -71,14 +63,6 @@ private[execution] trait ExecuteExtensions extends Any {
     * Depending on the execution context, it might
     * get executed on the current thread by using an internal
     * trampoline, so it is still safe from stack-overflow exceptions.
-    *
-    * On Scala < 2.12 it is described as a macro, so it
-    * has zero overhead, being perfectly equivalent with
-    * `execute(new TrampolinedRunnable { ... })`.
-    *
-    * On Scala 2.12 because of the Java 8 SAM types integration,
-    * this extension macro is replaced with a method that takes
-    * a plain `TrampolinedRunnable` as parameter.
     *
     * @param cb the callback to execute asynchronously
     */

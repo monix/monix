@@ -29,7 +29,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
     try {
       val latch = new CountDownLatch(2)
       val s = Scheduler(service, ec)
-      val r = new Runnable { def run() = latch.countDown() }
+      val r: Runnable = () => latch.countDown()
       s.execute(r)
       s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
@@ -45,7 +45,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
     try {
       val latch = new CountDownLatch(2)
       val s = Scheduler(service, ec)
-      val r = new Runnable { def run() = latch.countDown() }
+      val r: Runnable = () => latch.countDown()
       s.execute(r)
       s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
@@ -58,7 +58,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
     val ec = scala.concurrent.ExecutionContext.Implicits.global
     val latch = new CountDownLatch(2)
     val s = Scheduler(ec, UncaughtExceptionReporter(ec.reportFailure))
-    val r = new Runnable { def run() = latch.countDown() }
+    val r: Runnable = () => latch.countDown()
     s.execute(r)
     s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
@@ -68,7 +68,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
     val ec = scala.concurrent.ExecutionContext.Implicits.global
     val latch = new CountDownLatch(2)
     val s = Scheduler(ec)
-    val r = new Runnable { def run() = latch.countDown() }
+    val r: Runnable = () => latch.countDown()
     s.execute(r)
     s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
@@ -80,7 +80,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
 
     try {
       val latch = new CountDownLatch(2)
-      val r = new Runnable { def run() = latch.countDown() }
+      val r: Runnable = () => latch.countDown()
       s.execute(r)
       s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
@@ -95,7 +95,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
 
     try {
       val latch = new CountDownLatch(2)
-      val r = new Runnable { def run() = latch.countDown() }
+      val r: Runnable = () => latch.countDown()
       s.execute(r)
       s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
@@ -108,7 +108,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
     val s: SchedulerService = Scheduler.computation(parallelism = 1)
     try {
       val latch = new CountDownLatch(2)
-      val r = new Runnable { def run() = latch.countDown() }
+      val r: Runnable = () => latch.countDown()
       s.execute(r)
       s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
@@ -121,7 +121,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
     val s: SchedulerService = Scheduler.io(name = "monix-tests-io")
     try {
       val latch = new CountDownLatch(2)
-      val r = new Runnable { def run() = latch.countDown() }
+      val r: Runnable = () => latch.countDown()
       s.execute(r)
       s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
@@ -134,7 +134,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
     val s: SchedulerService = Scheduler.singleThread(name = "monix-tests-single-thread")
     try {
       val latch = new CountDownLatch(2)
-      val r = new Runnable { def run() = latch.countDown() }
+      val r: Runnable = () => latch.countDown()
       s.execute(r)
       s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
@@ -147,7 +147,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
     val s: SchedulerService = Scheduler.fixedPool(name = "monix-tests-fixed-pool", poolSize = 1)
     try {
       val latch = new CountDownLatch(2)
-      val r = new Runnable { def run() = latch.countDown() }
+      val r: Runnable = () => latch.countDown()
       s.execute(r)
       s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")

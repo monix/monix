@@ -48,10 +48,7 @@ final private[internal] class ForwardCancelable private () {
 
         case Active(token) =>
           state.lazySet(finished) // GC purposes
-          context.execute(new Runnable {
-            def run() =
-              Task.unsafeStartNow(token, ctx, cb)
-          })
+          context.execute(() => Task.unsafeStartNow(token, ctx, cb))
       }
 
     Task.Async(loop)
@@ -106,19 +103,17 @@ private[internal] object ForwardCancelable {
   private val context: ExecutionContext = TrampolineExecutionContext.immediate
 
   private def execute(token: CancelToken[Task], stack: List[Callback[Throwable, Unit]])(implicit s: Scheduler): Unit =
-    context.execute(new Runnable {
-      def run(): Unit = {
-        token.runAsync { r =>
-          for (cb <- stack)
-            try {
-              cb(r)
-            } catch {
-              // $COVERAGE-OFF$
-              case NonFatal(e) => s.reportFailure(e)
-              // $COVERAGE-ON$
-            }
-        }
-        ()
+    context.execute(() => {
+      token.runAsync { r =>
+        for (cb <- stack)
+          try {
+            cb(r)
+          } catch {
+            // $COVERAGE-OFF$
+            case NonFatal(e) => s.reportFailure(e)
+            // $COVERAGE-ON$
+          }
       }
+      ()
     })
 }

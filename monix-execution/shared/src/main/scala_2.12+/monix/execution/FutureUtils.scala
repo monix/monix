@@ -38,9 +38,9 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
   def timeout[A](source: Future[A], atMost: FiniteDuration)(implicit s: Scheduler): Future[A] = {
     val err = new TimeoutException
     val promise = Promise[A]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit, 
-      new Runnable { 
-        def run() = { promise.tryFailure(err); () }
+    val task = s.scheduleOnce(atMost.length, atMost.unit,
+      () => {
+        promise.tryFailure(err); ()
       })
 
     source.onComplete { r =>
@@ -69,9 +69,9 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
     implicit s: Scheduler): Future[A] = {
 
     val promise = Promise[Option[Try[A]]]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit, 
-      new Runnable { 
-        def run() = { promise.trySuccess(None); () }
+    val task = s.scheduleOnce(atMost.length, atMost.unit,
+      () => {
+        promise.trySuccess(None); ()
       })
 
     source.onComplete { r =>
@@ -125,7 +125,7 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
     */
   def delayedResult[A](delay: FiniteDuration)(result: => A)(implicit s: Scheduler): Future[A] = {
     val p = Promise[A]()
-    s.scheduleOnce(delay.length, delay.unit, new Runnable { def run() = p.complete(Try(result)) })
+    s.scheduleOnce(delay.length, delay.unit, () => p.complete(Try(result)))
     p.future
   }
 

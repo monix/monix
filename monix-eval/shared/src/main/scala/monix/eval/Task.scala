@@ -4661,9 +4661,8 @@ object Task extends TaskInstancesLevel1 {
     * trampolined async boundary.
     */
   private[monix] def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[Throwable, A]): Unit =
-    context.scheduler.execute(new TrampolinedRunnable {
-      def run(): Unit =
-        TaskRunLoop.startFull(source, context, cb, null, null, null, context.frameRef())
+    context.scheduler.executeTrampolined(() => {
+      TaskRunLoop.startFull(source, context, cb, null, null, null, context.frameRef())
     })
 
   /**

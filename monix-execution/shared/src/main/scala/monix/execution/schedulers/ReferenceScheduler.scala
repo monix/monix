@@ -46,11 +46,9 @@ trait ReferenceScheduler extends Scheduler {
         sub := scheduleOnce(
           initialDelay,
           unit,
-          new Runnable {
-            def run(): Unit = {
-              r.run()
-              loop(delay, delay)
-            }
+          () => {
+            r.run()
+            loop(delay, delay)
           })
         ()
       }
@@ -71,19 +69,17 @@ trait ReferenceScheduler extends Scheduler {
         sub := scheduleOnce(
           initialDelayMs,
           MILLISECONDS,
-          new Runnable {
-            def run(): Unit = {
-              r.run()
+          () => {
+            r.run()
 
-              val delay = {
-                val durationMillis = clockMonotonic(MILLISECONDS) - startedAtMillis
-                val d = periodMs - durationMillis
-                if (d >= 0) d else 0
-              }
-
-              // Recursive call
-              loop(delay, periodMs)
+            val delay = {
+              val durationMillis = clockMonotonic(MILLISECONDS) - startedAtMillis
+              val d = periodMs - durationMillis
+              if (d >= 0) d else 0
             }
+
+            // Recursive call
+            loop(delay, periodMs)
           }
         )
         ()

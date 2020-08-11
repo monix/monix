@@ -30,20 +30,16 @@ private[reactive] final class MapConsumer[In, R, R2](source: Consumer[In, R], f:
   def createSubscriber(cb: Callback[Throwable, R2], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
     val cb1 = new Callback[Throwable, R] {
       def onSuccess(value: R): Unit =
-        s.execute(new Runnable {
-          // Forcing an asynchronous boundary, otherwise
-          // this isn't a safe operation.
-          def run(): Unit = {
-            var streamErrors = true
-            try {
-              val r2 = f(value)
-              streamErrors = false
-              cb.onSuccess(r2)
-            } catch {
-              case ex if NonFatal(ex) =>
-                if (streamErrors) cb.onError(ex)
-                else s.reportFailure(ex)
-            }
+        s.execute(() => {
+          var streamErrors = true
+          try {
+            val r2 = f(value)
+            streamErrors = false
+            cb.onSuccess(r2)
+          } catch {
+            case ex if NonFatal(ex) =>
+              if (streamErrors) cb.onError(ex)
+              else s.reportFailure(ex)
           }
         })
 

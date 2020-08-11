@@ -76,10 +76,10 @@ object OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Fail(100000))
 
     def loop(n: Int): Unit =
-      if (n > 0) s.execute(new Runnable {
-        def run() = { buffer.onNext(n); loop(n - 1) }
-      })
-      else buffer.onComplete()
+      if (n > 0)
+        s.execute(() => { buffer.onNext(n); loop(n - 1) })
+      else
+        buffer.onComplete()
 
     loop(10000)
     assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")

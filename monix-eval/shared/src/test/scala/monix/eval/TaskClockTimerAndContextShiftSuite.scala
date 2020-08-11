@@ -160,9 +160,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
     val s2 = TestScheduler()
 
     var wasScheduled = false
-    val runnable = new Runnable {
-      override def run(): Unit = wasScheduled = true
-    }
+    val runnable: Runnable = () => wasScheduled = true
 
     val f = Task.contextShift.evalOn(s2)(Task.deferAction(scheduler => Task(scheduler.execute(runnable)))).runToFuture
 
@@ -225,14 +223,15 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
 
   test("Task.contextShift(s).evalOn(s2) injects s2 to Task.deferAction") { implicit s =>
     val s2 = TestScheduler()
-
     var wasScheduled = false
-    val runnable = new Runnable {
-      override def run(): Unit = wasScheduled = true
-    }
+    val runnable: Runnable = () => wasScheduled = true
 
     val f =
-      Task.contextShift(s).evalOn(s2)(Task.deferAction(scheduler => Task(scheduler.execute(runnable)))).runToFuture
+      Task.contextShift(s).evalOn(s2)(
+        Task.deferAction { scheduler =>
+          Task(scheduler.execute(runnable))
+        }
+      ).runToFuture
 
     assertEquals(f.value, None)
     s.tick()

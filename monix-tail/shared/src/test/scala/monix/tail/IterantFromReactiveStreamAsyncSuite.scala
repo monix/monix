@@ -203,35 +203,33 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
 
         def request(n: Long): Unit = {
           if (requested.getAndAdd(n) == 0)
-            sc.execute(new Runnable {
-              def run(): Unit = {
-                var requested = self.requested.get()
-                var toSend = requested
-                var isCanceled = self.cancelled.get() && self.finished.get()
+            sc.execute(() => {
+              var requested = self.requested.get()
+              var toSend = requested
+              var isCanceled = self.cancelled.get() && self.finished.get()
 
-                while (toSend > 0 && isInRange(index.toLong, until.toLong, step.toLong) && !isCanceled) {
-                  s.onNext(index)
-                  index += step
-                  toSend -= 1
+              while (toSend > 0 && isInRange(index.toLong, until.toLong, step.toLong) && !isCanceled) {
+                s.onNext(index)
+                index += step
+                toSend -= 1
 
-                  if (toSend == 0) {
-                    requested = self.requested.subtractAndGet(requested)
-                    toSend = requested
-                  } else if (toSend % 100 == 0) {
-                    isCanceled = self.cancelled.get()
-                  }
+                if (toSend == 0) {
+                  requested = self.requested.subtractAndGet(requested)
+                  toSend = requested
+                } else if (toSend % 100 == 0) {
+                  isCanceled = self.cancelled.get()
                 }
+              }
 
-                if (!isInRange(index.toLong, until.toLong, step.toLong) &&
-                  !isCanceled &&
-                  finished.compareAndSet(expect = false, update = true)
-                ) {
-                  finish match {
-                    case None =>
-                      s.onComplete()
-                    case Some(e) =>
-                      s.onError(e)
-                  }
+              if (!isInRange(index.toLong, until.toLong, step.toLong) &&
+                !isCanceled &&
+                finished.compareAndSet(expect = false, update = true)
+              ) {
+                finish match {
+                  case None =>
+                    s.onComplete()
+                  case Some(e) =>
+                    s.onError(e)
                 }
               }
             })
