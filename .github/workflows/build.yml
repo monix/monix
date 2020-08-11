@@ -207,10 +207,22 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v1
-      - uses: olafurpg/setup-gpg@v2
       - uses: olafurpg/setup-scala@v2
         with:
           java-version: "adopt@1.8"
+
+      - name: Install GnuPG2
+        run: |
+          sudo apt-get update && sudo apt-get -y install gnupg2
+          mkdir ~/.gnupg && chmod 700 ~/.gnupg
+          echo use-agent >> ~/.gnupg/gpg.conf
+          echo pinentry-mode loopback >> ~/.gnupg/gpg.conf
+          echo allow-loopback-pinentry >> ~/.gnupg/gpg-agent.conf
+          chmod 600 ~/.gnupg/*
+          echo RELOADAGENT | gpg-connect-agent
+          echo $PGP_SECRET | base64 --decode | gpg --import --no-tty --batch --yes
+        env:
+          PGP_SECRET: ${{secrets.PGP_SECRET}}
 
       - name: SCALAJS_VERSION=${{ matrix.scalajs }} sbt ci-release
         run: |
@@ -225,33 +237,33 @@ jobs:
           SCALAJS_VERSION: ${{ matrix.scalajs }}
           PUBLISH_STABLE_VERSION: false
 
-  publish_stable_version:
-    name: Publish Stable Version
-    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master')
-    needs: [ jvm-tests, js-tests, mima, unidoc ]
-    strategy:
-      fail-fast: true
-      max-parallel: 1
-      matrix:
-        scalajs: ["", 0.6.33, 1.1.1]
+  # publish_stable_version:
+  #   name: Publish Stable Version
+  #   if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master')
+  #   needs: [ jvm-tests, js-tests, mima, unidoc ]
+  #   strategy:
+  #     fail-fast: true
+  #     max-parallel: 1
+  #     matrix:
+  #       scalajs: ["", 0.6.33, 1.1.1]
 
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v1
-      - uses: olafurpg/setup-gpg@v2
-      - uses: olafurpg/setup-scala@v2
-        with:
-          java-version: "adopt@1.8"
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - uses: actions/checkout@v1
+  #     - uses: olafurpg/setup-gpg@v2
+  #     - uses: olafurpg/setup-scala@v2
+  #       with:
+  #         java-version: "adopt@1.8"
 
-      - name: SCALAJS_VERSION=${{ matrix.scalajs }} sbt ci-release
-        run: |
-          echo "SCALAJS_VERSION=$SCALAJS_VERSION"
-          git fetch --tags
-          sbt clean ci-release
-        env:
-          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
-          PGP_SECRET: ${{ secrets.PGP_SECRET }}
-          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          SCALAJS_VERSION: ${{ matrix.scalajs }}
-          PUBLISH_STABLE_VERSION: true
+  #     - name: SCALAJS_VERSION=${{ matrix.scalajs }} sbt ci-release
+  #       run: |
+  #         echo "SCALAJS_VERSION=$SCALAJS_VERSION"
+  #         git fetch --tags
+  #         sbt clean ci-release
+  #       env:
+  #         PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+  #         PGP_SECRET: ${{ secrets.PGP_SECRET }}
+  #         SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+  #         SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+  #         SCALAJS_VERSION: ${{ matrix.scalajs }}
+  #         PUBLISH_STABLE_VERSION: true

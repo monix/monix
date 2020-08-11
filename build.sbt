@@ -14,6 +14,7 @@ addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;ci-meta")
 addCommandAlias("ci-js",       ";clean ;coreJS/test:compile ;coreJS/test ;coreJS/package")
 addCommandAlias("ci-jvm",      ";clean ;coreJVM/test:compile ;coreJVM/test ;coreJVM/package")
 addCommandAlias("ci-meta",     ";mimaReportBinaryIssues ;unidoc")
+addCommandAlias("ci-release",  ";+clean ;+publishSigned ;sonatypeBundleRelease")
 
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions
@@ -235,15 +236,16 @@ lazy val sharedSettings = Seq(
 
   // -- Settings meant for deployment on oss.sonatype.org
   sonatypeProfileName := organization.value,
+  publishTo in ThisBuild := sonatypePublishToBundle.value,
   // Force the publishing of stable versions in the staging,
   // instead of the snapshots repository (default config of sbt-ci-release)
   dynverSonatypeSnapshots in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
-  sonatypeDefaultResolver := {
-    if (isVersionStable.value && publishStableMonixVersion.value)
-      Opts.resolver.sonatypeStaging
-    else
-      Opts.resolver.sonatypeSnapshots
-  },
+//  sonatypeDefaultResolver := {
+//    if (isVersionStable.value && publishStableMonixVersion.value)
+//      Opts.resolver.sonatypeStaging
+//    else
+//      Opts.resolver.sonatypeSnapshots
+//  },
 
   publishMavenStyle := true,
   publishArtifact in Test := false,
