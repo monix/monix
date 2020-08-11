@@ -18,7 +18,6 @@
 package monix.execution.misc
 
 import scala.reflect.macros.whitebox
-import monix.execution.misc.compat.freshTermName
 
 /** Utilities for macro-hygiene. */
 trait HygieneUtilMacros {
@@ -28,7 +27,7 @@ trait HygieneUtilMacros {
 
   object util {
     /** Generates a new term name. Used for macro-hygiene. */
-    def name(s: String) = freshTermName(c)(s + "$")
+    def name(s: String) = c.universe.TermName(c.freshName(s))
     /** Generates new term names. Used for macro-hygiene. */
     def names(bs: String*) = bs.toList.map(name)
 
