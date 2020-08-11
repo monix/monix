@@ -89,7 +89,7 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
 
   test("should push all items downstream before calling onComplete") { implicit s =>
     val source =
-      Observable.mergePrioritizedList((1, Observable.now(1L)), (1, Observable.now(1L)))
+      Observable.mergePrioritizedList((1, Observable.now(1L)), (1, Observable.now(1L)), (1, Observable.now(1L)))
     var count = 0L
     source.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long): Future[Ack] = {
@@ -102,13 +102,15 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
           .runToFuture
       }
       def onError(ex: Throwable): Unit = throw ex
-      def onComplete(): Unit = ()
+      def onComplete(): Unit = assertEquals(count, 3L)
     })
 
     s.tick(1.seconds)
     assertEquals(count, 1L)
     s.tick(1.seconds)
     assertEquals(count, 2L)
+    s.tick(1.seconds)
+    assertEquals(count, 3L)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
