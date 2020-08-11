@@ -14,7 +14,7 @@ addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;ci-meta")
 addCommandAlias("ci-js",       ";clean ;coreJS/test:compile ;coreJS/test ;coreJS/package")
 addCommandAlias("ci-jvm",      ";clean ;coreJVM/test:compile ;coreJVM/test ;coreJVM/package")
 addCommandAlias("ci-meta",     ";mimaReportBinaryIssues ;unidoc")
-addCommandAlias("ci-release",  ";+clean ;+publishSigned ;sonatypeBundleRelease")
+addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions

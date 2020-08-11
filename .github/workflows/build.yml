@@ -213,22 +213,7 @@ jobs:
 
       - name: Install GnuPG2
         run: |
-          sudo apt-get update && sudo apt-get -y install gnupg2
-          echo "Creating directory ~/.gnupg"
-          mkdir ~/.gnupg && chmod 700 ~/.gnupg
-          echo "Updating ~/.gnupg/gpg.conf"
-          echo use-agent >> ~/.gnupg/gpg.conf
-          echo pinentry-mode loopback >> ~/.gnupg/gpg.conf
-          echo allow-loopback-pinentry >> ~/.gnupg/gpg-agent.conf
-          chmod 600 ~/.gnupg/*
-          echo "Reloading agent (via gpg-connect-agent)"
-          echo RELOADAGENT | gpg-connect-agent
-          if [ -z "$PGP_SECRET" ]; then
-            echo "ERROR: PGP_SECRET is not set!" >&2
-            exit 1
-          fi
-          echo "Importing PGP_SECRET"
-          echo $PGP_SECRET | base64 --decode | gpg --import --no-tty --batch --yes
+          ./.github/scripts/setup-pgp
         env:
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
 
@@ -236,10 +221,9 @@ jobs:
         run: |
           echo "SCALAJS_VERSION=$SCALAJS_VERSION"
           git fetch --tags
-          sbt clean ci-release
+          sbt ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
-          PGP_SECRET: ${{ secrets.PGP_SECRET }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SCALAJS_VERSION: ${{ matrix.scalajs }}
