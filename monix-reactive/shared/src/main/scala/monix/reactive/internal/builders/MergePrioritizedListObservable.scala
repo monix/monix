@@ -26,6 +26,7 @@ import monix.reactive.observers.Subscriber
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
+import scala.util.control.NonFatal
 
 /** Given a sequence of priority/observable pairs, combines them into a new
   * observable that eagerly emits source items downstream as soon as demand is
@@ -43,8 +44,10 @@ import scala.util.Success
   * same order as received from the source, and at most a single item from a
   * given source will be in flight at a time.
   */
-private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[(Int, Observable[A])])
-  extends Observable[A] {
+private[reactive] final class MergePrioritizedListObservable[A](
+    sources: Seq[(Int, Observable[A])])
+    extends Observable[A]
+    with Debuggable {
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     import out.scheduler
@@ -71,7 +74,22 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[(In
 
     // MUST BE synchronized by `lock`
     def rawOnNext(a: A): Future[Ack] = {
-      if (isDone) Stop else out.onNext(a)
+      if (isDone) Stop
+      else {
+        out
+          .onNext(a)
+          .map {
+            case Stop =>
+              lock.synchronized(completePromises())
+              Stop
+            case Continue => Continue
+          }
+          .recover {
+            case NonFatal(e) =>
+              lock.synchronized(completePromises())
+              throw e
+          }
+      }
     }
 
     // MUST BE synchronized by `lock`
@@ -86,12 +104,12 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[(In
     def signalOnNext(): Future[Ack] = {
       lastAck = lastAck match {
         case Continue => processNext()
-        case Stop => Stop
+        case Stop     => showPromises(); Stop
         case async =>
           async.flatMap {
             // async execution, we have to re-sync
             case Continue => lock.synchronized(processNext())
-            case Stop => Stop
+            case Stop     => showPromises(); Stop
           }
       }
       lastAck
@@ -118,7 +136,7 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[(In
               out.onComplete()
               completePromises()
             case Stop =>
-              () // do nothing
+              completePromises()
             case async =>
               async.onComplete {
                 case Success(Continue) =>
@@ -130,7 +148,7 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[(In
                     }
                   }
                 case _ =>
-                  () // do nothing
+                  lock.synchronized(completePromises())
               }
           }
 
@@ -138,37 +156,58 @@ private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[(In
         }
       }
 
+    // MUST BE synchronized by `lock`
     def completePromises(): Unit = {
-      pq.iterator.foreach(e => e.promise.complete(Success(Stop)))
+      if (debug) println("completePromises()")
+      pq.iterator.foreach(e => e.promise.tryComplete(Success(Stop)))
+    }
+
+    def showPromises(): Unit = {
+      if (debug && !shown) {
+        shown = true
+        println("Promises completed?:")
+        pq.iterator.foreach { e =>
+          println(s"${e.promise.isCompleted}")
+        }
+        println("/Promises completed?:")
+      }
     }
 
     val composite = CompositeCancelable()
-    val priSources = sources.sorted(Ordering.by[(Int, Observable[A]), Int](_._1).reverse)
+    val priSources =
+      sources.sorted(Ordering.by[(Int, Observable[A]), Int](_._1).reverse)
 
-    priSources.foreach { case (pri, obs) =>
-      composite += obs.unsafeSubscribeFn(new Subscriber[A] {
-        implicit val scheduler: Scheduler = out.scheduler
+    priSources.foreach {
+      case (pri, obs) =>
+        composite += obs.unsafeSubscribeFn(new Subscriber[A] {
+          implicit val scheduler: Scheduler = out.scheduler
 
-        def onNext(elem: A): Future[Ack] =
-          lock.synchronized {
-            if (isDone) {
-              Stop
-            } else {
-              val p = Promise[Ack]()
-              pq.enqueue(PQElem(elem, p, pri))
-              signalOnNext()
-              p.future
+          def onNext(elem: A): Future[Ack] =
+            lock.synchronized {
+              if (isDone) {
+                Stop
+              } else {
+                val p = Promise[Ack]()
+                pq.enqueue(PQElem(elem, p, pri))
+                signalOnNext()
+                p.future
+              }
             }
+
+          def onError(ex: Throwable): Unit =
+            signalOnError(ex)
+
+          def onComplete(): Unit = {
+            signalOnComplete()
           }
-
-        def onError(ex: Throwable): Unit =
-          signalOnError(ex)
-
-        def onComplete(): Unit = {
-          signalOnComplete()
-        }
-      })
+        })
     }
     composite
   }
+}
+
+trait Debuggable {
+  var debug = false
+  var shown: Boolean = false
+  def setDebug(d: Boolean): Unit = debug = d
 }

@@ -18,8 +18,10 @@
 package monix.reactive.internal.operators
 
 import monix.eval.Task
-import monix.execution.Ack
-import monix.execution.Ack.Continue
+import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.Ack.{Continue, Stop}
+import monix.reactive.internal.builders.Debuggable
+import monix.reactive.observers.Subscriber
 import monix.reactive.{Observable, Observer}
 
 import scala.concurrent.Future
@@ -109,5 +111,62 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
     s.tick(1.seconds)
     assertEquals(count, 2L)
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
+  }
+
+  test("should complete all upstream onNext promises when downstream stops early") { implicit s =>
+    val sources = (1 to 10).map(i => (i, new OnNextExposingObservable(i * 1L)))
+    val source = Observable.mergePrioritizedList(sources: _*)
+    source.asInstanceOf[Debuggable].setDebug(true)
+
+    source.unsafeSubscribeFn(new Observer[Long] {
+      def onNext(elem: Long): Future[Ack] = {
+        Task
+          .sleep(FiniteDuration(1, SECONDS)) // sleep so that other source observables' items queued before next call
+          .map { _ =>
+            Stop
+          }
+          .runToFuture
+      }
+      def onError(ex: Throwable): Unit = throw ex
+      def onComplete(): Unit = ()
+    })
+
+    s.tick(1.seconds)
+    sources.foreach(src => assert(src._2.onNextRes.exists(_.isCompleted), "source promise completed"))
+  }
+
+  test("should complete all upstream onNext promises when downstream errors early") { implicit s =>
+    val sources = (1 to 10).map(i => (i, new OnNextExposingObservable(i * 1L)))
+    val source = Observable.mergePrioritizedList(sources: _*)
+    source.asInstanceOf[Debuggable].setDebug(true)
+
+    source.unsafeSubscribeFn(new Observer[Long] {
+      def onNext(elem: Long): Future[Ack] = {
+        Task
+          .sleep(FiniteDuration(1, SECONDS)) // sleep so that other source observables' items queued before next call
+          .map { _ =>
+            throw new RuntimeException("downstream failed")
+          }
+          .runToFuture
+      }
+      def onError(ex: Throwable): Unit = throw ex
+      def onComplete(): Unit = ()
+    })
+
+    s.tick(1.seconds)
+    sources.foreach(src => assert(src._2.onNextRes.exists(_.isCompleted), "source promise completed"))
+  }
+
+  // Enables verification that MergePrioritizedListObservable completes
+  // upstream onNext promises when downstream stops early
+  private class OnNextExposingObservable[+A](elem: A)(implicit s: Scheduler) extends Observable[A] {
+    var onNextRes: Option[Future[Ack]] = None
+
+    def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
+      val onNext = subscriber.onNext(elem)
+      onNext.onComplete(_ => subscriber.onComplete())
+      onNextRes = Some(onNext)
+      Cancelable.empty
+    }
   }
 }
