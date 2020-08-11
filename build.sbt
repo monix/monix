@@ -164,7 +164,12 @@ publishStableMonixVersion in Global := {
     .exists(v => v == "true" || v == "1" || v == "yes")
 }
 
-lazy val sharedSettings = Seq(
+lazy val pgpSettings = sys.env.get("PGP_KEY_HEX") match {
+  case None => Seq.empty
+  case Some(v) => Seq(usePgpKeyHex(v))
+}
+
+lazy val sharedSettings = pgpSettings ++ Seq(
   organization := "io.monix",
   // Value extracted from .github/workflows/build.yml
   scalaVersion := crossScalaVersionsFromBuildYaml.value.head.value,
