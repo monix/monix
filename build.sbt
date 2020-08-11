@@ -235,17 +235,10 @@ lazy val sharedSettings = Seq(
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
 
   // -- Settings meant for deployment on oss.sonatype.org
-  sonatypeProfileName := organization.value,
+  sonatypeProfileName in ThisBuild := organization.value,
   publishTo in ThisBuild := sonatypePublishToBundle.value,
-  // Force the publishing of stable versions in the staging,
-  // instead of the snapshots repository (default config of sbt-ci-release)
+  isSnapshot in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
   dynverSonatypeSnapshots in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
-//  sonatypeDefaultResolver := {
-//    if (isVersionStable.value && publishStableMonixVersion.value)
-//      Opts.resolver.sonatypeStaging
-//    else
-//      Opts.resolver.sonatypeSnapshots
-//  },
 
   publishMavenStyle := true,
   publishArtifact in Test := false,
