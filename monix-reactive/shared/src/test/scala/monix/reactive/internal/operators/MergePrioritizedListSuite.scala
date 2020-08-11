@@ -162,9 +162,8 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
     var onNextRes: Option[Future[Ack]] = None
 
     def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-      val onNext = subscriber.onNext(elem)
-      onNext.onComplete(_ => subscriber.onComplete())
-      onNextRes = Some(onNext)
+      onNextRes = Some(subscriber.onNext(elem))
+      subscriber.onComplete()
       Cancelable.empty
     }
   }

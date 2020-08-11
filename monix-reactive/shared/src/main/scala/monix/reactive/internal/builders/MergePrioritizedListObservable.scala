@@ -26,7 +26,6 @@ import monix.reactive.observers.Subscriber
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.util.Success
-import scala.util.control.NonFatal
 
 /** Given a sequence of priority/observable pairs, combines them into a new
   * observable that eagerly emits source items downstream as soon as demand is
@@ -74,21 +73,7 @@ private[reactive] final class MergePrioritizedListObservable[A](
     // MUST BE synchronized by `lock`
     def rawOnNext(a: A): Future[Ack] = {
       if (isDone) Stop
-      else {
-        out
-          .onNext(a)
-          .map {
-            case Stop =>
-              lock.synchronized(completePromises())
-              Stop
-            case Continue => Continue
-          }
-          .recover {
-            case NonFatal(e) =>
-              lock.synchronized(completePromises())
-              throw e
-          }
-      }
+      else out.onNext(a).syncOnStopOrFailure(_ => lock.synchronized(completePromises()))
     }
 
     // MUST BE synchronized by `lock`
