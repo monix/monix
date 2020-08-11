@@ -18,7 +18,10 @@ jobs:
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
         scala: [ 2.11.12, 2.12.12, 2.13.3 ]
-
+    
+    env:
+      CI: true
+    
     steps:
       - uses: actions/checkout@v2
       - uses: olafurpg/setup-scala@v7
@@ -70,6 +73,9 @@ jobs:
           - { java: 8, scala: 2.13.3, scalajs: 0.6.33 }
           - { java: 8, scala: 2.13.3, scalajs: 1.1.1 }
 
+    env:
+      CI: true
+    
     steps:
       - uses: actions/checkout@v2
       - uses: olafurpg/setup-scala@v7
