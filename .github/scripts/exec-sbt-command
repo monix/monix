@@ -23,4 +23,5 @@ if [[ -z "$SBT_COMMAND" ]]; then
     exit 1
 fi
 
-sbt -J-Xmx6144m ++$SCALA_VERSION $SBT_COMMAND
+export CI=true
+sbt -DisCI=true -J-Xmx6144m ++$SCALA_VERSION $SBT_COMMAND

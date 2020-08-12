@@ -26,7 +26,8 @@ import scala.util.control.NonFatal
 trait TestUtils {
   lazy val isCI =
     System.getenv("TRAVIS") == "true" ||
-    System.getenv("CI") == "true"
+    System.getenv("CI") == "true" ||
+    System.getProperty("isCI") == "true"
 
   /**
     * Silences `System.err`, only printing the output in case exceptions are
