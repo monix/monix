@@ -8,6 +8,15 @@ Asynchronous, Reactive Programming for Scala and [Scala.js](http://www.scala-js.
 
 **IN-DEVELOPMENT, UNSTABLE BRANCH!**
 
+- [Overview](#overview)
+- [Usage](#usage)
+  - [Library dependency (sbt)](#library-dependency-sbt)
+  - [Sub-projects](#sub-projects)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [Adopters](#adopters)
+- [License](#license)
+
 ## Overview
 
 Monix is a high-performance Scala / Scala.js library for composing asynchronous,
@@ -15,38 +24,41 @@ event-based programs.
 
 It started as a proper implementation of [ReactiveX](http://reactivex.io/),
 with stronger functional programming influences and designed from the ground up
-for  back-pressure and made to cleanly interact with Scala's standard library,
+for  back-pressure and made to interact cleanly with Scala's standard library,
 compatible out-of-the-box with the [Reactive Streams](http://www.reactive-streams.org/)
 protocol. It then expanded to include abstractions for suspending side effects
-and for resource handling, being one of the parents and implementors of
-[cats-effect](https://typelevel.org/cats-effect/).
+and for resource handling, and is one of the parents and implementors of
+[Cats Effect](https://typelevel.org/cats-effect/).
 
 <a href="https://typelevel.org/"><img src="https://monix.io/public/images/typelevel.png" width="150" style="float:right;" align="right" /></a>
 
 A [Typelevel project](http://typelevel.org/projects/), Monix proudly
-exemplifies pure, typeful, functional programming in Scala, while making no
-compromise on performance.
+exemplifies pure, typeful, functional programming in Scala, while being pragmatic,
+and making no compromise on performance.
 
 Highlights:
 
-- exposes the kick-ass `Observable`, `Iterant`, `Task` and `Coeval` data types,
+- exposes the kick-ass [Observable](https://monix.io/docs/current/reactive/observable.html), 
+  [Iterant](https://monix.io/api/current/monix/tail/Iterant.html), 
+  [Task](https://monix.io/docs/current/eval/task.html) and 
+  [Coeval](https://monix.io/docs/current/eval/coeval.html) data types,
   along with all the support they need
-- modular, only use what you need
+- *modular*, split into multiple sub-projects, only use what you need
 - designed for true asynchronicity, running on both the
   JVM and [Scala.js](http://scala-js.org)
-- really good test coverage, code quality and API documentation
+- excellent test coverage, code quality, and API documentation
   as a primary project policy
 
 ## Usage
 
-See **[monix-sample](https://github.com/monix/monix-sample)** for
+- Use **[monix-jvm-app-template.g8](https://github.com/monix/monix-jvm-app-template.g8)**
+for quickly getting started with a Monix-driven app
+- See **[monix-sample](https://github.com/monix/monix-sample)** for
 a project exemplifying Monix used both on the server and on the client.
 
-### Dependencies
+### Library dependency (sbt)
 
-The packages are published on Maven Central.
-
-For the stable release (compatible with Cats and Cats-Effect 2.x):
+For the stable release (compatible with Cats, and Cats-Effect 2.x):
  
 ```scala
 libraryDependencies += "io.monix" %% "monix" % "3.2.2"
@@ -54,14 +66,19 @@ libraryDependencies += "io.monix" %% "monix" % "3.2.2"
   
 ### Sub-projects
 
-Monix 3.x is modular by design, so you can pick and choose:
+Monix 3.x is modular by design. See the [sub-modules graph](https://monix.io/docs/current/intro/usage.html#sub-modules--dependencies-graph):
 
-- `monix-catnap` exposes pure abstractions built on top of
-   the [Cats-Effect](https://typelevel.org/cats-effect/) type classes;
-   depends on `monix-execution`, Cats 1.x and Cats-Effect
+<img src="https://monix.io/public/misc/dependencies.svg"
+  alt="Sub-modules graph" />
+
+You can pick and choose:
+
 - `monix-execution` exposes the low-level execution environment, or
   more precisely `Scheduler`, `Cancelable`, `Atomic`, `Local`, `CancelableFuture`
   and `Future` based abstractions from `monix-catnap`.
+- `monix-catnap` exposes pure abstractions built on top of
+   the [Cats-Effect](https://typelevel.org/cats-effect/) type classes;
+   depends on `monix-execution`, Cats 1.x and Cats-Effect
 - `monix-eval` exposes `Task`, `Coeval`;
   depends on `monix-execution`
 - `monix-reactive` exposes `Observable` for modeling reactive,
@@ -70,28 +87,6 @@ Monix 3.x is modular by design, so you can pick and choose:
   based streaming; depends on `monix-eval` and makes heavy use of
   Cats-Effect
 - `monix` provides all of the above
-
-### Versioning Scheme
-
-The versioning scheme follows the
-[Semantic Versioning](http://semver.org/) (semver) specification,
-meaning stable versions have the form `$major.$minor.$patch`,
-such that:
-
-1. `$major` version updates make binary incompatible API changes
-2. `$minor` version updates adds functionality in a
-   backwards-compatible manner, and
-3. `$patch` version updates makes backwards-compatible bug fixes
-
-We publish intermediary versions, automatically, whenever PRs get merged to `master`.
-The project has a dynamic version setup, releases are via GitHub Actions with 
-versions such as `3.2.2+3-1234abcd`, where `3.2.2` is the base version, `+3` represents the 
-number of commits, the distance from that base version, and `1234abcd` represents the commit's
-"sha" (hash) prefix, identifying the commit in GitHub.
-
-We make NO GUARANTEES for these intermediary versions, but they are pretty high quality, they get
- published on Maven Central too, and you can depend on them for testing purposes, or if you 
- really, really need a new feature that's not published in a stable version yet.
 
 ## Documentation
 
@@ -119,12 +114,10 @@ Related:
 ## Contributing
 
 The Monix project welcomes contributions from anybody wishing to
-participate.  All code or documentation that is provided must be
-licensed with the same license that Monix is licensed with (Apache
-2.0, see LICENSE.txt).
+participate. You must license all code or documentation provided 
+with the Apache License 2.0, see [LICENSE.txt](./LICENSE.txt).
 
-People are expected to follow the
-[Scala Code of Conduct](./CODE_OF_CONDUCT.md) when
+You must follow the [Scala Code of Conduct](./CODE_OF_CONDUCT.md) when
 discussing Monix on GitHub, Gitter channel, or other venues.
 
 Feel free to open an issue if you notice a bug, have an idea for a
