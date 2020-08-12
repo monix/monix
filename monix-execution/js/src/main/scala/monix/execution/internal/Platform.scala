@@ -24,8 +24,8 @@ import monix.execution.schedulers.CanBlock
 import scala.concurrent.Awaitable
 import scala.concurrent.duration.Duration
 import scala.scalajs.js
-import scala.util.control.NonFatal
 import scala.util.Try
+import scala.util.control.NonFatal
 
 private[monix] object Platform {
   /**
@@ -43,16 +43,21 @@ private[monix] object Platform {
   /**
     * Reads environment variable in a platform-specific way.
     */
-  def getEnv(key: String): Option[String] =
+  def getEnv(key: String): Option[String] = {
+    import js.Dynamic.global
     try {
       // Node.js specific API, could fail
-      Option(js.Dynamic.global.process.env.CI.asInstanceOf[js.UndefOr[String]].toOption)
-        .flatten
-        .map(_.trim)
-        .filter(_.nonEmpty)
+      if (js.typeOf(global.process) == "object" && js.typeOf(global.process.env) == "object")
+        global.process.env.selectDynamic(key).asInstanceOf[js.UndefOr[String]]
+          .toOption
+          .collect { case s: String => s.trim }
+          .filter(_.nonEmpty)
+      else
+        None
     } catch {
       case NonFatal(_) => None
     }
+  }
 
   /** Recommended batch size used for breaking synchronous loops in
     * asynchronous batches. When streaming value from a producer to
@@ -104,7 +109,7 @@ private[monix] object Platform {
     * threaded.
     */
   val localContextPropagation: Boolean = {
-    getEnv("monix.environment.autoCancelableRunLoops")
+    getEnv("monix.environment.localContextPropagation")
       .map(_.toLowerCase)
       .exists(v => v == "yes" || v == "true" || v == "1")
   }
@@ -116,7 +121,7 @@ private[monix] object Platform {
     * The default for JavaScript is 32, from which we subtract 1
     * as an optimization.
     */
-  val fusionMaxStackDepth = {
+  val fusionMaxStackDepth: Int = {
     getEnv("monix.environment.fusionMaxStackDepth")
       .filter(s => s != null && s.nonEmpty)
       .flatMap(s => Try(s.toInt).toOption)
