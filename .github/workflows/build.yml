@@ -240,5 +240,5 @@ jobs:
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SCALAJS_VERSION: ${{ matrix.scalajs }}
-          PUBLISH_STABLE_VERSION: true
+          PUBLISH_STABLE_VERSION: false
           AUTO_PUBLISH_SERIES_4X: ${{ secrets.AUTO_PUBLISH_SERIES_4X }}

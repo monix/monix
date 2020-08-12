@@ -251,6 +251,9 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   sonatypeProfileName in ThisBuild := organization.value,
   sonatypeSessionName := s"[sbt-sonatype] ${name.value}${customScalaJS_Version.fold("-nojs")(v => s"-sjs$v")}-${version.value}",
 
+  // Only on the Series 4.x branch
+  dynverVTagPrefix in ThisBuild := false,
+
   publishMavenStyle := true,
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies
