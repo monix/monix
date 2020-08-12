@@ -17,11 +17,11 @@ jobs:
         java: [ 8, 11 ]
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
-        scala: [ 2.11.12, 2.12.12, 2.13.3 ]
+        scala: [ 2.12.12, 2.13.3 ]
     
     env:
       CI: true
-    
+      
     steps:
       - uses: actions/checkout@v2
       - uses: olafurpg/setup-scala@v7
@@ -49,9 +49,6 @@ jobs:
 
       - name: sbt ci-jvm
         run: |
-          if [[ "$SCALA_VERSION"~="2.11" ]]; then
-            export SCALAJS_VERSION="0.6.33"
-          fi
           ./.github/scripts/exec-sbt-command
         env:
           SCALA_VERSION: ${{ matrix.scala }}
@@ -67,7 +64,6 @@ jobs:
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
         include:
-          - { java: 8, scala: 2.11.12, scalajs: 0.6.33 }
           - { java: 8, scala: 2.12.12, scalajs: 0.6.33 }
           - { java: 8, scala: 2.12.12, scalajs: 1.1.1 }
           - { java: 8, scala: 2.13.3, scalajs: 0.6.33 }
@@ -122,7 +118,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { java: 8, scala: 2.11.12, scalajs: 0.6.33 }
           - { java: 8, scala: 2.12.12, scalajs: 1.1.1 }
           - { java: 8, scala: 2.13.3, scalajs: 1.1.1 }
 

@@ -17,7 +17,6 @@
 
 package monix.execution.misc
 
-import monix.execution.misc.compat.setOrig
 import scala.reflect.macros.whitebox
 
 trait InlineMacros {
@@ -48,8 +47,7 @@ trait InlineMacros {
         case i @ Ident(_) if i.name == symbol =>
           value
         case tt: TypeTree if tt.original != null =>
-          //super.transform(TypeTree().setOriginal(transform(tt.original)))
-          super.transform(setOrig(c)(TypeTree(), transform(tt.original)))
+          super.transform(c.universe.internal.setOriginal(TypeTree(), transform(tt.original)))
         case _ =>
           super.transform(tree)
       }

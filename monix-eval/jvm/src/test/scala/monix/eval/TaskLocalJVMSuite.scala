@@ -31,7 +31,7 @@ import scala.concurrent.duration._
 object TaskLocalJVMSuite extends SimpleTestSuite {
   def createShift(ec: ExecutionContext): Task[Unit] =
     Task.cancelable0 { (_, cb) =>
-      ec.execute(new Runnable { def run() = cb.onSuccess(()) })
+      ec.execute(() => cb.onSuccess(()))
       Task.unit
     }
 

@@ -24,29 +24,21 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
     val ctx = TrampolineExecutionContext.immediate
     var effect = 0
 
-    ctx.execute(new Runnable {
-      def run(): Unit = {
-        effect += 1
+    ctx.execute(() => {
+      effect += 1
 
-        ctx.execute(new Runnable {
-          def run(): Unit = {
-            effect += 1
-          }
-        })
-      }
+      ctx.execute(() => {
+        effect += 1
+      })
     })
 
     assertEquals(effect, 2)
 
     intercept[NullPointerException] {
-      ctx.execute(new Runnable {
-        def run(): Unit = {
-          ctx.execute(new Runnable {
-            def run(): Unit = effect += 1
-          })
+      ctx.execute(() => {
+        ctx.execute(() => effect += 1)
 
-          throw null
-        }
+        throw null
       })
     }
 

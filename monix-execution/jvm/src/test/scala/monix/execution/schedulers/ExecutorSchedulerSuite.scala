@@ -159,11 +159,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
 
     try {
       val ex = DummyException("dummy")
-
-      scheduler.execute(new Runnable {
-        override def run() =
-          throw ex
-      })
+      scheduler.execute(() => throw ex)
 
       assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
       self.synchronized(assertEquals(lastReportedFailure, ex))
@@ -188,10 +184,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
       scheduler.scheduleOnce(
         1,
         TimeUnit.MILLISECONDS,
-        new Runnable {
-          override def run() =
-            throw ex
-        })
+        () => throw ex)
 
       assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
       self.synchronized(assertEquals(lastReportedFailure, ex))
@@ -204,7 +197,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
   }
 
   def runnableAction(f: => Unit): Runnable =
-    new Runnable { def run() = f }
+    () => f
 }
 
 object ComputationSchedulerSuite extends ExecutorSchedulerSuite {

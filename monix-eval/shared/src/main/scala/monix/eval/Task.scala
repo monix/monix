@@ -25,12 +25,12 @@ import monix.eval.internal._
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution._
 import monix.execution.annotations.{UnsafeBecauseBlocking, UnsafeBecauseImpure}
+import monix.execution.compat.BuildFrom
+import monix.execution.compat.internal.newBuilder
 import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.Local
-import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
-import monix.execution.compat.BuildFrom
-import monix.execution.compat.internal.newBuilder
+import monix.execution.schedulers.{CanBlock, TracingScheduler}
 import org.reactivestreams.Publisher
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
@@ -4661,9 +4661,8 @@ object Task extends TaskInstancesLevel1 {
     * trampolined async boundary.
     */
   private[monix] def unsafeStartTrampolined[A](source: Task[A], context: Context, cb: Callback[Throwable, A]): Unit =
-    context.scheduler.execute(new TrampolinedRunnable {
-      def run(): Unit =
-        TaskRunLoop.startFull(source, context, cb, null, null, null, context.frameRef())
+    context.scheduler.executeTrampolined(() => {
+      TaskRunLoop.startFull(source, context, cb, null, null, null, context.frameRef())
     })
 
   /**

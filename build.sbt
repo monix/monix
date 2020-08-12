@@ -19,12 +19,9 @@ addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions
 
-val cats_GeneralVersion = "2.1.1"
-val cats_ForScala211Version = "2.0.0"
-val catsEffect_GeneralVersion = "2.1.4"
-val catsEffect_ForScala211Version = "2.0.0"
-val fs2_GeneralVersion = "2.4.0"
-val fs2_ForScala211Version = "2.1.0"
+val cats_Version = "2.1.1"
+val catsEffect_Version = "2.1.4"
+val fs2_Version = "2.4.0"
 val jcTools_Version = "3.0.0"
 val reactiveStreams_Version = "1.0.3"
 val minitest_Version = "2.8.2"
@@ -39,28 +36,7 @@ val customScalaJS_Version =
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.0.0"
-
-lazy val cats_CrossVersion = Def.setting {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 11)) => cats_ForScala211Version
-    case _ => cats_GeneralVersion
-  }
-}
-
-lazy val catsEffect_CrossVersion = Def.setting {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 11)) => catsEffect_ForScala211Version
-    case _ => catsEffect_GeneralVersion
-  }
-}
-
-lazy val fs2_CrossVersion = Def.setting {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 11)) => fs2_ForScala211Version
-    case _ => fs2_GeneralVersion
-  }
-}
+val monixSeries = "3.2.2"
 
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Libraries
@@ -75,15 +51,15 @@ lazy val scalaCompilerLib = Def.setting {
 
 /** [[https://typelevel.org/cats/typeclasses/lawtesting.html]] */
 lazy val catsLawsLib =
-  Def.setting { "org.typelevel" %%% "cats-laws" % cats_CrossVersion.value }
+  Def.setting { "org.typelevel" %%% "cats-laws" % cats_Version }
 
 /** [[https://typelevel.org/cats-effect/]] */
 lazy val catsEffectLib =
-  Def.setting { "org.typelevel" %%% "cats-effect" % catsEffect_CrossVersion.value }
+  Def.setting { "org.typelevel" %%% "cats-effect" % catsEffect_Version }
 
 /** [[https://typelevel.org/cats-effect/]] */
 lazy val catsEffectLawsLib =
-  Def.setting { "org.typelevel" %%% "cats-effect-laws" % catsEffect_CrossVersion.value }
+  Def.setting { "org.typelevel" %%% "cats-effect-laws" % catsEffect_Version }
 
 /** [[https://github.com/monix/implicitbox]] */
 lazy val implicitBoxLib =
@@ -244,6 +220,10 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
 
+  // Series/4.x is unpublished.
+  // Delete this after the first release ...
+  dynverVTagPrefix in ThisBuild := false,
+
   // -- Settings meant for deployment on oss.sonatype.org
   publishTo in ThisBuild := sonatypePublishToBundle.value,
   isSnapshot in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
@@ -308,19 +288,16 @@ lazy val crossVersionSourcesSettings: Seq[Setting[_]] =
       (unmanagedSourceDirectories in sc).value.flatMap { dir =>
         Seq(
           scalaPartV.value match {
-            case Some((2, y)) if y == 11 => new File(dir.getPath + "_2.11")
-            case Some((2, y)) if y == 12 => new File(dir.getPath + "_2.12")
-            case Some((2, y)) if y >= 13 => new File(dir.getPath + "_2.13")
+            case Some((2, y)) if y == 12 => Some(new File(dir.getPath + "_2.12"))
+            case Some((2, y)) if y >= 13 => Some(new File(dir.getPath + "_2.13"))
+            case _ => None
           },
           scalaPartV.value match {
-            case Some((2, n)) if n >= 12 => new File(dir.getPath + "_2.12+")
-            case _                       => new File(dir.getPath + "_2.12-")
-          },
-          scalaPartV.value match {
-            case Some((2, n)) if n >= 13 => new File(dir.getPath + "_2.13+")
-            case _                       => new File(dir.getPath + "_2.13-")
+            case Some((2, n)) if n >= 13 => Some(new File(dir.getPath + "_2.13+"))
+            case Some((2, _)) => Some(new File(dir.getPath + "_2.13-"))
+            case _ => None
           }
-        )
+        ).flatten
       }
     }
   }
@@ -681,7 +658,7 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
     libraryDependencies ++= Seq(
       "io.monix" %% "monix" % "3.2.2",
       "dev.zio" %% "zio-streams" % "1.0.0-RC21-2",
-      "co.fs2" %% "fs2-core" % fs2_CrossVersion.value
+      "co.fs2" %% "fs2-core" % fs2_Version
   ))
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
@@ -694,5 +671,5 @@ lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .settings(
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio-streams" % "1.0.0-RC21-2",
-      "co.fs2" %% "fs2-core" % fs2_CrossVersion.value
+      "co.fs2" %% "fs2-core" % fs2_Version
     ))

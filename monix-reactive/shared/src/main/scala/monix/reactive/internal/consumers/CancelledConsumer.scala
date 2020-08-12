@@ -35,7 +35,7 @@ private[reactive] object CancelledConsumer extends Consumer.Sync[Any, Unit] {
     }
 
     // Forcing async boundary to prevent problems
-    s.execute(new Runnable { def run() = cb.onSuccess(()) })
+    s.execute(() => cb.onSuccess(()))
     (out, AssignableCancelable.alreadyCanceled)
   }
 }

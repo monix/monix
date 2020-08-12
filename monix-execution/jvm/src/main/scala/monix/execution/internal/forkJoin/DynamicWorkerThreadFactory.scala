@@ -17,9 +17,12 @@
 
 package monix.execution.internal.forkJoin
 
-import java.util.concurrent.ThreadFactory
+import java.util.concurrent.ForkJoinPool.{ForkJoinWorkerThreadFactory, ManagedBlocker}
+import java.util.concurrent.{ForkJoinPool, ForkJoinWorkerThread, ThreadFactory}
+
 import monix.execution.atomic.AtomicInt
 import monix.execution.internal.forkJoin.DynamicWorkerThreadFactory.EmptyBlockContext
+
 import scala.annotation.tailrec
 import scala.concurrent.{BlockContext, CanAwait}
 
@@ -59,15 +62,12 @@ private[monix] final class DynamicWorkerThreadFactory(
   def newThread(runnable: Runnable): Thread =
     if (!reserveThread()) null
     else
-      wire(new Thread(new Runnable {
-        // We have to decrement the current thread count when the thread exits
-        override def run() = {
-          try {
-            runnable.run()
-          } finally { 
-            deregisterThread()
-            ()
-          }
+      wire(new Thread(() => {
+        try {
+          runnable.run()
+        } finally {
+          deregisterThread()
+          ()
         }
       }))
 

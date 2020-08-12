@@ -64,9 +64,7 @@ private[reactive] final class RestartUntilObservable[A](source: Observable[A], p
                 isDone = true
 
                 // Then we force an asynchronous boundary and retry
-                out.scheduler.execute(new Runnable {
-                  def run(): Unit = loop(out, subscription)
-                })
+                out.scheduler.execute(() => loop(out, subscription))
 
                 // Signal the current upstream to stop.
                 // Current upstream will also be cancel when the

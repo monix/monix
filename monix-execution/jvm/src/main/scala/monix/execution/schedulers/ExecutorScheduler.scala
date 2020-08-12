@@ -51,15 +51,12 @@ abstract class ExecutorScheduler(e: ExecutorService, r: UncaughtExceptionReporte
 
   override final def awaitTermination(timeout: Long, unit: TimeUnit, awaitOn: ExecutionContext): Future[Boolean] = {
     val p = Promise[Boolean]()
-    awaitOn.execute(new Runnable {
-      override def run() =
-        try blocking {
-          p.success(e.awaitTermination(timeout, unit))
-          ()
-        } catch {
-          case ex if NonFatal(ex) =>
-            p.failure(ex); ()
-        }
+    awaitOn.execute(() => try blocking {
+      p.success(e.awaitTermination(timeout, unit))
+      ()
+    } catch {
+      case ex if NonFatal(ex) =>
+        p.failure(ex); ()
     })
     p.future
   }

@@ -343,10 +343,7 @@ object Callback {
     }
 
   private[monix] def signalErrorTrampolined[E, A](cb: Callback[E, A], e: E): Unit =
-    TrampolineExecutionContext.immediate.execute(new Runnable {
-      override def run(): Unit =
-        cb.onError(e)
-    })
+    TrampolineExecutionContext.immediate.execute(() => cb.onError(e))
 
   /** Functions exposed via [[apply]]. */
   final class Builders[E](val ev: Boolean = true) extends AnyVal {

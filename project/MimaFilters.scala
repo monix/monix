@@ -44,6 +44,14 @@ object MimaFilters {
     exclude[MissingClassProblem]("monix.eval.internal.CoevalDeprecated"),
     exclude[MissingClassProblem]("monix.eval.internal.CoevalDeprecated$"),
     // Fixed observable.takeLast, replaced with TakeLastObservable
-    exclude[MissingClassProblem]("monix.reactive.internal.operators.TakeLastOperator")
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.TakeLastOperator"),
+    // Dropped Scala 2.11 support
+    exclude[MissingTypesProblem]("monix.execution.Scheduler$Extensions"),
+    exclude[MissingClassProblem]("monix.execution.internal.forkJoin.package"),
+    exclude[MissingClassProblem]("monix.execution.internal.forkJoin.package$"),
+    exclude[MissingClassProblem]("monix.execution.internal.forkJoin.package$ForkJoinPool$"),
+    exclude[MissingClassProblem]("monix.execution.schedulers.ExecuteExtensions"),
+    exclude[MissingClassProblem]("monix.execution.misc.compat"),
+    exclude[MissingClassProblem]("monix.execution.misc.compat$")
   )
 }

@@ -144,30 +144,28 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
 
         def request(n: Long): Unit = {
           if (requested.getAndAdd(n) == 0)
-            sc.execute(new Runnable {
-              def run(): Unit = {
-                var requested = self.requested.get()
-                var toSend = requested
+            sc.execute(() => {
+              var requested = self.requested.get()
+              var toSend = requested
 
-                while (toSend > 0 && isInRange(index.toLong, until.toLong, step.toLong) && !cancelled.get()) {
-                  s.onNext(index)
-                  index += step
-                  toSend -= 1
+              while (toSend > 0 && isInRange(index.toLong, until.toLong, step.toLong) && !cancelled.get()) {
+                s.onNext(index)
+                index += step
+                toSend -= 1
 
-                  if (toSend == 0) {
-                    requested = self.requested.subtractAndGet(requested)
-                    toSend = requested
-                  }
+                if (toSend == 0) {
+                  requested = self.requested.subtractAndGet(requested)
+                  toSend = requested
                 }
-
-                if (!isInRange(index.toLong, until.toLong, step.toLong))
-                  finish match {
-                    case None =>
-                      s.onComplete()
-                    case Some(e) =>
-                      s.onError(e)
-                  }
               }
+
+              if (!isInRange(index.toLong, until.toLong, step.toLong))
+                finish match {
+                  case None =>
+                    s.onComplete()
+                  case Some(e) =>
+                    s.onError(e)
+                }
             })
         }
 

@@ -26,9 +26,7 @@ class UncaughtExceptionReporterBaseSuite extends TestSuite[Promise[Throwable]] {
   protected val immediateEC = TrampolineExecutionContext.immediate
 
   object Dummy extends Throwable
-  private[this] val throwRunnable: Runnable = new Runnable {
-    def run(): Unit = throw Dummy
-  }
+  private[this] val throwRunnable: Runnable = () => throw Dummy
 
   def setup() = Promise[Throwable]()
 

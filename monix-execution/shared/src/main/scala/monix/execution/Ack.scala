@@ -50,8 +50,8 @@ sealed abstract class Ack extends Future[Ack] with Serializable {
   }
 
   final def onComplete[U](func: Try[Ack] => U)(implicit executor: ExecutionContext): Unit =
-    executor.execute(new Runnable {
-      def run(): Unit = { func(AsSuccess); () }
+    executor.execute(() => {
+      func(AsSuccess); ()
     })
 }
 

@@ -153,8 +153,8 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), BackPressure(totalCount))
 
     def loop(n: Int): Unit =
-      if (n > 0) s.execute(new Runnable {
-        def run() = { buffer.onNext(n); loop(n - 1) }
+      if (n > 0) s.execute(() => {
+        buffer.onNext(n); loop(n - 1)
       })
       else
         buffer.onComplete()

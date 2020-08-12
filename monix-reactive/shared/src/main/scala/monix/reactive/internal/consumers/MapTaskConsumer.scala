@@ -34,33 +34,29 @@ private[reactive] final class MapTaskConsumer[In, R, R2](source: Consumer[In, R]
     var isCancelled = false
     val asyncCallback = new Callback[Throwable, R] { self =>
       def onSuccess(value: R): Unit =
-        s.execute(new Runnable {
-          // Forcing async boundary, otherwise we might
-          // end up with stack-overflows or other problems
-          def run(): Unit = {
-            implicit val scheduler = s
-            // For protecting the contract, as if a call was already made to
-            // `onSuccess`, then we can't call `onError`
-            var streamErrors = true
-            try {
-              val task = f(value)
-              streamErrors = false
-              self.synchronized {
-                if (!isCancelled)
-                  lastCancelable = task.runAsync(cb)
-              }
-            } catch {
-              case ex if NonFatal(ex) =>
-                if (streamErrors) cb.onError(ex)
-                else s.reportFailure(ex)
+        s.execute(() => {
+          implicit val scheduler = s
+          // For protecting the contract, as if a call was already made to
+          // `onSuccess`, then we can't call `onError`
+          var streamErrors = true
+          try {
+            val task = f(value)
+            streamErrors = false
+            self.synchronized {
+              if (!isCancelled)
+                lastCancelable = task.runAsync(cb)
             }
+          } catch {
+            case ex if NonFatal(ex) =>
+              if (streamErrors) cb.onError(ex)
+              else s.reportFailure(ex)
           }
         })
 
       def onError(ex: Throwable): Unit = {
         // Forcing async boundary, otherwise we might
         // end up with stack-overflows or other problems
-        s.execute(new Runnable { def run(): Unit = cb.onError(ex) })
+        s.execute(() => cb.onError(ex))
       }
     }
 

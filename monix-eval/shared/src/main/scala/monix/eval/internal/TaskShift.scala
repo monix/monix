@@ -59,11 +59,9 @@ private[eval] object TaskShift {
         }
 
       try {
-        ec2.execute(new Runnable {
-          def run(): Unit = {
-            context.frameRef.reset()
-            cb.onSuccess(())
-          }
+        ec2.execute(() => {
+          context.frameRef.reset()
+          cb.onSuccess(())
         })
       } catch {
         case e: RejectedExecutionException =>

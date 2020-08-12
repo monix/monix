@@ -18,14 +18,13 @@
 package monix.execution
 
 import java.util.concurrent.TimeoutException
-import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future, MonixInternals, Promise}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.util.{Success, Try}
 
 /** Utilities for Scala's standard `concurrent.Future`. */
-object FutureUtils {
+object FutureUtils extends internal.FutureUtilsForPlatform {
   /** Utility that returns a new Future that either completes with
     * the original Future's result or with a TimeoutException in case
     * the maximum wait time was exceeded.
@@ -39,7 +38,10 @@ object FutureUtils {
   def timeout[A](source: Future[A], atMost: FiniteDuration)(implicit s: Scheduler): Future[A] = {
     val err = new TimeoutException
     val promise = Promise[A]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit, new Runnable { def run() = { promise.tryFailure(err); () } })
+    val task = s.scheduleOnce(atMost.length, atMost.unit,
+      () => {
+        promise.tryFailure(err); ()
+      })
 
     source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks
@@ -63,18 +65,20 @@ object FutureUtils {
     * @return a new future that will either complete with the result of our
     *         source or with the fallback in case the timeout is reached
     */
-  def timeoutTo[A](source: Future[A], atMost: FiniteDuration, fallback: => Future[A])(implicit
-    s: Scheduler): Future[A] = {
+  def timeoutTo[A](source: Future[A], atMost: FiniteDuration, fallback: => Future[A])(
+    implicit s: Scheduler): Future[A] = {
 
     val promise = Promise[Option[Try[A]]]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit, new Runnable { def run() = { promise.trySuccess(None); () } })
+    val task = s.scheduleOnce(atMost.length, atMost.unit,
+      () => {
+        promise.trySuccess(None); ()
+      })
 
     source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks
       // if the task has been executed already, this has no effect
       task.cancel()
       promise.trySuccess(Some(r))
-      ()
     }
 
     promise.future.flatMap {
@@ -90,13 +94,7 @@ object FutureUtils {
     * error explicitly.
     */
   def materialize[A](source: Future[A])(implicit ec: ExecutionContext): Future[Try[A]] = {
-    if (source.isCompleted) {
-      Future.successful(source.value.get)
-    } else {
-      val p = Promise[Try[A]]()
-      source.onComplete(p.success)(immediate)
-      p.future
-    }
+    source.transform(t => Success(t))(immediate)
   }
 
   /** Given a mapping functions that operates on successful results as well as
@@ -104,59 +102,22 @@ object FutureUtils {
     *
     * Similar to `Future.transform` from Scala 2.12.
     */
-  def transform[A, B](source: Future[A], f: Try[A] => Try[B])(implicit ec: ExecutionContext): Future[B] = {
-    source match {
-      case ref: CancelableFuture[_] =>
-        // CancelableFuture already implements transform
-        ref.asInstanceOf[CancelableFuture[A]].transform(f)(ec)
-      case _ =>
-        val p = Promise[B]()
-        source.onComplete { result =>
-          val b =
-            try f(result)
-            catch { case t if NonFatal(t) => Failure(t) }
-          p.complete(b)
-        }
-        p.future
-    }
-  }
+  def transform[A, B](source: Future[A], f: Try[A] => Try[B])(implicit ec: ExecutionContext): Future[B] =
+    source.transform(f)
 
   /** Given a mapping functions that operates on successful results
     * as well as errors, transforms the source by applying it.
     *
     * Similar to `Future.transformWith` from Scala 2.12.
     */
-  def transformWith[A, B](source: Future[A], f: Try[A] => Future[B])(implicit ec: ExecutionContext): Future[B] = {
-    source match {
-      case ref: CancelableFuture[_] =>
-        // CancelableFuture already implements transformWith
-        ref.asInstanceOf[CancelableFuture[A]].transformWith(f)(ec)
-      case _ =>
-        MonixInternals.transformWith(source, f)(ec)
-    }
-  }
+  def transformWith[A, B](source: Future[A], f: Try[A] => Future[B])(implicit ec: ExecutionContext): Future[B] =
+    source.transformWith(f)
 
   /** Utility that transforms a `Future[Try[A]]` into a `Future[A]`,
     * hiding errors, being the opposite of [[materialize]].
     */
   def dematerialize[A](source: Future[Try[A]])(implicit ec: ExecutionContext): Future[A] = {
-    if (source.isCompleted)
-      source.value.get match {
-        case Failure(error) => Future.failed(error)
-        case Success(value) =>
-          value match {
-            case Success(success) => Future.successful(success)
-            case Failure(error) => Future.failed(error)
-          }
-      }
-    else {
-      val p = Promise[A]()
-      source.onComplete({
-        case Failure(error) => p.failure(error)
-        case Success(result) => p.complete(result)
-      })(immediate)
-      p.future
-    }
+    source.map(_.get)(immediate)
   }
 
   /** Creates a future that completes with the specified `result`, but only
@@ -164,7 +125,7 @@ object FutureUtils {
     */
   def delayedResult[A](delay: FiniteDuration)(result: => A)(implicit s: Scheduler): Future[A] = {
     val p = Promise[A]()
-    s.scheduleOnce(delay.length, delay.unit, new Runnable { def run() = { p.complete(Try(result)); () } })
+    s.scheduleOnce(delay.length, delay.unit, () => p.complete(Try(result)))
     p.future
   }
 

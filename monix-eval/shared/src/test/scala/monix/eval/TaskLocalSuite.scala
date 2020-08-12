@@ -176,9 +176,7 @@ object TaskLocalSuite extends SimpleTestSuite {
   testAsync("TaskLocals get restored in Task.create on error") {
     val dummy = DummyException("dummy")
     val task = Task.create[Int] { (_, cb) =>
-      ec.execute(new Runnable {
-        def run() = cb.onError(dummy)
-      })
+      ec.execute(() => cb.onError(dummy))
     }
 
     val t = for {
