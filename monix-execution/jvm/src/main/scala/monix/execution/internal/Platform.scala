@@ -18,7 +18,6 @@
 package monix.execution.internal
 
 import monix.execution.schedulers.CanBlock
-
 import scala.concurrent.{Await, Awaitable}
 import scala.concurrent.duration.Duration
 import scala.util.Try
@@ -64,7 +63,8 @@ private[monix] object Platform {
     * </pre>
     */
   val recommendedBatchSize: Int = {
-    getEnv("monix.environment.batchSize")
+    Option(System.getProperty("monix.environment.batchSize", ""))
+      .filter(s => s != null && s.nonEmpty)
       .flatMap(s => Try(s.toInt).toOption)
       .map(math.nextPowerOf2)
       .getOrElse(1024)
@@ -93,7 +93,8 @@ private[monix] object Platform {
     * Should be a power of 2 or it gets rounded to one.
     */
   val recommendedBufferChunkSize: Int = {
-    getEnv("monix.environment.bufferChunkSize")
+    Option(System.getProperty("monix.environment.bufferChunkSize", ""))
+      .filter(s => s != null && s.nonEmpty)
       .flatMap(s => Try(s.toInt).toOption)
       .map(math.nextPowerOf2)
       .getOrElse(256)
@@ -117,7 +118,7 @@ private[monix] object Platform {
     * of its type classes.
     */
   val autoCancelableRunLoops: Boolean = {
-    getEnv("monix.environment.autoCancelableRunLoops")
+    Option(System.getProperty("monix.environment.autoCancelableRunLoops", ""))
       .map(_.toLowerCase)
       .forall(v => v != "no" && v != "false" && v != "0")
   }
@@ -131,7 +132,7 @@ private[monix] object Platform {
     *    (`true`, `yes` or `1` for enabling)
     */
   val localContextPropagation: Boolean =
-    getEnv("monix.environment.localContextPropagation")
+    Option(System.getProperty("monix.environment.localContextPropagation", ""))
       .map(_.toLowerCase)
       .exists(v => v == "yes" || v == "true" || v == "1")
 
@@ -158,12 +159,14 @@ private[monix] object Platform {
     *        ...
     * </pre>
     */
-  val fusionMaxStackDepth =
-    getEnv("monix.environment.fusionMaxStackDepth")
+  val fusionMaxStackDepth = {
+    Option(System.getProperty("monix.environment.fusionMaxStackDepth"))
+      .filter(s => s != null && s.nonEmpty)
       .flatMap(s => Try(s.toInt).toOption)
       .filter(_ > 0)
       .map(_ - 1)
       .getOrElse(127)
+  }
 
   /** Blocks for the result of `fa`.
     *

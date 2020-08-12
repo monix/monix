@@ -20,11 +20,9 @@ package monix.execution.internal
 import monix.execution.UncaughtExceptionReporter
 import monix.execution.exceptions.CompositeException
 import monix.execution.schedulers.CanBlock
-
 import scala.concurrent.Awaitable
 import scala.concurrent.duration.Duration
 import scala.scalajs.js
-import scala.util.Try
 import scala.util.control.NonFatal
 
 private[monix] object Platform {
@@ -74,45 +72,27 @@ private[monix] object Platform {
     *   nr = (nr + 1) & modulus
     * }}}
     */
-  val recommendedBatchSize: Int = {
-    getEnv("monix.environment.batchSize")
-      .flatMap(s => Try(s.toInt).toOption)
-      .map(math.nextPowerOf2)
-      .getOrElse(512)
-  }
+  final val recommendedBatchSize: Int = 512
 
   /** Recommended chunk size in unbounded buffer implementations that are chunked,
     * or in chunked streams.
     *
     * Should be a power of 2.
     */
-  val recommendedBufferChunkSize: Int = {
-    getEnv("monix.environment.bufferChunkSize")
-      .flatMap(s => Try(s.toInt).toOption)
-      .map(math.nextPowerOf2)
-      .getOrElse(128)
-  }
+  final val recommendedBufferChunkSize: Int = 128
 
   /**
     * Auto cancelable run loops are set to `false` if Monix
     * is running on top of Scala.js.
     */
-  val autoCancelableRunLoops: Boolean = {
-    getEnv("monix.environment.autoCancelableRunLoops")
-      .map(_.toLowerCase)
-      .forall(v => v != "no" && v != "false" && v != "0")
-  }
+  final val autoCancelableRunLoops: Boolean = true
 
   /**
     * Local context propagation is set to `false` if Monix
     * is running on top of Scala.js given that it is single
     * threaded.
     */
-  val localContextPropagation: Boolean = {
-    getEnv("monix.environment.localContextPropagation")
-      .map(_.toLowerCase)
-      .exists(v => v == "yes" || v == "true" || v == "1")
-  }
+  final val localContextPropagation: Boolean = false
 
   /**
     * Establishes the maximum stack depth for fused `.map` operations
@@ -121,14 +101,7 @@ private[monix] object Platform {
     * The default for JavaScript is 32, from which we subtract 1
     * as an optimization.
     */
-  val fusionMaxStackDepth: Int = {
-    getEnv("monix.environment.fusionMaxStackDepth")
-      .filter(s => s != null && s.nonEmpty)
-      .flatMap(s => Try(s.toInt).toOption)
-      .filter(_ > 0)
-      .map(_ - 1)
-      .getOrElse(31)
-  }
+  final val fusionMaxStackDepth = 31
 
   /** Blocks for the result of `fa`.
     *
