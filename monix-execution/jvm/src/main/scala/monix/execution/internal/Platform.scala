@@ -36,6 +36,12 @@ private[monix] object Platform {
     */
   final val isJVM = true
 
+  /**
+    * Reads environment variable in a platform-specific way.
+    */
+  def getEnv(key: String): Option[String] =
+    Option(System.getenv(key)).map(_.trim).filter(_.nonEmpty)
+
   /** Recommended batch size used for breaking synchronous loops in
     * asynchronous batches. When streaming value from a producer to
     * a synchronous consumer it's recommended to break the streaming
@@ -58,8 +64,7 @@ private[monix] object Platform {
     * </pre>
     */
   val recommendedBatchSize: Int = {
-    Option(System.getProperty("monix.environment.batchSize", ""))
-      .filter(s => s != null && s.nonEmpty)
+    getEnv("monix.environment.batchSize")
       .flatMap(s => Try(s.toInt).toOption)
       .map(math.nextPowerOf2)
       .getOrElse(1024)
@@ -88,8 +93,7 @@ private[monix] object Platform {
     * Should be a power of 2 or it gets rounded to one.
     */
   val recommendedBufferChunkSize: Int = {
-    Option(System.getProperty("monix.environment.bufferChunkSize", ""))
-      .filter(s => s != null && s.nonEmpty)
+    getEnv("monix.environment.bufferChunkSize")
       .flatMap(s => Try(s.toInt).toOption)
       .map(math.nextPowerOf2)
       .getOrElse(256)
@@ -113,7 +117,7 @@ private[monix] object Platform {
     * of its type classes.
     */
   val autoCancelableRunLoops: Boolean = {
-    Option(System.getProperty("monix.environment.autoCancelableRunLoops", ""))
+    getEnv("monix.environment.autoCancelableRunLoops")
       .map(_.toLowerCase)
       .forall(v => v != "no" && v != "false" && v != "0")
   }
@@ -127,7 +131,7 @@ private[monix] object Platform {
     *    (`true`, `yes` or `1` for enabling)
     */
   val localContextPropagation: Boolean =
-    Option(System.getProperty("monix.environment.localContextPropagation", ""))
+    getEnv("monix.environment.localContextPropagation")
       .map(_.toLowerCase)
       .exists(v => v == "yes" || v == "true" || v == "1")
 
@@ -155,8 +159,7 @@ private[monix] object Platform {
     * </pre>
     */
   val fusionMaxStackDepth =
-    Option(System.getProperty("monix.environment.fusionMaxStackDepth"))
-      .filter(s => s != null && s.nonEmpty)
+    getEnv("monix.environment.fusionMaxStackDepth")
       .flatMap(s => Try(s.toInt).toOption)
       .filter(_ > 0)
       .map(_ - 1)
