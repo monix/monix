@@ -6,6 +6,15 @@ Asynchronous, Reactive Programming for Scala and [Scala.js](http://www.scala-js.
 
 [![Build](https://github.com/monix/monix/workflows/build/badge.svg?branch=series/3.x)](https://github.com/monix/monix/actions?query=branch%3Aseries%2F3.x+workflow%3Abuild) [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monix/monix)
 
+- [Overview](#overview)
+- [Usage](#usage)
+  - [Library dependency (sbt)](#library-dependency-sbt)
+  - [Sub-projects](#sub-projects)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [Adopters](#adopters)
+- [License](#license)
+
 ## Overview
 
 Monix is a high-performance Scala / Scala.js library for composing asynchronous,
