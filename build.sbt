@@ -347,10 +347,6 @@ lazy val assemblyShadeSettings = Seq(
   makePomConfiguration := makePomConfiguration.value.withConfigurations(Vector.empty),
   // package by running assembly
   packageBin in Compile := ReproducibleBuildsPlugin.postProcessJar((assembly in Compile).value),
-  // disable publishing the main API jar
-  Compile / packageDoc / publishArtifact := false,
-  // disable publishing the main sources jar
-  Compile / packageSrc / publishArtifact := false
 )
 
 lazy val unidocSettings = Seq(
