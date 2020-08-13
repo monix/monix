@@ -489,7 +489,7 @@ lazy val coreProfile =
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(coreProfile.jvm)
   .dependsOn(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
-  .aggregate(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+  .aggregate(executionShadedJCTools, executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
 
 lazy val coreJS = project.in(file("monix/js"))
   .configure(coreProfile.js)
