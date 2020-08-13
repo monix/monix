@@ -247,11 +247,8 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   // -- Settings meant for deployment on oss.sonatype.org
   publishTo in ThisBuild := sonatypePublishToBundle.value,
   isSnapshot in ThisBuild := {
-    if (!isSnapshot.value)
-      false
-    else
-      !(isVersionStable.value && publishStableMonixVersion.value)
-  }
+    !isVersionStable.value || !publishStableMonixVersion.value  
+  },
   dynverSonatypeSnapshots in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
   sonatypeProfileName in ThisBuild := organization.value,
   sonatypeSessionName := s"[sbt-sonatype] ${name.value}${customScalaJS_Version.fold("-nojs")(v => s"-sjs$v")}-${version.value}",
