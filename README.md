@@ -38,7 +38,8 @@ Highlights:
 
 - exposes the kick-ass [Observable](https://monix.io/docs/current/reactive/observable.html), 
   [Iterant](https://monix.io/api/current/monix/tail/Iterant.html), 
-  [Task](https://monix.io/docs/current/eval/task.html) and 
+  [Task](https://monix.io/docs/current/eval/task.html),
+  [IO[E, A]](https://bio.monix.io/docs/introduction), and 
   [Coeval](https://monix.io/docs/current/eval/coeval.html) data types,
   along with all the support they need
 - *modular*, split into multiple sub-projects, only use what you need
