@@ -9,7 +9,9 @@ if [ "$PUBLISH_STABLE_VERSION" != "true" ]; then
   fi
 fi
 
+echo "GITHUB_REF=$GITHUB_REF"
 echo "PUBLISH_STABLE_VERSION=$PUBLISH_STABLE_VERSION"
+
 if [[ "$PUBLISH_STABLE_VERSION" = "true" ]]; then
   echo "Publishing stable version ..."
   exec sbt +clean +publishSigned sonatypeBundleRelease
