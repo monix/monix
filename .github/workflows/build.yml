@@ -8,8 +8,17 @@ on:
     tags: ["v[0-9]+*"]
 
 jobs:
+  init:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Cancel Active Builds
+        uses: styfle/cancel-workflow-action@0.4.1
+        with:
+          access_token: ${{ github.token }}
+
   jvm-tests:
     name: JVM / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
+    needs: [ init ]
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
@@ -57,6 +66,7 @@ jobs:
 
   js-tests:
     name: JS / scala ${{ matrix.scala }}, sjs ${{ matrix.scalajs }}, jdk ${{ matrix.java }}
+    needs: [ init ]
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
@@ -111,6 +121,7 @@ jobs:
 
   mima:
     name: Mima / scala ${{ matrix.scala }}, sjs ${{ matrix.scalajs }}, jdk ${{ matrix.java }}
+    needs: [ init ]
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
@@ -155,6 +166,7 @@ jobs:
 
   unidoc:
     name: Unidoc / scala ${{ matrix.scala }}, sjs ${{ matrix.scalajs }}, jdk ${{ matrix.java }}
+    needs: [ init ]
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
