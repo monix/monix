@@ -41,7 +41,7 @@ val fs2_ForScala211Version = "2.1.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.0.0"
+val monixSeries = "3.2.2"
 
 lazy val cats_CrossVersion = Def.setting {
   CrossVersion.partialVersion(scalaVersion.value) match {
