@@ -19,13 +19,10 @@ addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions
 
-val cats_GeneralVersion = "2.1.1"
-val cats_ForScala211Version = "2.0.0"
-val catsEffect_GeneralVersion = "2.1.4"
-val catsEffect_ForScala211Version = "2.0.0"
-val fs2_GeneralVersion = "2.4.0"
-val fs2_ForScala211Version = "2.1.0"
-val jcTools_Version = "3.1.0"
+val cats_Version = "2.1.1"
+val catsEffect_Version = "2.1.4"
+val fs2_Version = "2.4.0"
+val jcTools_Version = "3.0.1"
 val reactiveStreams_Version = "1.0.3"
 val minitest_Version = "2.8.2"
 val scalaTest_Version = "3.0.8"
@@ -37,28 +34,33 @@ val scalaCompat_Version = "2.1.6"
 val customScalaJS_Version =
   Option(sys.env.getOrElse("SCALAJS_VERSION", null)).filter(_.nonEmpty)
 
+// Scala 2.11 specific versions
+val cats_ForScala211Version = "2.0.0"
+val catsEffect_ForScala211Version = "2.0.0"
+val fs2_ForScala211Version = "2.1.0"
+
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.0.0"
+val monixSeries = "3.2.2"
 
 lazy val cats_CrossVersion = Def.setting {
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, 11)) => cats_ForScala211Version
-    case _ => cats_GeneralVersion
+    case _ => cats_Version
   }
 }
 
 lazy val catsEffect_CrossVersion = Def.setting {
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, 11)) => catsEffect_ForScala211Version
-    case _ => catsEffect_GeneralVersion
+    case _ => catsEffect_Version
   }
 }
 
 lazy val fs2_CrossVersion = Def.setting {
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, 11)) => fs2_ForScala211Version
-    case _ => fs2_GeneralVersion
+    case _ => fs2_Version
   }
 }
 
