@@ -16,3 +16,4 @@ TAGS
 .metals
 .bloop
 metals.sbt
+.vscode
