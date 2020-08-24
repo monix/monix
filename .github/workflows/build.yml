@@ -220,15 +220,9 @@ jobs:
         env:
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
 
-      - name: SCALAJS_VERSION=${{ matrix.scalajs }} sbt ci-release
+      - name: SCALAJS_VERSION=${{ matrix.scalajs }} .github/scripts/release
         run: |
-          if [ "$AUTO_PUBLISH_SERIES_4X" = "true" ]; then
-            echo "SCALAJS_VERSION=$SCALAJS_VERSION"
-            git fetch --depth=100 origin +refs/tags/*:refs/tags/*
-            sbt ci-release
-          else
-            echo "Skipping due to AUTO_PUBLISH_SERIES_4X=false"
-          fi
+          .github/scripts/release
         env:
           PGP_KEY_HEX: ${{ secrets.PGP_KEY_HEX }}
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
@@ -236,4 +230,3 @@ jobs:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SCALAJS_VERSION: ${{ matrix.scalajs }}
           PUBLISH_STABLE_VERSION: false
-          AUTO_PUBLISH_SERIES_4X: ${{ secrets.AUTO_PUBLISH_SERIES_4X }}

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+echo "SCALAJS_VERSION=$SCALAJS_VERSION"
+git fetch --depth=100 origin +refs/tags/*:refs/tags/*
+
+if [ "$PUBLISH_STABLE_VERSION" != "true" ]; then
+  if [[ "$GITHUB_REF" =~ ^v[0-9]+[.][0-9]+[.][0-9]+$ ]]; then
+    PUBLISH_STABLE_VERSION=true
+  fi
+fi
+
+echo "GITHUB_REF=$GITHUB_REF"
+echo "PUBLISH_STABLE_VERSION=$PUBLISH_STABLE_VERSION"
+
+if [[ "$PUBLISH_STABLE_VERSION" = "true" ]]; then
+  echo "Publishing stable version ..."
+  exec sbt +clean +publishSigned sonatypeBundleRelease
+else
+  echo "Publishing snapshot ..."
+  exec sbt +clean +publishSigned
+fi
