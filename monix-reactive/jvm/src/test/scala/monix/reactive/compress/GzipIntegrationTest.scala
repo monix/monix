@@ -17,7 +17,7 @@
 
 package monix.reactive.compress
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream}
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 
 import monix.eval.Task
@@ -65,10 +65,23 @@ object GzipIntegrationTest extends BaseTestSuite {
         .map { list =>
           val compressed = list.toArray
           val gzos = new GZIPInputStream(new ByteArrayInputStream(compressed))
-          val decompressed = gzos.readAllBytes()
+          val decompressed = readAll(gzos)
           gzos.close()
           new String(decompressed) == input
         }
     }
+  }
+
+  private def readAll(is: InputStream) = {
+    val buffer = new ByteArrayOutputStream
+    var nRead = 0
+    val data = new Array[Byte](1024)
+    while ({
+      nRead = is.read(data, 0, data.length)
+      nRead != -1
+    }) buffer.write(data, 0, nRead)
+
+    buffer.flush()
+    buffer.toByteArray
   }
 }
