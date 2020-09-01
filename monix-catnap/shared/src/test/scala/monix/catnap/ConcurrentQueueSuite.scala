@@ -128,8 +128,9 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
       if (n > 0)
         queue.poll.flatMap { a =>
           consumer(n - 1, acc.enqueue(a))
-        } else
-        IO.pure(acc.sum)
+        } 
+      else
+        IO.pure(acc.foldLeft(0L)(_ + _))
 
     for {
       p <- producer(count).start
@@ -137,7 +138,7 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
       _ <- p.join
       r <- c.join
     } yield {
-      assertEquals(r, count * (count - 1) / 2)
+      assertEquals(r, count.toLong * (count - 1) / 2)
     }
   }
 
@@ -163,7 +164,7 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
           case None => IO.shift *> consumer(n, acc)
         }
       else
-        IO.pure(acc.sum)
+        IO.pure(acc.foldLeft(0L)(_ + _))
 
     for {
       p <- producer(count).start
@@ -171,7 +172,7 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
       _ <- p.join
       r <- c.join
     } yield {
-      assertEquals(r, count * (count - 1) / 2)
+      assertEquals(r, count.toLong * (count - 1) / 2)
     }
   }
 
@@ -354,7 +355,7 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
       val poll = if (idx % 2 == 0) queue.poll else pollViaTry
       poll.flatMap { i =>
         if (i > 0) {
-          atomic.addAndGet(i)
+          atomic.addAndGet(i.toLong)
           consumer(idx + 1)
         } else {
           IO.unit

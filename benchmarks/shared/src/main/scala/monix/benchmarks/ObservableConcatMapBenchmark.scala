@@ -60,7 +60,7 @@ class ObservableConcatMapBenchmark {
 
   @Benchmark
   def onePerCycle(): Long = {
-    val stream = Observable.range(0, size).flatMap { x =>
+    val stream = Observable.range(0, size.toLong).flatMap { x =>
       Observable.now(x + 1)
     }
     sum(stream)
@@ -68,7 +68,7 @@ class ObservableConcatMapBenchmark {
 
   @Benchmark
   def morePerCycle(): Long = {
-    val stream = Observable.range(0, size / 1000).flatMap { x =>
+    val stream = Observable.range(0, size.toLong / 1000).flatMap { x =>
       Observable.range(x, x + 1000)
     }
     sum(stream)
@@ -80,10 +80,16 @@ class ObservableConcatMapBenchmark {
       val scheduler = global
       private[this] var sum: Long = 0
 
-      def onError(ex: Throwable): Unit =
+      def onError(ex: Throwable): Unit = {
         p.failure(ex)
-      def onComplete(): Unit =
+        ()
+      }
+
+      def onComplete(): Unit = {
         p.success(sum)
+        ()
+      }
+
       def onNext(elem: Long) = {
         sum += elem
         Continue

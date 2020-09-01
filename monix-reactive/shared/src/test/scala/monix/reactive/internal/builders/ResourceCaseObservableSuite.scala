@@ -17,20 +17,19 @@
 
 package monix.reactive.internal.builders
 
-import cats.laws._
-import cats.laws.discipline._
-import cats.implicits._
 import cats.effect.ExitCase
 import cats.effect.concurrent.Deferred
+import cats.laws._
+import cats.laws.discipline._
 import monix.eval.Task
-import scala.concurrent.Promise
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 import monix.reactive.{BaseTestSuite, Consumer, Observable}
-import scala.util.Failure
+
+import scala.concurrent.Promise
 import scala.concurrent.duration._
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 object ResourceCaseObservableSuite extends BaseTestSuite {
   class Resource(var acquired: Int = 0, var released: Int = 0) {
@@ -58,7 +57,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
           earlyStopDone = true
         }))
 
-    bracketed.take(1).completedL.runToFuture
+    bracketed.take(1L).completedL.runToFuture
     s.tick()
     assert(earlyStopDone)
   }
@@ -80,7 +79,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
     val bracketed = Observable
       .resource(rs.acquire)(_.release)
       .flatMap(_ => Observable.range(1, 10))
-      .take(1)
+      .take(1L)
 
     bracketed.completedL.runToFuture
     s.tick()
@@ -247,7 +246,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
     val rs = new Resource
     val dummy = DummyException("dummy")
     val bracketed = Observable
-      .resource(Task.raiseError(dummy).flatMap(_ => rs.acquire))(_.release)
+      .resource(Task.raiseError[Int](dummy).flatMap(_ => rs.acquire))(_.release)
       .flatMap { _ =>
         Observable.empty[Int]
       }
@@ -410,5 +409,75 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
     observable.completedL.runToFuture
     s.tick()
     assertEquals(log, Vector("Start: Outer", "Start: Inner", "Stop: Inner", "Stop: Outer"))
+  }
+
+  test("Observable.resource can keep resource opened (firstL)") { implicit sc =>
+    val rs = new Resource
+    val f = Observable
+      .resource(rs.acquire)(_.release)
+      .mapEval { _ =>
+        Task.suspend {
+          Task.sleep(1.second) *> Task {
+            (rs.acquired, rs.released)
+          }
+        }
+      }
+      .firstL
+      .runToFuture
+
+    sc.tick()
+    assertEquals(f.value, None)
+
+    sc.tick(1.second)
+    assertEquals(f.value, Some(Success((1, 0))))
+    assertEquals(rs.acquired, 1)
+    assertEquals(rs.released, 1)
+  }
+
+  test("Observable.resource can keep resource opened (completedL)") { implicit sc =>
+    val rs = new Resource
+    val f = Observable
+      .resource(rs.acquire)(_.release)
+      .mapEval { _ =>
+        Task.suspend {
+          Task.sleep(1.second) *> Task {
+            assertEquals(rs.acquired, 1)
+            assertEquals(rs.released, 0)
+          }
+        }
+      }
+      .completedL
+      .runToFuture
+
+    sc.tick()
+    assertEquals(f.value, None)
+
+    sc.tick(1.second)
+    assertEquals(f.value, Some(Success(())))
+    assertEquals(rs.acquired, 1)
+    assertEquals(rs.released, 1)
+  }
+
+  test("Observable.resource can cancel resource (completedL)") { implicit sc =>
+    val rs = new Resource
+    val f = Observable
+      .resource(rs.acquire)(_.release)
+      .mapEval { _ =>
+        Task.sleep(1.second) *> Task {
+          assertEquals(rs.acquired, 1)
+          assertEquals(rs.released, 0)
+        }
+      }
+      .completedL
+      .runToFuture
+
+    sc.tick()
+    assertEquals(f.value, None)
+    f.cancel()
+    sc.tick()
+
+    assertEquals(f.value, None)
+    assertEquals(rs.acquired, 1)
+    assertEquals(rs.released, 1)
   }
 }

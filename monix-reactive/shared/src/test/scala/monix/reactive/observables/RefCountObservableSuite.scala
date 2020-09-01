@@ -160,7 +160,7 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     val ref = ch.publish.refCount
     val s1 = ref.subscribe(createObserver)
     // Subscriber that cancels immediately after the first elem
-    val s2 = ref.take(0).subscribe(createObserver)
+    val s2 = ref.take(0L).subscribe(createObserver)
 
     ch.onNext(10); s.tick()
     assertEquals(received, 1)

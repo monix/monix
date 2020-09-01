@@ -25,7 +25,7 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.{Consumer, Observable}
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()

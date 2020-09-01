@@ -41,7 +41,7 @@ private[execution] object ScheduledExecutors {
     } else {
       val deferred = new ShiftedRunnable(r, executor)
       val task = scheduler.schedule(deferred, initialDelay, unit)
-      Cancelable(() => task.cancel(true))
+      Cancelable(() => { task.cancel(true); () })
     }
   }
 }

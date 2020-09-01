@@ -50,7 +50,7 @@ object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {
 
         def onNext(elem: List[Long]): Future[Ack] = {
           sum += elem.sum
-          nextAck.get.future
+          nextAck.get().future
         }
 
         def onError(ex: Throwable): Unit =
@@ -97,7 +97,7 @@ object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {
       .doOnEarlyStop(Task { wasEarlyStopped = true })
       .bufferIntrospective(3)
       .delayOnNext(1.second)
-      .take(3)
+      .take(3L)
       .completedL
       .runToFuture
 

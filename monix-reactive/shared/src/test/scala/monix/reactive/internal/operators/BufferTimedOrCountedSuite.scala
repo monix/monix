@@ -42,7 +42,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
     Some {
       val o = Observable
         .intervalAtFixedRate(100.millis)
-        .take(sourceCount * 10)
+        .take(sourceCount.toLong * 10)
         .bufferTimedAndCounted(1.second, maxCount = 20)
         .map(_.sum)
 
@@ -56,7 +56,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
       val o = createObservableEndingInError(
         Observable
           .intervalAtFixedRate(100.millis, 100.millis)
-          .take(sourceCount),
+          .take(sourceCount.toLong),
         ex)
         .bufferTimedAndCounted(1.second, maxCount = 20)
         .map(_.sum)
@@ -70,7 +70,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val o = Observable
-      .range(0, Platform.recommendedBatchSize)
+      .range(0, Platform.recommendedBatchSize.toLong)
       .delayOnNext(1.second)
       .bufferTimedAndCounted(1.second, maxCount = 20)
       .map(_.sum)
@@ -83,7 +83,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
 
     val obs = Observable
       .intervalAtFixedRate(100.millis)
-      .take(sourceCount * 10)
+      .take(sourceCount.toLong * 10)
       .bufferTimedAndCounted(2.seconds, 100)
       .map(_.sum)
 
@@ -102,7 +102,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
       def onComplete(): Unit = wasCompleted = true
     })
 
-    s.tick(waitFirst + waitNext * (sourceCount - 1))
+    s.tick(waitFirst + waitNext * (sourceCount - 1).toLong)
     assertEquals(received, sourceCount / 2 + 1)
     assertEquals(total, sum(sourceCount))
     s.tick(waitNext)
@@ -114,6 +114,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
       Observable
         .intervalAtFixedRate(100.millis)
         .bufferTimedAndCounted(Duration.Zero - 1.second, 10)
+      ()
     }
     ()
   }
@@ -123,7 +124,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
     var wasCompleted = false
 
     createObservable(1) match {
-      case ref @ Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
+      case Some(Sample(obs, _, _, waitForFirst, waitForNext)) =>
         var onNextReceived = false
 
         obs.unsafeSubscribeFn(new Observer[Long] {

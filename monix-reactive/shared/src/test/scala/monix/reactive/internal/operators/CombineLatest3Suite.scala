@@ -30,7 +30,7 @@ object CombineLatest3Suite extends BaseOperatorSuite {
     val sourceCount = 10
     val o1 = Observable.now(1)
     val o2 = Observable.now(2)
-    val o3 = Observable.range(0, sourceCount)
+    val o3 = Observable.range(0L, sourceCount.toLong)
     val o = Observable.combineLatestMap3(o1, o2, o3)(_ + _ + _)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -44,7 +44,7 @@ object CombineLatest3Suite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val o1 = Observable.now(1)
     val o2 = Observable.now(2)
-    val flawed = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+    val flawed = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
     val o = Observable.combineLatestMap3(o1, o2, flawed)(_ + _ + _)
 
     Sample(o, count(sourceCount - 1), sum(sourceCount - 1), waitFirst, waitNext)
@@ -54,7 +54,7 @@ object CombineLatest3Suite extends BaseOperatorSuite {
     val dummy = DummyException("dummy")
     val o1 = Observable.now(1)
     val o2 = Observable.now(2)
-    val o3 = Observable.range(0, sourceCount)
+    val o3 = Observable.range(0L, sourceCount.toLong)
     val o = Observable.combineLatestMap3(o1, o2, o3) { (a1, a2, a3) =>
       if (a3 == sourceCount - 1) throw dummy else a1 + a2 + a3
     }

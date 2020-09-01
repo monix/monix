@@ -101,7 +101,7 @@ private[monix] final class TailRecMObservable[A, B](seed: A, f: A => Observable[
           lastAck = out.onNext(b)
           lastAck.syncOnComplete {
             case Success(value) =>
-              if (value == Stop) tryFinish(value)
+              if (value == Stop) { tryFinish(value); () }
             case Failure(ex) =>
               if (!tryFinish(Future.failed(ex)))
                 s.reportFailure(ex)
@@ -129,8 +129,10 @@ private[monix] final class TailRecMObservable[A, B](seed: A, f: A => Observable[
             case Left(a) => continueWithA(a)
           }
 
-        def onComplete(): Unit =
+        def onComplete(): Unit = {
           tryFinish(lastAck)
+          ()
+        }
 
         def onError(ex: Throwable): Unit = {
           // If back-pressure is required for whatever reason,

@@ -195,11 +195,11 @@ object Atomic {
         if (util.isClean(cb)) {
           q"""
           val $self = $selfExpr
-          var $current = $self.get
+          var $current = $self.get()
           var $update = $cb($current)
 
           while (!$self.compareAndSet($current, $update)) {
-            $current = $self.get
+            $current = $self.get()
             $update = $cb($current)
           }
           """
@@ -209,11 +209,11 @@ object Atomic {
           val $self = $selfExpr
           val $fn = $cb
 
-          var $current = $self.get
+          var $current = $self.get()
           var $update = $fn($current)
 
           while (!$self.compareAndSet($current, $update)) {
-            $current = $self.get
+            $current = $self.get()
             $update = $fn($current)
           }
           """
@@ -235,11 +235,11 @@ object Atomic {
         if (util.isClean(cb)) {
           q"""
           val $self = $selfExpr
-          var $current = $self.get
+          var $current = $self.get()
           var $update = $cb($current)
 
           while (!$self.compareAndSet($current, $update)) {
-            $current = $self.get
+            $current = $self.get()
             $update = $cb($current)
           }
 
@@ -250,11 +250,11 @@ object Atomic {
           q"""
           val $self = $selfExpr
           val $fn = $cb
-          var $current = $self.get
+          var $current = $self.get()
           var $update = $fn($current)
 
           while (!$self.compareAndSet($current, $update)) {
-            $current = $self.get
+            $current = $self.get()
             $update = $fn($current)
           }
 
@@ -278,11 +278,11 @@ object Atomic {
         if (util.isClean(cb)) {
           q"""
           val $self = $selfExpr
-          var $current = $self.get
+          var $current = $self.get()
           var $update = $cb($current)
 
           while (!$self.compareAndSet($current, $update)) {
-            $current = $self.get
+            $current = $self.get()
             $update = $cb($current)
           }
 
@@ -293,11 +293,11 @@ object Atomic {
           q"""
           val $self = $selfExpr
           val $fn = $cb
-          var $current = $self.get
+          var $current = $self.get()
           var $update = $fn($current)
 
           while (!$self.compareAndSet($current, $update)) {
-            $current = $self.get
+            $current = $self.get()
             $update = $fn($current)
           }
 
@@ -325,11 +325,11 @@ object Atomic {
         if (util.isClean(cb)) {
           q"""
           val $self = $selfExpr
-          var $current = $self.get
+          var $current = $self.get()
           var ($resultVar, $updateVar) = $cb($current)
 
           while (!$self.compareAndSet($current, $updateVar)) {
-            $current = $self.get
+            $current = $self.get()
             val ($resultTmp, $updateTmp) = $cb($current)
             $updateVar = $updateTmp
             $resultVar = $resultTmp
@@ -343,11 +343,11 @@ object Atomic {
           val $self = $selfExpr
           val $fn = $cb
 
-          var $current = $self.get
+          var $current = $self.get()
           var ($resultVar, $updateVar) = $fn($current)
 
           while (!$self.compareAndSet($current, $updateVar)) {
-            $current = $self.get
+            $current = $self.get()
             val ($resultTmp, $updateTmp) = $fn($current)
             $updateVar = $updateTmp
             $resultVar = $resultTmp
@@ -383,7 +383,7 @@ object Atomic {
 
     def applyMacro[A: c.WeakTypeTag](): c.Expr[A] = {
       val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
-      val tree = q"""$selfExpr.get"""
+      val tree = q"""$selfExpr.get()"""
       inlineAndReset[A](tree)
     }
 

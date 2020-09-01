@@ -21,12 +21,11 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import minitest.SimpleTestSuite
-import monix.execution.{BufferCapacity, CancelablePromise, Scheduler}
+import monix.execution.{BufferCapacity, Scheduler}
 import monix.execution.exceptions.DummyException
 import monix.execution.misc.Local
 import cats.implicits._
 import monix.catnap.{ConcurrentChannel, ConsumerF}
-import monix.execution.ExecutionModel.SynchronousExecution
 
 object TaskLocalSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global

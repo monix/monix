@@ -21,11 +21,11 @@ import monix.execution.ChannelType
 import monix.execution.ChannelType.{SingleConsumer, SingleProducer}
 import monix.execution.internal.atomic.UnsafeAccess
 import monix.execution.internal.collection.LowLevelConcurrentQueue
-import org.jctools.queues.ConcurrentCircularArrayQueue
+import monix.execution.internal.jctools.queues.MessagePassingQueue
 import sun.misc.Unsafe
 import scala.collection.mutable
 
-private[internal] abstract class FromCircularQueue[A](queue: ConcurrentCircularArrayQueue[A])
+private[internal] abstract class FromCircularQueue[A](queue: MessagePassingQueue[A])
   extends LowLevelConcurrentQueue[A] {
 
   def fenceOffer(): Unit
@@ -54,7 +54,7 @@ private[internal] object FromCircularQueue {
   /**
     * Builds a [[FromCircularQueue]] instance.
     */
-  def apply[A](queue: ConcurrentCircularArrayQueue[A], ct: ChannelType): FromCircularQueue[A] =
+  def apply[A](queue: MessagePassingQueue[A], ct: ChannelType): FromCircularQueue[A] =
     ct match {
       case ChannelType.MPMC =>
         new MPMC[A](queue)
@@ -69,13 +69,13 @@ private[internal] object FromCircularQueue {
         else new Java7[A](queue, ct)
     }
 
-  private final class MPMC[A](queue: ConcurrentCircularArrayQueue[A]) extends FromCircularQueue[A](queue) {
+  private final class MPMC[A](queue: MessagePassingQueue[A]) extends FromCircularQueue[A](queue) {
 
     def fenceOffer(): Unit = ()
     def fencePoll(): Unit = ()
   }
 
-  private final class Java8SPMC[A](queue: ConcurrentCircularArrayQueue[A]) extends FromCircularQueue[A](queue) {
+  private final class Java8SPMC[A](queue: MessagePassingQueue[A]) extends FromCircularQueue[A](queue) {
 
     private[this] val UNSAFE =
       UnsafeAccess.getInstance().asInstanceOf[Unsafe]
@@ -84,7 +84,7 @@ private[internal] object FromCircularQueue {
     def fencePoll(): Unit = ()
   }
 
-  private final class Java8MPSC[A](queue: ConcurrentCircularArrayQueue[A]) extends FromCircularQueue[A](queue) {
+  private final class Java8MPSC[A](queue: MessagePassingQueue[A]) extends FromCircularQueue[A](queue) {
 
     private[this] val UNSAFE =
       UnsafeAccess.getInstance().asInstanceOf[Unsafe]
@@ -93,7 +93,7 @@ private[internal] object FromCircularQueue {
     def fencePoll(): Unit = UNSAFE.fullFence()
   }
 
-  private final class Java8SPSC[A](queue: ConcurrentCircularArrayQueue[A]) extends FromCircularQueue[A](queue) {
+  private final class Java8SPSC[A](queue: MessagePassingQueue[A]) extends FromCircularQueue[A](queue) {
 
     private[this] val UNSAFE =
       UnsafeAccess.getInstance().asInstanceOf[Unsafe]
@@ -102,7 +102,7 @@ private[internal] object FromCircularQueue {
     def fencePoll(): Unit = UNSAFE.fullFence()
   }
 
-  private final class Java7[A](queue: ConcurrentCircularArrayQueue[A], ct: ChannelType)
+  private final class Java7[A](queue: MessagePassingQueue[A], ct: ChannelType)
     extends FromCircularQueue[A](queue) {
 
     def fenceOffer(): Unit =

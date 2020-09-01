@@ -19,7 +19,6 @@ package monix.execution.schedulers
 
 import java.util.concurrent.{TimeUnit, TimeoutException}
 
-import cats.effect.IO
 import minitest.TestSuite
 import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
@@ -77,21 +76,35 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     var firstBatch = 0
     var secondBatch = 0
 
-    s.scheduleOnce(10, TimeUnit.SECONDS, action {
-      firstBatch += 1
-      s.execute(action { firstBatch += 1 })
-      s.scheduleOnce(10, TimeUnit.SECONDS, action {
+    s.scheduleOnce(
+      10,
+      TimeUnit.SECONDS,
+      action {
         firstBatch += 1
+        s.execute(action { firstBatch += 1 })
+        s.scheduleOnce(
+          10,
+          TimeUnit.SECONDS,
+          action {
+            firstBatch += 1
+          })
+        ()
       })
-    })
 
-    s.scheduleOnce(20, TimeUnit.SECONDS, action {
-      secondBatch += 1
-      s.execute(action { secondBatch += 1 })
-      s.scheduleOnce(10, TimeUnit.SECONDS, action {
+    s.scheduleOnce(
+      20,
+      TimeUnit.SECONDS,
+      action {
         secondBatch += 1
+        s.execute(action { secondBatch += 1 })
+        s.scheduleOnce(
+          10,
+          TimeUnit.SECONDS,
+          action {
+            secondBatch += 1
+          })
+        ()
       })
-    })
 
     s.tick()
     assert(firstBatch == 0 && secondBatch == 0)
@@ -122,7 +135,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, None)
 
     s.tick(10.seconds)
-    intercept[TimeoutException](f.value.get.get)
+    intercept[TimeoutException] { f.value.get.get; () }
     ()
   }
 
@@ -321,14 +334,14 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
   def delayedResult[A](delay: FiniteDuration, timeout: FiniteDuration)(r: => A)(implicit s: Scheduler) = {
     val f1 = {
       val p = Promise[A]()
-      s.scheduleOnce(delay.length, delay.unit, action(p.success(r)))
+      s.scheduleOnce(delay.length, delay.unit, action { p.success(r); () })
       p.future
     }
 
     // catching the exception here, for non-useless stack traces
     val err = Try(throw new TimeoutException)
     val promise = Promise[A]()
-    val task = s.scheduleOnce(timeout.length, timeout.unit, action(promise.tryComplete(err)))
+    val task = s.scheduleOnce(timeout.length, timeout.unit, action { promise.tryComplete(err); () })
 
     f1.onComplete { result =>
       // canceling task to prevent waisted CPU resources and memory leaks

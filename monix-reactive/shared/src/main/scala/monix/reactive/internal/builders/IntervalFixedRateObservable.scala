@@ -53,6 +53,7 @@ private[reactive] final class IntervalFixedRateObservable(initialDelay: FiniteDu
         // No need to synchronize, since we have a happens-before
         // relationship between scheduleOnce invocations.
         task := s.scheduleOnce(delay, TimeUnit.NANOSECONDS, self)
+        ()
       }
 
       def asyncScheduleNext(r: Future[Ack]): Unit =

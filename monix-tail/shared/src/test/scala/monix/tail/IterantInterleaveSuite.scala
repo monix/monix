@@ -67,7 +67,7 @@ object IterantInterleaveSuite extends BaseTestSuite {
       val stream1 = arbitraryListToIterant[Coeval, Int](list1, math.abs(idx1) + 1, allowErrors = false)
       val stream2 = arbitraryListToIterant[Coeval, Int](list2, math.abs(idx2) + 1, allowErrors = false)
 
-      stream1.interleave(stream2).toListL.value <-> interleaveLists(list1, list2)
+      stream1.interleave(stream2).toListL.value() <-> interleaveLists(list1, list2)
     }
   }
 }

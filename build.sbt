@@ -1,14 +1,8 @@
-import com.typesafe.sbt.GitVersioning
 import sbt.Keys.version
+import sbt.Def
+import scala.collection.immutable.SortedSet
+import MonixBuildUtils._
 
-val allProjects = List(
-  "execution",
-  "catnap",
-  "eval",
-  "tail",
-  "reactive",
-  "java"
-)
 
 val benchmarkProjects = List(
   "benchmarksPrev",
@@ -16,125 +10,225 @@ val benchmarkProjects = List(
 ).map(_ + "/compile")
 
 addCommandAlias("ci",          ";ci-jvm ;ci-js")
-addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;mimaReportBinaryIssues ;unidoc")
-addCommandAlias("ci-js",       s";clean ;coreJS/test:compile ;${(allProjects.filter(_ != "java").map(_ + "JS/test") ++ benchmarkProjects).mkString(" ;")}")
-addCommandAlias("ci-jvm",      s";clean ;coreJVM/test:compile ;${(allProjects.map(_ + "JVM/test") ++ benchmarkProjects).mkString(" ;")}")
-addCommandAlias("ci-jvm-mima", s";ci-jvm ;mimaReportBinaryIssues")
-addCommandAlias("ci-jvm-all",  s";ci-jvm-mima ;unidoc")
-addCommandAlias("release",     ";project monix ;+clean ;+package ;+publishSigned")
+addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;ci-meta")
+addCommandAlias("ci-js",       ";clean ;coreJS/test:compile ;coreJS/test ;coreJS/package")
+addCommandAlias("ci-jvm",      ";clean ;coreJVM/test:compile ;coreJVM/test ;coreJVM/package")
+addCommandAlias("ci-meta",     ";mimaReportBinaryIssues ;unidoc")
+addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 
-lazy val catsVersion = settingKey[String]("cats version")
-ThisBuild/catsVersion := {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 11)) => "2.0.0"
-    case _ => "2.1.1"
-  }
-}
+// ------------------------------------------------------------------------------------------------
+// Dependencies - Versions
 
-lazy val catsEffectVersion = settingKey[String]("cats-effect version")
-ThisBuild/catsEffectVersion := {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 11)) => "2.0.0"
-    case _ => "2.1.3"
-  }
-}
+val cats_Version = "2.1.1"
+val catsEffect_Version = "2.1.4"
+val fs2_Version = "2.4.0"
+val jcTools_Version = "3.0.1"
+val reactiveStreams_Version = "1.0.3"
+val minitest_Version = "2.8.2"
+val scalaTest_Version = "3.0.8"
+val implicitBox_Version = "0.2.0"
+val kindProjector_Version = "0.11.0"
+val betterMonadicFor_Version = "0.3.1"
+val silencer_Version = "1.7.1"
+val scalaCompat_Version = "2.1.6"
+val customScalaJS_Version =
+  Option(sys.env.getOrElse("SCALAJS_VERSION", null)).filter(_.nonEmpty)
 
-val jcToolsVersion = "2.1.2"
-val reactiveStreamsVersion = "1.0.3"
-val minitestVersion = "2.8.2"
-val scalaTestVersion = "3.0.8"
-val implicitBoxVersion = "0.2.0"
-val customScalaJSVersion = Option(System.getenv("SCALAJS_VERSION"))
+// Scala 2.11 specific versions
+val cats_ForScala211Version = "2.0.0"
+val catsEffect_ForScala211Version = "2.0.0"
+val fs2_ForScala211Version = "2.1.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.0.0"
+val monixSeries = "3.2.2"
 
-lazy val doNotPublishArtifact = Seq(
-  publishArtifact := false,
-  publishArtifact in (Compile, packageDoc) := false,
-  publishArtifact in (Compile, packageSrc) := false,
-  publishArtifact in (Compile, packageBin) := false
+lazy val cats_CrossVersion = Def.setting {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 11)) => cats_ForScala211Version
+    case _ => cats_Version
+  }
+}
+
+lazy val catsEffect_CrossVersion = Def.setting {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 11)) => catsEffect_ForScala211Version
+    case _ => catsEffect_Version
+  }
+}
+
+lazy val fs2_CrossVersion = Def.setting {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 11)) => fs2_ForScala211Version
+    case _ => fs2_Version
+  }
+}
+
+// ------------------------------------------------------------------------------------------------
+// Dependencies - Libraries
+
+lazy val scalaReflectLib = Def.setting {
+  scalaOrganization.value % "scala-reflect" % scalaVersion.value
+}
+
+lazy val scalaCompilerLib = Def.setting {
+  scalaOrganization.value % "scala-compiler" % scalaVersion.value
+}
+
+/** [[https://typelevel.org/cats/typeclasses/lawtesting.html]] */
+lazy val catsLawsLib =
+  Def.setting { "org.typelevel" %%% "cats-laws" % cats_CrossVersion.value }
+
+/** [[https://typelevel.org/cats-effect/]] */
+lazy val catsEffectLib =
+  Def.setting { "org.typelevel" %%% "cats-effect" % catsEffect_CrossVersion.value }
+
+/** [[https://typelevel.org/cats-effect/]] */
+lazy val catsEffectLawsLib =
+  Def.setting { "org.typelevel" %%% "cats-effect-laws" % catsEffect_CrossVersion.value }
+
+/** [[https://github.com/monix/implicitbox]] */
+lazy val implicitBoxLib =
+  Def.setting { "io.monix" %%% "implicitbox" % implicitBox_Version }
+
+/** [[https://github.com/JCTools/JCTools]] */
+lazy val jcToolsLib =
+  "org.jctools" % "jctools-core" % jcTools_Version
+
+/** [[https://github.com/reactive-streams/reactive-streams-jvm]] */
+lazy val reactiveStreamsLib =
+  "org.reactivestreams" % "reactive-streams" % reactiveStreams_Version
+lazy val reactiveStreamsTCKLib =
+  "org.reactivestreams" % "reactive-streams-tck" % reactiveStreams_Version
+
+/** [[https://github.com/typelevel/kind-projector]]  */
+lazy val kindProjectorCompilerPlugin =
+  "org.typelevel" % "kind-projector" % kindProjector_Version cross CrossVersion.full
+
+/** [[https://github.com/monix/minitest/]] */
+lazy val minitestLib =
+  Def.setting { "io.monix" %%% "minitest-laws" % minitest_Version }
+
+/** [[https://github.com/scalatest/scalatest]] */
+lazy val scalaTestLib =
+  Def.setting { "org.scalatest" %%% "scalatest" % scalaTest_Version }
+
+/** [[https://github.com/scala/scala-collection-compat]] */
+lazy val scalaCollectionCompatLib =
+  Def.setting { "org.scala-lang.modules" %%% "scala-collection-compat" % scalaCompat_Version }
+
+/** [[https://github.com/oleg-py/better-monadic-for]] */
+lazy val betterMonadicForCompilerPlugin =
+  "com.olegpy" %% "better-monadic-for" % betterMonadicFor_Version
+
+/** [[https://github.com/ghik/silencer]] */
+lazy val silencerCompilerPlugin =
+  "com.github.ghik" % "silencer-plugin" % silencer_Version cross CrossVersion.full
+
+lazy val macroDependencies = Seq(
+  libraryDependencies ++= Seq(
+    scalaReflectLib.value % Provided,
+    scalaCompilerLib.value % Provided
+  )
 )
 
-lazy val warnUnusedImport = Seq(
-  scalacOptions ++= {
+lazy val testDependencies = Seq(
+  testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
+  libraryDependencies ++= Seq(
+    minitestLib.value % Test,
+    catsLawsLib.value % Test,
+    catsEffectLawsLib.value % Test,
+  )
+)
+
+// ------------------------------------------------------------------------------------------------
+// Shared settings
+
+/** For building correct links to source in documentation. */
+lazy val gitHubTreeTagOrHash =
+  settingKey[String]("Identifies GitHub's version tag or commit sha")
+
+val crossScalaVersionsFromBuildYaml =
+  settingKey[SortedSet[MonixScalaVersion]](
+    "Scala versions set in .github/workflows/build.yml as scala_version_XXX"
+  )
+
+crossScalaVersionsFromBuildYaml in Global := {
+  val manifest = (baseDirectory in ThisBuild).value / ".github" / "workflows" / "build.yml"
+  scalaVersionsFromBuildYaml(manifest, customScalaJS_Version)
+}
+
+lazy val publishStableMonixVersion =
+  settingKey[Boolean]("If it should publish stable versions to Sonatype staging repository, instead of a snapshot")
+
+publishStableMonixVersion in Global := {
+  sys.env.get("PUBLISH_STABLE_VERSION")
+    .exists(v => v == "true" || v == "1" || v == "yes")
+}
+
+lazy val pgpSettings = {
+  val withHex = sys.env.get("PGP_KEY_HEX").filter(_.nonEmpty) match {
+    case None => Seq.empty
+    case Some(v) => Seq(usePgpKeyHex(v))
+  }
+  withHex ++ Seq(
+    pgpPassphrase := sys.env.get("PGP_PASSPHRASE").filter(_.nonEmpty).map(_.toArray)
+  )
+}
+
+lazy val sharedSettings = pgpSettings ++ Seq(
+  organization := "io.monix",
+  // Value extracted from .github/workflows/build.yml
+  scalaVersion := crossScalaVersionsFromBuildYaml.value.head.value,
+  // Value extracted from .github/workflows/build.yml
+  crossScalaVersions := crossScalaVersionsFromBuildYaml.value.toIndexedSeq.map(_.value),
+
+  gitHubTreeTagOrHash := {
+    val ver = s"v${version.value}"
+    if (isSnapshot.value)
+      git.gitHeadCommit.value.getOrElse(ver)
+    else
+      ver
+  },
+
+  /*
+  // Enable this to debug warnings...
+  scalacOptions in Compile ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 11)) =>
-        Seq("-Ywarn-unused-import")
-      case _ =>
-        Seq("-Ywarn-unused:imports")
+      case Some((2, 13)) => Seq("-Wconf:any:warning-verbose")
+      case _ => Seq.empty
     }
   },
-  scalacOptions in (Compile, console) --= Seq("-Ywarn-unused-import", "-Ywarn-unused:imports"),
-  scalacOptions in Test --= Seq("-Ywarn-unused-import", "-Ywarn-unused:imports")
-)
+  */
 
-lazy val sharedSettings = warnUnusedImport ++ Seq(
-  organization := "io.monix",
-  scalaVersion := "2.13.1",
-  crossScalaVersions := Seq("2.11.12", "2.12.10", "2.13.1"),
+  // Disabled from the sbt-tpolecat set
+  scalacOptions in Compile ~= { options: Seq[String] =>
+    options.filterNot(
+      Set(
+        "-Wunused:privates",
+        "-Ywarn-unused:privates",
+        "-Ywarn-unused:implicits",
+        "-Wunused:implicits",
+        "-Ywarn-unused:imports",
+        "-Wunused:explicits",
+        "-Ywarn-unused:params",
+        "-Wunused:params",
+      )
+    )
+  },
 
-  scalacOptions ++= Seq(
-    // warnings
-    "-unchecked", // able additional warnings where generated code depends on assumptions
-    "-deprecation", // emit warning for usages of deprecated APIs
-    "-feature", // emit warning usages of features that should be imported explicitly
-    // Features enabled by default
-    "-language:higherKinds",
-    "-language:implicitConversions",
-    "-language:experimental.macros",
+  // Turning off fatal warnings for doc generation
+  scalacOptions.in(Compile, doc) ~= filterConsoleScalacOptions,
+  // Silence everything in auto-generated files
+  scalacOptions += "-P:silencer:pathFilters=.*[/]src_managed[/].*",
+  // Syntax improvements, linting, etc.
+  addCompilerPlugin(kindProjectorCompilerPlugin),
+  addCompilerPlugin(betterMonadicForCompilerPlugin),
+  addCompilerPlugin(silencerCompilerPlugin),
+
+  libraryDependencies ++= Seq(
+    scalaCollectionCompatLib.value % "provided;optional",
   ),
-
-  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, v)) if v <= 12 =>
-      Seq(
-        // possibly deprecated options
-        "-Ywarn-inaccessible",
-        // absolutely necessary for Iterant
-        "-Ypartial-unification",
-      )
-    case _ =>
-      Seq(
-        "-Ymacro-annotations",
-      )
-  }),
-
-  // Linter
-  scalacOptions ++= Seq(
-    // Turns all warnings into errors ;-)
-    "-Xfatal-warnings",
-    // Enables linter options
-    "-Xlint:adapted-args", // warn if an argument list is modified to match the receiver
-    "-Xlint:nullary-unit", // warn when nullary methods return Unit
-    "-Xlint:nullary-override", // warn when non-nullary `def f()' overrides nullary `def f'
-    "-Xlint:infer-any", // warn when a type argument is inferred to be `Any`
-    "-Xlint:missing-interpolator", // a string literal appears to be missing an interpolator id
-    "-Xlint:doc-detached", // a ScalaDoc comment appears to be detached from its element
-    "-Xlint:private-shadow", // a private field (or class parameter) shadows a superclass field
-    "-Xlint:type-parameter-shadow", // a local type parameter shadows a type already in scope
-    "-Xlint:poly-implicit-overload", // parameterized overloaded implicit methods are not visible as view bounds
-    "-Xlint:option-implicit", // Option.apply used implicit view
-    "-Xlint:delayedinit-select", // Selecting member of DelayedInit
-    "-Xlint:package-object-classes", // Class or object defined in package object
-  ),
-  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, majorVersion)) if majorVersion <= 12 =>
-      Seq(
-        "-Xlint:inaccessible", // warn about inaccessible types in method signatures
-        "-Xlint:by-name-right-associative", // By-name parameter of right associative operator
-        "-Xlint:unsound-match" // Pattern match may not be typesafe
-      )
-    case _ =>
-      Seq.empty
-  }),
-
-  // Turning off fatal warnings for ScalaDoc, otherwise we can't release.
-  scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings")),
-
-  // For working with partially-applied types
-  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.11.0" cross CrossVersion.full),
-
   // ScalaDoc settings
   autoAPIMappings := true,
   scalacOptions in ThisBuild ++= Seq(
@@ -146,44 +240,22 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     "-sourcepath", file(".").getAbsolutePath.replaceAll("[.]$", "")
   ),
 
-  parallelExecution in Test := false,
-  parallelExecution in IntegrationTest := false,
-  parallelExecution in ThisBuild := false,
-  testForkedParallel in Test := false,
-  testForkedParallel in IntegrationTest := false,
-  testForkedParallel in ThisBuild := false,
-  concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
-
   logBuffered in Test := false,
   logBuffered in IntegrationTest := false,
-
-  resolvers ++= Seq(
-    "Typesafe Releases" at "https://repo.typesafe.com/typesafe/releases",
-    Resolver.sonatypeRepo("releases")
-  ),
 
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
 
   // -- Settings meant for deployment on oss.sonatype.org
-  sonatypeProfileName := organization.value,
-
-  credentials += Credentials(
-    "Sonatype Nexus Repository Manager",
-    "oss.sonatype.org",
-    sys.env.getOrElse("SONATYPE_USER", ""),
-    sys.env.getOrElse("SONATYPE_PASS", "")
-  ),
+  publishTo in ThisBuild := sonatypePublishToBundle.value,
+  isSnapshot in ThisBuild := {
+    !isVersionStable.value || !publishStableMonixVersion.value  
+  },
+  dynverSonatypeSnapshots in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
+  sonatypeProfileName in ThisBuild := organization.value,
+  sonatypeSessionName := s"[sbt-sonatype] ${name.value}${customScalaJS_Version.fold("-nojs")(v => s"-sjs$v")}-${version.value}",
 
   publishMavenStyle := true,
-  publishTo := Some(
-    if (isSnapshot.value)
-      Opts.resolver.sonatypeSnapshots
-    else
-      Opts.resolver.sonatypeStaging
-  ),
-
-  isSnapshot := version.value endsWith "SNAPSHOT",
   publishArtifact in Test := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies
 
@@ -221,7 +293,7 @@ lazy val sharedSettings = warnUnusedImport ++ Seq(
     ))
 )
 
-lazy val crossSettings = sharedSettings ++ Seq(
+lazy val sharedSourcesSettings = Seq(
   unmanagedSourceDirectories in Compile += {
     baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
   },
@@ -231,7 +303,7 @@ lazy val crossSettings = sharedSettings ++ Seq(
 )
 
 def scalaPartV = Def setting (CrossVersion partialVersion scalaVersion.value)
-lazy val crossVersionSharedSources: Seq[Setting[_]] =
+lazy val crossVersionSourcesSettings: Seq[Setting[_]] =
   Seq(Compile, Test).map { sc =>
     (unmanagedSourceDirectories in sc) ++= {
       (unmanagedSourceDirectories in sc).value.flatMap { dir =>
@@ -241,26 +313,45 @@ lazy val crossVersionSharedSources: Seq[Setting[_]] =
             case Some((2, y)) if y == 12 => new File(dir.getPath + "_2.12")
             case Some((2, y)) if y >= 13 => new File(dir.getPath + "_2.13")
           },
-
           scalaPartV.value match {
             case Some((2, n)) if n >= 12 => new File(dir.getPath + "_2.12+")
             case _                       => new File(dir.getPath + "_2.12-")
           },
-
           scalaPartV.value match {
             case Some((2, n)) if n >= 13 => new File(dir.getPath + "_2.13+")
             case _                       => new File(dir.getPath + "_2.13-")
-          },
+          }
         )
       }
     }
   }
 
-lazy val requiredMacroDeps = Seq(
-  libraryDependencies ++= Seq(
-    scalaOrganization.value % "scala-reflect" % scalaVersion.value % Provided,
-    scalaOrganization.value % "scala-compiler" % scalaVersion.value % Provided
-  ))
+lazy val doNotPublishArtifactSettings = Seq(
+  publishArtifact := false,
+  publishArtifact in (Compile, packageDoc) := false,
+  publishArtifact in (Compile, packageSrc) := false,
+  publishArtifact in (Compile, packageBin) := false
+)
+
+lazy val assemblyShadeSettings = Seq(
+  assemblyOption in assembly :=  (assemblyOption in assembly).value.copy(
+    includeScala = false,
+    includeBin = false
+  ),
+  // for some weird reason the "assembly" task runs tests by default
+  test in assembly := {},
+  // prevent cyclic task dependencies, see https://github.com/sbt/sbt-assembly/issues/365
+  // otherwise, there's a cyclic dependency between packageBin and assembly
+  fullClasspath in assembly := (managedClasspath in Runtime).value,
+  // in dependent projects, use assembled and shaded jar
+  exportJars := true,
+  // do not include scala dependency in pom
+  autoScalaLibrary := false,
+  // prevent original dependency to be added to pom as runtime dep
+  makePomConfiguration := makePomConfiguration.value.withConfigurations(Vector.empty),
+  // package by running assembly
+  packageBin in Compile := ReproducibleBuildsPlugin.postProcessJar((assembly in Compile).value),
+)
 
 lazy val unidocSettings = Seq(
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
@@ -279,57 +370,36 @@ lazy val unidocSettings = Seq(
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Opts.doc.title(s"Monix"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
-    Opts.doc.sourceUrl(s"https://github.com/monix/monix/tree/v${version.value}€{FILE_PATH}.scala"),
+    Opts.doc.sourceUrl(s"https://github.com/monix/monix/tree/${gitHubTreeTagOrHash.value}€{FILE_PATH}.scala"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Seq("-doc-root-content", file("rootdoc.txt").getAbsolutePath),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Opts.doc.version(s"${version.value}")
 )
 
-lazy val testSettings = Seq(
-  testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
-  libraryDependencies ++= Seq(
-    "io.monix" %%% "minitest-laws" % minitestVersion % Test,
-    "org.typelevel" %%% "cats-laws" % catsVersion.value % Test,
-    "org.typelevel" %%% "cats-effect-laws" % catsEffectVersion.value % Test
-  )
-)
-
-lazy val javaExtensionsSettings = sharedSettings ++ testSettings ++ Seq(
-  name := "monix-java"
-)
-
-lazy val scalaJSSettings = Seq(
+lazy val sharedJSSettings = Seq(
   coverageExcludedFiles := ".*",
   // Use globally accessible (rather than local) source paths in JS source maps
   scalacOptions += {
-    val tagOrHash =
-      if (isSnapshot.value) git.gitHeadCommit.value.get
-      else s"v${git.baseVersion.value}"
     val l = (baseDirectory in LocalRootProject).value.toURI.toString
-    val g = s"https://raw.githubusercontent.com/monix/monix/$tagOrHash/"
+    val g = s"https://raw.githubusercontent.com/monix/monix/${gitHubTreeTagOrHash.value}/"
     s"-P:scalajs:mapSourceURI:$l->$g"
-  }
+  },
+  // Needed in order to publish for multiple Scala.js versions:
+  // https://github.com/olafurpg/sbt-ci-release#how-do-i-publish-cross-built-scalajs-projects
+  skip.in(publish) := customScalaJS_Version.isEmpty,
 )
 
-lazy val cmdlineProfile =
-  sys.env.getOrElse("SBT_PROFILE", "")
+lazy val sharedJVMSettings = Seq(
+  skip.in(publish) := customScalaJS_Version.isDefined
+)
 
 def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
   mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_3,
 )
-// https://github.com/lightbend/mima/pull/289
-mimaFailOnNoPrevious in ThisBuild := false
-
-def profile: Project ⇒ Project = pr => {
-  val withCoverage = cmdlineProfile match {
-    case "coverage" => pr
-    case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
-  }
-  withCoverage.enablePlugins(AutomateHeaderPlugin)
-}
 
 lazy val doctestTestSettings = Seq(
   doctestTestFramework := DoctestTestFramework.Minitest,
@@ -337,201 +407,289 @@ lazy val doctestTestSettings = Seq(
   doctestOnlyCodeBlocksMode := true
 )
 
+// ------------------------------------------------------------------------------------------------
+// Configuration profiles
+
+def baseSettingsAndPlugins(publishArtifacts: Boolean): Project ⇒ Project =
+  pr => {
+    val withCoverage = sys.env.getOrElse("SBT_PROFILE", "") match {
+      case "coverage" => pr
+      case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
+    }
+    withCoverage
+      .enablePlugins(AutomateHeaderPlugin)
+      .settings(sharedSettings)
+      .settings(if (publishArtifacts) Seq.empty else doNotPublishArtifactSettings)
+      .settings(filterOutMultipleDependenciesFromGeneratedPomXml(
+        "groupId" -> "org.scoverage".r :: Nil,
+        "groupId" -> "org.typelevel".r :: "artifactId" -> "simulacrum".r :: Nil,
+      ))
+  }
+
+def monixSubModule(
+  projectName: String,
+  publishArtifacts: Boolean,
+): Project => Project = pr => {
+  pr.configure(baseSettingsAndPlugins(publishArtifacts = publishArtifacts))
+    .enablePlugins(ReproducibleBuildsPlugin)
+    .settings(sharedSourcesSettings)
+    .settings(crossVersionSourcesSettings)
+    .settings(name := projectName)
+}
+
+def jvmModule(
+  projectName: String,
+  withMimaChecks: Boolean,
+  withDocTests: Boolean,
+  publishArtifacts: Boolean,
+): Project => Project =
+  pr => {
+    pr.configure(monixSubModule(projectName, publishArtifacts = publishArtifacts))
+      .settings(sharedJVMSettings)
+      .settings(testDependencies)
+      .settings(if (withDocTests) doctestTestSettings else Seq.empty)
+      .settings(if (withMimaChecks) mimaSettings(projectName) else Seq.empty)
+  }
+
+def jsProfile(projectName: String, publishArtifacts: Boolean): Project => Project =
+  pr => {
+    pr.configure(monixSubModule(projectName, publishArtifacts = publishArtifacts))
+      .enablePlugins(ScalaJSPlugin)
+      .settings(testDependencies)
+      .settings(sharedJSSettings)
+  }
+
+def crossModule(
+  projectName: String,
+  withMimaChecks: Boolean = true,
+  withDocTests: Boolean = true,
+  publishArtifacts: Boolean = true,
+  crossSettings: Seq[sbt.Def.SettingsDefinition] = Nil): MonixCrossModule = {
+
+  MonixCrossModule(
+    jvm = jvmModule(
+      projectName = projectName,
+      withMimaChecks = withMimaChecks,
+      withDocTests = withDocTests,
+      publishArtifacts = publishArtifacts
+    ).andThen(_.settings(crossSettings:_*)),
+    js = jsProfile(
+      projectName = projectName,
+      publishArtifacts = publishArtifacts
+    ).andThen(_.settings(crossSettings:_*))
+  )
+}
+
+// ------------------------------------------------------------------------------------------------
+// Projects
+
 lazy val monix = project.in(file("."))
+  .configure(baseSettingsAndPlugins(publishArtifacts = false))
   .enablePlugins(ScalaUnidocPlugin)
-  .configure(profile)
   .aggregate(coreJVM, coreJS)
-  .settings(sharedSettings)
-  .settings(doNotPublishArtifact)
   .settings(unidocSettings)
-
-lazy val coreJVM = project.in(file("monix/jvm"))
-  .configure(profile)
-  .dependsOn(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
-  .aggregate(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
-  .settings(crossSettings)
-  .settings(name := "monix")
   .settings(
-    // do not publish second time during +publish run with ScalaJS 1.0
-    skip.in(publish) := customScalaJSVersion.forall(_.startsWith("1.0"))
+    Global / onChangedBuildSource := ReloadOnSourceChanges,
+    // https://github.com/lightbend/mima/pull/289
+    mimaFailOnNoPrevious in ThisBuild := false
   )
 
-lazy val coreJS = project.in(file("monix/js"))
-  .configure(profile)
-  .enablePlugins(ScalaJSPlugin)
-  .dependsOn(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
-  .aggregate(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
-  .settings(crossSettings)
-  .settings(scalaJSSettings)
-  .settings(name := "monix")
+// --------------------------------------------
+// monix (root)
 
-lazy val executionCommon = crossVersionSharedSources ++ Seq(
-  name := "monix-execution",
-  libraryDependencies += "io.monix" %%% "implicitbox" % implicitBoxVersion
-)
-
-lazy val executionJVM = project.in(file("monix-execution/jvm"))
-  .configure(profile)
-  .settings(crossSettings)
-  .settings(testSettings)
-  .settings(requiredMacroDeps)
-  .settings(executionCommon)
-  .settings(libraryDependencies += "org.jctools" % "jctools-core" % jcToolsVersion)
-  .settings(libraryDependencies += "org.reactivestreams" % "reactive-streams" % reactiveStreamsVersion)
-  .settings(mimaSettings("monix-execution"))
-
-lazy val executionJS = project.in(file("monix-execution/js"))
-  .enablePlugins(ScalaJSPlugin)
-  .configure(profile)
-  .settings(crossSettings)
-  .settings(scalaJSSettings)
-  .settings(testSettings)
-  .settings(requiredMacroDeps)
-  .settings(executionCommon)
-
-lazy val catnapCommon =
-  crossSettings ++ crossVersionSharedSources ++ testSettings ++ Seq(
-    name := "monix-catnap",
-    libraryDependencies += "org.typelevel" %%% "cats-effect" % catsEffectVersion.value
-)
-
-lazy val catnapJVM = project.in(file("monix-catnap/jvm"))
-  .configure(profile)
-  .dependsOn(executionJVM % "compile->compile; test->test")
-  .settings(catnapCommon)
-  .settings(mimaSettings("monix-catnap"))
-  .settings(doctestTestSettings)
-
-lazy val catnapJS = project.in(file("monix-catnap/js"))
-  .enablePlugins(ScalaJSPlugin)
-  .configure(profile)
-  .dependsOn(executionJS % "compile->compile; test->test")
-  .settings(scalaJSSettings)
-  .settings(catnapCommon)
-
-lazy val evalCommon =
-  crossSettings ++ crossVersionSharedSources ++ testSettings ++
-    Seq(
-      name := "monix-eval"
-    )
-
-lazy val evalJVM = project.in(file("monix-eval/jvm"))
-  .configure(profile)
-  .dependsOn(executionJVM % "compile->compile; test->test")
-  .dependsOn(catnapJVM)
-  .settings(evalCommon)
-  .settings(mimaSettings("monix-eval"))
-  .settings(doctestTestSettings)
-
-lazy val evalJS = project.in(file("monix-eval/js"))
-  .enablePlugins(ScalaJSPlugin)
-  .configure(profile)
-  .dependsOn(executionJS % "compile->compile; test->test")
-  .dependsOn(catnapJS)
-  .settings(scalaJSSettings)
-  .settings(evalCommon)
-
-lazy val tailCommon =
-  crossSettings ++ testSettings ++ Seq(
-    name := "monix-tail"
-  )
-
-lazy val tailJVM = project.in(file("monix-tail/jvm"))
-  .configure(profile)
-  .dependsOn(evalJVM % "test->test")
-  .dependsOn(catnapJVM)
-  .settings(tailCommon)
-  .settings(doctestTestSettings)
-  .settings(mimaSettings("monix-tail"))
-
-lazy val tailJS = project.in(file("monix-tail/js"))
-  .enablePlugins(ScalaJSPlugin)
-  .configure(profile)
-  .dependsOn(evalJS % "test->test")
-  .dependsOn(catnapJS)
-  .settings(scalaJSSettings)
-  .settings(tailCommon)
-
-lazy val reactiveCommon =
-  crossSettings ++ testSettings ++ Seq(
-    name := "monix-reactive"
-  )
-
-lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
-  .configure(profile)
-  .dependsOn(executionJVM, evalJVM % "compile->compile; test->test")
-  .settings(reactiveCommon)
-  .settings(mimaSettings("monix-reactive"))
-  .settings(doctestTestSettings)
-
-lazy val reactiveJS = project.in(file("monix-reactive/js"))
-  .enablePlugins(ScalaJSPlugin)
-  .configure(profile)
-  .dependsOn(executionJS, evalJS % "compile->compile; test->test")
-  .settings(reactiveCommon)
-  .settings(scalaJSSettings)
-
-lazy val javaJVM = project.in(file("monix-java"))
-  .configure(profile)
-  .dependsOn(executionJVM % "provided->compile; test->test")
-  .dependsOn(evalJVM % "provided->compile; test->test")
-  .settings(javaExtensionsSettings)
-
-lazy val reactiveTests = project.in(file("reactiveTests"))
-  .configure(profile)
-  .dependsOn(coreJVM)
-  .settings(sharedSettings)
-  .settings(doNotPublishArtifact)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.reactivestreams" % "reactive-streams-tck" % reactiveStreamsVersion % Test,
-      "org.scalatest" %% "scalatest" % scalaTestVersion % Test
+lazy val coreProfile =
+  crossModule(
+    projectName = "monix",
+    withMimaChecks = false,
+    withDocTests = false,
+    crossSettings = Seq(
+      description := "Root project for Monix, a library for asynchronous programming in Scala. See: https://monix.io"
     ))
 
-lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
-  .configure(profile)
-  .enablePlugins(JmhPlugin)
-  .settings(crossSettings)
-  .settings(sharedSettings)
-  .settings(doNotPublishArtifact)
+lazy val coreJVM = project.in(file("monix/jvm"))
+  .configure(coreProfile.jvm)
+  .dependsOn(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+  .aggregate(executionShadedJCTools, executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+
+lazy val coreJS = project.in(file("monix/js"))
+  .configure(coreProfile.js)
+  .dependsOn(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
+  .aggregate(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
+
+// --------------------------------------------
+// monix-internal-jctools (shaded lib)
+
+lazy val executionShadedJCTools = project.in(file("monix-execution/shaded/jctools"))
+  .configure(jvmModule(
+    projectName = "monix-internal-jctools",
+    withMimaChecks = false,
+    withDocTests = false,
+    publishArtifacts = true
+  ))
+  .settings(assemblyShadeSettings)
+  .settings(
+    description := "Monix Execution Shaded JCTools is a shaded version of JCTools library. See: https://github.com/JCTools/JCTools",
+    libraryDependencies += jcToolsLib % "optional;provided",
+    // https://github.com/sbt/sbt-assembly#shading
+    assemblyShadeRules in assembly := Seq(
+      ShadeRule.rename("org.jctools.**" -> "monix.execution.internal.jctools.@1")
+        .inLibrary("org.jctools" % "jctools-core" % jcTools_Version % "optional;provided")
+        .inAll
+    )
+  )
+
+// --------------------------------------------
+// monix-execution
+
+lazy val executionProfile =
+  crossModule(
+    projectName = "monix-execution",
+    withDocTests = false,
+    crossSettings = Seq(
+      description := "Sub-module of Monix, exposing low-level primitives for dealing with async execution. See: https://monix.io",
+      libraryDependencies += implicitBoxLib.value
+    ))
+
+lazy val executionJVM = project.in(file("monix-execution/jvm"))
+  .configure(executionProfile.jvm)
+  .settings(macroDependencies)
+  .dependsOn(executionShadedJCTools)
+  .settings(libraryDependencies += reactiveStreamsLib)
+
+lazy val executionJS = project.in(file("monix-execution/js"))
+  .configure(executionProfile.js)
+  .settings(macroDependencies)
+
+// --------------------------------------------
+// monix-catnap
+
+lazy val catnapProfile =
+  crossModule(
+    projectName = "monix-catnap",
+    crossSettings = Seq(
+      description := "Sub-module of Monix, exposing pure abstractions built on top of the Cats-Effect type classes. See: https://monix.io",
+      libraryDependencies += catsEffectLib.value
+    ))
+
+lazy val catnapJVM = project.in(file("monix-catnap/jvm"))
+  .configure(catnapProfile.jvm)
+  .dependsOn(executionJVM % "compile->compile; test->test")
+
+lazy val catnapJS = project.in(file("monix-catnap/js"))
+  .configure(catnapProfile.js)
+  .dependsOn(executionJS % "compile->compile; test->test")
+
+// --------------------------------------------
+// monix-catnap
+
+lazy val evalProfile =
+  crossModule(
+    projectName = "monix-eval",
+    crossSettings = Seq(
+      description := "Sub-module of Monix, exposing Task and Coeval, for suspending side-effects. See: https://monix.io"
+    ))
+
+lazy val evalJVM = project.in(file("monix-eval/jvm"))
+  .configure(evalProfile.jvm)
+  .dependsOn(executionJVM % "compile->compile; test->test")
+  .dependsOn(catnapJVM)
+
+lazy val evalJS = project.in(file("monix-eval/js"))
+  .configure(evalProfile.js)
+  .dependsOn(executionJS % "compile->compile; test->test")
+  .dependsOn(catnapJS)
+
+// --------------------------------------------
+// monix-tail
+
+lazy val tailProfile =
+  crossModule(
+    projectName = "monix-tail",
+    crossSettings = Seq(
+      description := "Sub-module of Monix, exposing Iterant for purely functional pull based streaming. See: https://monix.io"
+    ))
+
+lazy val tailJVM = project.in(file("monix-tail/jvm"))
+  .configure(tailProfile.jvm)
+  .dependsOn(evalJVM % "test->test")
+  .dependsOn(catnapJVM)
+
+lazy val tailJS = project.in(file("monix-tail/js"))
+  .configure(tailProfile.js)
+  .dependsOn(evalJS % "test->test")
+  .dependsOn(catnapJS)
+
+// --------------------------------------------
+// monix-reactive
+
+lazy val reactiveProfile =
+  crossModule(
+    projectName = "monix-reactive",
+    crossSettings = Seq(
+      description := "Sub-module of Monix, exposing the Observable pattern for modeling of reactive streams. See: https://monix.io"
+    ))
+
+lazy val reactiveJVM = project.in(file("monix-reactive/jvm"))
+  .configure(reactiveProfile.jvm)
+  .dependsOn(executionJVM, evalJVM % "compile->compile; test->test")
+
+lazy val reactiveJS = project.in(file("monix-reactive/js"))
+  .configure(reactiveProfile.js)
+  .dependsOn(executionJS, evalJS % "compile->compile; test->test")
+
+// --------------------------------------------
+// monix-java
+
+lazy val javaJVM = project.in(file("monix-java"))
+  .configure(jvmModule(
+    projectName = "monix-java",
+    withMimaChecks = true,
+    withDocTests = true,
+    publishArtifacts = true
+  ))
+  .dependsOn(executionJVM % "provided->compile; test->test")
+  .dependsOn(evalJVM % "provided->compile; test->test")
+
+// --------------------------------------------
+// monix-reactive-tests (not published)
+
+lazy val reactiveTests = project.in(file("reactiveTests"))
+  .configure(monixSubModule(
+    "monix-reactive-tests",
+    publishArtifacts = false
+  ))
+  .dependsOn(reactiveJVM, tailJVM)
   .settings(
     libraryDependencies ++= Seq(
-      "io.monix" %% "monix" % "3.2.0",
-      "dev.zio" %% "zio" % "1.0.0-RC18-2"
+      reactiveStreamsTCKLib % Test,
+      scalaTestLib.value % Test,
+    ))
+
+// --------------------------------------------
+// monix-benchmarks-{prev,next} (not published)
+
+lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
+  .enablePlugins(JmhPlugin)
+  .configure(monixSubModule(
+    "monix-benchmarks-prev",
+    publishArtifacts = false
+  ))
+  .settings(
+    libraryDependencies ++= Seq(
+      "io.monix" %% "monix" % "3.2.2",
+      "dev.zio" %% "zio-streams" % "1.0.0-RC21-2",
+      "co.fs2" %% "fs2-core" % fs2_CrossVersion.value
   ))
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
-  .configure(profile)
-  .dependsOn(coreJVM)
   .enablePlugins(JmhPlugin)
-  .settings(crossSettings)
-  .settings(sharedSettings)
-  .settings(doNotPublishArtifact)
+  .configure(monixSubModule(
+    projectName = "monix-benchmarks-next",
+    publishArtifacts = false
+  ))
+  .dependsOn(reactiveJVM, tailJVM)
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio" % "1.0.0-RC18-2"
+      "dev.zio" %% "zio-streams" % "1.0.0-RC21-2",
+      "co.fs2" %% "fs2-core" % fs2_CrossVersion.value
     ))
-
-//------------- For Release
-
-enablePlugins(GitVersioning)
-
-/* The BaseVersion setting represents the in-development (upcoming) version,
- * as an alternative to SNAPSHOTS.
- */
-git.baseVersion := "3.3.0"
-
-val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
-git.gitTagToVersionNumber := {
-  case ReleaseTag(v) => Some(v)
-  case _ => None
-}
-
-git.formattedShaVersion := {
-  val suffix = git.makeUncommittedSignifierSuffix(git.gitUncommittedChanges.value, git.uncommittedSignifier.value)
-
-  git.gitHeadCommit.value map { _.substring(0, 7) } map { sha =>
-    git.baseVersion.value + "-" + sha + suffix
-  }
-}
-

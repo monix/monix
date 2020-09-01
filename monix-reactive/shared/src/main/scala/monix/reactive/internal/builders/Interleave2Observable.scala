@@ -55,6 +55,7 @@ private[reactive] final class Interleave2Observable[+A](obsA1: Observable[A], ob
           downstreamAck = Stop
           pauseA1.completeWith(Stop)
           pauseA2.completeWith(Stop)
+          ()
         }
       }
 
@@ -65,11 +66,13 @@ private[reactive] final class Interleave2Observable[+A](obsA1: Observable[A], ob
         completedCount >= 2
       }
 
-      if (shouldComplete)
+      if (shouldComplete) {
         ack.syncOnContinue(lock.synchronized(if (!isDone) {
           isDone = true
           out.onComplete()
         }))
+        ()
+      }
     }
 
     val composite = CompositeCancelable()
@@ -106,6 +109,7 @@ private[reactive] final class Interleave2Observable[+A](obsA1: Observable[A], ob
           pauseA2.trySuccess(Continue)
           pauseA2 = Promise.successful(Continue)
         }
+        ()
       }
     })
 
@@ -141,6 +145,7 @@ private[reactive] final class Interleave2Observable[+A](obsA1: Observable[A], ob
           pauseA1.trySuccess(Continue)
           pauseA1 = Promise.successful(Continue)
         }
+        ()
       }
     })
 

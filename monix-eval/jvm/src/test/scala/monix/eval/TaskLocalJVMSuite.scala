@@ -184,7 +184,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
     def runAssertion(run: Task[Unit] => Any, method: String): Future[Unit] = {
-      val p = Promise[Unit]
+      val p = Promise[Unit]()
       val local = Local(0)
       val task = Task.evalAsync(local := 50).guarantee(Task(p.success(())).void)
 

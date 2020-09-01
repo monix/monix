@@ -24,7 +24,10 @@ import monix.reactive.observers.Subscriber
 import scala.collection.mutable
 import scala.concurrent.Future
 
-private[reactive] final class DropLastOperator[A](n: Long) extends Operator[A, A] {
+private[reactive] final class DropLastOperator[A](n: Int) extends Operator[A, A] {
+  @deprecated("Provided for backwards compatibility", "3.3.0")
+  def this(nr: Long) = this(nr.toInt)
+
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler = out.scheduler

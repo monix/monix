@@ -23,10 +23,10 @@ import scala.concurrent.duration.Duration._
 
 object Zip4Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o1 = Observable.range(0, sourceCount).executeAsync
-    val o2 = Observable.range(0, sourceCount + 1).executeAsync
-    val o3 = Observable.range(0, sourceCount + 2).executeAsync
-    val o4 = Observable.range(0, sourceCount + 3).executeAsync
+    val o1 = Observable.range(0L, sourceCount.toLong).executeAsync
+    val o2 = Observable.range(0, sourceCount.toLong + 1).executeAsync
+    val o3 = Observable.range(0, sourceCount.toLong + 2).executeAsync
+    val o4 = Observable.range(0, sourceCount.toLong + 3).executeAsync
 
     val o = Observable.zipMap4(o1, o2, o3, o4)(_ + _ + _ + _)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -36,20 +36,20 @@ object Zip4Suite extends BaseOperatorSuite {
   def sum(sourceCount: Int) = (sourceCount * (sourceCount - 1)) / 2 * 4
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o1 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o2 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o3 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
-    val o4 = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+    val o1 = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
+    val o2 = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
+    val o3 = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
+    val o4 = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
 
     val o = Observable.zipMap4(o1, o2, o3, o4)(_ + _ + _ + _)
     Sample(o, count(sourceCount - 1), sum(sourceCount - 1), Zero, Zero)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o1 = Observable.range(0, sourceCount).executeAsync
-    val o2 = Observable.range(0, sourceCount + 100).executeAsync
-    val o3 = Observable.range(0, sourceCount).executeAsync
-    val o4 = Observable.range(0, sourceCount).executeAsync
+    val o1 = Observable.range(0L, sourceCount.toLong).executeAsync
+    val o2 = Observable.range(0, sourceCount.toLong + 100).executeAsync
+    val o3 = Observable.range(0L, sourceCount.toLong).executeAsync
+    val o4 = Observable.range(0L, sourceCount.toLong).executeAsync
 
     val o = Observable.zipMap4(o1, o2, o3, o4) { (x1, x2, x3, x4) =>
       if (x2 < sourceCount - 1) x1 + x2 + x3 + x4 else throw ex

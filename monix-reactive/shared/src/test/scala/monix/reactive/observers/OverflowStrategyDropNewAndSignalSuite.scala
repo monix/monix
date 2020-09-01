@@ -273,7 +273,7 @@ object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {
       def onComplete() = wasCompleted = true
     })
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
     startConsuming.success(Continue)
 
@@ -295,7 +295,7 @@ object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {
       def onComplete() = wasCompleted = true
     })
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
     s.tick()
 
@@ -320,13 +320,13 @@ object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {
       }
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onError(DummyException("dummy"))
     startConsuming.success(Continue)
 
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
-    assertEquals(sum, (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
   test("should do onError only after all the queue was drained, test2") { implicit s =>
@@ -345,12 +345,12 @@ object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {
       }
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onError(DummyException("dummy"))
 
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
-    assertEquals(sum, (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
   test("should do synchronous execution in batches") { implicit s =>
@@ -375,9 +375,9 @@ object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 0)
 
     s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize)
+    assertEquals(received, Platform.recommendedBatchSize.toLong)
     s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize * 2)
+    assertEquals(received, Platform.recommendedBatchSize.toLong * 2)
     s.tickOne()
     assertEquals(wasCompleted, true)
   }

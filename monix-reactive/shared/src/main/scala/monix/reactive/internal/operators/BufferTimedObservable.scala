@@ -72,6 +72,7 @@ private[reactive] final class BufferTimedObservable[+A](source: Observable[A], t
             // sending the bundle
             run())
         }
+        ()
       }
 
       // Must be synchronized by `self`

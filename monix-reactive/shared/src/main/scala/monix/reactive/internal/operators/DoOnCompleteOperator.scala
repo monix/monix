@@ -38,6 +38,6 @@ private[reactive] final class DoOnCompleteOperator[A](task: Task[Unit]) extends 
             out.onComplete()
           case Left(ex) =>
             out.onError(ex)
-        }.runToFuture
+        }.runAsyncAndForget
     }
 }

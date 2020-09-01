@@ -18,11 +18,9 @@
 package monix.catnap
 
 import java.util.concurrent.Executors
-
 import minitest.SimpleTestSuite
 import cats.effect.IO
 import cats.implicits._
-import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import scala.concurrent.{CancellationException, ExecutionContext}
 import scala.concurrent.duration._

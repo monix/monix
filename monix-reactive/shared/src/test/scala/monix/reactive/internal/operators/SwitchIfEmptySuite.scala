@@ -27,9 +27,9 @@ object SwitchIfEmptySuite extends BaseOperatorSuite {
     Some {
       val o =
         if (sourceCount % 2 == 1)
-          Observable.empty.switchIfEmpty(Observable.range(0, sourceCount))
+          Observable.empty.switchIfEmpty(Observable.range(0L, sourceCount.toLong))
         else
-          Observable.range(0, sourceCount)
+          Observable.range(0L, sourceCount.toLong)
 
       Sample(o, sourceCount, sourceCount * (sourceCount - 1) / 2, Zero, Zero)
     }

@@ -105,7 +105,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
         throw new IllegalStateException("onError")
     })
 
-    s.tick(1.millis * n)
+    s.tick(1.millis * n.toLong)
     assertEquals(sum, n * (n - 1) / 2)
     assertEquals(onCompleteCalled, 1)
     assertEquals(onFinishCalled, 1)
@@ -148,7 +148,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     val seq = 0 until (n * 2)
     val obs = Observable
       .fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
-      .take(n) // Will trigger Stop
+      .take(n.toLong) // Will trigger Stop
 
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s
@@ -327,7 +327,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     val seq = 0 until (n * 4)
     val obs = Observable
       .fromIterator(Resource.make(Task(seq.iterator))(_ => Task.raiseError(ex)))
-      .take(n)
+      .take(n.toLong)
 
     obs.unsafeSubscribeFn(new Subscriber[Int] {
       implicit val scheduler: Scheduler = s

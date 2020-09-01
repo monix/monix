@@ -106,10 +106,12 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
 
     intercept[NullPointerException] {
       reactiveSubscriber.onNext(null)
+      ()
     }
 
     intercept[NullPointerException] {
       reactiveSubscriber.onError(null)
+      ()
     }
     ()
   }
@@ -132,10 +134,12 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
 
     intercept[NullPointerException] {
       reactiveSubscriber.onNext(null)
+      ()
     }
 
     intercept[NullPointerException] {
       reactiveSubscriber.onError(null)
+      ()
     }
     ()
   }
@@ -161,12 +165,12 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
 
     val requested = 100
     Observable
-      .range(0, requested)
+      .range(0, requested.toLong)
       .toReactivePublisher
       .subscribe(Observer.toReactiveSubscriber(observer, requestCount = 1))
 
     s.tick()
-    assertEquals(sum, requested * (requested - 1) / 2)
+    assertEquals(sum, requested.toLong * (requested - 1) / 2)
   }
 
   test("should work with asynchronous boundaries and batched requests") { implicit s =>

@@ -23,7 +23,6 @@ import monix.execution.cancelables.{ChainedCancelable, SingleAssignCancelable}
 import monix.execution.misc.Local
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-
 import scala.concurrent._
 import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
@@ -50,8 +49,8 @@ sealed abstract class CancelableFuture[+A](isolatedCtx: Local.Context) extends F
     }
   }
 
-  override final def transform[S](s: (A) => S, f: (Throwable) => Throwable)(
-    implicit executor: ExecutionContext): CancelableFuture[S] =
+  override final def transform[S](s: (A) => S, f: (Throwable) => Throwable)(implicit
+    executor: ExecutionContext): CancelableFuture[S] =
     transform {
       case Success(a) => Success(s(a))
       case Failure(e) => Failure(f(e))
@@ -81,8 +80,8 @@ sealed abstract class CancelableFuture[+A](isolatedCtx: Local.Context) extends F
         fail.asInstanceOf[Failure[S]]
     }
 
-  override final def recover[U >: A](pf: PartialFunction[Throwable, U])(
-    implicit executor: ExecutionContext): CancelableFuture[U] =
+  override final def recover[U >: A](pf: PartialFunction[Throwable, U])(implicit
+    executor: ExecutionContext): CancelableFuture[U] =
     transform {
       case ref @ Success(_) => ref
       case Failure(e) =>
@@ -90,8 +89,8 @@ sealed abstract class CancelableFuture[+A](isolatedCtx: Local.Context) extends F
         Success(pf(e))
     }
 
-  override final def recoverWith[U >: A](pf: PartialFunction[Throwable, Future[U]])(
-    implicit executor: ExecutionContext): CancelableFuture[U] =
+  override final def recoverWith[U >: A](pf: PartialFunction[Throwable, Future[U]])(implicit
+    executor: ExecutionContext): CancelableFuture[U] =
     transformWith {
       case Success(_) => this
       case Failure(e) =>
@@ -123,8 +122,8 @@ sealed abstract class CancelableFuture[+A](isolatedCtx: Local.Context) extends F
     }
   }
 
-  override final def andThen[U](pf: PartialFunction[Try[A], U])(
-    implicit executor: ExecutionContext): CancelableFuture[A] =
+  override final def andThen[U](pf: PartialFunction[Try[A], U])(implicit
+    executor: ExecutionContext): CancelableFuture[A] =
     transformWith { r =>
       if (pf.isDefinedAt(r)) pf(r)
       this
@@ -289,7 +288,8 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     ec.execute(new TrampolinedRunnable {
       def run(): Unit = {
         try {
-          cRef := register(p.complete)
+          cRef := register { v => p.complete(v); () }
+          ()
         } catch {
           case e if NonFatal(e) =>
             if (!p.tryComplete(Failure(e)))
@@ -324,8 +324,8 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
 
     override def transform[S](f: (Try[Nothing]) => Try[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
       this
-    override def transformWith[S](f: (Try[Nothing]) => Future[S])(
-      implicit executor: ExecutionContext): CancelableFuture[S] =
+    override def transformWith[S](f: (Try[Nothing]) => Future[S])(implicit
+      executor: ExecutionContext): CancelableFuture[S] =
       this
   }
 
@@ -342,7 +342,9 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     def value: Option[Try[A]] = underlying.value
 
     def onComplete[U](f: (Try[A]) => U)(implicit executor: ExecutionContext): Unit =
-      executor.execute(new Runnable { def run(): Unit = f(immediate) })
+      executor.execute(new Runnable {
+        def run(): Unit = { f(immediate); () }
+      })
   }
 
   /** An actual [[CancelableFuture]] implementation; internal. */

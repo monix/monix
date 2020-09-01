@@ -134,8 +134,8 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     val p2 = semaphore.acquire.unsafeToFuture()
     assert(p2.isCompleted, "p2.isCompleted")
 
-    val p3 = Promise[Unit]
-    val cancel = semaphore.acquire.unsafeRunCancelable(_ => p3.success(()))
+    val p3 = Promise[Unit]()
+    val cancel = semaphore.acquire.unsafeRunCancelable { _ => p3.success(()); () }
     assert(!p3.isCompleted, "!p3.isCompleted")
     assertEquals(semaphore.available.unsafeRunSync(), 0)
 
@@ -155,7 +155,7 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     import scala.concurrent.ExecutionContext.Implicits.global
 
     val task = repeatTest(10) {
-      val available = 6
+      val available = 6L
       val semaphore = Semaphore.unsafe[IO](provisioned = available)
       val count = if (Platform.isJVM) 10000 else 50
       val allReleased = Promise[Unit]()
@@ -164,7 +164,7 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
         allReleased.completeWith(semaphore.awaitAvailable(available).unsafeToFuture())
 
         val futures = for (i <- 0 until count) yield {
-          semaphore.withPermitN(Math.floorMod(Random.nextInt(), 3) + 1) {
+          semaphore.withPermitN(Math.floorMod(Random.nextInt(), 3).toLong + 1) {
             IO(1).map { x =>
               assert(!allReleased.isCompleted, s"!allReleased.isCompleted (index $i)")
               x
@@ -209,7 +209,7 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     assertEquals(sem.count.unsafeRunSync(), 0)
 
     val p1 = Promise[Int]()
-    val cancel = sem.withPermitN(3)(IO(1 + 1)).unsafeRunCancelable(r => p1.complete(r.toTry))
+    val cancel = sem.withPermitN(3)(IO(1 + 1)).unsafeRunCancelable { r => p1.complete(r.toTry); () }
     val f2 = sem.withPermitN(3)(IO(1 + 1)).unsafeToFuture()
 
     assertEquals(p1.future.value, None)
@@ -230,7 +230,7 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     val sem = Semaphore.unsafe[IO](provisioned = 1)
 
     val p1 = Promise[Int]()
-    val cancel = sem.withPermitN(3)(IO(1 + 1)).unsafeRunCancelable(r => p1.complete(r.toTry))
+    val cancel = sem.withPermitN(3)(IO(1 + 1)).unsafeRunCancelable { r => p1.complete(r.toTry); () }
     val f2 = sem.withPermitN(3)(IO(1 + 1)).unsafeToFuture()
     assertEquals(sem.count.unsafeRunSync(), -5)
 

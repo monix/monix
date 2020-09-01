@@ -236,7 +236,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
   test("Iterant.countL consistent with List.length") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val i = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
-      i.countL <-> Coeval(list.length)
+      i.countL <-> Coeval(list.length.toLong)
     }
   }
 

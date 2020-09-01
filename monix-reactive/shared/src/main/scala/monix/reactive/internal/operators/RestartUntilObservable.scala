@@ -93,6 +93,7 @@ private[reactive] final class RestartUntilObservable[A](source: Observable[A], p
             out.onComplete()
           }
       })
+      ()
     }
   }
 }

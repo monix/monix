@@ -26,10 +26,15 @@ import scala.scalajs.js
   */
 private[execution] class StandardContext(reporter: UncaughtExceptionReporter) extends ExecutionContext {
 
-  override def execute(r: Runnable): Unit =
+  override def execute(r: Runnable): Unit = {
     executeRef(() =>
-      try r.run()
-      catch { case e: Throwable => reporter.reportFailure(e) })
+      try { 
+        r.run() 
+      } catch { case e: Throwable => 
+        reporter.reportFailure(e)
+      })
+    ()
+  }
 
   override def reportFailure(cause: Throwable): Unit =
     reporter.reportFailure(cause)

@@ -22,7 +22,7 @@ import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
-import scala.collection.mutable.WrappedArray
+import monix.execution.compat.internal.toSeq
 
 private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int) extends Operator[A, Seq[A]] {
 
@@ -42,10 +42,6 @@ private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int) ex
       private[this] var buffer = new Array[AnyRef](count)
       private[this] var dropped = 0
       private[this] var length = 0
-
-      @inline
-      private def toSeq(array: Array[AnyRef]): Seq[A] =
-        new WrappedArray.ofRef(array).toSeq.asInstanceOf[Seq[A]]
 
       def onNext(elem: A): Future[Ack] = {
         if (isDone)
@@ -96,8 +92,10 @@ private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int) ex
               out.onComplete()
               buffer = null // GC purposes
             }
-          } else
+            ()
+          } else {
             out.onComplete()
+          }
         }
     }
 }

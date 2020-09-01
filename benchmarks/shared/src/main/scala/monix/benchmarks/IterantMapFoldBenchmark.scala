@@ -54,11 +54,11 @@ class IterantMapFoldBenchmark {
 
   @Benchmark
   def granular(): Long =
-    granularRef.map(_ + 1).foldLeftL(0L)(_ + _).value
+    granularRef.map(_ + 1).foldLeftL(0L)(_ + _).value()
 
   @Benchmark
   def batched(): Long =
-    batchedRef.map(_ + 1).foldLeftL(0L)(_ + _).value
+    batchedRef.map(_ + 1).foldLeftL(0L)(_ + _).value()
 }
 
 object IterantMapFoldBenchmark {

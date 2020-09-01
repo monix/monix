@@ -55,15 +55,13 @@ private[eval] object TaskMemoize {
     private[this] var thunk = source
     private[this] val state = Atomic(null: AnyRef)
 
-    def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
-      implicit val sc = ctx.scheduler
+    def apply(ctx: Context, cb: Callback[Throwable, A]): Unit =
       state.get() match {
         case result: Try[A] @unchecked =>
           cb(result)
         case _ =>
           start(ctx, cb)
       }
-    }
 
     /** Saves the final result on completion and triggers the registered
       * listeners.
@@ -93,6 +91,7 @@ private[eval] object TaskMemoize {
             // execution again on next `runAsync`
             if (state.compareAndSet(p, null)) {
               p.tryComplete(value)
+              ()
             } else {
               // Race condition, retry
               // $COVERAGE-OFF$

@@ -17,12 +17,11 @@
 
 package monix.eval
 
-import cats.Monoid
-import cats.~>
 import cats.effect.{ExitCase, Sync}
 import cats.kernel.Semigroup
+import cats.{Monoid, ~>}
 import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
-import monix.eval.internal.{CoevalBracket, CoevalDeprecated, CoevalRunLoop, LazyVal, StackFrame}
+import monix.eval.internal._
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
@@ -264,7 +263,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * {{{
     *   val fa = Coeval.eval(10 * 2)
     *
-    *   fa.run match {
+    *   fa.run() match {
     *     case Coeval.Now(value) =>
     *       println("Success: " + value)
     *     case Coeval.Error(e) =>
@@ -272,8 +271,8 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *   }
     * }}}
     *
-    * See [[runAttempt]] for working with [[scala.Either Either]]
-    * values and [[runTry]] for working with [[scala.util.Try Try]]
+    * See [.runAttempt()]] for working with [[scala.Either Either]]
+    * values and [.runTry()]] for working with [[scala.util.Try Try]]
     * values. See [[apply]] for a partial function (that may throw
     * exceptions in case of failure).
     *
@@ -290,7 +289,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * {{{
     *   val fa = Coeval(10 * 2)
     *
-    *   fa.runAttempt match {
+    *   fa.runAttempt() match {
     *     case Right(value) =>
     *       println("Success: " + value)
     *     case Left(e) =>
@@ -299,7 +298,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * }}}
     *
     * See [[run]] for working with [[Coeval.Eager]] values and
-    * [[runTry]] for working with [[scala.util.Try Try]] values.
+    * [.runTry()]] for working with [[scala.util.Try Try]] values.
     * See [[apply]] for a partial function (that may throw exceptions
     * in case of failure).
     *
@@ -320,7 +319,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     *   val fa = Coeval(10 * 2)
     *
-    *   fa.runTry match {
+    *   fa.runTry() match {
     *     case Success(value) =>
     *       println("Success: " + value)
     *     case Failure(e) =>
@@ -329,7 +328,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * }}}
     *
     * See [[run]] for working with [[Coeval.Eager]] values and
-    * [[runAttempt]] for working with [[scala.Either Either]] values.
+    * [.runAttempt()]] for working with [[scala.Either Either]] values.
     * See [[apply]] for a partial function (that may throw exceptions
     * in case of failure).
     *
@@ -657,9 +656,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * as obviously nothing gets executed at this point.
     */
   final def foreachL(f: A => Unit): Coeval[Unit] =
-    self.map { a =>
-      f(a); ()
-    }
+    self.map { a => f(a); () }
 
   /** Triggers the evaluation of the source, executing
     * the given function for the generated element.
@@ -813,7 +810,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   /** Given a predicate function, keep retrying the
     * coeval until the function returns true.
     */
-  final def restartUntil(p: (A) => Boolean): Coeval[A] =
+  final def restartUntil(p: A => Boolean): Coeval[A] =
     self.flatMap(a => if (p(a)) Coeval.now(a) else self.restartUntil(p))
 
   /** Creates a new coeval that will try recovering from an error by
@@ -981,7 +978,7 @@ object Coeval extends CoevalInstancesLevel0 {
     * Alias of [[eval]].
     */
   def apply[A](f: => A): Coeval[A] =
-    Always(f _)
+    Always(() => f)
 
   /** Returns a `Coeval` that on execution is always successful, emitting
     * the given strict value.
@@ -1014,7 +1011,7 @@ object Coeval extends CoevalInstancesLevel0 {
     * $unsafeMemoize
     */
   def evalOnce[A](a: => A): Coeval[A] =
-    Suspend(LazyVal(a _, cacheErrors = true))
+    Suspend(LazyVal(() => a, cacheErrors = true))
 
   /** Promote a non-strict value to a `Coeval`, catching exceptions in the
     * process.
@@ -1022,7 +1019,7 @@ object Coeval extends CoevalInstancesLevel0 {
     * Note that since `Coeval` is not memoized, this will recompute the
     * value each time the `Coeval` is executed.
     */
-  def eval[A](a: => A): Coeval[A] = Always(a _)
+  def eval[A](a: => A): Coeval[A] = Always(() => a)
 
   /** Alias for [[eval]]. */
   def delay[A](a: => A): Coeval[A] = eval(a)
@@ -1320,7 +1317,7 @@ object Coeval extends CoevalInstancesLevel0 {
     *   }
     * }}}
     */
-  def liftTo[F[_]](implicit F: CoevalLift[F]): (Coeval ~> F) = F
+  def liftTo[F[_]](implicit F: CoevalLift[F]): Coeval ~> F = F
 
   /**
     * Generates `Coeval ~> F` function values (`FunctionK`) for converting
@@ -1332,7 +1329,7 @@ object Coeval extends CoevalInstancesLevel0 {
     * Prefer to use [[liftTo]], this alternative is provided in order to
     * force the usage of `cats.effect.Sync`, since [[CoevalLift]] is lawless.
     */
-  def liftToSync[F[_]](implicit F: Sync[F]): (Coeval ~> F) =
+  def liftToSync[F[_]](implicit F: Sync[F]): Coeval ~> F =
     CoevalLift.toSync[F]
 
   /**
@@ -1360,12 +1357,12 @@ object Coeval extends CoevalInstancesLevel0 {
     *
     * See [[https://typelevel.org/cats/datatypes/functionk.html cats.arrow.FunctionK]].
     */
-  def liftFrom[F[_]](implicit F: CoevalLike[F]): (F ~> Coeval) = F
+  def liftFrom[F[_]](implicit F: CoevalLike[F]): F ~> Coeval = F
 
   /**
     * Deprecated operations, described as extension methods.
     */
-  implicit final class DeprecatedExtensions[+A](val self: Coeval[A]) extends AnyVal with CoevalDeprecated.Extensions[A]
+  implicit final class DeprecatedExtensions[+A](val self: Coeval[A]) extends AnyVal with CoevalDeprecatedExtensions[A]
 
   /** The `Eager` type represents a strict, already evaluated result
     * of a [[Coeval]] that either resulted in success, wrapped in a
@@ -1476,9 +1473,9 @@ object Coeval extends CoevalInstancesLevel0 {
       super[Coeval].toString
   }
 
-  private val nowConstructor: (Any => Coeval[Nothing]) =
+  private val nowConstructor: Any => Coeval[Nothing] =
     ((a: Any) => new Now(a)).asInstanceOf[Any => Coeval[Nothing]]
-  private val raiseConstructor: (Throwable => Coeval[Nothing]) =
+  private val raiseConstructor: Throwable => Coeval[Nothing] =
     (e: Throwable) => new Error(e)
 
   /** Used as optimization by [[Coeval.failed]]. */
@@ -1527,7 +1524,7 @@ object Coeval extends CoevalInstancesLevel0 {
     new CatsMonadToMonoid[Coeval, A]()(CatsSyncForCoeval, A)
 }
 
-private[eval] abstract class CoevalInstancesLevel0 extends CoevalDeprecated.Companion {
+private[eval] abstract class CoevalInstancesLevel0 extends CoevalDeprecatedCompanion {
   /** Given an `A` type that has a `cats.Semigroup[A]` implementation,
     * then this provides the evidence that `Coeval[A]` also has
     * a `Semigroup[Coeval[A]]` implementation.

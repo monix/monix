@@ -30,7 +30,7 @@ object MiscIsEmptySuite extends BaseOperatorSuite {
       if (shouldBeEmpty)
         Observable.empty
       else
-        Observable.range(0, sourceCount)
+        Observable.range(0L, sourceCount.toLong)
 
     val o = source.isEmpty.map(x => if (x) 2L else 1L)
     Sample(o, 1, sum, Zero, Zero)

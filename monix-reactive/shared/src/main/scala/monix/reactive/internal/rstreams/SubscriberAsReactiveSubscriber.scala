@@ -102,14 +102,14 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A](target: Sub
 
       locally {
         // Requesting the first batch
-        subscription.request(if (isFinite) requestCount else Long.MaxValue)
+        subscription.request(if (isFinite) requestCount.toLong else Long.MaxValue)
       }
 
       private def continue(): Ack = {
         toReceive -= 1
         if (toReceive <= 0) {
           toReceive = requestCount
-          subscription.request(requestCount)
+          subscription.request(requestCount.toLong)
         }
         Continue
       }
@@ -163,6 +163,7 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A](target: Sub
   def onNext(elem: A): Unit = {
     if (elem == null) throwNull("onNext")
     buffer.onNext(elem)
+    ()
   }
 
   def onError(ex: Throwable): Unit = {
@@ -221,8 +222,8 @@ private[reactive] final class SyncSubscriberAsReactiveSubscriber[A](target: Subs
   def onSubscribe(s: RSubscription): Unit = {
     if (subscription == null && !isCanceled) {
       subscription = s
-      expectingCount = requestCount
-      s.request(requestCount)
+      expectingCount = requestCount.toLong
+      s.request(requestCount.toLong)
     } else {
       s.cancel()
     }
@@ -241,8 +242,8 @@ private[reactive] final class SyncSubscriberAsReactiveSubscriber[A](target: Subs
         case Continue =>
           // should it request more events?
           if (expectingCount == 0) {
-            expectingCount = requestCount
-            subscription.request(requestCount)
+            expectingCount = requestCount.toLong
+            subscription.request(requestCount.toLong)
           }
         case Stop =>
           // downstream canceled, so we MUST cancel too

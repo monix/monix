@@ -193,10 +193,10 @@ object CancelablePromise {
       unsafeSubscribe(cb)
 
     override def isCompleted: Boolean =
-      state.get.isInstanceOf[Try[_]]
+      state.get().isInstanceOf[Try[_]]
 
     override def future: CancelableFuture[A] =
-      state.get match {
+      state.get() match {
         case ref: Try[A] @unchecked =>
           CancelableFuture.fromTry(ref)
         case queue: MapQueue[AnyRef] @unchecked =>
@@ -212,7 +212,7 @@ object CancelablePromise {
 
     @tailrec
     override def tryComplete(result: Try[A]): Boolean = {
-      state.get match {
+      state.get() match {
         case queue: MapQueue[AnyRef] @unchecked =>
           if (!state.compareAndSet(queue, result)) {
             // Failed, retry...
@@ -253,10 +253,11 @@ object CancelablePromise {
           f(result)
         case p: Promise[A] =>
           p.complete(result)
+          ()
       }
 
     @tailrec def unsafeSubscribe(cb: AnyRef): Cancelable =
-      state.get match {
+      state.get() match {
         case ref: Try[A] @unchecked =>
           call(cb, ref)
           Cancelable.empty
@@ -269,7 +270,7 @@ object CancelablePromise {
 
     private final class IdCancelable(id: Long) extends Cancelable {
       @tailrec def cancel(): Unit =
-        state.get match {
+        state.get() match {
           case queue: MapQueue[_] =>
             if (!state.compareAndSet(queue, queue.dequeue(id)))
               cancel()

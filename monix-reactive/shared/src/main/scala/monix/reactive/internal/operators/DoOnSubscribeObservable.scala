@@ -41,10 +41,11 @@ private[reactive] object DoOnSubscribeObservable {
         def onSuccess(value: Unit): Unit = {
           val c = source.unsafeSubscribeFn(subscriber)
           conn.orderedUpdate(c, order = 2)
+          ()
         }
-        def onError(ex: Throwable): Unit = {
+
+        def onError(ex: Throwable): Unit =
           subscriber.onError(ex)
-        }
       })
 
       conn.orderedUpdate(c, order = 1)
@@ -109,10 +110,12 @@ private[reactive] object DoOnSubscribeObservable {
         def onSuccess(value: Unit): Unit = {
           conn.pop()
           p.success(())
+          ()
         }
         def onError(ex: Throwable): Unit = {
           conn.pop()
           p.failure(ex)
+          ()
         }
       })
       conn

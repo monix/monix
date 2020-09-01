@@ -189,7 +189,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
                 stopStreaming()
                 return
 
-              case async =>
+              case _ =>
                 goAsync(next, ack)
                 return
             }

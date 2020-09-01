@@ -328,7 +328,7 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
       BackPressure(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
     startConsuming.success(Continue)
 
@@ -354,7 +354,7 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
       BackPressure(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
     s.tick()
 
@@ -380,13 +380,13 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
       BackPressure(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onError(DummyException("dummy"))
     startConsuming.success(Continue)
 
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
-    assertEquals(sum, (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
   test("should do onError only after all the queue was drained, test2") { implicit s =>
@@ -406,12 +406,12 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
       BackPressure(10000)
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onError(DummyException("dummy"))
 
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
-    assertEquals(sum, (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
   test("should do synchronous execution in batches") { implicit s =>
@@ -431,14 +431,14 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
       BackPressure(Platform.recommendedBatchSize * 3)
     )
 
-    for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i)
+    for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i.toLong)
     buffer.onComplete()
     assertEquals(received, 0)
 
     s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize)
+    assertEquals(received, Platform.recommendedBatchSize.toLong)
     s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize * 2)
+    assertEquals(received, Platform.recommendedBatchSize.toLong * 2)
     s.tickOne()
     assertEquals(wasCompleted, true)
   }
@@ -686,6 +686,7 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
   test("buffer size is required to be greater than 1") { implicit s =>
     intercept[IllegalArgumentException] {
       BufferedSubscriber[Int](Subscriber.empty[Int], BackPressure(1))
+      ()
     }
     ()
 

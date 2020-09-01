@@ -62,7 +62,7 @@ class CoevalHandleErrorBenchmark {
       else
         Coeval.pure(i)
 
-    loop(0).value
+    loop(0).value()
   }
 
   @Benchmark
@@ -78,6 +78,6 @@ class CoevalHandleErrorBenchmark {
       else
         Coeval.pure(i)
 
-    loop(0).value
+    loop(0).value()
   }
 }

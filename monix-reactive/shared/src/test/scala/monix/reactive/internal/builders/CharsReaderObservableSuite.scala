@@ -19,6 +19,7 @@ package monix.reactive.internal.builders
 
 import java.io.{Reader, StringReader}
 
+import cats.effect.ExitCase
 import minitest.SimpleTestSuite
 import minitest.laws.Checkers
 import monix.eval.Task
@@ -63,8 +64,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
     val in = new StringReader(str)
 
     val error = intercept[IllegalArgumentException] {
-      Observable
-        .fromCharsReaderUnsafe(in, 0)
+      Observable.fromCharsReaderUnsafe(in, 0)
+      ()
     }
     assert(error.getMessage.contains("chunkSize"))
   }
@@ -74,8 +75,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
     val in = new StringReader(str)
 
     val error = intercept[IllegalArgumentException] {
-      Observable
-        .fromCharsReaderUnsafe(in, -1)
+      Observable.fromCharsReaderUnsafe(in, -1)
+      ()
     }
     assert(error.getMessage.contains("chunkSize"))
   }
@@ -187,26 +188,51 @@ object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
   }
 
   test("fromCharsReader closes the file handle on cancel") {
-    import scala.concurrent.duration._
-    implicit val s = TestScheduler(AlwaysAsyncExecution)
+    for (_ <- 0 until 100) {
+      import scala.concurrent.duration._
+      implicit val s = TestScheduler(AlwaysAsyncExecution)
 
-    var wasClosed = false
-    val in = randomReaderWithOnFinish(() => wasClosed = true)
-    val f = Observable
-      .fromCharsReaderF(Task(in))
-      .mapEval(_ => Task.sleep(1.second))
-      .completedL
-      .runToFuture
+      var wasClosed = false
+      var wasCanceled = 0
+      var wasStarted = false
+      var wasCompleted = false
 
-    s.tick()
-    f.cancel()
-    s.tick()
+      val f = Observable
+        .fromCharsReaderF(Task.pure(
+          randomReaderWithOnFinish(() => wasClosed = true)
+        ))
+        .flatMap { _ =>
+          Observable.suspend {
+            wasStarted = true
+            Observable.eval {
+              assert(!wasClosed, "Resource should be available")
+            }.delayExecution(1.second).guaranteeCase {
+              case ExitCase.Canceled =>
+                Task { wasCanceled += 1 }
+              case _ =>
+                Task { wasCompleted = true }
+            }
+          }
+        }
+        .doOnSubscriptionCancel(Task { wasCanceled += 2 })
+        .completedL
+        .runToFuture
 
-    assertEquals(f.value, None)
-    assert(wasClosed, "Reader should have been closed")
+      s.tick()
+      f.cancel()
+      s.tick()
 
-    assertEquals(s.state.lastReportedError, null)
-    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
+      // Test needed because string could be empty
+      if (wasStarted) {
+        assertEquals(f.value, None)
+        assert(!wasCompleted, "Task shouldn't have completed")
+        assertEquals(wasCanceled, 3)
+      }
+
+      assert(wasClosed, "Reader should have been closed")
+      assertEquals(s.state.lastReportedError, null)
+      assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
+    }
   }
 
   test("fromCharsReader does not block on initial execution") {
@@ -239,6 +265,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
 
     intercept[IllegalArgumentException] {
       f.value.get.get
+      ()
     }
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
@@ -335,6 +362,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
     nMinLines: Int = 0,
     nCharsPerLine: Int = 100,
     nMinCharsPerLine: Int = 0): String = {
+
     val chars = (('a' to 'z') ++ ('A' to 'Z') ++ ('0' to '9')).toVector
     val builder = new StringBuilder
     val lines = Random.nextInt(nLines).max(nMinLines)

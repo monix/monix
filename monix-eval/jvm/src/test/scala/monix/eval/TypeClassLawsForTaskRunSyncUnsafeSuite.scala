@@ -23,7 +23,7 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests}
 import cats.{Applicative, Eq}
 import monix.eval.instances.CatsParallelForTask
-import monix.execution.{Scheduler, UncaughtExceptionReporter}
+import monix.execution.{Scheduler, TestUtils, UncaughtExceptionReporter}
 
 import scala.concurrent.ExecutionContext.global
 import scala.concurrent.duration._
@@ -49,14 +49,14 @@ object TypeClassLawsForTaskAutoCancelableRunSyncUnsafeSuite
   )
 
 class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
-  extends monix.execution.BaseLawsSuite with ArbitraryInstancesBase {
+  extends monix.execution.BaseLawsSuite with ArbitraryInstancesBase with TestUtils {
 
   implicit val sc = Scheduler(global, UncaughtExceptionReporter(_ => ()))
   implicit val cs = IO.contextShift(sc)
   implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
 
   val timeout = {
-    if (System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
+    if (isCI)
       5.minutes
     else
       5.seconds

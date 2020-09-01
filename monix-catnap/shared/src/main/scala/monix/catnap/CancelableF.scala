@@ -157,7 +157,10 @@ object CancelableF {
     }
 
     def apply(r: Either[Throwable, Unit]): F[Unit] = {
-      if (r.isLeft) r.swap.foreach(t => errors += t)
+      if (r.isLeft) r.swap.foreach { t =>
+        errors += t
+        ()
+      }
       loop
     }
   }

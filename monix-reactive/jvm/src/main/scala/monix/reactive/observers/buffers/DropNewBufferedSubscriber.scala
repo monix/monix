@@ -174,10 +174,10 @@ private[observers] final class DropNewBufferedSubscriber[A] private (
           val next = {
             // Do we have an overflow message to send?
             val overflowMessage =
-              if (onOverflow == null || droppedCount.get == 0)
+              if (onOverflow == null || droppedCount.get() == 0)
                 null.asInstanceOf[A]
               else
-                onOverflow(droppedCount.getAndSet(0)).value() match {
+                onOverflow(droppedCount.getAndSet(0).toLong).value() match {
                   case Some(value) => value
                   case None => null.asInstanceOf[A]
                 }
@@ -228,7 +228,7 @@ private[observers] final class DropNewBufferedSubscriber[A] private (
             // visible, then the queue should be fully published because
             // there's a clear happens-before relationship between
             // queue.offer() and upstreamIsComplete=true
-            if (queue.isEmpty && (onOverflow == null || droppedCount.get == 0)) {
+            if (queue.isEmpty && (onOverflow == null || droppedCount.get() == 0)) {
               // ending loop
               downstreamIsComplete = true
 

@@ -39,14 +39,16 @@ final class AtomicLong private (private[this] val ref: BoxedLong) extends Atomic
   def lazySet(update: Long): Unit =
     ref.lazySet(update)
 
-  def increment(v: Int = 1): Unit =
-    ref.getAndAdd(v)
+  def increment(v: Int = 1): Unit = {
+    ref.getAndAdd(v.asInstanceOf[Long])
+    ()
+  }
 
   def incrementAndGet(v: Int = 1): Long =
-    ref.getAndAdd(v) + v
+    ref.getAndAdd(v.asInstanceOf[Long]) + v
 
   def getAndIncrement(v: Int = 1): Long =
-    ref.getAndAdd(v)
+    ref.getAndAdd(v.asInstanceOf[Long])
 
   def getAndAdd(v: Long): Long =
     ref.getAndAdd(v)
@@ -54,8 +56,10 @@ final class AtomicLong private (private[this] val ref: BoxedLong) extends Atomic
   def addAndGet(v: Long): Long =
     ref.getAndAdd(v) + v
 
-  def add(v: Long): Unit =
+  def add(v: Long): Unit = {
     ref.getAndAdd(v)
+    ()
+  }
 
   def subtract(v: Long): Unit =
     add(-v)
@@ -66,11 +70,17 @@ final class AtomicLong private (private[this] val ref: BoxedLong) extends Atomic
   def subtractAndGet(v: Long): Long =
     addAndGet(-v)
 
-  def decrement(v: Int = 1): Unit = increment(-v)
-  def decrementAndGet(v: Int = 1): Long = incrementAndGet(-v)
-  def getAndDecrement(v: Int = 1): Long = getAndIncrement(-v)
+  def decrement(v: Int = 1): Unit = 
+    increment(-v)
 
-  override def toString: String = s"AtomicLong(${ref.volatileGet()})"
+  def decrementAndGet(v: Int = 1): Long = 
+    incrementAndGet(-v)
+
+  def getAndDecrement(v: Int = 1): Long = 
+    getAndIncrement(-v)
+
+  override def toString: String = 
+    s"AtomicLong(${ref.volatileGet()})"
 }
 
 /** @define createDesc Constructs an [[AtomicLong]] reference, allowing

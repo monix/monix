@@ -67,6 +67,7 @@ private[reactive] final class DownstreamTimeoutObservable[+A](source: Observable
             // No need for synchronization or ordering on this assignment, since
             // there is a clear happens-before relationship between invocations
             timeoutCheck := scheduler.scheduleOnce(remainingTimeMillis, TimeUnit.MILLISECONDS, self)
+            ()
           }
         }
       }

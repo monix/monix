@@ -61,6 +61,7 @@ private[reactive] final class DelayBySelectorObservable[A, S](source: Observable
             case Stop => ack.success(Stop)
             case async => ack.completeWith(async)
           }
+          ()
         }
       }
 
@@ -99,6 +100,7 @@ private[reactive] final class DelayBySelectorObservable[A, S](source: Observable
             out.onComplete()
           }
         }
+        ()
       }
     })
   }

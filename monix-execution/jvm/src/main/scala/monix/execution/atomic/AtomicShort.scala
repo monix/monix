@@ -28,40 +28,51 @@ import monix.execution.internal.atomic.{BoxedInt, Factory}
 final class AtomicShort private (private[this] val ref: BoxedInt) extends AtomicNumber[Short] {
   private[this] val mask = 255 + 255 * 256
 
-  def get(): Short = (ref.volatileGet() & mask).asInstanceOf[Short]
-  def set(update: Short): Unit = ref.volatileSet(update)
+  def get(): Short = 
+    (ref.volatileGet() & mask).asInstanceOf[Short]
+
+  def set(update: Short): Unit = 
+    ref.volatileSet(update.asInstanceOf[Int])
 
   def lazySet(update: Short): Unit =
-    ref.lazySet(update)
+    ref.lazySet(update.asInstanceOf[Int])
 
   def compareAndSet(expect: Short, update: Short): Boolean =
-    ref.compareAndSet(expect, update)
+    ref.compareAndSet(expect.asInstanceOf[Int], update.asInstanceOf[Int])
 
   def getAndSet(update: Short): Short =
-    (ref.getAndSet(update) & mask).asInstanceOf[Short]
+    (ref.getAndSet(update.asInstanceOf[Int]) & mask).asInstanceOf[Short]
 
-  def increment(v: Int = 1): Unit =
+  def increment(v: Int = 1): Unit = {
     ref.getAndAdd(v)
+    ()
+  }
 
-  def add(v: Short): Unit =
-    ref.getAndAdd(v)
+  def add(v: Short): Unit = {
+    ref.getAndAdd(v.asInstanceOf[Int])
+    ()
+  }
 
   def incrementAndGet(v: Int = 1): Short =
     ((ref.getAndAdd(v) + v) & mask).asInstanceOf[Short]
 
   def addAndGet(v: Short): Short =
-    ((ref.getAndAdd(v) + v) & mask).asInstanceOf[Short]
+    ((ref.getAndAdd(v.asInstanceOf[Int]) + v) & mask).asInstanceOf[Short]
 
   def getAndIncrement(v: Int = 1): Short =
     (ref.getAndAdd(v) & mask).asInstanceOf[Short]
 
   def getAndAdd(v: Short): Short =
-    (ref.getAndAdd(v) & mask).asInstanceOf[Short]
+    (ref.getAndAdd(v.asInstanceOf[Int]) & mask).asInstanceOf[Short]
 
-  def subtract(v: Short): Unit =
+  def subtract(v: Short): Unit = {
     ref.getAndAdd(-v.asInstanceOf[Int])
+    ()
+  }
+
   def subtractAndGet(v: Short): Short =
     ((ref.getAndAdd(-v.asInstanceOf[Int]) - v) & mask).asInstanceOf[Short]
+
   def getAndSubtract(v: Short): Short =
     (ref.getAndAdd(-v.asInstanceOf[Int]) & mask).asInstanceOf[Short]
 
@@ -113,7 +124,7 @@ object AtomicShort {
   def create(initialValue: Short, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicShort = {
     new AtomicShort(
       Factory.newBoxedInt(
-        initialValue,
+        initialValue.toInt,
         boxStrategyToPaddingStrategy(padding),
         true, // allowUnsafe
         allowPlatformIntrinsics
@@ -138,7 +149,7 @@ object AtomicShort {
   def safe(initialValue: Short, padding: PaddingStrategy): AtomicShort = {
     new AtomicShort(
       Factory.newBoxedInt(
-        initialValue,
+        initialValue.toInt,
         boxStrategyToPaddingStrategy(padding),
         false, // allowUnsafe
         false // allowJava8Intrinsics

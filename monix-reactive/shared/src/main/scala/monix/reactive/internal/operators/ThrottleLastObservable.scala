@@ -83,6 +83,7 @@ private[reactive] final class ThrottleLastObservable[+A, S](
           upstreamSubscriber.synchronized {
             upstreamIsDone = true
             signalNext()
+            ()
           }
 
         def signalNext(): Future[Ack] =

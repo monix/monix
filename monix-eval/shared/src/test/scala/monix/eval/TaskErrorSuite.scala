@@ -44,6 +44,7 @@ object TaskErrorSuite extends BaseTestSuite {
   test("Task.fail should fail for successful values") { implicit s =>
     intercept[NoSuchElementException] {
       Task.now(10).failed.runSyncStep
+      ()
     }
     ()
   }
@@ -273,7 +274,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task.onErrorRestart should be cancelable if ExecutionModel permits") { implicit s =>
     val task = Task[Int](throw DummyException("dummy"))
-      .onErrorRestart(s.executionModel.recommendedBatchSize * 2)
+      .onErrorRestart(s.executionModel.recommendedBatchSize.toLong * 2)
 
     val f = task.executeWithOptions(_.enableAutoCancelableRunLoops).runToFuture
     assertEquals(f.value, None)

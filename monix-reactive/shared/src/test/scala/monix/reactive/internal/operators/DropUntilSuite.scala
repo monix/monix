@@ -40,7 +40,7 @@ object DropUntilSuite extends BaseOperatorSuite {
     val signal = Task.eval(1).delayExecution(2300.millis)
     val o = Observable
       .intervalAtFixedRate(500.millis)
-      .take(sourceCount + 5)
+      .take(sourceCount.toLong + 5)
       .dropUntil(Observable.fromTask(signal))
 
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -51,7 +51,7 @@ object DropUntilSuite extends BaseOperatorSuite {
     Some {
       val source = Observable
         .intervalAtFixedRate(500.millis)
-        .take(sourceCount + 5)
+        .take(sourceCount.toLong + 5)
 
       val signal = Task.eval(1).delayExecution(2300.millis)
       val o = createObservableEndingInError(source, ex)
@@ -81,7 +81,7 @@ object DropUntilSuite extends BaseOperatorSuite {
     val signal = Task.raiseError(dummy).delayExecution(2300.millis)
     val o = Observable
       .intervalAtFixedRate(500.millis)
-      .take(sourceCount + 5)
+      .take(sourceCount.toLong + 5)
       .dropUntil(Observable.fromTask(signal))
 
     o.unsafeSubscribeFn(new Observer[Long] {

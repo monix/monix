@@ -298,10 +298,10 @@ object IterantMapEvalSuite extends BaseTestSuite {
 
   test("Iterant.mapEval preserves resource safety") { implicit s =>
     var effect = 0
-    val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval]
       .nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
       .guarantee(Coeval.eval(effect += 1))
+
     val stream = source.mapEval(x => Coeval.now(x))
     stream.completedL.value()
     assertEquals(effect, 1)

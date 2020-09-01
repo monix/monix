@@ -37,7 +37,7 @@ object WithLatestFromSuite extends BaseOperatorSuite {
             .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
         else
           Observable
-            .range(1, sourceCount + 1, 1)
+            .range(1, sourceCount.toLong + 1, 1)
             .delayExecution(1.second)
             .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
 
@@ -55,7 +55,7 @@ object WithLatestFromSuite extends BaseOperatorSuite {
           .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
       else
         Observable
-          .range(1, sourceCount + 1, 1)
+          .range(1, sourceCount.toLong + 1, 1)
           .delayExecution(1.second)
           .endWithError(ex)
           .withLatestFrom(Observable.fromIterable(0 to 10))(_ + _)
@@ -74,7 +74,7 @@ object WithLatestFromSuite extends BaseOperatorSuite {
             .withLatestFrom(Observable.now(1))((x, y) => throw ex)
         else
           Observable
-            .range(1, sourceCount + 1, 1)
+            .range(1, sourceCount.toLong + 1, 1)
             .delayExecution(1.second)
             .withLatestFrom(Observable.fromIterable(0 to 10)) { (x, y) =>
               if (x == sourceCount)

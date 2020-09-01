@@ -40,7 +40,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     Observable
       .fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
-      .take(1)
+      .take(1L)
       .subscribe { x =>
         received += 1; Continue
       }
@@ -52,7 +52,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     Observable
       .fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
-      .take(Platform.recommendedBatchSize * 3)
+      .take(Platform.recommendedBatchSize.toLong * 3)
       .subscribe { x =>
         received += 1; Continue
       }
@@ -68,7 +68,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     Observable
       .fromAsyncStateAction(intAsync)(s.clockMonotonic(MILLISECONDS))
-      .take(Platform.recommendedBatchSize * 2)
+      .take(Platform.recommendedBatchSize.toLong * 2)
       .subscribe { x =>
         received += 1; Continue
       }
@@ -133,7 +133,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     Observable
       .fromAsyncStateActionF(intAsyncIO)(s.clockMonotonic(MILLISECONDS))
-      .take(Platform.recommendedBatchSize * 2)
+      .take(Platform.recommendedBatchSize.toLong * 2)
       .subscribe { _ =>
         received += 1; Continue
       }

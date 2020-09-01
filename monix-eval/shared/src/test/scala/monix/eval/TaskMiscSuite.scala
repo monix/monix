@@ -45,6 +45,7 @@ object TaskMiscSuite extends BaseTestSuite {
   test("Task.fail should fail for successful values") { implicit s =>
     intercept[NoSuchElementException] {
       Task.eval(10).failed.runSyncStep
+      ()
     }
     ()
   }
@@ -138,10 +139,12 @@ object TaskMiscSuite extends BaseTestSuite {
     val publisher = Task.now(1).delayExecution(1.second).toReactivePublisher
 
     publisher.subscribe(new Subscriber[Int] {
-      def onSubscribe(s: Subscription): Unit =
+      def onSubscribe(s: Subscription): Unit = {
         intercept[IllegalArgumentException] {
           s.request(-1)
         }
+        ()
+      }
 
       def onNext(t: Int): Unit =
         throw new IllegalStateException("onNext")

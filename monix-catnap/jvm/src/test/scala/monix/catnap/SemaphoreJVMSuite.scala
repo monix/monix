@@ -18,12 +18,14 @@
 package monix.catnap
 
 import java.util.concurrent.atomic.AtomicBoolean
+
 import cats.effect.concurrent.Deferred
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
 import minitest.TestSuite
-import monix.execution.Scheduler
+import monix.execution.{Scheduler, TestUtils}
 import monix.execution.schedulers.SchedulerService
+
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
 
@@ -31,7 +33,7 @@ object SemaphoreJVMParallelism1Tests extends BaseSemaphoreJVMTests(1)
 object SemaphoreJVMParallelism2Tests extends BaseSemaphoreJVMTests(2)
 object SemaphoreJVMParallelism4Tests extends BaseSemaphoreJVMTests(4)
 
-abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[SchedulerService] {
+abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[SchedulerService] with TestUtils {
   def setup(): SchedulerService =
     Scheduler.computation(
       name = s"semaphore-suite-par-$parallelism",
@@ -49,7 +51,6 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
     SchedulerEffect.timerLiftIO[IO](ec)(IO.ioEffect)
 
   // ----------------------------------------------------------------------------
-  val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
   val iterations = if (isCI) 1000 else 10000
   val timeout = if (isCI) 30.seconds else 10.seconds
 

@@ -109,19 +109,19 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
   }
 
   testFuture("offer/poll over capacity", times = repeatForFastTests) { implicit s =>
-    val queue = AsyncQueue.bounded[Int](10)
-    val count = 1000
+    val queue = AsyncQueue.bounded[Long](10)
+    val count = 1000L
 
-    def producer(n: Int): Future[Unit] =
+    def producer(n: Long): Future[Unit] =
       if (n > 0) queue.offer(count - n).flatMap(_ => producer(n - 1))
       else Future.successful(())
 
-    def consumer(n: Int, acc: Queue[Int] = Queue.empty): Future[Long] =
+    def consumer(n: Long, acc: Queue[Long] = Queue.empty): Future[Long] =
       if (n > 0)
         queue.poll().flatMap { a =>
           consumer(n - 1, acc.enqueue(a))
         } else
-        Future.successful(acc.sum)
+        Future.successful(acc.foldLeft(0L)(_ + _))
 
     val p = producer(count)
     val c = consumer(count)
@@ -134,10 +134,10 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
   }
 
   testFuture("tryOffer / tryPoll", times = repeatForFastTests) { implicit ec =>
-    val queue = AsyncQueue.bounded[Int](16)
-    val count = 1000
+    val queue = AsyncQueue.bounded[Long](16)
+    val count = 1000L
 
-    def producer(n: Int): Future[Unit] =
+    def producer(n: Long): Future[Unit] =
       if (n > 0) Future(queue.tryOffer(count - n)).flatMap {
         case true =>
           producer(n - 1)
@@ -148,7 +148,7 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
         Future.successful(())
       }
 
-    def consumer(n: Int, acc: Queue[Int] = Queue.empty): Future[Long] =
+    def consumer(n: Long, acc: Queue[Long] = Queue.empty): Future[Long] =
       if (n > 0)
         Future(queue.tryPoll()).flatMap {
           case Some(a) => consumer(n - 1, acc.enqueue(a))
@@ -156,7 +156,7 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
             FutureUtils.delayedResult(10.millis)(()).flatMap(_ => consumer(n, acc))
         }
       else
-        Future.successful(acc.sum)
+        Future.successful(acc.foldLeft(0L)(_ + _))
 
     val c = consumer(count)
     val p = producer(count)
@@ -314,7 +314,7 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
       val poll = if (idx % 2 == 0) queue.poll() else pollViaTry()
       poll.flatMap { i =>
         if (i > 0) {
-          atomic.addAndGet(i)
+          atomic.addAndGet(i.toLong)
           consumer(idx + 1)
         } else {
           Future.successful(())
