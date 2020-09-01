@@ -399,6 +399,7 @@ def mimaSettings(projectName: String) = Seq(
   mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
   mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0,
   mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_3,
+  mimaBinaryIssueFilters ++= MimaFilters.changesTO_REMOVE
 )
 
 lazy val doctestTestSettings = Seq(

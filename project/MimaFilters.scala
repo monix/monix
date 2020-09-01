@@ -46,4 +46,9 @@ object MimaFilters {
     // Fixed observable.takeLast, replaced with TakeLastObservable
     exclude[MissingClassProblem]("monix.reactive.internal.operators.TakeLastOperator")
   )
+
+  lazy val changesTO_REMOVE = Seq(
+    // TODO: Remove before merging
+    exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture*")
+  )
 }
