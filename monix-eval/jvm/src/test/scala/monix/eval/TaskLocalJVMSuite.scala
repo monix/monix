@@ -18,10 +18,12 @@
 package monix.eval
 
 import cats.effect.IO
+import cats.implicits.catsStdInstancesForList
+import cats.syntax.foldable._
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
-import monix.execution.{CancelableFuture, ExecutionModel, Scheduler}
+import monix.execution.{ExecutionModel, Scheduler}
 import monix.execution.misc.Local
 import monix.execution.schedulers.TracingScheduler
 
@@ -299,7 +301,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
           local.get
         }
       } yield {
-        promises(i).success(TestResult(Local.getContext(), isolated, next, i))
+        val _ = promises(i).success(TestResult(Local.getContext(), isolated, next, i))
       }
     }
 
@@ -335,7 +337,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
           local.get
         }
       } yield {
-        promises(i).success(TestResult(Local.getContext(), isolated, next, i))
+        val _ = promises(i).success(TestResult(Local.getContext(), isolated, next, i))
       }
     }
 
@@ -370,7 +372,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
           local.get
         }
       } yield {
-        promises(i).success(TestResult(Local.getContext(), isolated, next, i))
+        val _ = promises(i).success(TestResult(Local.getContext(), isolated, next, i))
       }
     }
 
@@ -490,6 +492,6 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     val f13 = f1.map(_ => assertEquals(local.get, 20))
     val f23 = f2.map(_ => assertEquals(local.get, 2))
 
-    Future.sequence[Unit, List, List[Unit]](List(f12, f21, f13, f23)).map(_ => ())
+    List(f12, f21, f13, f23).sequence_
   }
 }
