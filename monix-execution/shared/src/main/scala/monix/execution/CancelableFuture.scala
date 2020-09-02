@@ -32,12 +32,15 @@ import scala.util.control.NonFatal
 /** Represents an asynchronous computation that can be canceled
   * as long as it isn't complete.
   */
-sealed abstract class CancelableFuture[+A](isolatedCtx: Local.Context) extends Future[A] with Cancelable { self =>
+sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { self =>
   /** Returns this future's underlying [[Cancelable]] reference. */
   private[monix] def cancelable: Cancelable
 
   /** Returns the underlying `Future` reference. */
   private[monix] def underlying: Future[A]
+
+  /** Returns this future's underlying [[Local]] reference. */
+  private[monix] def isolatedCtx: Local.Context = null
 
   override final def failed: CancelableFuture[Throwable] = {
     implicit val ec = immediate
@@ -114,9 +117,9 @@ sealed abstract class CancelableFuture[+A](isolatedCtx: Local.Context) extends F
   override final def mapTo[S](implicit tag: ClassTag[S]): CancelableFuture[S] = {
     this match {
       case Async(other, cRef, local) =>
-        CancelableFuture(other.mapTo[S], cRef, local)
+        CancelableFuture.applyWithLocal(other.mapTo[S], cRef, local)
       case p: Pure[_] =>
-        CancelableFuture(super.mapTo[S], Cancelable.empty, p.isolatedCtx)
+        CancelableFuture.applyWithLocal(super.mapTo[S], Cancelable.empty, p.isolatedCtx)
       case Never =>
         Never
     }
@@ -141,7 +144,7 @@ sealed abstract class CancelableFuture[+A](isolatedCtx: Local.Context) extends F
       f(result)
     })
     val next = FutureUtils.transform(underlying, g)
-    CancelableFuture(next, cancelable, isolatedCtx)
+    CancelableFuture.applyWithLocal(next, cancelable, isolatedCtx)
   }
 
   def transformWith[S](f: Try[A] => Future[S])(implicit executor: ExecutionContext): CancelableFuture[S] = {
@@ -184,8 +187,7 @@ sealed abstract class CancelableFuture[+A](isolatedCtx: Local.Context) extends F
         }
       }
     )
-
-    CancelableFuture(f2, cRef, isolatedCtx)
+    CancelableFuture.applyWithLocal(f2, cRef, isolatedCtx)
   }
 }
 
@@ -196,8 +198,8 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     * @param cancelable is a [[monix.execution.Cancelable Cancelable]]
     *        that can be used to cancel the active computation
     */
-  def apply[A](underlying: Future[A], cancelable: Cancelable, isolatedCtx: Local.Context = null): CancelableFuture[A] =
-    new Async[A](underlying, cancelable, isolatedCtx)
+  def apply[A](underlying: Future[A], cancelable: Cancelable): CancelableFuture[A] =
+    new Async[A](underlying, cancelable)
 
   /** Promotes a strict `value` to a [[CancelableFuture]] that's
     * already complete.
@@ -205,8 +207,8 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     * @param value is the value that's going to be signaled in the
     *        `onComplete` callback.
     */
-  def successful[A](value: A, isolatedCtx: Local.Context = null): CancelableFuture[A] =
-    new Pure[A](Success(value), isolatedCtx)
+  def successful[A](value: A): CancelableFuture[A] =
+    new Pure[A](Success(value))
 
   /** Promotes a strict `Throwable` to a [[CancelableFuture]] that's
     * already complete with a failure.
@@ -301,15 +303,22 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     CancelableFuture(p.future, cRef)
   }
 
+  private[monix] def successfulWithLocal[A](value: A, isolatedCtx: Local.Context): CancelableFuture[A] =
+    new Pure[A](Success(value), isolatedCtx)
+
+  private[monix] def applyWithLocal[A](underlying: Future[A], cancelable: Cancelable, isolatedCtx: Local.Context): CancelableFuture[A] =
+    new Async[A](underlying, cancelable, isolatedCtx)
+
   /** A [[CancelableFuture]] instance that will never complete. */
-  private[execution] object Never extends CancelableFuture[Nothing](null) {
+  private[execution] object Never extends CancelableFuture[Nothing] {
     def onComplete[U](f: (Try[Nothing]) => U)(implicit executor: ExecutionContext): Unit = ()
 
     val isCompleted = false
     val value = None
 
-    def cancelable = Cancelable.empty
-    def underlying = this
+    override def cancelable = Cancelable.empty
+    override def underlying = this
+    override val isolatedCtx: Local.Context = null
 
     @scala.throws[Exception](classOf[Exception])
     def result(atMost: Duration)(implicit permit: CanAwait): Nothing =
@@ -330,7 +339,7 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
   }
 
   /** An internal [[CancelableFuture]] implementation. */
-  private[execution] final class Pure[+A](immediate: Try[A], val isolatedCtx: Local.Context = null) extends CancelableFuture[A](isolatedCtx) {
+  private[execution] final class Pure[+A](immediate: Try[A], override val isolatedCtx: Local.Context = null) extends CancelableFuture[A] {
     def ready(atMost: Duration)(implicit permit: CanAwait): this.type = this
     def result(atMost: Duration)(implicit permit: CanAwait): A = immediate.get
 
@@ -348,8 +357,8 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
   }
 
   /** An actual [[CancelableFuture]] implementation; internal. */
-  private[execution] final case class Async[+A](underlying: Future[A], cancelable: Cancelable, isolatedCtx: Local.Context = null)
-    extends CancelableFuture[A](isolatedCtx) {
+  private[execution] final case class Async[+A](underlying: Future[A], cancelable: Cancelable, override val isolatedCtx: Local.Context = null)
+    extends CancelableFuture[A] {
 
     override def onComplete[U](f: (Try[A]) => U)(implicit executor: ExecutionContext): Unit =
       underlying.onComplete(f)(executor)

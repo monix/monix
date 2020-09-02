@@ -124,7 +124,7 @@ private[eval] object TaskRunToFutureWithLocal {
             case null =>
               // Restore Local on the current thread
               Local.setContext(prev)
-              return CancelableFuture.successful(unboxed.asInstanceOf[A], isolated)
+              return CancelableFuture.successfulWithLocal(unboxed.asInstanceOf[A], isolated)
 
             case bind =>
               // Try/catch described as statement to prevent ObjectRef ;-)
@@ -180,6 +180,6 @@ private[eval] object TaskRunToFutureWithLocal {
 
     Local.setContext(previousCtx)
 
-    CancelableFuture(p.future, context.connection.toCancelable(scheduler), isolatedCtx)
+    CancelableFuture.applyWithLocal(p.future, context.connection.toCancelable(scheduler), isolatedCtx)
   }
 }

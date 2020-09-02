@@ -44,11 +44,9 @@ object MimaFilters {
     exclude[MissingClassProblem]("monix.eval.internal.CoevalDeprecated"),
     exclude[MissingClassProblem]("monix.eval.internal.CoevalDeprecated$"),
     // Fixed observable.takeLast, replaced with TakeLastObservable
-    exclude[MissingClassProblem]("monix.reactive.internal.operators.TakeLastOperator")
-  )
-
-  lazy val changesTO_REMOVE = Seq(
-    // TODO: Remove before merging
-    exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture*")
+    exclude[MissingClassProblem]("monix.reactive.internal.operators.TakeLastOperator"),
+    // Signature changes in internal classes
+    exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture#Async*"),
+    exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture#Pure*")
   )
 }
