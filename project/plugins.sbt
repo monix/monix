@@ -2,7 +2,7 @@ val scalaJSVersion = Option(System.getenv("SCALAJS_VERSION")).filter(_.nonEmpty)
 
 addSbtPlugin("org.scala-js"              % "sbt-scalajs"             % scalaJSVersion)
 addSbtPlugin("com.eed3si9n"              % "sbt-unidoc"              % "0.4.3")
-addSbtPlugin("pl.project13.scala"        % "sbt-jmh"                 % "0.3.7")
+addSbtPlugin("pl.project13.scala"        % "sbt-jmh"                 % "0.4.0")
 addSbtPlugin("com.typesafe"              % "sbt-mima-plugin"         % "0.7.0")
 addSbtPlugin("de.heikoseeberger"         % "sbt-header"              % "5.6.0")
 addSbtPlugin("org.scalameta"             % "sbt-scalafmt"            % "2.4.2")
