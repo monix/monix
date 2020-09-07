@@ -36,7 +36,7 @@ private[compress] final class DeflateOperator(
     new Subscriber[Array[Byte]] {
       implicit val scheduler = out.scheduler
 
-      private[this] var ack: Future[Ack] = _
+      private[this] var ack: Future[Ack] = Continue
       private[this] val deflate =
         new DeflateAdapter(
           bufferSize,
@@ -60,8 +60,6 @@ private[compress] final class DeflateOperator(
       }
 
       def onComplete(): Unit = {
-        if (ack == null) ack = Continue
-
         ack.syncOnContinue {
           out.onNext(deflate.finish())
           deflate.close()
