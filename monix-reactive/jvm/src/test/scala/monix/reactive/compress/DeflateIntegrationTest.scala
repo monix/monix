@@ -25,7 +25,7 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
   private implicit def a[A]: Task[Boolean] => Prop =
     _.runSyncUnsafe()
 
-  test("inflate(deflate(_)) == identity") {
+  test("inflate(deflate(_)) <-> identity") {
     check1 { (input: String) =>
       Observable
         .fromIterable(input.getBytes())
@@ -36,7 +36,7 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
     }
   }
 
-  test("inflate(deflate(_)) == identity - nowrap") {
+  test("inflate(deflate(_)) <-> identity - nowrap") {
     check1 { (input: String) =>
       Observable
         .fromIterable(input.getBytes())
@@ -47,7 +47,7 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
     }
   }
 
-  test("inflate(jDeflate(_)) == identity") {
+  test("inflate(jDeflate(_)) <-> identity") {
     check1 { (input: String) =>
       deflatedStream(input.getBytes)
         .transform(inflate())
@@ -56,7 +56,7 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
     }
   }
 
-  test("inflate(jDeflate(_)) == identity - nowrap") {
+  test("inflate(jDeflate(_)) <-> identity - nowrap") {
     check1 { (input: String) =>
       noWrapDeflatedStream(input.getBytes)
         .transform(inflate(noWrap = true))
@@ -65,7 +65,7 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
     }
   }
 
-  test("jInflate(deflate(_) == identity") {
+  test("jInflate(deflate(_) <-> identity") {
     check1 { (input: String) =>
       Observable
         .fromIterable(input.getBytes())
@@ -78,7 +78,7 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
     }
   }
 
-  test("jInflate(deflate(_) == identity - nowrap") {
+  test("jInflate(deflate(_) <-> identity - nowrap") {
     check1 { (input: String) =>
       Observable
         .fromIterable(input.getBytes())

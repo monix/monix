@@ -28,7 +28,7 @@ object GzipIntegrationTest extends BaseTestSuite {
   private implicit def a[A]: Task[Boolean] => Prop =
     _.runSyncUnsafe()
 
-  test("gunzip(gzip(_)) == identity") {
+  test("gunzip(gzip(_)) <-> identity") {
     check1 { (input: String) =>
       Observable
         .fromIterable(input.getBytes())
@@ -39,7 +39,7 @@ object GzipIntegrationTest extends BaseTestSuite {
     }
   }
 
-  test("gunzip(jgzip(_)) == identity") {
+  test("gunzip(jgzip(_)) <-> identity") {
     check1 { (input: String) =>
       val outputStream = new ByteArrayOutputStream()
       val gzos = new GZIPOutputStream(outputStream)
@@ -56,7 +56,7 @@ object GzipIntegrationTest extends BaseTestSuite {
     }
   }
 
-  test("jgunzip(gzip(_) == identity") {
+  test("jgunzip(gzip(_) <-> identity") {
     check1 { (input: String) =>
       Observable
         .fromIterable(input.getBytes())
