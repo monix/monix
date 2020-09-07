@@ -89,7 +89,7 @@ private class DeflateAdapter(
   flushMode: FlushMode,
   noWrap: Boolean
 ) {
-  private val deflater = new Deflater(level.jValue, noWrap)
+  private val deflater = new Deflater(level.value, noWrap)
   deflater.setStrategy(strategy.jValue)
   private val buffer = new Array[Byte](bufferSize)
 

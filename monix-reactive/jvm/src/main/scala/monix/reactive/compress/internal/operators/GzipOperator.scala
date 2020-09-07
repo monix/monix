@@ -114,7 +114,7 @@ private final class Gzipper(
   private var headerSent = false
   private var inputSize: Long = 0
   private val deflater: Deflater = {
-    val deflater = new Deflater(level.jValue, true)
+    val deflater = new Deflater(level.value, true)
     deflater.setStrategy(strategy.jValue)
     deflater
   }
@@ -179,7 +179,7 @@ private final class Gzipper(
       ((secondsSince197001010000 >> 8) & 0xff).toByte,
       ((secondsSince197001010000 >> 16) & 0xff).toByte,
       ((secondsSince197001010000 >> 24) & 0xff).toByte,
-      level.jValue match { // XFL: Extra flags
+      level.value match { // XFL: Extra flags
         case Deflater.BEST_COMPRESSION =>
           gzipExtraFlag.DEFLATE_MAX_COMPRESSION_SLOWEST_ALGO
         case Deflater.BEST_SPEED => gzipExtraFlag.DEFLATE_FASTEST_ALGO

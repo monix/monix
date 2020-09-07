@@ -31,7 +31,7 @@ object CompressionParameters {
   )
 }
 
-sealed abstract class CompressionLevel(val jValue: Int)
+sealed abstract class CompressionLevel(val value: Int)
 
 object CompressionLevel {
   case object DefaultCompression extends CompressionLevel(-1)
