@@ -20,68 +20,16 @@ package monix.reactive.compress
 import minitest.api.AssertionException
 import monix.reactive.Observable
 
-object GunzipTest extends BaseTestSuite with GzipTestsUtils {
-  testAsync("short stream") {
-    jdkGzippedStream(shortText)
-      .transform(gunzip(64))
-      .toListL
-      .map(list => assertEquals(list, shortText.toList))
-      .runToFuture
-  }
-  testAsync("stream of two gzipped inputs") {
-    (jdkGzippedStream(shortText) ++ jdkGzippedStream(otherShortText))
-      .transform(gunzip(64))
-      .toListL
-      .map(list => assertEquals(list, (shortText ++ otherShortText).toList))
-      .runToFuture
-  }
-  testAsync("long input") {
-    jdkGzippedStream(longText)
-      .transform(gunzip(64))
-      .toListL
-      .map(list => assertEquals(list, longText.toList))
-      .runToFuture
-  }
+object GunzipTest extends BaseDecompressionTest with GzipTestsUtils {
+
   testAsync("long input, no SYNC_FLUSH") {
-    jdkGzippedStream(longText, false)
+    jdkGzippedStream(longText, syncFlush = false)
       .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list, longText.toList))
       .runToFuture
   }
-  testAsync("long input, buffer smaller than chunks") {
-    jdkGzippedStream(longText)
-      .transform(gunzip(1, chunkSize = 500))
-      .toListL
-      .map(list => assertEquals(list, longText.toList))
-      .runToFuture
-  }
-  testAsync("long input, chunks smaller then buffer") {
-    jdkGzippedStream(longText)
-      .transform(gunzip(500, chunkSize = 1))
-      .toListL
-      .map(list => assertEquals(list, longText.toList))
-      .runToFuture
-  }
-  testAsync("fail early if header is corrupted") {
-    Observable
-      .fromIterable(1 to 10)
-      .map(_.toByte)
-      .transform(gunzip())
-      .toListL
-      .map(_ => fail("should have failed"))
-      .onErrorRecover { case e if !e.isInstanceOf[AssertionException] => () }
-      .runToFuture
-  }
-  testAsync("fail if input stream finished unexpected") {
-    jdkGzippedStream(longText)
-      .take(20)
-      .transform(gunzip())
-      .toListL
-      .map(_ => fail("should have failed"))
-      .onErrorRecover { case e if !e.isInstanceOf[AssertionException] => () }
-      .runToFuture
-  }
+
   testAsync("no output on very incomplete stream is not OK") {
     Observable
       .fromIterable(1 to 5)
@@ -127,4 +75,8 @@ object GunzipTest extends BaseTestSuite with GzipTestsUtils {
       .map(list => assertEquals(list, shortText.toList))
       .runToFuture
   }
+
+  override def jdkCompressedStream(input: Array[Byte]): Observable[Byte] = jdkGzippedStream(input)
+
+  override def decompress(bufferSize: Int, chunkSize: Int): Observable[Byte] => Observable[Byte] = gunzip(bufferSize, chunkSize)
 }

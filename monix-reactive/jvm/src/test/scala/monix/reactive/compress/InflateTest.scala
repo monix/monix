@@ -17,52 +17,9 @@
 
 package monix.reactive.compress
 
-import minitest.api.AssertionException
 import monix.reactive.Observable
 
-object InflateTest extends BaseTestSuite with DeflateTestUtils {
-  testAsync("short stream") {
-    deflatedStream(shortText)
-      .transform(inflate(64))
-      .toListL
-      .map(list => assertEquals(list, shortText.toList))
-      .runToFuture
-  }
-  testAsync("stream of two deflated inputs") {
-    (deflatedStream(shortText) ++ deflatedStream(otherShortText))
-      .transform(inflate(64, chunkSize = 5))
-      .toListL
-      .map(list => assertEquals(list, (shortText ++ otherShortText).toList))
-      .runToFuture
-  }
-  testAsync("stream of two deflated inputs as a single chunk") {
-    (deflatedStream(shortText) ++ deflatedStream(otherShortText))
-      .transform(inflate(64))
-      .toListL
-      .map(list => assertEquals(list, (shortText ++ otherShortText).toList))
-      .runToFuture
-  }
-  testAsync("long input") {
-    deflatedStream(longText)
-      .transform(inflate(64))
-      .toListL
-      .map(list => assertEquals(list, longText.toList))
-      .runToFuture
-  }
-  testAsync("long input, buffer smaller than chunks") {
-    deflatedStream(longText)
-      .transform(inflate(1))
-      .toListL
-      .map(list => assertEquals(list, longText.toList))
-      .runToFuture
-  }
-  testAsync("long input, chunks smaller then buffer") {
-    deflatedStream(longText)
-      .transform(inflate(bufferSize = 500, chunkSize = 1))
-      .toListL
-      .map(list => assertEquals(list, longText.toList))
-      .runToFuture
-  }
+object InflateTest extends BaseDecompressionTest with DeflateTestUtils {
   testAsync("long input, not wrapped in ZLIB header and trailer")(
     noWrapDeflatedStream(longText)
       .transform(inflate(1024, noWrap = true))
@@ -70,15 +27,7 @@ object InflateTest extends BaseTestSuite with DeflateTestUtils {
       .map(list => assertEquals(list, longText.toList))
       .runToFuture
   )
-  testAsync("fail eartly if header is corrupted") {
-    Observable
-      .fromIterable(Seq(1, 2, 3, 4, 5).map(_.toByte))
-      .transform(inflate())
-      .toListL
-      .map(_ => fail("should have failed"))
-      .onErrorRecover { case e if !e.isInstanceOf[AssertionException] => () }
-      .runToFuture
-  }
+
   testAsync("inflate nowrap: remaining = 0 but not all was pulled") {
     // This case shown error when not all data was pulled out of inflater
     noWrapDeflatedStream(inflateRandomExampleThatFailed)
@@ -87,15 +36,8 @@ object InflateTest extends BaseTestSuite with DeflateTestUtils {
       .map(list => assertEquals(list, inflateRandomExampleThatFailed.toList))
       .runToFuture
   }
-  testAsync("fail if input stream finished unexpected") {
-    deflatedStream(longText)
-      .take(20)
-      .transform(inflate())
-      .toListL
-      .map { e =>
-        fail("should have failed")
-      }
-      .onErrorRecover { case e if !e.isInstanceOf[AssertionException] => () }
-      .runToFuture
-  }
+
+  override def jdkCompressedStream(input: Array[Byte]): Observable[Byte] = deflatedStream(input)
+
+  override def decompress(bufferSize: Int, chunkSize: Int): Observable[Byte] => Observable[Byte] = inflate(bufferSize, chunkSize)
 }
