@@ -23,42 +23,42 @@ import monix.reactive.Observable
 object GunzipTest extends BaseTestSuite with GzipTestsUtils {
   testAsync("short stream") {
     jdkGzippedStream(shortText)
-      .gunzip(64)
+      .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list, shortText.toList))
       .runToFuture
   }
   testAsync("stream of two gzipped inputs") {
     (jdkGzippedStream(shortText) ++ jdkGzippedStream(otherShortText))
-      .gunzip(64)
+      .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list, (shortText ++ otherShortText).toList))
       .runToFuture
   }
   testAsync("long input") {
     jdkGzippedStream(longText)
-      .gunzip(64)
+      .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list, longText.toList))
       .runToFuture
   }
   testAsync("long input, no SYNC_FLUSH") {
     jdkGzippedStream(longText, false)
-      .gunzip(64)
+      .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list, longText.toList))
       .runToFuture
   }
   testAsync("long input, buffer smaller than chunks") {
     jdkGzippedStream(longText)
-      .gunzip(1, chunkSize = 500)
+      .transform(gunzip(1, chunkSize = 500))
       .toListL
       .map(list => assertEquals(list, longText.toList))
       .runToFuture
   }
   testAsync("long input, chunks smaller then buffer") {
     jdkGzippedStream(longText)
-      .gunzip(500, chunkSize = 1)
+      .transform(gunzip(500, chunkSize = 1))
       .toListL
       .map(list => assertEquals(list, longText.toList))
       .runToFuture
@@ -67,7 +67,7 @@ object GunzipTest extends BaseTestSuite with GzipTestsUtils {
     Observable
       .fromIterable(1 to 10)
       .map(_.toByte)
-      .gunzip()
+      .transform(gunzip())
       .toListL
       .map(_ => fail("should have failed"))
       .onErrorRecover { case e if !e.isInstanceOf[AssertionException] => () }
@@ -76,7 +76,7 @@ object GunzipTest extends BaseTestSuite with GzipTestsUtils {
   testAsync("fail if input stream finished unexpected") {
     jdkGzippedStream(longText)
       .take(20)
-      .gunzip()
+      .transform(gunzip())
       .toListL
       .map(_ => fail("should have failed"))
       .onErrorRecover { case e if !e.isInstanceOf[AssertionException] => () }
@@ -86,7 +86,7 @@ object GunzipTest extends BaseTestSuite with GzipTestsUtils {
     Observable
       .fromIterable(1 to 5)
       .map(_.toByte)
-      .gunzip()
+      .transform(gunzip())
       .toListL
       .map(_ => fail("should have failed"))
       .onErrorRecover { case e if !e.isInstanceOf[AssertionException] => () }
@@ -94,35 +94,35 @@ object GunzipTest extends BaseTestSuite with GzipTestsUtils {
   }
   testAsync("parses header with FEXTRA") {
     headerWithExtra
-      .gunzip(64)
+      .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list, shortText.toList))
       .runToFuture
   }
   testAsync("parses header with FCOMMENT") {
     headerWithComment
-      .gunzip(64)
+      .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list, shortText.toList))
       .runToFuture
   }
   testAsync("parses header with FNAME") {
     headerWithFileName
-      .gunzip(64)
+      .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list, shortText.toList))
       .runToFuture
   }
   testAsync("parses header with CRC16") {
     headerWithCrc
-      .gunzip(64)
+      .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list, shortText.toList))
       .runToFuture
   }
   testAsync("parses header with CRC16, FNAME, FCOMMENT, FEXTRA") {
     headerWithAll
-      .gunzip(64)
+      .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list, shortText.toList))
       .runToFuture

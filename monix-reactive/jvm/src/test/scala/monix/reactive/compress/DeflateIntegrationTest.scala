@@ -29,8 +29,8 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
     check1 { (input: String) =>
       Observable
         .fromIterable(input.getBytes())
-        .deflate()
-        .inflate()
+        .transform(deflate())
+        .transform(inflate())
         .toListL
         .map(l => new String(l.toArray) == input)
     }
@@ -40,8 +40,8 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
     check1 { (input: String) =>
       Observable
         .fromIterable(input.getBytes())
-        .deflate(noWrap = true)
-        .inflate(noWrap = true)
+        .transform(deflate(noWrap = true))
+        .transform(inflate(noWrap = true))
         .toListL
         .map(l => new String(l.toArray) == input)
     }
@@ -50,7 +50,7 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
   test("inflate(jDeflate(_)) == identity") {
     check1 { (input: String) =>
       deflatedStream(input.getBytes)
-        .inflate()
+        .transform(inflate())
         .toListL
         .map(compressed => new String(compressed.toArray) == input)
     }
@@ -59,7 +59,7 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
   test("inflate(jDeflate(_)) == identity - nowrap") {
     check1 { (input: String) =>
       noWrapDeflatedStream(input.getBytes)
-        .inflate(noWrap = true)
+        .transform(inflate(noWrap = true))
         .toListL
         .map(compressed => new String(compressed.toArray) == input)
     }
@@ -69,7 +69,7 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
     check1 { (input: String) =>
       Observable
         .fromIterable(input.getBytes())
-        .deflate()
+        .transform(deflate())
         .toListL
         .map { compressed =>
           val decompressed = jdkInflate(compressed.toArray, noWrap = false)
@@ -82,7 +82,7 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
     check1 { (input: String) =>
       Observable
         .fromIterable(input.getBytes())
-        .deflate(noWrap = true)
+        .transform(deflate(noWrap = true))
         .toListL
         .map { compressed =>
           val decompressed = jdkInflate(compressed.toArray, noWrap = true)

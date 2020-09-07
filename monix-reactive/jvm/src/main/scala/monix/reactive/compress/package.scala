@@ -26,6 +26,104 @@ import scala.collection.compat.immutable.ArraySeq
 
 // From https://github.com/typelevel/fs2/blob/main/core/jvm/src/main/scala/fs2/compression.scala
 package object compress {
+
+  /** Returns a stream that incrementally compresses input into the GZIP format
+    * Internally it pages stream into chunks, where each incoming chunk is compressed at once, so it can utilize thread for long time if chunks are big.
+    *
+    * @param bufferSize            Size of buffer used internally, affects performance.
+    * @param chunkSize             Size of chunks, for most of the use-cases should be equal to bufferSize
+    * @param compressionParameters see [[CompressionParameters]]
+    * @param fileName              optional file name
+    * @param comment               optional file modification time
+    * @param modificationTime      optional file comment
+    * @return
+    */
+  def gzip(
+            bufferSize: Int = 32 * 1024,
+            chunkSize: Int = 32 * 1024,
+            compressionParameters: CompressionParameters = CompressionParameters.Default,
+            fileName: Option[String] = None,
+            comment: Option[String] = None,
+            modificationTime: Option[Instant] = None
+          ): Observable[Byte] => Observable[Byte] = { source =>
+    source
+      .bufferTumbling(chunkSize)
+      .map(_.toArray)
+      .liftByOperator(
+        new GzipOperator(
+          fileName,
+          modificationTime,
+          comment,
+          bufferSize,
+          compressionParameters
+        )
+      )
+      .flatMapIterable(ArraySeq.unsafeWrapArray)
+  }
+
+  /**
+    * Decompresses gzipped stream. Compression method is described in https://tools.ietf.org/html/rfc1952.
+    * Internally it pages stream into chunks, where each incoming chunk is decompressed at once, so it can utilize thread for long time if chunks are big.
+    *
+    * @param bufferSize Size of buffer used internally, affects performance.
+    * @param chunkSize  Size of chunks, should be several times smaller than bufferSize
+    */
+  def gunzip(
+              bufferSize: Int = 32 * 1024,
+              chunkSize: Int = 8 * 1024
+            ): Observable[Byte] => Observable[Byte] = { source =>
+    source
+      .bufferTumbling(chunkSize)
+      .map(_.toArray)
+      .liftByOperator(new GunzipOperator(bufferSize))
+      .flatMapIterable(ArraySeq.unsafeWrapArray)
+  }
+
+  /**
+    * Compresses stream with 'deflate' method described in https://tools.ietf.org/html/rfc1951.
+    * Internally it pages stream into chunks, where each incoming chunk is compressed at once, so it can utilize thread for long time if chunks are big.
+    *
+    * @param bufferSize            Size of internal buffer used for pulling data from deflater, affects performance.
+    * @param chunkSize             Size of chunks, for most of the use-cases should be equal to bufferSize
+    * @param compressionParameters See [[CompressionParameters]]
+    * @param noWrap                Whether output stream is wrapped in ZLIB header and trailer. For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
+    */
+  def deflate(
+               bufferSize: Int = 32 * 1024,
+               chunkSize: Int = 32 * 1024,
+               compressionParameters: CompressionParameters = CompressionParameters.Default,
+               noWrap: Boolean = false
+             ): Observable[Byte] => Observable[Byte] = { source =>
+    source
+      .bufferTumbling(chunkSize)
+      .map(_.toArray)
+      .liftByOperator(
+        new DeflateOperator(bufferSize, compressionParameters, noWrap)
+      )
+      .flatMapIterable(ArraySeq.unsafeWrapArray)
+  }
+
+  /**
+    * Decompresses deflated stream. Compression method is described in https://tools.ietf.org/html/rfc1951.
+    * Internally it pages stream into chunks, where each incoming chunk is decompressed at once, so it can utilize thread for long time if chunks are big.
+    *
+    * @param bufferSize Size of buffer used internally, affects performance.
+    * @param chunkSize  Size of chunks, should be several times smaller than bufferSize
+    * @param noWrap     Whether is wrapped in ZLIB header and trailer, see https://tools.ietf.org/html/rfc1951.
+    *                   For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
+    */
+  def inflate(
+               bufferSize: Int = 32 * 1024,
+               chunkSize: Int = 8 * 1024,
+               noWrap: Boolean = false
+             ): Observable[Byte] => Observable[Byte] = { source =>
+    source
+      .bufferTumbling(chunkSize)
+      .map(_.toArray)
+      .liftByOperator(new InflateOperator(bufferSize, noWrap))
+      .flatMapIterable(ArraySeq.unsafeWrapArray)
+  }
+
   private[compress] val zeroByte: Byte = 0
   private[compress] val gzipMagicFirstByte: Byte = 0x1f.toByte
   private[compress] val gzipMagicSecondByte: Byte = 0x8b.toByte
@@ -68,105 +166,5 @@ package object compress {
 
   private[compress] object gzipCompressionMethod {
     val DEFLATE: Byte = Deflater.DEFLATED.toByte
-  }
-
-  implicit class RichByteObservable(source: Observable[Byte]) {
-
-    /** Returns a stream that incrementally compresses input into the GZIP format
-      * Internally it pages stream into chunks, where each incoming chunk is compressed at once, so it can utilize thread for long time if chunks are big.
-      *
-      * @param bufferSize             Size of buffer used internally, affects performance.
-      * @param chunkSize              Size of chunks, for most of the use-cases should be equal to bufferSize
-      * @param compressionParameters  see [[CompressionParameters]]
-      * @param fileName               optional file name
-      * @param comment                optional file modification time
-      * @param modificationTime       optional file comment
-      * @return
-      */
-    def gzip(
-      bufferSize: Int = 32 * 1024,
-      chunkSize: Int = 32 * 1024,
-      compressionParameters: CompressionParameters = CompressionParameters.Default,
-      fileName: Option[String] = None,
-      comment: Option[String] = None,
-      modificationTime: Option[Instant] = None
-    ): Observable[Byte] = {
-      source
-        .bufferTumbling(chunkSize)
-        .map(_.toArray)
-        .liftByOperator(
-          new GzipOperator(
-            fileName,
-            modificationTime,
-            comment,
-            bufferSize,
-            compressionParameters
-          )
-        )
-        .flatMapIterable(ArraySeq.unsafeWrapArray)
-    }
-
-    /**
-      * Decompresses gzipped stream. Compression method is described in https://tools.ietf.org/html/rfc1952.
-      * Internally it pages stream into chunks, where each incoming chunk is decompressed at once, so it can utilize thread for long time if chunks are big.
-      *
-      * @param bufferSize Size of buffer used internally, affects performance.
-      * @param chunkSize  Size of chunks, should be several times smaller than bufferSize
-      */
-    def gunzip(
-      bufferSize: Int = 32 * 1024,
-      chunkSize: Int = 8 * 1024
-    ): Observable[Byte] = {
-      source
-        .bufferTumbling(chunkSize)
-        .map(_.toArray)
-        .liftByOperator(new GunzipOperator(bufferSize))
-        .flatMapIterable(ArraySeq.unsafeWrapArray)
-    }
-
-    /**
-      * Compresses stream with 'deflate' method described in https://tools.ietf.org/html/rfc1951.
-      * Internally it pages stream into chunks, where each incoming chunk is compressed at once, so it can utilize thread for long time if chunks are big.
-      *
-      * @param bufferSize             Size of internal buffer used for pulling data from deflater, affects performance.
-      * @param chunkSize              Size of chunks, for most of the use-cases should be equal to bufferSize
-      * @param compressionParameters  See [[CompressionParameters]]
-      * @param noWrap                 Whether output stream is wrapped in ZLIB header and trailer. For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
-      */
-    def deflate(
-      bufferSize: Int = 32 * 1024,
-      chunkSize: Int = 32 * 1024,
-      compressionParameters: CompressionParameters = CompressionParameters.Default,
-      noWrap: Boolean = false
-    ): Observable[Byte] = {
-      source
-        .bufferTumbling(chunkSize)
-        .map(_.toArray)
-        .liftByOperator(
-          new DeflateOperator(bufferSize, compressionParameters, noWrap)
-        )
-        .flatMapIterable(ArraySeq.unsafeWrapArray)
-    }
-
-    /**
-      * Decompresses deflated stream. Compression method is described in https://tools.ietf.org/html/rfc1951.
-      * Internally it pages stream into chunks, where each incoming chunk is decompressed at once, so it can utilize thread for long time if chunks are big.
-      *
-      * @param bufferSize Size of buffer used internally, affects performance.
-      * @param chunkSize  Size of chunks, should be several times smaller than bufferSize
-      * @param noWrap     Whether is wrapped in ZLIB header and trailer, see https://tools.ietf.org/html/rfc1951.
-      *                   For HTTP 'deflate' content-encoding should be false, see https://tools.ietf.org/html/rfc2616.
-      */
-    def inflate(
-      bufferSize: Int = 32 * 1024,
-      chunkSize: Int = 8 * 1024,
-      noWrap: Boolean = false
-    ): Observable[Byte] = {
-      source
-        .bufferTumbling(chunkSize)
-        .map(_.toArray)
-        .liftByOperator(new InflateOperator(bufferSize, noWrap))
-        .flatMapIterable(ArraySeq.unsafeWrapArray)
-    }
   }
 }

@@ -26,10 +26,10 @@ object DeflateTest extends BaseTestSuite with DeflateTestUtils {
   testAsync("deflate empty bytes, small buffer") {
     Observable
       .fromIterable(List.empty)
-      .deflate(
+      .transform(deflate(
         bufferSize = 100,
         chunkSize = 1
-      )
+      ))
       .toListL
       .map(list =>
         assertEquals(
@@ -44,7 +44,7 @@ object DeflateTest extends BaseTestSuite with DeflateTestUtils {
   testAsync("deflates same as JDK") {
     Observable
       .fromIterable(longText)
-      .deflate(256, 128)
+      .transform(deflate(256, 128))
       .toListL
       .map(list => assertEquals(list, jdkDeflate(longText, new Deflater(-1, false)).toList))
       .runToFuture
@@ -52,7 +52,7 @@ object DeflateTest extends BaseTestSuite with DeflateTestUtils {
   testAsync("deflates same as JDK, nowrap") {
     Observable
       .fromIterable(longText)
-      .deflate(256, 128, noWrap = true)
+      .transform(deflate(256, 128, noWrap = true))
       .toListL
       .map(list => assertEquals(list, jdkDeflate(longText, new Deflater(-1, true)).toList))
       .runToFuture
@@ -60,7 +60,7 @@ object DeflateTest extends BaseTestSuite with DeflateTestUtils {
   testAsync("deflates same as JDK, small buffer") {
     Observable
       .fromIterable(longText)
-      .deflate(1, chunkSize = 64)
+      .transform(deflate(1, chunkSize = 64))
       .toListL
       .map(list => assertEquals(list, jdkDeflate(longText, new Deflater(-1, false)).toList))
       .runToFuture
@@ -68,7 +68,7 @@ object DeflateTest extends BaseTestSuite with DeflateTestUtils {
   testAsync("deflates same as JDK, nowrap, small buffer ") {
     Observable
       .fromIterable(longText)
-      .deflate(1, chunkSize = 64, noWrap = true)
+      .transform(deflate(1, chunkSize = 64, noWrap = true))
       .toListL
       .map(list => assertEquals(list, jdkDeflate(longText, new Deflater(-1, true)).toList))
       .runToFuture

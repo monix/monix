@@ -23,7 +23,7 @@ object GzipTest extends BaseTestSuite with GzipTestsUtils {
   testAsync("gzip empty bytes, small buffer") {
     Observable
       .empty[Byte]
-      .gzip(1)
+      .transform(gzip(1))
       .toListL
       .map(l => assert(jdkGunzip(l.toArray).isEmpty))
       .runToFuture
@@ -31,7 +31,7 @@ object GzipTest extends BaseTestSuite with GzipTestsUtils {
   testAsync("gzip empty bytes") {
     Observable
       .empty[Byte]
-      .gzip(`1K`)
+      .transform(gzip(`1K`))
       .toListL
       .map(l => assert(jdkGunzip(l.toArray).isEmpty))
       .runToFuture
@@ -39,7 +39,7 @@ object GzipTest extends BaseTestSuite with GzipTestsUtils {
   testAsync("gzips, small chunks, small buffer") {
     Observable
       .fromIterable(longText)
-      .gzip(1, 1)
+      .transform(gzip(1, 1))
       .toListL
       .map(l => assertArrayEquals(jdkGunzip(l.toArray), longText))
       .runToFuture
@@ -47,7 +47,7 @@ object GzipTest extends BaseTestSuite with GzipTestsUtils {
   testAsync("gzips, small chunks, 1k buffer") {
     Observable
       .fromIterable(longText)
-      .gzip(`1K`, 1)
+      .transform(gzip(`1K`, 1))
       .toListL
       .map(l => assertArrayEquals(jdkGunzip(l.toArray), longText))
       .runToFuture
@@ -55,7 +55,7 @@ object GzipTest extends BaseTestSuite with GzipTestsUtils {
   testAsync("chunks bigger than buffer") {
     Observable
       .fromIterable(longText)
-      .gzip(64, `1K`)
+      .transform(gzip(64, `1K`))
       .toListL
       .map(l => assertArrayEquals(jdkGunzip(l.toArray), longText))
       .runToFuture

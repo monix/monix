@@ -32,8 +32,8 @@ object GzipIntegrationTest extends BaseTestSuite {
     check1 { (input: String) =>
       Observable
         .fromIterable(input.getBytes())
-        .gzip()
-        .gunzip()
+        .transform(gzip())
+        .transform(gunzip())
         .toListL
         .map(l => new String(l.toArray) == input)
     }
@@ -50,7 +50,7 @@ object GzipIntegrationTest extends BaseTestSuite {
       gzos.close()
       Observable
         .fromIterable(compressed)
-        .gunzip()
+        .transform(gunzip())
         .toListL
         .map(l => new String(l.toArray) == input)
     }
@@ -60,7 +60,7 @@ object GzipIntegrationTest extends BaseTestSuite {
     check1 { (input: String) =>
       Observable
         .fromIterable(input.getBytes())
-        .gzip()
+        .transform(gzip())
         .toListL
         .map { list =>
           val compressed = list.toArray
