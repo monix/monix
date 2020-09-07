@@ -17,7 +17,7 @@
 
 package monix.reactive.compress
 
-case class CompressionParameters(
+final case class CompressionParameters(
   level: CompressionLevel,
   strategy: CompressionStrategy,
   flushMode: FlushMode
