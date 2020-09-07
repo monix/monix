@@ -20,7 +20,7 @@ package monix.reactive.compress.internal.operators
 import java.util.zip.Deflater
 
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.Continue
 import monix.reactive.Observable.Operator
 import monix.reactive.compress.{CompressionLevel, CompressionParameters, CompressionStrategy, FlushMode}
 import monix.reactive.observers.Subscriber
@@ -28,15 +28,14 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 private[compress] final class DeflateOperator(
-  bufferSize: Int,
-  params: CompressionParameters,
-  noWrap: Boolean
-) extends Operator[Array[Byte], Array[Byte]] {
+                                               bufferSize: Int,
+                                               params: CompressionParameters,
+                                               noWrap: Boolean
+                                             ) extends Operator[Array[Byte], Array[Byte]] {
   override def apply(out: Subscriber[Array[Byte]]): Subscriber[Array[Byte]] = {
     new Subscriber[Array[Byte]] {
       implicit val scheduler = out.scheduler
 
-      private[this] var isDone = false
       private[this] var ack: Future[Ack] = _
       private[this] val deflate =
         new DeflateAdapter(
@@ -48,47 +47,40 @@ private[compress] final class DeflateOperator(
         )
 
       def onNext(elem: Array[Byte]): Future[Ack] = {
-        if (isDone) {
-          Stop
-        } else {
-          val result = deflate.onChunk(elem)
+        val result = deflate.onChunk(elem)
 
-          // signaling downstream
-          ack = out.onNext(result)
-          ack
-        }
+        // signaling downstream
+        ack = out.onNext(result)
+        ack
       }
 
-      def onError(ex: Throwable): Unit =
-        if (!isDone) {
-          isDone = true
-          deflate.close()
-          out.onError(ex)
-        }
+      def onError(ex: Throwable): Unit = {
+        deflate.close()
+        out.onError(ex)
+      }
 
-      def onComplete(): Unit =
-        if (!isDone) {
-          isDone = true
-          if (ack == null) ack = Continue
-          ack.syncOnContinue {
-            out.onNext(deflate.finish())
-            deflate.close()
-            out.onComplete()
-          }
-          ()
+      def onComplete(): Unit = {
+        if (ack == null) ack = Continue
+
+        ack.syncOnContinue {
+          out.onNext(deflate.finish())
+          deflate.close()
+          out.onComplete()
         }
+        ()
+      }
     }
   }
 }
 
 // From https://github.com/zio/zio/blob/master/streams/jvm/src/main/scala/zio/stream/compression/Deflate.scala
 private class DeflateAdapter(
-  bufferSize: Int,
-  level: CompressionLevel,
-  strategy: CompressionStrategy,
-  flushMode: FlushMode,
-  noWrap: Boolean
-) {
+                              bufferSize: Int,
+                              level: CompressionLevel,
+                              strategy: CompressionStrategy,
+                              flushMode: FlushMode,
+                              noWrap: Boolean
+                            ) {
   private val deflater = new Deflater(level.value, noWrap)
   deflater.setStrategy(strategy.jValue)
   private val buffer = new Array[Byte](bufferSize)
