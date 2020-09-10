@@ -93,6 +93,27 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     assertEquals(r, 100)
   }
 
+  test("TaskLocal.isolate can be nested with executeWithOptions") {
+    implicit val s = monix.execution.Scheduler.Implicits.global
+    val t = for {
+      local <- TaskLocal(0)
+      _ <- TaskLocal.isolate {
+        for {
+          _ <- local.write(1)
+          _ <- TaskLocal.isolate(local.write(2))
+          x <- local.read
+          _ <- Task(assertEquals(x, 1))
+        } yield ()
+      }
+      y <- local.read
+      _ <- Task(assertEquals(y, 0))
+    } yield ()
+
+    Await.result(t.executeWithOptions(_.enableLocalContextPropagation).runToFuture, Duration.Inf)
+    t.executeWithOptions(_.enableLocalContextPropagation).runSyncUnsafe()
+    ()
+  }
+
   test("local.write.executeOn(forceAsync = false) works") {
     import Scheduler.Implicits.traced
     val ec = Scheduler.computation(4, "ec1")
