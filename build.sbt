@@ -30,7 +30,7 @@ val implicitBox_Version = "0.2.0"
 val kindProjector_Version = "0.11.0"
 val betterMonadicFor_Version = "0.3.1"
 val silencer_Version = "1.7.1"
-val scalaCompat_Version = "2.1.6"
+val scalaCompat_Version = "2.2.0"
 val customScalaJS_Version =
   Option(sys.env.getOrElse("SCALAJS_VERSION", null)).filter(_.nonEmpty)
 
