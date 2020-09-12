@@ -46,7 +46,8 @@ private[reactive] final class BufferWhileOperator[A](p: A => Boolean, inclusive:
 
             if (!keepBuffering) {
               if (inclusive) {
-                val toEmit = buffer.append(elem).toList
+                buffer.append(elem)
+                val toEmit = buffer.toList
                 buffer = ListBuffer.empty
                 ack = out.onNext(toEmit)
               } else if (buffer.nonEmpty) {
@@ -54,12 +55,12 @@ private[reactive] final class BufferWhileOperator[A](p: A => Boolean, inclusive:
                 buffer = ListBuffer(elem)
                 ack = out.onNext(toEmit)
               } else {
-                buffer = buffer.append(elem)
+                buffer.append(elem)
               }
 
               ack
             } else {
-              buffer = buffer.append(elem)
+              buffer.append(elem)
               Continue
             }
           } catch {
