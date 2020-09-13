@@ -16,7 +16,7 @@ val jvmTests = List(
 
 addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;ci-meta")
 addCommandAlias("ci-js",       ";clean ;coreJS/test:compile ;coreJS/test ;coreJS/package")
-addCommandAlias("ci-jvm",      s";clean ;coreJVM/test:compile ;coreJVM/test ;$benchmarkProjects ;$jvmTests ;coreJVM/package")
+addCommandAlias("ci-jvm",      s";clean ;coreJVM/test:compile ;coreJVM/test ;coreJVM/package ;tracingTests/test")
 addCommandAlias("ci-meta",     ";mimaReportBinaryIssues ;unidoc")
 addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 
