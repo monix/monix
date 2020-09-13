@@ -120,6 +120,7 @@ private[eval] object TaskRunSyncUnsafe {
           current = sourceTask
 
         case async =>
+          if (tracingCtx eq null) tracingCtx = new StackTracedContext
           return blockForResult(async, timeout, scheduler, opts, bFirst, bRest, tracingCtx)
       }
 
