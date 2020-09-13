@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.Context
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack.Stop
@@ -32,7 +32,7 @@ private[eval] object TaskMapBoth {
     * Implementation for `Task.mapBoth`.
     */
   def apply[A1, A2, R](fa1: Task[A1], fa2: Task[A2])(f: (A1, A2) => R): Task[R] = {
-    Async(new Register(fa1, fa2, f), trampolineBefore = true, trampolineAfter = true, restoreLocals = true)
+    TracedAsync(new Register(fa1, fa2, f), trampolineBefore = true, trampolineAfter = true, restoreLocals = true, traceKey = f)
   }
 
   // Implementing Async's "start" via `ForkedStart` in order to signal

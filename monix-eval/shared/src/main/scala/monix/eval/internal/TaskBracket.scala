@@ -34,11 +34,12 @@ private[monix] object TaskBracket {
   // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
   def guaranteeCase[A](task: Task[A], finalizer: ExitCase[Throwable] => Task[Unit]): Task[A] =
-    Task.Async(
+    TracedAsync(
       new ReleaseStart(task, finalizer),
       trampolineBefore = true,
       trampolineAfter = true,
-      restoreLocals = true
+      restoreLocals = true,
+      traceKey = task
     )
 
   private final class ReleaseStart[A](source: Task[A], release: ExitCase[Throwable] => Task[Unit])
@@ -89,11 +90,12 @@ private[monix] object TaskBracket {
     use: A => Task[B],
     release: (A, Either[Option[Throwable], B]) => Task[Unit]): Task[B] = {
 
-    Task.Async(
+    TracedAsync(
       new StartE(acquire, use, release),
       trampolineBefore = true,
       trampolineAfter = true,
-      restoreLocals = true
+      restoreLocals = true,
+      traceKey = use
     )
   }
 
@@ -128,11 +130,12 @@ private[monix] object TaskBracket {
     * [[monix.eval.Task.bracketE]]
     */
   def exitCase[A, B](acquire: Task[A], use: A => Task[B], release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
-    Task.Async(
+    TracedAsync(
       new StartCase(acquire, use, release),
       trampolineBefore = true,
       trampolineAfter = true,
-      restoreLocals = true
+      restoreLocals = true,
+      traceKey = use
     )
 
   private final class StartCase[A, B](

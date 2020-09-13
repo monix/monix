@@ -22,10 +22,11 @@ import cats.{CommutativeApplicative, Monoid, Semigroup, ~>}
 import monix.catnap.FutureLift
 import monix.eval.instances._
 import monix.eval.internal._
+import monix.eval.tracing.{TaskEvent, TaskTrace}
+import monix.eval.internal.TracingPlatform.{isCachedStackTracing, isFullStackTracing}
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution._
 import monix.execution.annotations.{UnsafeBecauseBlocking, UnsafeBecauseImpure}
-import monix.execution.internal.Platform.fusionMaxStackDepth
 import monix.execution.internal.{Newtype1, Platform}
 import monix.execution.misc.Local
 import monix.execution.schedulers.{CanBlock, TracingScheduler, TrampolinedRunnable}
@@ -1182,7 +1183,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     * from the source.
     */
   final def attempt: Task[Either[Throwable, A]] =
-    FlatMap(this, AttemptTask.asInstanceOf[A => Task[Either[Throwable, A]]])
+    FlatMap(this, AttemptTask.asInstanceOf[A => Task[Either[Throwable, A]]], null)
 
   /** Runs this task first and then, when successful, the given task.
     * Returns the result of the given task.
@@ -1781,14 +1782,23 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     * `NoSuchElementException`.
     */
   final def failed: Task[Throwable] =
-    Task.FlatMap(this, Task.Failed)
+    Task.FlatMap(this, Task.Failed, null)
 
   /** Creates a new Task by applying a function to the successful result
     * of the source Task, and returns a task equivalent to the result
     * of the function.
     */
-  final def flatMap[B](f: A => Task[B]): Task[B] =
-    FlatMap(this, f)
+  final def flatMap[B](f: A => Task[B]): Task[B] = {
+    val trace = if (isCachedStackTracing) {
+      TaskTracing.cached(f.getClass)
+    } else if (isFullStackTracing) {
+      TaskTracing.uncached()
+    } else {
+      null
+    }
+
+    FlatMap(this, f, trace)
+  }
 
   /**  Describes flatMap-driven loops, as an alternative to recursive functions.
     *
@@ -1915,7 +1925,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     * the source.
     */
   final def materialize: Task[Try[A]] =
-    FlatMap(this, MaterializeTask.asInstanceOf[A => Task[Try[A]]])
+    FlatMap(this, MaterializeTask.asInstanceOf[A => Task[Try[A]]], null)
 
   /** Dematerializes the source's result from a `Try`. */
   final def dematerialize[B](implicit ev: A <:< Try[B]): Task[B] =
@@ -1980,7 +1990,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     * See [[onErrorRecoverWith]] for the version that takes a partial function.
     */
   final def onErrorHandleWith[B >: A](f: Throwable => Task[B]): Task[B] =
-    FlatMap(this, new StackFrame.ErrorHandler(f, nowConstructor))
+    FlatMap(this, new StackFrame.ErrorHandler(f, nowConstructor), null)
 
   /** Creates a new task that in case of error will fallback to the
     * given backup task.
@@ -2004,17 +2014,17 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *
     * `fa.map(f) <-> fa.flatMap(x => Task.pure(f(x)))`
     */
-  final def map[B](f: A => B): Task[B] =
-    this match {
-      case Map(source, g, index) =>
-        // Allowed to do a fixed number of map operations fused before
-        // resetting the counter in order to avoid stack overflows;
-        // See `monix.execution.internal.Platform` for details.
-        if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
-        else Map(this, f, 0)
-      case _ =>
-        Map(this, f, 0)
+  final def map[B](f: A => B): Task[B] = {
+    val trace = if (isCachedStackTracing) {
+      TaskTracing.cached(f.getClass)
+    } else if (isFullStackTracing) {
+      TaskTracing.uncached()
+    } else {
+      null
     }
+
+    Map(this, f, trace)
+  }
 
   /** Creates a new task that in case of error will retry executing the
     * source again and again, until it succeeds.
@@ -2429,7 +2439,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *        in case it ends in success
     */
   def redeem[B](recover: Throwable => B, map: A => B): Task[B] =
-    Task.FlatMap(this, new Task.Redeem(recover, map))
+    Task.FlatMap(this, new Task.Redeem(recover, map), null)
 
   /** Returns a new value that transforms the result of the source,
     * given the `recover` or `bind` functions, which get executed depending
@@ -2454,7 +2464,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *        in case of success
     */
   def redeemWith[B](recover: Throwable => Task[B], bind: A => Task[B]): Task[B] =
-    Task.FlatMap(this, new StackFrame.RedeemWith(recover, bind))
+    Task.FlatMap(this, new StackFrame.RedeemWith(recover, bind), null)
 
   /** Makes the source `Task` uninterruptible such that a `cancel` signal
     * (e.g. [[Fiber.cancel]]) has no effect.
@@ -2589,8 +2599,11 @@ object Task extends TaskInstancesLevel1 {
   /** Returns a `Task` that on execution is always successful, emitting
     * the given strict value.
     */
-  def now[A](a: A): Task[A] =
-    Task.Now(a)
+  def now[A](a: A): Task[A] = {
+    val nextTask = Task.Now(a)
+    if (isFullStackTracing) TaskTracing.decorated(nextTask)
+    else nextTask
+  }
 
   /** Lifts a value into the task context. Alias for [[now]]. */
   def pure[A](a: A): Task[A] = now(a)
@@ -2598,14 +2611,17 @@ object Task extends TaskInstancesLevel1 {
   /** Returns a task that on execution is always finishing in error
     * emitting the specified exception.
     */
-  def raiseError[A](ex: Throwable): Task[A] =
-    Error(ex)
+  def raiseError[A](ex: Throwable): Task[A] = {
+    val nextTask = Task.Error(ex)
+    if (isFullStackTracing) TaskTracing.decorated(nextTask)
+    else nextTask
+  }
 
   /** Promote a non-strict value representing a Task to a Task of the
     * same type.
     */
   def defer[A](fa: => Task[A]): Task[A] =
-    Suspend(() => fa)
+    suspend(fa)
 
   /** Defers the creation of a `Task` by using the provided
     * function, which has the ability to inject a needed
@@ -2692,8 +2708,11 @@ object Task extends TaskInstancesLevel1 {
     TaskFromFuture.deferAction(f)
 
   /** Alias for [[defer]]. */
-  def suspend[A](fa: => Task[A]): Task[A] =
-    Suspend(() => fa)
+  def suspend[A](fa: => Task[A]): Task[A] = {
+    val nextTask = Suspend(() => fa)
+    if (isFullStackTracing) TaskTracing.decorated(nextTask)
+    else nextTask
+  }
 
   /** Promote a non-strict value to a Task that is memoized on the first
     * evaluation, the result being then available on subsequent evaluations.
@@ -2711,8 +2730,11 @@ object Task extends TaskInstancesLevel1 {
     *
     * @param a is the thunk to process on evaluation
     */
-  def eval[A](a: => A): Task[A] =
-    Eval(() => a)
+  def eval[A](a: => A): Task[A] = {
+    val nextTask = Eval(() => a)
+    if (isFullStackTracing) TaskTracing.decorated(nextTask)
+    else nextTask
+  }
 
   /** Lifts a non-strict value, a thunk, to a `Task` that will trigger a logical
     * fork before evaluation.
@@ -2724,8 +2746,11 @@ object Task extends TaskInstancesLevel1 {
     *
     * @param a is the thunk to process on evaluation
     */
-  def evalAsync[A](a: => A): Task[A] =
-    TaskEvalAsync(() => a)
+  def evalAsync[A](a: => A): Task[A] = {
+    val nextTask = TaskEvalAsync(() => a)
+    if (isFullStackTracing) TaskTracing.decorated(nextTask)
+    else nextTask
+  }
 
   /** Alias for [[eval]]. */
   def delay[A](a: => A): Task[A] = eval(a)
@@ -2873,7 +2898,7 @@ object Task extends TaskInstancesLevel1 {
     }
 
   /** A `Task[Unit]` provided for convenience. */
-  val unit: Task[Unit] = Now(())
+  val unit: Task[Unit] = pure(())
 
   /**
     * Transforms a [[Coeval]] into a [[Task]].
@@ -4262,6 +4287,14 @@ object Task extends TaskInstancesLevel1 {
     Task.Async((ctx, cb) => cb.onSuccess(ctx.options), trampolineBefore = false, trampolineAfter = true)
 
   /**
+    * Returns the accumulated trace of the currently active fiber.
+    */
+  val trace: Task[TaskTrace] =
+    Task.Async { (ctx, cb) =>
+      cb.onSuccess(ctx.stackTracedContext.trace())
+    }
+
+  /**
     * Deprecated operations, described as extension methods.
     */
   implicit final class DeprecatedExtensions[+A](val self: Task[A]) extends AnyVal with TaskDeprecated.Extensions[A]
@@ -4460,8 +4493,8 @@ object Task extends TaskInstancesLevel1 {
     private val schedulerRef: Scheduler,
     options: Options,
     connection: TaskConnection,
-    frameRef: FrameIndexRef) {
-
+    frameRef: FrameIndexRef,
+    stackTracedContext: StackTracedContext) {
     val scheduler: Scheduler = {
       if (options.localContextPropagation && !schedulerRef.features.contains(Scheduler.TRACING))
         TracingScheduler(schedulerRef)
@@ -4477,26 +4510,27 @@ object Task extends TaskInstancesLevel1 {
       schedulerRef.executionModel
 
     def withScheduler(s: Scheduler): Context =
-      new Context(s, options, connection, frameRef)
+      new Context(s, options, connection, frameRef, stackTracedContext)
 
     def withExecutionModel(em: ExecutionModel): Context =
-      new Context(schedulerRef.withExecutionModel(em), options, connection, frameRef)
+      new Context(schedulerRef.withExecutionModel(em), options, connection, frameRef, stackTracedContext)
 
     def withOptions(opts: Options): Context =
-      new Context(schedulerRef, opts, connection, frameRef)
+      new Context(schedulerRef, opts, connection, frameRef, stackTracedContext)
 
     def withConnection(conn: TaskConnection): Context =
-      new Context(schedulerRef, options, conn, frameRef)
+      new Context(schedulerRef, options, conn, frameRef, stackTracedContext)
   }
 
   private[eval] object Context {
+    // TODO: Should Task.start / startAndForget start a new stack trace?
     def apply(scheduler: Scheduler, options: Options): Context =
-      apply(scheduler, options, TaskConnection())
+      apply(scheduler, options, TaskConnection(), new StackTracedContext)
 
-    def apply(scheduler: Scheduler, options: Options, connection: TaskConnection): Context = {
+    def apply(scheduler: Scheduler, options: Options, connection: TaskConnection, stackTracedContext: StackTracedContext): Context = {
       val em = scheduler.executionModel
       val frameRef = FrameIndexRef(em)
-      new Context(scheduler, options, connection, frameRef)
+      new Context(scheduler, options, connection, frameRef, stackTracedContext)
     }
   }
 
@@ -4595,10 +4629,10 @@ object Task extends TaskInstancesLevel1 {
   private[eval] final case class Suspend[+A](thunk: () => Task[A]) extends Task[A]
 
   /** Internal [[Task]] state that is the result of applying `flatMap`. */
-  private[eval] final case class FlatMap[A, B](source: Task[A], f: A => Task[B]) extends Task[B]
+  private[eval] final case class FlatMap[A, B](source: Task[A], f: A => Task[B], trace: AnyRef) extends Task[B]
 
   /** Internal [[Coeval]] state that is the result of applying `map`. */
-  private[eval] final case class Map[S, +A](source: Task[S], f: S => A, index: Int)
+  private[eval] final case class Map[S, +A](source: Task[S], f: S => A, trace: AnyRef)
     extends Task[A] with (S => Task[A]) {
 
     def apply(value: S): Task[A] =
@@ -4625,7 +4659,8 @@ object Task extends TaskInstancesLevel1 {
     register: (Context, Callback[Throwable, A]) => Unit,
     trampolineBefore: Boolean = false,
     trampolineAfter: Boolean = true,
-    restoreLocals: Boolean = true)
+    restoreLocals: Boolean = true,
+    trace: AnyRef = null)
     extends Task[A]
 
   /** For changing the context for the rest of the run-loop.
@@ -4637,6 +4672,8 @@ object Task extends TaskInstancesLevel1 {
     modify: Context => Context,
     restore: (A, Throwable, Context, Context) => Context)
     extends Task[A]
+
+  private[monix] final case class Trace[A](source: Task[A], trace: TaskEvent) extends Task[A]
 
   /**
     * Internal API — starts the execution of a Task with a guaranteed
