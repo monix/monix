@@ -12,12 +12,11 @@ val benchmarkProjects = List(
 val jvmTests = List(
   "reactiveTests",
   "tracingTests"
-).map(x => s"$x/test:compile; $x/test").mkString(" ;")
+).map(_ + "/test").mkString(" ;")
 
-addCommandAlias("ci",          ";ci-jvm ;ci-js")
 addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;ci-meta")
 addCommandAlias("ci-js",       ";clean ;coreJS/test:compile ;coreJS/test ;coreJS/package")
-addCommandAlias("ci-jvm",      s";clean ;coreJVM/test:compile ;coreJVM/test; $benchmarkProjects; $jvmTests; coreJVM/package")
+addCommandAlias("ci-jvm",      s";clean ;coreJVM/test:compile ;coreJVM/test ;$benchmarkProjects ;$jvmTests ;coreJVM/package")
 addCommandAlias("ci-meta",     ";mimaReportBinaryIssues ;unidoc")
 addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 
