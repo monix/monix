@@ -24,20 +24,21 @@ object InflateTest extends BaseDecompressionTest with DeflateTestUtils {
     noWrapDeflatedStream(longText)
       .transform(inflate(1024, noWrap = true))
       .toListL
-      .map(list => assertEquals(list, longText.toList))
+      .map(list => assertEquals(list.flatten, longText.toList))
       .runToFuture
   )
 
   testAsync("inflate nowrap: remaining = 0 but not all was pulled") {
     // This case shown error when not all data was pulled out of inflater
-    noWrapDeflatedStream(inflateRandomExampleThatFailed)
-      .transform(inflate(bufferSize = 11, chunkSize = 40, noWrap = true))
+    noWrapDeflatedStream(inflateRandomExampleThatFailed, chunkSize = 40)
+      .transform(inflate(bufferSize = 11, noWrap = true))
       .toListL
-      .map(list => assertEquals(list, inflateRandomExampleThatFailed.toList))
+      .map(list => assertEquals(list.flatten, inflateRandomExampleThatFailed.toList))
       .runToFuture
   }
 
-  override def jdkCompressedStream(input: Array[Byte]): Observable[Byte] = deflatedStream(input)
+  override def jdkCompressedStream(input: Array[Byte], chunkSize: Int): Observable[Array[Byte]] =
+    deflatedStream(input, chunkSize)
 
-  override def decompress(bufferSize: Int, chunkSize: Int): Observable[Byte] => Observable[Byte] = inflate(bufferSize, chunkSize)
+  override def decompress(bufferSize: Int): Observable[Array[Byte]] => Observable[Array[Byte]] = inflate(bufferSize)
 }

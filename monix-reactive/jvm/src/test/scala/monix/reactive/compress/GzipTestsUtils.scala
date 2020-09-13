@@ -59,7 +59,7 @@ trait GzipTestsUtils extends CompressionTestData {
     val crc16Byte1 = (crc16 & 0xff).toByte
     val crc16Byte2 = (crc16 >> 8).toByte
     val header = headerBytes ++ Array(crc16Byte1, crc16Byte2)
-    Observable.fromIterable(header ++ jdkGzip(shortText).drop(10))
+    Observable.now(header ++ jdkGzip(shortText).drop(10))
   }
 
   val headerWithAll = {
@@ -77,10 +77,10 @@ trait GzipTestsUtils extends CompressionTestData {
     val crc16Byte1 = (crc16 & 0xff).toByte
     val crc16Byte2 = (crc16 >> 8).toByte
     val header = headerUpToCrc ++ Array(crc16Byte1, crc16Byte2)
-    Observable.fromIterable(header ++ jdkGzip(shortText).drop(10))
+    Observable.now(header ++ jdkGzip(shortText).drop(10))
   }
-  def jdkGzippedStream(bytes: Array[Byte], syncFlush: Boolean = true) =
-    Observable.fromIterable(jdkGzip(bytes, syncFlush))
+  def jdkGzippedStream(bytes: Array[Byte], syncFlush: Boolean = true, chunkSize: Int = 32 * 1024) =
+    Observable.fromIterable(jdkGzip(bytes, syncFlush)).bufferTumbling(chunkSize).map(_.toArray)
 
   def jdkGzip(bytes: Array[Byte], syncFlush: Boolean = true): Array[Byte] = {
     val baos = new ByteArrayOutputStream(1024)
@@ -107,7 +107,7 @@ trait GzipTestsUtils extends CompressionTestData {
 
   def makeStreamWithCustomHeader(flag: Int, headerTail: Array[Byte]) = {
     val headerHead = Array(31, 139, 8, flag, 0, 0, 0, 0, 0, 0).map(_.toByte)
-    Observable.fromIterable(
+    Observable.now(
       headerHead ++ headerTail ++ jdkGzip(shortText).drop(10)
     )
   }

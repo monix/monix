@@ -23,17 +23,14 @@ import monix.reactive.Observable
 
 object DeflateTest extends BaseTestSuite with DeflateTestUtils {
 
-  testAsync("deflate empty bytes, small buffer") {
+  testAsync("deflate empty bytes") {
     Observable
       .fromIterable(List.empty)
-      .transform(deflate(
-        bufferSize = 100,
-        chunkSize = 1
-      ))
+      .transform(deflate(bufferSize = 100))
       .toListL
       .map(list =>
         assertEquals(
-          list,
+          list.flatten,
           jdkDeflate(
             Array.empty,
             new Deflater(-1, false)
@@ -43,34 +40,34 @@ object DeflateTest extends BaseTestSuite with DeflateTestUtils {
   }
   testAsync("deflates same as JDK") {
     Observable
-      .fromIterable(longText)
-      .transform(deflate(256, 128))
+      .now(longText)
+      .transform(deflate(256))
       .toListL
-      .map(list => assertEquals(list, jdkDeflate(longText, new Deflater(-1, false)).toList))
+      .map(list => assertEquals(list.flatten, jdkDeflate(longText, new Deflater(-1, false)).toList))
       .runToFuture
   }
   testAsync("deflates same as JDK, nowrap") {
     Observable
-      .fromIterable(longText)
-      .transform(deflate(256, 128, noWrap = true))
+      .now(longText)
+      .transform(deflate(256, noWrap = true))
       .toListL
-      .map(list => assertEquals(list, jdkDeflate(longText, new Deflater(-1, true)).toList))
+      .map(list => assertEquals(list.flatten, jdkDeflate(longText, new Deflater(-1, true)).toList))
       .runToFuture
   }
   testAsync("deflates same as JDK, small buffer") {
     Observable
-      .fromIterable(longText)
-      .transform(deflate(1, chunkSize = 64))
+      .now(longText)
+      .transform(deflate(1))
       .toListL
-      .map(list => assertEquals(list, jdkDeflate(longText, new Deflater(-1, false)).toList))
+      .map(list => assertEquals(list.flatten, jdkDeflate(longText, new Deflater(-1, false)).toList))
       .runToFuture
   }
   testAsync("deflates same as JDK, nowrap, small buffer ") {
     Observable
-      .fromIterable(longText)
-      .transform(deflate(1, chunkSize = 64, noWrap = true))
+      .now(longText)
+      .transform(deflate(1, noWrap = true))
       .toListL
-      .map(list => assertEquals(list, jdkDeflate(longText, new Deflater(-1, true)).toList))
+      .map(list => assertEquals(list.flatten, jdkDeflate(longText, new Deflater(-1, true)).toList))
       .runToFuture
   }
 }

@@ -22,42 +22,48 @@ import monix.reactive.Observable
 object GzipTest extends BaseTestSuite with GzipTestsUtils {
   testAsync("gzip empty bytes, small buffer") {
     Observable
-      .empty[Byte]
+      .empty[Array[Byte]]
       .transform(gzip(1))
       .toListL
-      .map(l => assert(jdkGunzip(l.toArray).isEmpty))
+      .map(l => assert(jdkGunzip(l.flatten.toArray).isEmpty))
       .runToFuture
   }
   testAsync("gzip empty bytes") {
     Observable
-      .empty[Byte]
+      .empty[Array[Byte]]
       .transform(gzip(`1K`))
       .toListL
-      .map(l => assert(jdkGunzip(l.toArray).isEmpty))
+      .map(l => assert(jdkGunzip(l.flatten.toArray).isEmpty))
       .runToFuture
   }
   testAsync("gzips, small chunks, small buffer") {
     Observable
       .fromIterable(longText)
-      .transform(gzip(1, 1))
+      .bufferTumbling(1)
+      .map(_.toArray)
+      .transform(gzip(1))
       .toListL
-      .map(l => assertArrayEquals(jdkGunzip(l.toArray), longText))
+      .map(l => assertArrayEquals(jdkGunzip(l.flatten.toArray), longText))
       .runToFuture
   }
   testAsync("gzips, small chunks, 1k buffer") {
     Observable
       .fromIterable(longText)
-      .transform(gzip(`1K`, 1))
+      .bufferTumbling(1)
+      .map(_.toArray)
+      .transform(gzip(`1K`))
       .toListL
-      .map(l => assertArrayEquals(jdkGunzip(l.toArray), longText))
+      .map(l => assertArrayEquals(jdkGunzip(l.flatten.toArray), longText))
       .runToFuture
   }
   testAsync("chunks bigger than buffer") {
     Observable
       .fromIterable(longText)
-      .transform(gzip(64, `1K`))
+      .bufferTumbling(`1K`)
+      .map(_.toArray)
+      .transform(gzip(64))
       .toListL
-      .map(l => assertArrayEquals(jdkGunzip(l.toArray), longText))
+      .map(l => assertArrayEquals(jdkGunzip(l.flatten.toArray), longText))
       .runToFuture
   }
 }

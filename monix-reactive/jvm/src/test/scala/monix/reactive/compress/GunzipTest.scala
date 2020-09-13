@@ -26,14 +26,13 @@ object GunzipTest extends BaseDecompressionTest with GzipTestsUtils {
     jdkGzippedStream(longText, syncFlush = false)
       .transform(gunzip(64))
       .toListL
-      .map(list => assertEquals(list, longText.toList))
+      .map(list => assertEquals(list.flatten, longText.toList))
       .runToFuture
   }
 
   testAsync("no output on very incomplete stream is not OK") {
     Observable
-      .fromIterable(1 to 5)
-      .map(_.toByte)
+      .now((1 to 5).map(_.toByte).toArray)
       .transform(gunzip())
       .toListL
       .map(_ => fail("should have failed"))
@@ -44,39 +43,40 @@ object GunzipTest extends BaseDecompressionTest with GzipTestsUtils {
     headerWithExtra
       .transform(gunzip(64))
       .toListL
-      .map(list => assertEquals(list, shortText.toList))
+      .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
   testAsync("parses header with FCOMMENT") {
     headerWithComment
       .transform(gunzip(64))
       .toListL
-      .map(list => assertEquals(list, shortText.toList))
+      .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
   testAsync("parses header with FNAME") {
     headerWithFileName
       .transform(gunzip(64))
       .toListL
-      .map(list => assertEquals(list, shortText.toList))
+      .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
   testAsync("parses header with CRC16") {
     headerWithCrc
       .transform(gunzip(64))
       .toListL
-      .map(list => assertEquals(list, shortText.toList))
+      .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
   testAsync("parses header with CRC16, FNAME, FCOMMENT, FEXTRA") {
     headerWithAll
       .transform(gunzip(64))
       .toListL
-      .map(list => assertEquals(list, shortText.toList))
+      .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
 
-  override def jdkCompressedStream(input: Array[Byte]): Observable[Byte] = jdkGzippedStream(input)
+  override def jdkCompressedStream(input: Array[Byte], chunkSize: Int): Observable[Array[Byte]] =
+    jdkGzippedStream(input, chunkSize = chunkSize)
 
-  override def decompress(bufferSize: Int, chunkSize: Int): Observable[Byte] => Observable[Byte] = gunzip(bufferSize, chunkSize)
+  override def decompress(bufferSize: Int): Observable[Array[Byte]] => Observable[Array[Byte]] = gunzip(bufferSize)
 }

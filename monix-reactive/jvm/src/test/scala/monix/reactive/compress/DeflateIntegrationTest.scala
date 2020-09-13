@@ -28,22 +28,22 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
   test("inflate(deflate(_)) <-> identity") {
     check1 { (input: String) =>
       Observable
-        .fromIterable(input.getBytes())
+        .now(input.getBytes())
         .transform(deflate())
         .transform(inflate())
         .toListL
-        .map(l => new String(l.toArray) == input)
+        .map(l => new String(l.flatten.toArray) == input)
     }
   }
 
   test("inflate(deflate(_)) <-> identity - nowrap") {
     check1 { (input: String) =>
       Observable
-        .fromIterable(input.getBytes())
+        .now(input.getBytes())
         .transform(deflate(noWrap = true))
         .transform(inflate(noWrap = true))
         .toListL
-        .map(l => new String(l.toArray) == input)
+        .map(l => new String(l.flatten.toArray) == input)
     }
   }
 
@@ -52,7 +52,7 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
       deflatedStream(input.getBytes)
         .transform(inflate())
         .toListL
-        .map(compressed => new String(compressed.toArray) == input)
+        .map(compressed => new String(compressed.flatten.toArray) == input)
     }
   }
 
@@ -61,18 +61,18 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
       noWrapDeflatedStream(input.getBytes)
         .transform(inflate(noWrap = true))
         .toListL
-        .map(compressed => new String(compressed.toArray) == input)
+        .map(compressed => new String(compressed.flatten.toArray) == input)
     }
   }
 
   test("jInflate(deflate(_) <-> identity") {
     check1 { (input: String) =>
       Observable
-        .fromIterable(input.getBytes())
+        .now(input.getBytes())
         .transform(deflate())
         .toListL
         .map { compressed =>
-          val decompressed = jdkInflate(compressed.toArray, noWrap = false)
+          val decompressed = jdkInflate(compressed.flatten.toArray, noWrap = false)
           new String(decompressed) == input
         }
     }
@@ -81,11 +81,11 @@ object DeflateIntegrationTest extends BaseTestSuite with DeflateTestUtils {
   test("jInflate(deflate(_) <-> identity - nowrap") {
     check1 { (input: String) =>
       Observable
-        .fromIterable(input.getBytes())
+        .now(input.getBytes())
         .transform(deflate(noWrap = true))
         .toListL
         .map { compressed =>
-          val decompressed = jdkInflate(compressed.toArray, noWrap = true)
+          val decompressed = jdkInflate(compressed.flatten.toArray, noWrap = true)
           new String(decompressed) == input
         }
     }

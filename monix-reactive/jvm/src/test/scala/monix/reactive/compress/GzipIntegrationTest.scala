@@ -31,11 +31,11 @@ object GzipIntegrationTest extends BaseTestSuite {
   test("gunzip(gzip(_)) <-> identity") {
     check1 { (input: String) =>
       Observable
-        .fromIterable(input.getBytes())
+        .now(input.getBytes())
         .transform(gzip())
         .transform(gunzip())
         .toListL
-        .map(l => new String(l.toArray) == input)
+        .map(l => new String(l.flatten.toArray) == input)
     }
   }
 
@@ -49,21 +49,21 @@ object GzipIntegrationTest extends BaseTestSuite {
       val compressed = outputStream.toByteArray
       gzos.close()
       Observable
-        .fromIterable(compressed)
+        .now(compressed)
         .transform(gunzip())
         .toListL
-        .map(l => new String(l.toArray) == input)
+        .map(l => new String(l.flatten.toArray) == input)
     }
   }
 
   test("jgunzip(gzip(_) <-> identity") {
     check1 { (input: String) =>
       Observable
-        .fromIterable(input.getBytes())
+        .now(input.getBytes())
         .transform(gzip())
         .toListL
         .map { list =>
-          val compressed = list.toArray
+          val compressed = list.flatten.toArray
           val gzos = new GZIPInputStream(new ByteArrayInputStream(compressed))
           val decompressed = readAll(gzos)
           gzos.close()

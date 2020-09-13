@@ -26,16 +26,16 @@ import monix.reactive.Observable
 import scala.annotation.tailrec
 
 trait DeflateTestUtils extends CompressionTestData {
-  val inflateRandomExampleThatFailed =
+  val inflateRandomExampleThatFailed: Array[Byte] =
     Array(100, 96, 2, 14, 108, -122, 110, -37, 35, -11, -10, 14, 47, 30, 43, 111, -80, 44, -34, 35, 35, 37, -103).map(
       _.toByte
     )
 
-  def deflatedStream(bytes: Array[Byte]) =
-    deflatedWith(bytes, new Deflater())
+  def deflatedStream(bytes: Array[Byte], chunkSize: Int = 32 * 1024) =
+    deflatedWith(bytes, new Deflater(), chunkSize)
 
-  def noWrapDeflatedStream(bytes: Array[Byte]) =
-    deflatedWith(bytes, new Deflater(9, true))
+  def noWrapDeflatedStream(bytes: Array[Byte], chunkSize: Int = 32 * 1024) =
+    deflatedWith(bytes, new Deflater(9, true), chunkSize)
 
   def jdkDeflate(bytes: Array[Byte], deflater: Deflater): Array[Byte] = {
     val bigBuffer = new Array[Byte](1024 * 1024)
@@ -44,16 +44,19 @@ trait DeflateTestUtils extends CompressionTestData {
     Arrays.copyOf(bigBuffer, read)
   }
 
-  def deflatedWith(bytes: Array[Byte], deflater: Deflater) = {
+  def deflatedWith(bytes: Array[Byte], deflater: Deflater, chunkSize: Int = 32 * 1024) = {
     val arr = jdkDeflate(bytes, deflater)
-    Observable.fromIterable(arr)
+    Observable
+      .fromIterable(arr)
+      .bufferTumbling(chunkSize)
+      .map(_.toArray)
   }
 
   def jdkInflate(bytes: Array[Byte], noWrap: Boolean): Array[Byte] = {
     val bigBuffer = new Array[Byte](1024 * 1024)
     val inflater = new Inflater(noWrap)
     val iif = new InflaterInputStream(
-      new ByteArrayInputStream(bytes.toArray),
+      new ByteArrayInputStream(bytes),
       inflater
     )
 

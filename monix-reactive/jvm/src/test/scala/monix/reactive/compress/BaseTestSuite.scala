@@ -24,7 +24,7 @@ import monix.execution.Scheduler
 trait BaseTestSuite extends SimpleTestSuite with Checkers {
 
   implicit val scheduler: Scheduler =
-    Scheduler.computation(parallelism = 4, name = "concurrency-tests", daemonic = true)
+    Scheduler.computation(parallelism = 4, name = "compression-tests", daemonic = true)
 
   def assertArrayEquals[T](a1: Array[T], a2: Array[T]): Unit = {
     assertEquals(a1.toList, a2.toList)
