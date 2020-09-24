@@ -59,6 +59,7 @@ class ChunkedMapFilterSumBenchmark {
 
   // All events that need to be streamed
   var allElements: IndexedSeq[Int] = _
+  var allElementsVector: Vector[Int] = _
 
   var chunks: IndexedSeq[Array[Int]] = _
   var fs2Chunks: IndexedSeq[fs2.Chunk[Int]] = _
@@ -70,6 +71,7 @@ class ChunkedMapFilterSumBenchmark {
     fs2Chunks = chunks.map(fs2.Chunk.array)
     zioChunks = chunks.map(zio.Chunk.fromArray)
     allElements = chunks.flatten
+    allElementsVector = allElements.toVector
   }
 
   implicit val system = ActorSystem("benchmarks", defaultExecutionContext = Some(scheduler))
@@ -81,13 +83,40 @@ class ChunkedMapFilterSumBenchmark {
   }
 
   @Benchmark
-  def monixObservableNoChunks(): Int = {
+  def monixObservable(): Int = {
     val stream = Observable
       .fromIterable(allElements)
       .map(_ + 1)
       .filter(_ % 2 == 0)
 
     sum(stream)
+  }
+
+  @Benchmark
+  def vector(): Int = {
+    allElementsVector
+      .map(_ + 1)
+      .filter(_ % 2 == 0)
+      .sum
+  }
+
+  @Benchmark
+  def iterator(): Int = {
+    allElements.iterator
+      .map(_ + 1)
+      .filter(_ % 2 == 0)
+      .sum
+  }
+
+  @Benchmark
+  def whileLoop(): Int = {
+    val cursor = allElements.iterator
+    var sum = 0
+    while (cursor.hasNext) {
+      val next = cursor.next() + 1
+      if (next % 2 == 0) sum += next
+    }
+    sum
   }
 
   @Benchmark
@@ -114,7 +143,7 @@ class ChunkedMapFilterSumBenchmark {
   }
 
   @Benchmark
-  def akkaStreamNoChunks(): Long = {
+  def akkaStream(): Long = {
     val stream = AkkaSource
       .fromIterator(() => allElements.iterator)
       .map(_ + 1)

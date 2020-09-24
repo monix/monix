@@ -20,19 +20,21 @@ package monix.benchmarks
 import java.util.concurrent.TimeUnit
 
 import fs2.{Stream => FS2Stream}
+import monix.eval.{Task => MonixTask}
 import monix.reactive.Observable
 import org.openjdk.jmh.annotations._
+import zio.ZIO
 import zio.stream.{Stream => ZStream}
 
 /** To do comparative benchmarks between versions:
   *
-  *     benchmarks/run-benchmark ObservableMapAccumulateBenchmark
+  *     benchmarks/run-benchmark ObservableMergeBenchmark
   *
   * This will generate results in `benchmarks/results`.
   *
   * Or to run the benchmark from within SBT:
   *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.ObservableMapAccumulateBenchmark
+  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.ObservableMergeBenchmark
   *
   * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
   * Please note that benchmarks should be usually executed at least in
@@ -41,18 +43,15 @@ import zio.stream.{Stream => ZStream}
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class ObservableMapAccumulateBenchmark {
-  @Param(Array("1000", "10000"))
-  var n: Int = _
+class ObservableMergeBenchmark {
+  @Param(Array("10", "100", "1000"))
+  var streams: Int = _
 
   @Benchmark
   def monixObservable() = {
     Observable
-      .fromIterable(0 until n)
-      .mapAccumulate(0) { case (acc, i) =>
-        val added = acc + i
-        (added, added)
-      }
+      .fromIterable(0 until streams)
+      .mergeMap(i => Observable.fromTask(MonixTask.eval(i)))
       .completedL
       .runSyncUnsafe()
   }
@@ -60,23 +59,20 @@ class ObservableMapAccumulateBenchmark {
   @Benchmark
   def fs2Stream() = {
     FS2Stream
-      .emits(0 until n)
-      .mapAccumulate(0) { case (acc, i) =>
-        val added = acc + i
-        (added, added)
-      }
+      .emits((0 until streams))
+      .map(i => FS2Stream.eval(MonixTask.eval(i)))
+      .covary[monix.eval.Task]
+      .parJoinUnbounded
       .compile
       .drain
+      .runSyncUnsafe()
   }
 
   @Benchmark
   def zioStream() = {
     val stream = ZStream
-      .fromIterable(0 until n)
-      .mapAccum(0) { case (acc, i) =>
-        val added = acc + i
-        (added, added)
-      }
+      .fromIterable(0 until streams)
+      .flatMapPar(Int.MaxValue)(i => ZStream.fromEffect(ZIO.apply(i)))
       .runDrain
 
     zioUntracedRuntime.unsafeRun(stream)
