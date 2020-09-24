@@ -144,21 +144,7 @@ class ChunkedEvalFilterMapSumBenchmark {
     testResult(stream.runSyncUnsafe())
   }
 
-  @Benchmark
-  def zioStream = {
-    val stream = ZStream
-      // Note that ZIO is not iterating iterable,
-      // it is simply accessing it by index
-      .fromIterable(allElements)
-      .chunkN(chunkSize)
-      .mapChunksM(chunk => UIO(Chunk.single(sumIntScala(chunk))))
-      .filter(_ > 0)
-      .map(_.toLong)
-      .fold(0L)(_ + _)
-
-    testResult(zioUntracedRuntime.unsafeRun(stream))
-  }
-
+  // On 1.0.0, ZIO doesn't iterate iterable so we can't test sliding window
   @Benchmark
   def zioStreamPreChunked = {
     val stream = ZStream
