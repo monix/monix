@@ -84,8 +84,8 @@ class ChunkedEvalFilterMapSumBenchmark {
     chunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
     fs2Chunks = chunks.map(fs2.Chunk.array)
     zioChunks = chunks.map(zio.Chunk.fromArray)
-    allElements = 1 to chunkCount * chunkSize
-    expectedSum = (1 to chunkCount * chunkSize).map(_.toLong).sum
+    allElements = chunks.flatten
+    expectedSum = allElements.map(_.toLong).sum
   }
 
   @TearDown
@@ -96,8 +96,7 @@ class ChunkedEvalFilterMapSumBenchmark {
 
   @Benchmark
   def fs2Stream = {
-    val stream = FS2Stream
-      .range(1, chunkCount * chunkSize + 1)
+    val stream = FS2Stream(allElements: _*)
       .chunkN(chunkSize)
       .evalMap[MonixTask, Int](chunk => MonixTask(sumIntScala(chunk.iterator)))
       .filter(_ > 0)
@@ -123,9 +122,9 @@ class ChunkedEvalFilterMapSumBenchmark {
   @Benchmark
   def monixObservable() = {
     val stream = MonixObservable
-      .range(1L, (chunkCount * chunkSize + 1).toLong)
+      .fromIterable(allElements)
       .bufferTumbling(chunkSize)
-      .mapEval[Int](seq => MonixTask(sumLongScala(seq)))
+      .mapEval[Int](seq => MonixTask(sumIntScala(seq)))
       .filter(_ > 0)
       .map(_.toLong)
       .foldLeftL(0L)(_ + _)
@@ -148,19 +147,8 @@ class ChunkedEvalFilterMapSumBenchmark {
   @Benchmark
   def zioStream = {
     val stream = ZStream
-      .range(1, chunkCount * chunkSize + 1)
-      .chunkN(chunkSize)
-      .mapChunksM(chunk => UIO(Chunk.single(sumIntScala(chunk))))
-      .filter(_ > 0)
-      .map(_.toLong)
-      .fold(0L)(_ + _)
-
-    testResult(zioUntracedRuntime.unsafeRun(stream))
-  }
-
-  @Benchmark
-  def zioStreamStrictCollection = {
-    val stream = ZStream
+      // Note that ZIO is not iterating iterable,
+      // it is simply accessing it by index
       .fromIterable(allElements)
       .chunkN(chunkSize)
       .mapChunksM(chunk => UIO(Chunk.single(sumIntScala(chunk))))
@@ -186,7 +174,7 @@ class ChunkedEvalFilterMapSumBenchmark {
   @Benchmark
   def akkaStreams = {
     val stream: RunnableGraph[Future[Long]] =
-      AkkaSource(1 to chunkCount * chunkSize + 1)
+      AkkaSource(allElements)
         .sliding(chunkSize, chunkSize)
         .mapAsync(1)(seq => Future(sumIntScala(seq))(monix.execution.schedulers.TrampolineExecutionContext.immediate))
         .filter(_ > 0)
@@ -214,15 +202,6 @@ class ChunkedEvalFilterMapSumBenchmark {
       throw new RuntimeException(s"received: $r != expected: $expectedSum")
     }
     r
-  }
-
-  def sumLongScala(seq: Iterable[Long]): Int = {
-    val cursor = seq.iterator
-    var sum = 0L
-    while (cursor.hasNext) {
-      sum += cursor.next()
-    }
-    sum.toInt
   }
 
   def sumIntScala(seq: Iterable[Int]): Int = {
