@@ -19,12 +19,18 @@ package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
 
+import akka.actor.ActorSystem
+import akka.stream.scaladsl.{Keep, Sink => AkkaSink, Source => AkkaSource}
 import fs2.{Stream => FS2Stream}
 import monix.eval.{Task => MonixTask}
 import monix.reactive.Observable
 import org.openjdk.jmh.annotations._
 import zio.ZIO
 import zio.stream.{Stream => ZStream}
+
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration.Duration
+import scala.util.Try
 
 /** To do comparative benchmarks between versions:
   *
@@ -44,8 +50,16 @@ import zio.stream.{Stream => ZStream}
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class ObservableMergeBenchmark {
-  @Param(Array("10", "100", "1000"))
+  @Param(Array("100", "1000"))
   var streams: Int = _
+
+  implicit val system = ActorSystem("benchmarks", defaultExecutionContext = Some(scheduler))
+
+  @TearDown
+  def shutdown(): Unit = {
+    system.terminate()
+    ()
+  }
 
   @Benchmark
   def monixObservable() = {
@@ -59,7 +73,7 @@ class ObservableMergeBenchmark {
   @Benchmark
   def fs2Stream() = {
     FS2Stream
-      .emits((0 until streams))
+      .emits(0 until streams)
       .map(i => FS2Stream.eval(MonixTask.eval(i)))
       .covary[monix.eval.Task]
       .parJoinUnbounded
@@ -76,5 +90,14 @@ class ObservableMergeBenchmark {
       .runDrain
 
     zioUntracedRuntime.unsafeRun(stream)
+  }
+
+  @Benchmark
+  def akkaStream(): Long = {
+    val stream = AkkaSource.fromIterator(() => (0 until streams).iterator)
+      .flatMapMerge(Int.MaxValue, i => AkkaSource.lazyFuture(() => Future.fromTry(Try(i))))
+      .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
+
+    Await.result(stream.run(), Duration.Inf)
   }
 }
