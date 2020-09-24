@@ -84,8 +84,8 @@ class ChunkedEvalFilterMapSumBenchmark {
     chunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
     fs2Chunks = chunks.map(fs2.Chunk.array)
     zioChunks = chunks.map(zio.Chunk.fromArray)
-    allElements = (1 to chunkCount * chunkSize)
-    expectedSum = (1 to chunkCount * chunkSize).sum.toLong
+    allElements = 1 to chunkCount * chunkSize
+    expectedSum = (1 to chunkCount * chunkSize).map(_.toLong).sum
   }
 
   @TearDown
