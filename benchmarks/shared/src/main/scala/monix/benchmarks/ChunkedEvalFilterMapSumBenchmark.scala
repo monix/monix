@@ -71,11 +71,10 @@ class ChunkedEvalFilterMapSumBenchmark {
   @Param(Array("1000"))
   var chunkSize: Int = _
 
-  // All events that need to be streamed
-  var allElements: IndexedSeq[Int] = _
   // For ensuring we get the result we expect
   var expectedSum: Long = _
 
+  var allElements: IndexedSeq[Int] = _
   var chunks: IndexedSeq[Array[Int]] = _
   var fs2Chunks: IndexedSeq[fs2.Chunk[Int]] = _
   var zioChunks: IndexedSeq[zio.Chunk[Int]] = _
@@ -85,8 +84,8 @@ class ChunkedEvalFilterMapSumBenchmark {
     chunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
     fs2Chunks = chunks.map(fs2.Chunk.array)
     zioChunks = chunks.map(zio.Chunk.fromArray)
-    allElements = chunks.flatten
-    expectedSum = allElements.sum.toLong
+    allElements = (1 to chunkCount * chunkSize)
+    expectedSum = (1 to chunkCount * chunkSize).sum.toLong
   }
 
   @TearDown
@@ -98,18 +97,12 @@ class ChunkedEvalFilterMapSumBenchmark {
   @Benchmark
   def fs2Stream = {
     val stream = FS2Stream
-      // 1: iteration
-      .apply(allElements: _*)
-      // 2: collect buffers
+      .range(1, chunkCount * chunkSize + 1)
       .chunkN(chunkSize)
-      // 3: eval map
       .evalMap[MonixTask, Int](chunk => MonixTask(sumIntScala(chunk.iterator)))
-      // 4: filter
       .filter(_ > 0)
-      // 5: map
       .map(_.toLong)
       .compile
-      // 6: foldLeft
       .fold(0L)(_ + _)
 
     testResult(stream.runSyncUnsafe())
@@ -119,12 +112,9 @@ class ChunkedEvalFilterMapSumBenchmark {
   def fs2StreamPreChunked = {
     val stream = FS2Stream(fs2Chunks: _*)
       .evalMap[MonixTask, Int](chunk => MonixTask(sumIntScala(chunk.iterator)))
-      // 4: filter
       .filter(_ > 0)
-      // 5: map
       .map(_.toLong)
       .compile
-      // 6: foldLeft
       .fold(0L)(_ + _)
 
     testResult(stream.runSyncUnsafe())
@@ -132,19 +122,12 @@ class ChunkedEvalFilterMapSumBenchmark {
 
   @Benchmark
   def monixObservable() = {
-    // N.B. chunks aren't needed for Monix's Observable ;-)
     val stream = MonixObservable
-      // 1: iteration
-      .fromIterable(allElements)
-      // 2: collect buffers
+      .range(1L, (chunkCount * chunkSize + 1).toLong)
       .bufferTumbling(chunkSize)
-      // 3: eval map
-      .mapEval[Int](seq => MonixTask(sumIntScala(seq)))
-      // 4: filter
+      .mapEval[Int](seq => MonixTask(sumLongScala(seq)))
       .filter(_ > 0)
-      // 5: map
       .map(_.toLong)
-      // 6: foldLeft
       .foldLeftL(0L)(_ + _)
 
     testResult(stream.runSyncUnsafe())
@@ -152,17 +135,11 @@ class ChunkedEvalFilterMapSumBenchmark {
 
   @Benchmark
   def monixObservablePreChunked() = {
-    // N.B. chunks aren't needed for Monix's Observable ;-)
     val stream = MonixObservable
-      // 1: iteration
       .fromIterable(chunks)
-      // 3: eval map
       .mapEval[Int](seq => MonixTask(sumIntScala(seq)))
-      // 4: filter
       .filter(_ > 0)
-      // 5: map
       .map(_.toLong)
-      // 6: foldLeft
       .foldLeftL(0L)(_ + _)
 
     testResult(stream.runSyncUnsafe())
@@ -171,17 +148,24 @@ class ChunkedEvalFilterMapSumBenchmark {
   @Benchmark
   def zioStream = {
     val stream = ZStream
-      // 1: iteration
-      .fromIterable(allElements)
-      // 2: collect buffers
+      .range(1, chunkCount * chunkSize + 1)
       .chunkN(chunkSize)
-      // 3: eval map
       .mapChunksM(chunk => UIO(Chunk.single(sumIntScala(chunk))))
-      // 4: filter
       .filter(_ > 0)
-      // 5: map
       .map(_.toLong)
-      // 6: foldLeft
+      .fold(0L)(_ + _)
+
+    testResult(zioUntracedRuntime.unsafeRun(stream))
+  }
+
+  @Benchmark
+  def zioStreamStrictCollection = {
+    val stream = ZStream
+      .fromIterable(allElements)
+      .chunkN(chunkSize)
+      .mapChunksM(chunk => UIO(Chunk.single(sumIntScala(chunk))))
+      .filter(_ > 0)
+      .map(_.toLong)
       .fold(0L)(_ + _)
 
     testResult(zioUntracedRuntime.unsafeRun(stream))
@@ -190,15 +174,10 @@ class ChunkedEvalFilterMapSumBenchmark {
   @Benchmark
   def zioStreamPreChunked = {
     val stream = ZStream
-      // 1: iteration
       .fromChunks(zioChunks: _*)
-      // 3: eval map
       .mapChunksM(chunk => UIO(Chunk.single(sumIntScala(chunk))))
-      // 4: filter
       .filter(_ > 0)
-      // 5: map
       .map(_.toLong)
-      // 6: foldLeft
       .fold(0L)(_ + _)
 
     testResult(zioUntracedRuntime.unsafeRun(stream))
@@ -206,27 +185,25 @@ class ChunkedEvalFilterMapSumBenchmark {
 
   @Benchmark
   def akkaStreams = {
-    // N.B. Akka Streams don't do chunks
-    val stream: RunnableGraph[Future[Long]] = AkkaSource
-      .fromIterator(() => allElements.iterator)
-      .sliding(chunkSize, chunkSize)
-      .mapAsync(1)(seq => Future(sumIntScala(seq))(monix.execution.schedulers.TrampolineExecutionContext.immediate))
-      .filter(_ > 0)
-      .map(_.toLong)
-      .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
+    val stream: RunnableGraph[Future[Long]] =
+      AkkaSource(1 to chunkCount * chunkSize + 1)
+        .sliding(chunkSize, chunkSize)
+        .mapAsync(1)(seq => Future(sumIntScala(seq))(monix.execution.schedulers.TrampolineExecutionContext.immediate))
+        .filter(_ > 0)
+        .map(_.toLong)
+        .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
 
     testResult(Await.result(stream.run(), Duration.Inf))
   }
 
   @Benchmark
   def akkaStreamsPreChunked = {
-    // N.B. Akka Streams don't do chunks
-    val stream: RunnableGraph[Future[Long]] = AkkaSource
-      .fromIterator(() => chunks.iterator)
-      .mapAsync(1)(seq => Future(sumIntScala(seq))(monix.execution.schedulers.TrampolineExecutionContext.immediate))
-      .filter(_ > 0)
-      .map(_.toLong)
-      .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
+    val stream: RunnableGraph[Future[Long]] =
+      AkkaSource(chunks)
+        .mapAsync(1)(seq => Future(sumIntScala(seq))(monix.execution.schedulers.TrampolineExecutionContext.immediate))
+        .filter(_ > 0)
+        .map(_.toLong)
+        .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
 
     testResult(Await.result(stream.run(), Duration.Inf))
 
@@ -237,6 +214,15 @@ class ChunkedEvalFilterMapSumBenchmark {
       throw new RuntimeException(s"received: $r != expected: $expectedSum")
     }
     r
+  }
+
+  def sumLongScala(seq: Iterable[Long]): Int = {
+    val cursor = seq.iterator
+    var sum = 0L
+    while (cursor.hasNext) {
+      sum += cursor.next()
+    }
+    sum.toInt
   }
 
   def sumIntScala(seq: Iterable[Int]): Int = {
