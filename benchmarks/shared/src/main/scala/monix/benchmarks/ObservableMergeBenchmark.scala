@@ -94,7 +94,7 @@ class ObservableMergeBenchmark {
 
   @Benchmark
   def akkaStream(): Long = {
-    val stream = AkkaSource.fromIterator(() => (0 until streams).iterator)
+    val stream = AkkaSource(0 until streams)
       .flatMapMerge(Int.MaxValue, i => AkkaSource.lazyFuture(() => Future.fromTry(Try(i))))
       .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
 

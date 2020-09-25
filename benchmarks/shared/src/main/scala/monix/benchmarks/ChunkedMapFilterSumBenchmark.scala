@@ -144,8 +144,7 @@ class ChunkedMapFilterSumBenchmark {
 
   @Benchmark
   def akkaStream(): Long = {
-    val stream = AkkaSource
-      .fromIterator(() => allElements.iterator)
+    val stream = AkkaSource(allElements)
       .map(_ + 1)
       .filter(_ % 2 == 0)
       .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
