@@ -1095,6 +1095,44 @@ object Coeval extends CoevalInstancesLevel0 {
     r.map(_.result())
   }
 
+  /**
+    * Returns the given argument if `cond` is true, otherwise `Coeval.Unit`
+    *
+    * @see [[Coeval.unless]] for the inverse
+    * @see [[Coeval.raiseWhen]] for conditionally raising an error
+    */
+  def when(cond: Boolean)(action: => Coeval[Unit]): Coeval[Unit] = if (cond) action else Coeval.unit
+
+  /**
+    * Returns the given argument if `cond` is false, otherwise `Coeval.Unit`
+    *
+    * @see [[Coeval.when]] for the inverse
+    * @see [[Coeval.raiseWhen]] for conditionally raising an error
+    */
+  def unless(cond: Boolean)(action: => Coeval[Unit]): Coeval[Unit] = if (cond) Coeval.unit else action
+
+  /**
+    * Returns `raiseError` when the `cond` is true, otherwise `Coeval.unit`
+    *
+    * @example {{{
+    * val tooMany = 5
+    * val x: Int = ???
+    * Coeval.raiseWhen(x >= tooMany)(new IllegalArgumentException("Too many"))
+    * }}}
+    */
+  def raiseWhen(cond: Boolean)(e: => Throwable): Coeval[Unit] = Coeval.when(cond)(Coeval.raiseError(e))
+
+  /**
+    * Returns `raiseError` when `cond` is false, otherwise Coeval.unit
+    *
+    * @example {{{
+    * val tooMany = 5
+    * val x: Int = ???
+    * Coeval.raiseUnless(x < tooMany)(new IllegalArgumentException("Too many"))
+    * }}}
+    */
+  def raiseUnless(cond: Boolean)(e: => Throwable): Coeval[Unit] = Coeval.unless(cond)(Coeval.raiseError(e))
+
   /** Zips together multiple [[Coeval]] instances. */
   def zipList[A](sources: Coeval[A]*): Coeval[List[A]] = {
     val init = eval(mutable.ListBuffer.empty[A])

@@ -3549,6 +3549,45 @@ object Task extends TaskInstancesLevel1 {
     implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
     TaskSequence.traverse(in, f)(bf)
 
+  /**
+    * Returns the given argument if `cond` is true, otherwise `Task.Unit`
+    *
+    * @see [[Task.unless]] for the inverse
+    * @see [[Task.raiseWhen]] for conditionally raising an error
+    */
+  def when(cond: Boolean)(action: => Task[Unit]): Task[Unit] = if (cond) action else Task.unit
+
+  /**
+    * Returns the given argument if `cond` is false, otherwise `Task.Unit`
+    *
+    * @see [[Task.when]] for the inverse
+    * @see [[Task.raiseWhen]] for conditionally raising an error
+    */
+  def unless(cond: Boolean)(action: => Task[Unit]): Task[Unit] = if (cond) Task.unit else action
+
+  /**
+    * Returns `raiseError` when the `cond` is true, otherwise `Task.unit`
+    *
+    * @example {{{
+    * val tooMany = 5
+    * val x: Int = ???
+    * Task.raiseWhen(x >= tooMany)(new IllegalArgumentException("Too many"))
+    * }}}
+    */
+  def raiseWhen(cond: Boolean)(e: => Throwable): Task[Unit] = Task.when(cond)(Task.raiseError(e))
+
+  /**
+    * Returns `raiseError` when `cond` is false, otherwise Task.unit
+    *
+    * @example {{{
+    * val tooMany = 5
+    * val x: Int = ???
+    * Task.raiseUnless(x < tooMany)(new IllegalArgumentException("Too many"))
+    * }}}
+    */
+  def raiseUnless(cond: Boolean)(e: => Throwable): Task[Unit] = Task.unless(cond)(Task.raiseError(e))
+
+
   /** Executes the given sequence of tasks in parallel, non-deterministically
     * gathering their results, returning a task that will signal the sequence
     * of results once all tasks are finished.
