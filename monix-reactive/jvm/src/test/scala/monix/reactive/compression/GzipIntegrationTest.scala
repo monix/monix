@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.reactive.compress
+package monix.reactive.compression
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream}
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}

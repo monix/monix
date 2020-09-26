@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.reactive.compress.internal.operators
+package monix.reactive.compression.internal.operators
 
 import java.util.zip.{CRC32, DataFormatException, Inflater}
 import java.{util => ju}
@@ -23,8 +23,14 @@ import java.{util => ju}
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.Observable.Operator
-import monix.reactive.compress.internal.operators.Gunzipper._
-import monix.reactive.compress.{CompressionException, gzipCompressionMethod, gzipFlag, gzipMagicFirstByte, gzipMagicSecondByte}
+import monix.reactive.compression.internal.operators.Gunzipper._
+import monix.reactive.compression.{
+  gzipCompressionMethod,
+  gzipFlag,
+  gzipMagicFirstByte,
+  gzipMagicSecondByte,
+  CompressionException
+}
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
@@ -32,7 +38,7 @@ import scala.concurrent.Future
 import scala.util.Success
 import scala.util.control.NonFatal
 
-private[compress] final class GunzipOperator(bufferSize: Int) extends Operator[Array[Byte], Array[Byte]] {
+private[compression] final class GunzipOperator(bufferSize: Int) extends Operator[Array[Byte], Array[Byte]] {
 
   def apply(out: Subscriber[Array[Byte]]): Subscriber[Array[Byte]] =
     new Subscriber[Array[Byte]] {

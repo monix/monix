@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.reactive.compress
+package monix.reactive.compression
 
 import monix.eval.Task
 import monix.reactive.Observable

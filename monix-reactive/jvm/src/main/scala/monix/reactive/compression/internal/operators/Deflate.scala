@@ -15,18 +15,30 @@
  * limitations under the License.
  */
 
-package monix.reactive.compress
+package monix.reactive.compression.internal.operators
 
-import minitest.SimpleTestSuite
-import minitest.laws.Checkers
-import monix.execution.Scheduler
+import java.util.zip.Deflater
+import java.{util => ju}
 
-trait BaseTestSuite extends SimpleTestSuite with Checkers {
+import monix.reactive.compression.FlushMode
 
-  implicit val scheduler: Scheduler =
-    Scheduler.computation(parallelism = 4, name = "compression-tests", daemonic = true)
+import scala.annotation.tailrec
 
-  def assertArrayEquals[T](a1: Array[T], a2: Array[T]): Unit = {
-    assertEquals(a1.toList, a2.toList)
+private[compression] object Deflate {
+
+  def pullOutput(
+    deflater: Deflater,
+    buffer: Array[Byte],
+    flushMode: FlushMode
+  ): Array[Byte] = {
+    @tailrec
+    def next(acc: Array[Byte]): Array[Byte] = {
+      val size = deflater.deflate(buffer, 0, buffer.length, flushMode.jValue)
+      val current = ju.Arrays.copyOf(buffer, size)
+      if (current.isEmpty) acc
+      else next(acc ++ current)
+    }
+
+    next(Array.emptyByteArray)
   }
 }

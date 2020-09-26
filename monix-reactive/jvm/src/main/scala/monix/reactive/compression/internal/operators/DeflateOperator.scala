@@ -15,21 +15,21 @@
  * limitations under the License.
  */
 
-package monix.reactive.compress.internal.operators
+package monix.reactive.compression.internal.operators
 
 import java.util.zip.Deflater
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.reactive.Observable.Operator
-import monix.reactive.compress.{CompressionLevel, CompressionParameters, CompressionStrategy, FlushMode}
+import monix.reactive.compression.{CompressionLevel, CompressionParameters, CompressionStrategy, FlushMode}
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 import scala.util.Success
 import scala.util.control.NonFatal
 
-private[compress] final class DeflateOperator(
+private[compression] final class DeflateOperator(
   bufferSize: Int,
   params: CompressionParameters,
   noWrap: Boolean

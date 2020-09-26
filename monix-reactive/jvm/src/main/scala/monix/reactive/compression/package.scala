@@ -20,10 +20,10 @@ package monix.reactive
 import java.time.Instant
 import java.util.zip.Deflater
 
-import monix.reactive.compress.internal.operators.{DeflateOperator, GunzipOperator, GzipOperator, InflateOperator}
+import monix.reactive.compression.internal.operators.{DeflateOperator, GunzipOperator, GzipOperator, InflateOperator}
 
 // From https://github.com/typelevel/fs2/blob/main/core/jvm/src/main/scala/fs2/compression.scala
-package object compress {
+package object compression {
 
   /** Returns a stream that incrementally compresses input into the GZIP format
     *
@@ -94,11 +94,11 @@ package object compress {
     source.liftByOperator(new InflateOperator(bufferSize, noWrap))
   }
 
-  private[compress] val zeroByte: Byte = 0
-  private[compress] val gzipMagicFirstByte: Byte = 0x1f.toByte
-  private[compress] val gzipMagicSecondByte: Byte = 0x8b.toByte
+  private[compression] val zeroByte: Byte = 0
+  private[compression] val gzipMagicFirstByte: Byte = 0x1f.toByte
+  private[compression] val gzipMagicSecondByte: Byte = 0x8b.toByte
 
-  private[compress] object gzipFlag {
+  private[compression] object gzipFlag {
     def apply(flags: Byte, flag: Byte): Boolean = (flags & flag) == flag
 
     def apply(flags: Byte, flag: Int): Boolean = (flags & flag) == flag
@@ -129,12 +129,12 @@ package object compress {
     val RESERVED_BIT_7: Int = 128
   }
 
-  private[compress] object gzipExtraFlag {
+  private[compression] object gzipExtraFlag {
     val DEFLATE_MAX_COMPRESSION_SLOWEST_ALGO: Byte = 2
     val DEFLATE_FASTEST_ALGO: Byte = 4
   }
 
-  private[compress] object gzipCompressionMethod {
+  private[compression] object gzipCompressionMethod {
     val DEFLATE: Byte = Deflater.DEFLATED.toByte
   }
 }

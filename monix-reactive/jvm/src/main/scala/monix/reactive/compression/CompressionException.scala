@@ -15,30 +15,15 @@
  * limitations under the License.
  */
 
-package monix.reactive.compress.internal.operators
+package monix.reactive.compression
 
-import java.util.zip.Deflater
-import java.{util => ju}
+/** Signals that exception occurred in compression/decompression */
+class CompressionException private (message: String, cause: Exception) extends RuntimeException(message, cause)
 
-import monix.reactive.compress.FlushMode
+object CompressionException {
+  def apply(message: String, cause: Option[Exception] = None) =
+    new CompressionException(message, cause.getOrElse(null))
 
-import scala.annotation.tailrec
-
-private[compress] object Deflate {
-
-  def pullOutput(
-    deflater: Deflater,
-    buffer: Array[Byte],
-    flushMode: FlushMode
-  ): Array[Byte] = {
-    @tailrec
-    def next(acc: Array[Byte]): Array[Byte] = {
-      val size = deflater.deflate(buffer, 0, buffer.length, flushMode.jValue)
-      val current = ju.Arrays.copyOf(buffer, size)
-      if (current.isEmpty) acc
-      else next(acc ++ current)
-    }
-
-    next(Array.emptyByteArray)
-  }
+  def apply(cause: Exception) =
+    new CompressionException(cause.getMessage(), cause)
 }

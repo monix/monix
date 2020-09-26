@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.reactive.compress
+package monix.reactive.compression
 
 import minitest.api.AssertionException
 import monix.reactive.Observable

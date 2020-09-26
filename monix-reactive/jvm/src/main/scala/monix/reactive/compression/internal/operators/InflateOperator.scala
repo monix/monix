@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.reactive.compress.internal.operators
+package monix.reactive.compression.internal.operators
 
 import java.util.zip.{DataFormatException, Inflater}
 import java.{util => ju}
@@ -23,7 +23,7 @@ import java.{util => ju}
 import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.Observable.Operator
-import monix.reactive.compress.CompressionException
+import monix.reactive.compression.CompressionException
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
@@ -31,7 +31,7 @@ import scala.concurrent.Future
 import scala.util.Success
 import scala.util.control.NonFatal
 
-private[compress] final class InflateOperator(bufferSize: Int, noWrap: Boolean)
+private[compression] final class InflateOperator(bufferSize: Int, noWrap: Boolean)
   extends Operator[Array[Byte], Array[Byte]] {
 
   def apply(out: Subscriber[Array[Byte]]): Subscriber[Array[Byte]] =

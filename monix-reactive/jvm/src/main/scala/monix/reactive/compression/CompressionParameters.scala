@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.reactive.compress
+package monix.reactive.compression
 
 final case class CompressionParameters(
   level: CompressionLevel,

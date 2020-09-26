@@ -15,11 +15,18 @@
  * limitations under the License.
  */
 
-package monix.reactive.compress
+package monix.reactive.compression
 
-trait CompressionTestData {
-  val shortText = "abcdefg1234567890".getBytes
-  val otherShortText = "AXXX\u0000XXXA".getBytes
-  val longText = Array.fill(1000)(shortText).flatten
-  val `1K` = 1024
+import minitest.SimpleTestSuite
+import minitest.laws.Checkers
+import monix.execution.Scheduler
+
+trait BaseTestSuite extends SimpleTestSuite with Checkers {
+
+  implicit val scheduler: Scheduler =
+    Scheduler.computation(parallelism = 4, name = "compression-tests", daemonic = true)
+
+  def assertArrayEquals[T](a1: Array[T], a2: Array[T]): Unit = {
+    assertEquals(a1.toList, a2.toList)
+  }
 }

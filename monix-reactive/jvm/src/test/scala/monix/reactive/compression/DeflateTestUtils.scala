@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.reactive.compress
+package monix.reactive.compression
 
 import java.io.ByteArrayInputStream
 import java.util.Arrays

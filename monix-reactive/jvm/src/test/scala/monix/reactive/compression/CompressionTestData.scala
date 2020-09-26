@@ -15,15 +15,11 @@
  * limitations under the License.
  */
 
-package monix.reactive.compress
+package monix.reactive.compression
 
-/** Signals that exception occurred in compression/decompression */
-class CompressionException private (message: String, cause: Exception) extends RuntimeException(message, cause)
-
-object CompressionException {
-  def apply(message: String, cause: Option[Exception] = None) =
-    new CompressionException(message, cause.getOrElse(null))
-
-  def apply(cause: Exception) =
-    new CompressionException(cause.getMessage(), cause)
+trait CompressionTestData {
+  val shortText = "abcdefg1234567890".getBytes
+  val otherShortText = "AXXX\u0000XXXA".getBytes
+  val longText = Array.fill(1000)(shortText).flatten
+  val `1K` = 1024
 }

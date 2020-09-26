@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.reactive.compress.internal.operators
+package monix.reactive.compression.internal.operators
 
 import java.nio.charset.StandardCharsets
 import java.time.Instant
@@ -24,8 +24,8 @@ import java.util.zip.{CRC32, Deflater}
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.reactive.Observable.Operator
-import monix.reactive.compress.internal.operators.Gzipper.gzipOperatingSystem
-import monix.reactive.compress.{
+import monix.reactive.compression.internal.operators.Gzipper.gzipOperatingSystem
+import monix.reactive.compression.{
   gzipCompressionMethod,
   gzipExtraFlag,
   gzipFlag,
@@ -43,7 +43,7 @@ import scala.concurrent.Future
 import scala.util.Success
 import scala.util.control.NonFatal
 
-private[compress] final class GzipOperator(
+private[compression] final class GzipOperator(
   fileName: Option[String],
   modificationTime: Option[Instant],
   comment: Option[String],
