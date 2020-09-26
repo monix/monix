@@ -42,7 +42,7 @@ abstract class BaseDecompressionTest extends BaseTestSuite with CompressionTestD
   testAsync("stream of two deflated inputs as a single chunk") {
     (jdkCompressedStream(shortText) ++ jdkCompressedStream(otherShortText))
       .bufferTumbling(2)
-      .concatMapIterable(identity)
+      .concatMapIterable(seq => seq.toList)
       .transform(decompress(bufferSize = 64))
       .toListL
       .map(list => assertEquals(list.flatten, (shortText ++ otherShortText).toList))
