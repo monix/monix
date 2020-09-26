@@ -28,6 +28,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
 import scala.concurrent.Future
+import scala.util.Success
 import scala.util.control.NonFatal
 
 private[compress] final class InflateOperator(bufferSize: Int, noWrap: Boolean)
@@ -69,16 +70,21 @@ private[compress] final class InflateOperator(bufferSize: Int, noWrap: Boolean)
         if (!isDone) {
           isDone = true
           if (ack == null) ack = Continue
-          ack.syncOnContinue {
-            try {
-              out.onNext(inflater.finish())
-            } catch {
-              case e if NonFatal(e) =>
-                out.onError(e)
-            } finally {
-              inflater.close()
-            }
-            out.onComplete()
+          ack.syncOnComplete {
+            case Success(Continue) =>
+              var streamErrors = true
+              try {
+                val lastArray = inflater.finish()
+                streamErrors = false
+                out.onNext(lastArray)
+                out.onComplete()
+              } catch {
+                case NonFatal(e) if streamErrors =>
+                  out.onError(e)
+              } finally {
+                inflater.close()
+              }
+            case _ => inflater.close()
           }
           ()
         }
