@@ -40,6 +40,8 @@ import monix.reactive.compress.{
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
+import scala.util.Success
+import scala.util.control.NonFatal
 
 private[compress] final class GzipOperator(
   fileName: Option[String],
@@ -79,10 +81,22 @@ private[compress] final class GzipOperator(
 
       def onComplete(): Unit = {
         if (ack == null) ack = Continue
-        ack.syncOnContinue {
-          out.onNext(gzipper.finish())
-          gzipper.close()
-          out.onComplete()
+        ack.syncOnComplete {
+          case Success(Continue) =>
+            var streamErrors = true
+            try {
+              val lastArray = gzipper.finish()
+              streamErrors = false
+              out.onNext(lastArray)
+              out.onComplete()
+            } catch {
+              case NonFatal(e) if streamErrors =>
+                out.onError(e)
+            } finally {
+              gzipper.close()
+            }
+          case _ =>
+            gzipper.close()
         }
         ()
       }
