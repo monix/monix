@@ -22,7 +22,7 @@ import java.time.Instant
 import java.util.zip.{CRC32, Deflater}
 
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.Continue
 import monix.reactive.Observable.Operator
 import monix.reactive.compress.internal.operators.Gzipper.gzipOperatingSystem
 import monix.reactive.compress.{
@@ -52,7 +52,6 @@ private[compress] final class GzipOperator(
     new Subscriber[Array[Byte]] {
       implicit val scheduler = out.scheduler
 
-      private[this] var isDone = false
       private[this] var ack: Future[Ack] = _
       private[this] val gzipper =
         new Gzipper(
@@ -66,35 +65,27 @@ private[compress] final class GzipOperator(
         )
 
       def onNext(elem: Array[Byte]): Future[Ack] = {
-        if (isDone) {
-          Stop
-        } else {
-          val result = gzipper.onChunk(elem)
+        val result = gzipper.onChunk(elem)
 
-          // signaling downstream
-          ack = out.onNext(result)
-          ack
-        }
+        // signaling downstream
+        ack = out.onNext(result)
+        ack
       }
 
-      def onError(ex: Throwable): Unit =
-        if (!isDone) {
-          isDone = true
-          gzipper.close()
-          out.onError(ex)
-        }
+      def onError(ex: Throwable): Unit = {
+        gzipper.close()
+        out.onError(ex)
+      }
 
-      def onComplete(): Unit =
-        if (!isDone) {
-          isDone = true
-          if (ack == null) ack = Continue
-          ack.syncOnContinue {
-            out.onNext(gzipper.finish())
-            gzipper.close()
-            out.onComplete()
-          }
-          ()
+      def onComplete(): Unit = {
+        if (ack == null) ack = Continue
+        ack.syncOnContinue {
+          out.onNext(gzipper.finish())
+          gzipper.close()
+          out.onComplete()
         }
+        ()
+      }
     }
   }
 }
