@@ -24,17 +24,12 @@ import monix.execution.Ack
 import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.Observable.Operator
 import monix.reactive.compress.internal.operators.Gunzipper._
-import monix.reactive.compress.{
-  gzipCompressionMethod,
-  gzipFlag,
-  gzipMagicFirstByte,
-  gzipMagicSecondByte,
-  CompressionException
-}
+import monix.reactive.compress.{CompressionException, gzipCompressionMethod, gzipFlag, gzipMagicFirstByte, gzipMagicSecondByte}
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
 import scala.concurrent.Future
+import scala.util.Success
 import scala.util.control.NonFatal
 
 private[compress] final class GunzipOperator(bufferSize: Int) extends Operator[Array[Byte], Array[Byte]] {
@@ -75,18 +70,26 @@ private[compress] final class GunzipOperator(bufferSize: Int) extends Operator[A
         if (!isDone) {
           isDone = true
           if (ack == null) ack = Continue
-          ack.syncOnContinue {
-            try {
-              out.onNext(gunzipper.finish())
-            } catch {
-              case e if NonFatal(e) =>
-                out.onError(e)
-            } finally {
-              gunzipper.close()
-            }
-            out.onComplete()
+
+          ack.syncOnComplete {
+            case Success(Continue) =>
+              // Protect against contract violations - we are only allowed to
+              // call onError if no other terminal event has been called.
+              var streamErrors = true
+              try {
+                val lastArray = gunzipper.finish()
+                streamErrors = false
+                out.onNext(lastArray)
+                out.onComplete()
+              } catch {
+                case NonFatal(e) if streamErrors =>
+                  out.onError(e)
+              } finally {
+                gunzipper.close()
+              }
+
+            case _ => gunzipper.close()
           }
-          ()
         }
     }
 
