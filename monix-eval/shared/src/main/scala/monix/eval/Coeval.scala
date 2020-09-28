@@ -924,6 +924,12 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
       a => f(None).map(_ => a)
     )
 
+  /**
+    * Returns this coeval mapped to the supplied value.
+    */
+  final def as[B](b: B): Coeval[B] =
+    this.map(_ => b)
+
   /** Returns this coeval mapped to unit
     */
   final def void: Coeval[Unit] =

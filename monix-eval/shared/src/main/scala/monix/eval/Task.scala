@@ -2498,6 +2498,12 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
       end   <- Task.clock.monotonic(NANOSECONDS)
     } yield (FiniteDuration(end - start, NANOSECONDS), a)
 
+  /**
+    * Returns this task mapped to the supplied value.
+    */
+  final def as[B](b: B): Task[B] =
+    this.map(_ => b)
+
   /** Returns this task mapped to unit
     */
   final def void: Task[Unit] =
