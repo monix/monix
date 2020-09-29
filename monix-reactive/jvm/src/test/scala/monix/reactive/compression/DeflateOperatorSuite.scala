@@ -38,10 +38,7 @@ object DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
       .map(list =>
         assertEquals(
           list.flatten,
-          jdkDeflate(
-            Array.empty,
-            new Deflater(-1, false)
-          ).toList
+          jdkDeflate(Array.empty, new Deflater(-1, false)).toList
         ))
       .runToFuture
   }

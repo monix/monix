@@ -19,6 +19,7 @@ package monix.reactive.compression
 
 import java.util.zip.Deflater
 
+import monix.execution.exceptions.DummyException
 import monix.reactive.Observable
 
 import scala.concurrent.duration.Duration.Zero
@@ -62,7 +63,18 @@ object InflateOperatorSuite extends BaseDecompressionSuite with DeflateTestUtils
       Sample(o, sourceCount, sourceCount, Zero, Zero)
     }
 
-  override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[InflateOperatorSuite.Sample] = None
+  override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[InflateOperatorSuite.Sample] =
+    Some {
+      val o = (Observable
+        .repeatEval(jdkDeflate(longText, new Deflater(-1, true)))
+        .take(sourceCount.toLong)
+        .transform(inflate(noWrap = true)) ++ Observable
+        .repeatEval(longText) //corrupted payload
+        .transform(inflate(noWrap = true)))
+        .map(_ => 1L)
+        .onErrorFallbackTo(Observable.raiseError(DummyException("dummy")))
+      Sample(o, sourceCount + 1, sourceCount + 1, Zero, Zero)
+    }
 
   override def observableInError(sourceCount: Int, ex: Throwable): Option[InflateOperatorSuite.Sample] =
     Some {

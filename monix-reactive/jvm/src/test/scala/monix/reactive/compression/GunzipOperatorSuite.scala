@@ -18,6 +18,7 @@
 package monix.reactive.compression
 
 import minitest.api.AssertionException
+import monix.execution.exceptions.DummyException
 import monix.reactive.Observable
 
 import scala.concurrent.duration.Duration.Zero
@@ -92,8 +93,18 @@ object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
       Sample(o, sourceCount, sourceCount, Zero, Zero)
     }
 
-  //TODO should this be implemented as user provided data can be corrupted?
-  override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[GunzipOperatorSuite.Sample] = None
+  override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[GunzipOperatorSuite.Sample] =
+    Some {
+      val o = (Observable
+        .repeatEval(jdkGzip(longText, syncFlush = false))
+        .take(sourceCount.toLong - 1)
+        .transform(gunzip()) ++ Observable
+        .repeatEval(longText) //corrupted payload
+        .transform(gunzip()))
+        .map(_ => 1L)
+        .onErrorFallbackTo(Observable.raiseError(DummyException("dummy")))
+      Sample(o, sourceCount + 1, sourceCount + 1, Zero, Zero)
+    }
 
   override def observableInError(sourceCount: Int, ex: Throwable): Option[GunzipOperatorSuite.Sample] =
     Some {
