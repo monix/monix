@@ -17,10 +17,18 @@
 
 package monix.reactive.compression
 
+import monix.execution.Scheduler
 import monix.reactive.Observable
+import monix.reactive.internal.operators.BaseOperatorSuite
 
-object GzipTest extends BaseTestSuite with GzipTestsUtils {
-  testAsync("gzip empty bytes, small buffer") {
+import scala.concurrent.duration.Duration.Zero
+
+object GzipOperatorSuite extends BaseOperatorSuite with GzipTestsUtils {
+
+  implicit val scheduler: Scheduler =
+    Scheduler.computation(parallelism = 4, name = "compression-tests", daemonic = true)
+
+  testAsync("gzip empty bytes, small buffer") { _ =>
     Observable
       .empty[Array[Byte]]
       .transform(gzip(1))
@@ -28,7 +36,7 @@ object GzipTest extends BaseTestSuite with GzipTestsUtils {
       .map(l => assert(jdkGunzip(l.flatten.toArray).isEmpty))
       .runToFuture
   }
-  testAsync("gzip empty bytes") {
+  testAsync("gzip empty bytes") { _ =>
     Observable
       .empty[Array[Byte]]
       .transform(gzip(`1K`))
@@ -36,7 +44,7 @@ object GzipTest extends BaseTestSuite with GzipTestsUtils {
       .map(l => assert(jdkGunzip(l.flatten.toArray).isEmpty))
       .runToFuture
   }
-  testAsync("gzips, small chunks, small buffer") {
+  testAsync("gzips, small chunks, small buffer") { _ =>
     Observable
       .fromIterable(longText)
       .bufferTumbling(1)
@@ -46,7 +54,7 @@ object GzipTest extends BaseTestSuite with GzipTestsUtils {
       .map(l => assertArrayEquals(jdkGunzip(l.flatten.toArray), longText))
       .runToFuture
   }
-  testAsync("gzips, small chunks, 1k buffer") {
+  testAsync("gzips, small chunks, 1k buffer") { _ =>
     Observable
       .fromIterable(longText)
       .bufferTumbling(1)
@@ -56,7 +64,7 @@ object GzipTest extends BaseTestSuite with GzipTestsUtils {
       .map(l => assertArrayEquals(jdkGunzip(l.flatten.toArray), longText))
       .runToFuture
   }
-  testAsync("chunks bigger than buffer") {
+  testAsync("chunks bigger than buffer") { _ =>
     Observable
       .fromIterable(longText)
       .bufferTumbling(`1K`)
@@ -66,4 +74,34 @@ object GzipTest extends BaseTestSuite with GzipTestsUtils {
       .map(l => assertArrayEquals(jdkGunzip(l.flatten.toArray), longText))
       .runToFuture
   }
+
+  private def assertArrayEquals[T](a1: Array[T], a2: Array[T]): Unit = {
+    assertEquals(a1.toList, a2.toList)
+  }
+
+  override def createObservable(sourceCount: Int): Option[GzipOperatorSuite.Sample] =
+    Some {
+      val o = Observable
+        .repeatEval(longText)
+        .take(sourceCount.toLong - 1)
+        .transform(gzip())
+        .map(_ => 1L)
+      Sample(o, sourceCount, sourceCount, Zero, Zero)
+    }
+
+  override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[GzipOperatorSuite.Sample] = None
+
+  override def observableInError(sourceCount: Int, ex: Throwable): Option[GzipOperatorSuite.Sample] =
+    Some {
+      val o = createObservableEndingInError(
+        Observable
+          .repeatEval(longText)
+          .take(sourceCount.toLong - 1)
+          .transform(gzip())
+          .map(_ => 1L),
+        ex)
+      Sample(o, sourceCount, sourceCount, Zero, Zero)
+    }
+
+  override def cancelableObservables(): Seq[GzipOperatorSuite.Sample] = Seq.empty
 }

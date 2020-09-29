@@ -20,9 +20,11 @@ package monix.reactive.compression
 import minitest.api.AssertionException
 import monix.reactive.Observable
 
-object GunzipTest extends BaseDecompressionTest with GzipTestsUtils {
+import scala.concurrent.duration.Duration.Zero
 
-  testAsync("long input, no SYNC_FLUSH") {
+object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
+
+  testAsync("long input, no SYNC_FLUSH") { _ =>
     jdkGzippedStream(longText, syncFlush = false)
       .transform(gunzip(64))
       .toListL
@@ -30,7 +32,7 @@ object GunzipTest extends BaseDecompressionTest with GzipTestsUtils {
       .runToFuture
   }
 
-  testAsync("no output on very incomplete stream is not OK") {
+  testAsync("no output on very incomplete stream is not OK") { _ =>
     Observable
       .now((1 to 5).map(_.toByte).toArray)
       .transform(gunzip())
@@ -39,35 +41,35 @@ object GunzipTest extends BaseDecompressionTest with GzipTestsUtils {
       .onErrorRecover { case e if !e.isInstanceOf[AssertionException] => () }
       .runToFuture
   }
-  testAsync("parses header with FEXTRA") {
+  testAsync("parses header with FEXTRA") { _ =>
     headerWithExtra
       .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
-  testAsync("parses header with FCOMMENT") {
+  testAsync("parses header with FCOMMENT") { _ =>
     headerWithComment
       .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
-  testAsync("parses header with FNAME") {
+  testAsync("parses header with FNAME") { _ =>
     headerWithFileName
       .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
-  testAsync("parses header with CRC16") {
+  testAsync("parses header with CRC16") { _ =>
     headerWithCrc
       .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
-  testAsync("parses header with CRC16, FNAME, FCOMMENT, FEXTRA") {
+  testAsync("parses header with CRC16, FNAME, FCOMMENT, FEXTRA") { _ =>
     headerWithAll
       .transform(gunzip(64))
       .toListL
@@ -79,4 +81,31 @@ object GunzipTest extends BaseDecompressionTest with GzipTestsUtils {
     jdkGzippedStream(input, chunkSize = chunkSize)
 
   override def decompress(bufferSize: Int): Observable[Array[Byte]] => Observable[Array[Byte]] = gunzip(bufferSize)
+
+  override def createObservable(sourceCount: Int): Option[GunzipOperatorSuite.Sample] =
+    Some {
+      val o = Observable
+        .repeatEval(jdkGzip(longText, syncFlush = false))
+        .take(sourceCount.toLong - 1) //TODO why?
+        .transform(gunzip(64))
+        .map(_ => 1L)
+      Sample(o, sourceCount, sourceCount, Zero, Zero)
+    }
+
+  //TODO should this be implemented as user provided data can be corrupted?
+  override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[GunzipOperatorSuite.Sample] = None
+
+  override def observableInError(sourceCount: Int, ex: Throwable): Option[GunzipOperatorSuite.Sample] =
+    Some {
+      val o = createObservableEndingInError(
+        Observable
+          .repeatEval(jdkGzip(longText, syncFlush = false))
+          .take(sourceCount.toLong - 1) //TODO why?
+          .transform(gunzip(64))
+          .map(_ => 1L),
+        ex)
+      Sample(o, sourceCount, sourceCount, Zero, Zero)
+    }
+
+  override def cancelableObservables(): Seq[GunzipOperatorSuite.Sample] = Seq.empty
 }

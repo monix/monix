@@ -24,7 +24,7 @@ import monix.eval.Task
 import monix.reactive.Observable
 import org.scalacheck.Prop
 
-object GzipIntegrationTest extends BaseTestSuite {
+object GzipIntegrationTest extends CompressionIntegrationSuite {
   private implicit def a[A]: Task[Boolean] => Prop =
     _.runSyncUnsafe()
 
