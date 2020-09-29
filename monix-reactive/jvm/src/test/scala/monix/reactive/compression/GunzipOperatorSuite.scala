@@ -18,7 +18,6 @@
 package monix.reactive.compression
 
 import minitest.api.AssertionException
-import monix.execution.exceptions.DummyException
 import monix.reactive.Observable
 
 import scala.concurrent.duration.Duration.Zero
@@ -102,7 +101,7 @@ object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
         .repeatEval(longText) //corrupted payload
         .transform(gunzip()))
         .map(_ => 1L)
-        .onErrorFallbackTo(Observable.raiseError(DummyException("dummy")))
+        .onErrorFallbackTo(Observable.raiseError(ex))
       Sample(o, sourceCount + 1, sourceCount + 1, Zero, Zero)
     }
 
