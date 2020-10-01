@@ -1066,6 +1066,12 @@ object Coeval extends CoevalInstancesLevel0 {
       case Left(ex) => Coeval.raiseError(f(ex))
     }
 
+  /** Builds a [[Coeval]] of Left */
+  def left[A, B](a: A): Coeval[Either[A, B]] = Coeval.pure(Left(a))
+
+  /** Builds a [[Coeval]] of Right */
+  def right[A, B](a: B): Coeval[Either[A, B]] = Coeval.pure(Right(a))
+
   /** Keeps calling `f` until it returns a `Right` result.
     *
     * Based on Phil Freeman's

@@ -2866,6 +2866,11 @@ object Task extends TaskInstancesLevel1 {
       case Right(v) => Now(v)
       case Left(ex) => Error(f(ex))
     }
+  /** Builds a [[Task]] of Left */
+  def left[A, B](a: A): Task[Either[A, B]] = Task.pure(Left(a))
+
+  /** Builds a [[Task]] of Right */
+  def right[A, B](a: B): Task[Either[A, B]] = Task.pure(Right(a))
 
   /** Keeps calling `f` until it returns a `Right` result.
     *
