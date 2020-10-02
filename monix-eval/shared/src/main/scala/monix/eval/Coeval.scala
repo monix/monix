@@ -1072,6 +1072,12 @@ object Coeval extends CoevalInstancesLevel0 {
   /** Builds a [[Coeval]] of Right */
   def right[A, B](a: B): Coeval[Either[A, B]] = Coeval.pure(Right(a))
 
+  /** A [[Coeval]] of None */
+  def none[A]: Coeval[Option[A]] = Coeval.pure(Option.empty[A])
+
+  /** Builds a [[Coeval]] of Right */
+  def some[A](a: A): Coeval[Option[A]] = Coeval.pure(Some(a))
+
   /** Keeps calling `f` until it returns a `Right` result.
     *
     * Based on Phil Freeman's

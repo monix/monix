@@ -2872,6 +2872,12 @@ object Task extends TaskInstancesLevel1 {
   /** Builds a [[Task]] of Right */
   def right[A, B](a: B): Task[Either[A, B]] = Task.pure(Right(a))
 
+  /** A [[Task]] of None */
+  def none[A]: Task[Option[A]] = Task.pure(Option.empty[A])
+
+  /** Builds a [[Task]] of Right */
+  def some[A](a: A): Task[Option[A]] = Task.pure(Some(a))
+
   /** Keeps calling `f` until it returns a `Right` result.
     *
     * Based on Phil Freeman's
