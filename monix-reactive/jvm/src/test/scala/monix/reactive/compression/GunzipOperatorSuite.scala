@@ -86,8 +86,8 @@ object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
     Some {
       val o = Observable
         .repeatEval(jdkGzip(longText, syncFlush = false))
-        .take(sourceCount.toLong - 1) //TODO why?
-        .transform(gunzip(64))
+        .take(sourceCount.toLong - 1)
+        .transform(gunzip())
         .map(_ => 1L)
       Sample(o, sourceCount, sourceCount, Zero, Zero)
     }
@@ -96,7 +96,7 @@ object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
     Some {
       val o = (Observable
         .repeatEval(jdkGzip(longText, syncFlush = false))
-        .take(sourceCount.toLong - 1)
+        .take(sourceCount.toLong)
         .transform(gunzip()) ++ Observable
         .repeatEval(longText) //corrupted payload
         .transform(gunzip()))
@@ -110,7 +110,7 @@ object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
       val o = createObservableEndingInError(
         Observable
           .repeatEval(jdkGzip(longText, syncFlush = false))
-          .take(sourceCount.toLong - 1) //TODO why?
+          .take(sourceCount.toLong - 1)
           .transform(gunzip(64))
           .map(_ => 1L),
         ex)

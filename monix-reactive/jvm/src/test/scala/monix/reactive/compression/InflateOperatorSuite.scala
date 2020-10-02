@@ -56,7 +56,7 @@ object InflateOperatorSuite extends BaseDecompressionSuite with DeflateTestUtils
     Some {
       val o = Observable
         .repeatEval(jdkDeflate(longText, new Deflater(-1, true)))
-        .take(sourceCount.toLong - 1) //TODO why?
+        .take(sourceCount.toLong - 1)
         .transform(inflate(1024, noWrap = true))
         .map(_ => 1L)
       Sample(o, sourceCount, sourceCount, Zero, Zero)
@@ -80,7 +80,7 @@ object InflateOperatorSuite extends BaseDecompressionSuite with DeflateTestUtils
       val o = createObservableEndingInError(
         Observable
           .repeatEval(jdkDeflate(longText, new Deflater(-1, true)))
-          .take(sourceCount.toLong - 1) //TODO why?
+          .take(sourceCount.toLong - 1)
           .transform(inflate(1024, noWrap = true))
           .map(_ => 1L),
         ex
