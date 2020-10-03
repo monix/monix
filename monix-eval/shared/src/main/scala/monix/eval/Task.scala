@@ -2875,7 +2875,7 @@ object Task extends TaskInstancesLevel1 {
   /** A [[Task]] of None */
   def none[A]: Task[Option[A]] = Task.pure(Option.empty[A])
 
-  /** Builds a [[Task]] of Right */
+  /** Builds a [[Task]] of Some */
   def some[A](a: A): Task[Option[A]] = Task.pure(Some(a))
 
   /** Keeps calling `f` until it returns a `Right` result.
