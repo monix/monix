@@ -30,6 +30,8 @@ import scala.util.control.NonFatal
 import monix.eval.internal.TracingPlatform.{enhancedExceptions, isStackTracing}
 import monix.eval.tracing.{TaskEvent, TaskTrace}
 
+import scala.reflect.NameTransformer
+
 private[eval] object TaskRunLoop {
   type Current = Task[Any]
   type Bind = Any => Task[Any]
@@ -859,7 +861,9 @@ private[eval] object TaskRunLoop {
           .flatMap(t => TaskTrace.getOpAndCallSite(t.stackTrace))
           .map {
             case (methodSite, callSite) =>
-              new StackTraceElement(methodSite.getMethodName + " @ " + callSite.getClassName,
+              val op = NameTransformer.decode(methodSite.getMethodName)
+
+              new StackTraceElement(op + " @ " + callSite.getClassName,
                 callSite.getMethodName,
                 callSite.getFileName,
                 callSite.getLineNumber)
