@@ -648,6 +648,15 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   final def flatten[B](implicit ev: A <:< Coeval[B]): Coeval[B] =
     flatMap(a => a)
 
+  /** Creates a new `Coeval` that will run the given function on the success
+    * and return the original value.
+    */
+  final def tapEval[B](f: A => Coeval[B]): Coeval[A] = {
+    this.flatMap { a =>
+      f(a).map(_ => a)
+    }
+  }
+
   /** Returns a new task that upon evaluation will execute
     * the given function for the generated element,
     * transforming the source into a `Coeval[Unit]`.
@@ -913,6 +922,30 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     */
   final def onErrorRestartLoop[S, B >: A](initial: S)(f: (Throwable, S, S => Coeval[B]) => Coeval[B]): Coeval[B] =
     onErrorHandleWith(err => f(err, initial, state => (this: Coeval[B]).onErrorRestartLoop(state)(f)))
+
+  /** Creates a new `Coeval` that will run the given function in case of error
+    * and raise the original error in case the provided function is successful.
+    *
+    * Example:
+    *  {{{
+    *    // will result in Left("Error")
+    *    Coeval
+    *       .raiseError(new RuntimeException("Error"))
+    *       .tapError(err => Coeval(err))
+    *  }}}
+    *
+    * If provided function returns an error then the resulting coeval will raise that error instead.
+    *
+    * Example:
+    *  {{{
+    *    // will result in Left("Error2")
+    *    Coeval
+    *       .raiseError(new RuntimeException("Error1"))
+    *       .tapError(err => Coeval.raiseError(new RuntimeException("Error2")))
+    *  }}}
+    */
+  final def tapError[B](f: Throwable => Coeval[B]): Coeval[A] =
+    this.onErrorHandleWith(e => f(e).flatMap(_ => Coeval.raiseError(e)))
 
   /** Returns a new `Coeval` in which `f` is scheduled to be run on completion.
     * This would typically be used to release any resources acquired by this
