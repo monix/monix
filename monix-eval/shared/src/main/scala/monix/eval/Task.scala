@@ -1824,6 +1824,15 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   final def flatten[B](implicit ev: A <:< Task[B]): Task[B] =
     flatMap(a => a)
 
+  /** Creates a new `Task` that will run the given function on the success
+    * and return the original value.
+    */
+  final def tapEval[B](f: A => Task[B]): Task[A] = {
+    this.flatMap { a =>
+      f(a).map(_ => a)
+    }
+  }
+
   /** Returns a new task that upon evaluation will execute the given
     * function for the generated element, transforming the source into
     * a `Task[Unit]`.
@@ -2130,6 +2139,30 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     */
   final def onErrorRecover[U >: A](pf: PartialFunction[Throwable, U]): Task[U] =
     onErrorRecoverWith(pf.andThen(nowConstructor))
+
+  /** Creates a new `Task` that will run the given function in case of error
+    * and raise the original error in case the provided function is successful.
+    *
+    * Example:
+    *  {{{
+    *    // will result in Left("Error")
+    *    Task
+    *       .raiseError(new RuntimeException("Error"))
+    *       .tapError(err => Task(err))
+    *  }}}
+    *
+    * If provided function returns an error then the resulting task will raise that error instead.
+    *
+    * Example:
+    *  {{{
+    *    // will result in Left("Error2")
+    *    Task
+    *       .raiseError(new RuntimeException("Error1"))
+    *       .tapError(err => Task.raiseError(new RuntimeException("Error2")))
+    *  }}}
+    */
+  final def tapError[B](f: Throwable => Task[B]): Task[A] =
+    this.onErrorHandleWith(e => f(e).flatMap(_ => Task.raiseError(e)))
 
   /** Start execution of the source suspended in the `Task` context.
     *
