@@ -1,4 +1,4 @@
-val scalaJSVersion = Option(System.getenv("SCALAJS_VERSION")).filter(_.nonEmpty).getOrElse("1.2.0")
+val scalaJSVersion = Option(System.getenv("SCALAJS_VERSION")).filter(_.nonEmpty).getOrElse("1.3.0")
 
 addSbtPlugin("org.scala-js"              % "sbt-scalajs"             % scalaJSVersion)
 addSbtPlugin("com.eed3si9n"              % "sbt-unidoc"              % "0.4.3")
