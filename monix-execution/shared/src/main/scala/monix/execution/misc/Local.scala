@@ -179,19 +179,14 @@ object Local extends LocalCompanionDeprecated {
       case bound: Bound => bound.rest.set(key, value, isPresent)
     }
 
-    @tailrec private[misc] final def getOr[A](key: Key, default: => A): A = this match {
-      case unbound: Unbound => unbound.ref.get().getOrElse(key, default).asInstanceOf[A]
-      case bound: Bound if bound.key == key =>
-        if (bound.hasValue) bound.value.asInstanceOf[A] else default
-      case bound: Bound =>
-        bound.rest.getOr(key, default)
-    }
+    private[misc] final def getOr[A](key: Key, default: => A): A =
+      getOption(key).getOrElse(default)
 
     private[misc] final def getOption[A](key: Key): Option[A] = {
       var it = this
       var r: Option[A] = null
       while (r eq null) {
-        this match {
+        it match {
           case unbound: Unbound =>
             r = unbound.ref.get().get(key).asInstanceOf[Option[A]]
           case bound: Bound if bound.key == key =>
