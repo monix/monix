@@ -149,4 +149,16 @@ object LocalSuite extends SimpleTestSuite {
     assertEquals(l2.get, 0)
     assertEquals(l3.get, 1)
   }
+
+  test("local.value works inside bound context") {
+    val l1, l2 = Local(999)
+    var result: Option[Int] = None
+
+    l1.bind(0) {
+      l2.update(7)
+      result = l2.value
+    }
+
+    assertEquals(result, Some(7))
+  }
 }
