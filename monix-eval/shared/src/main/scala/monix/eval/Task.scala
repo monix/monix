@@ -1823,6 +1823,15 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   final def flatten[B](implicit ev: A <:< Task[B]): Task[B] =
     flatMap(a => a)
 
+  /** Creates a new `Task` that will run the given function on the success
+    * and return the original value.
+    */
+  final def tapEval[B](f: A => Task[B]): Task[A] = {
+    this.flatMap { a =>
+      f(a).map(_ => a)
+    }
+  }
+
   /** Returns a new task that upon evaluation will execute the given
     * function for the generated element, transforming the source into
     * a `Task[Unit]`.
@@ -2129,6 +2138,30 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     */
   final def onErrorRecover[U >: A](pf: PartialFunction[Throwable, U]): Task[U] =
     onErrorRecoverWith(pf.andThen(nowConstructor))
+
+  /** Creates a new `Task` that will run the given function in case of error
+    * and raise the original error in case the provided function is successful.
+    *
+    * Example:
+    *  {{{
+    *    // will result in Left("Error")
+    *    Task
+    *       .raiseError(new RuntimeException("Error"))
+    *       .tapError(err => Task(err))
+    *  }}}
+    *
+    * If provided function returns an error then the resulting task will raise that error instead.
+    *
+    * Example:
+    *  {{{
+    *    // will result in Left("Error2")
+    *    Task
+    *       .raiseError(new RuntimeException("Error1"))
+    *       .tapError(err => Task.raiseError(new RuntimeException("Error2")))
+    *  }}}
+    */
+  final def tapError[B](f: Throwable => Task[B]): Task[A] =
+    this.onErrorHandleWith(e => f(e).flatMap(_ => Task.raiseError(e)))
 
   /** Start execution of the source suspended in the `Task` context.
     *
@@ -2497,6 +2530,12 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
       end   <- Task.clock.monotonic(NANOSECONDS)
     } yield (FiniteDuration(end - start, NANOSECONDS), a)
 
+  /**
+    * Returns this task mapped to the supplied value.
+    */
+  final def as[B](b: B): Task[B] =
+    this.map(_ => b)
+
   /** Returns this task mapped to unit
     */
   final def void: Task[Unit] =
@@ -2859,6 +2898,17 @@ object Task extends TaskInstancesLevel1 {
       case Right(v) => Now(v)
       case Left(ex) => Error(f(ex))
     }
+  /** Builds a [[Task]] of Left */
+  def left[A, B](a: A): Task[Either[A, B]] = Task.pure(Left(a))
+
+  /** Builds a [[Task]] of Right */
+  def right[A, B](a: B): Task[Either[A, B]] = Task.pure(Right(a))
+
+  /** A [[Task]] of None */
+  def none[A]: Task[Option[A]] = Task.pure(Option.empty[A])
+
+  /** Builds a [[Task]] of Some */
+  def some[A](a: A): Task[Option[A]] = Task.pure(Some(a))
 
   /** Keeps calling `f` until it returns a `Right` result.
     *
@@ -3547,6 +3597,45 @@ object Task extends TaskInstancesLevel1 {
   def traverse[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(
     implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
     TaskSequence.traverse(in, f)(bf)
+
+  /**
+    * Returns the given argument if `cond` is true, otherwise `Task.Unit`
+    *
+    * @see [[Task.unless]] for the inverse
+    * @see [[Task.raiseWhen]] for conditionally raising an error
+    */
+  def when(cond: Boolean)(action: => Task[Unit]): Task[Unit] = if (cond) action else Task.unit
+
+  /**
+    * Returns the given argument if `cond` is false, otherwise `Task.Unit`
+    *
+    * @see [[Task.when]] for the inverse
+    * @see [[Task.raiseWhen]] for conditionally raising an error
+    */
+  def unless(cond: Boolean)(action: => Task[Unit]): Task[Unit] = if (cond) Task.unit else action
+
+  /**
+    * Returns `raiseError` when the `cond` is true, otherwise `Task.unit`
+    *
+    * @example {{{
+    * val tooMany = 5
+    * val x: Int = ???
+    * Task.raiseWhen(x >= tooMany)(new IllegalArgumentException("Too many"))
+    * }}}
+    */
+  def raiseWhen(cond: Boolean)(e: => Throwable): Task[Unit] = Task.when(cond)(Task.raiseError(e))
+
+  /**
+    * Returns `raiseError` when `cond` is false, otherwise Task.unit
+    *
+    * @example {{{
+    * val tooMany = 5
+    * val x: Int = ???
+    * Task.raiseUnless(x < tooMany)(new IllegalArgumentException("Too many"))
+    * }}}
+    */
+  def raiseUnless(cond: Boolean)(e: => Throwable): Task[Unit] = Task.unless(cond)(Task.raiseError(e))
+
 
   /** Executes the given sequence of tasks in parallel, non-deterministically
     * gathering their results, returning a task that will signal the sequence

@@ -21,7 +21,7 @@ addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 
 val cats_Version = "2.1.1"
 val catsEffect_Version = "2.1.4"
-val fs2_Version = "2.4.0"
+val fs2_Version = "2.4.4"
 val jcTools_Version = "3.0.1"
 val reactiveStreams_Version = "1.0.3"
 val minitest_Version = "2.8.2"
@@ -30,7 +30,7 @@ val implicitBox_Version = "0.2.0"
 val kindProjector_Version = "0.11.0"
 val betterMonadicFor_Version = "0.3.1"
 val silencer_Version = "1.7.1"
-val scalaCompat_Version = "2.1.6"
+val scalaCompat_Version = "2.2.0"
 val customScalaJS_Version =
   Option(sys.env.getOrElse("SCALAJS_VERSION", null)).filter(_.nonEmpty)
 
@@ -677,8 +677,9 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .settings(
     libraryDependencies ++= Seq(
       "io.monix" %% "monix" % "3.2.2",
-      "dev.zio" %% "zio-streams" % "1.0.0-RC21-2",
-      "co.fs2" %% "fs2-core" % fs2_CrossVersion.value
+      "dev.zio" %% "zio-streams" % "1.0.0",
+      "co.fs2" %% "fs2-core" % fs2_CrossVersion.value,
+      "com.typesafe.akka" %% "akka-stream" % "2.6.9"
   ))
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
@@ -690,6 +691,7 @@ lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .dependsOn(reactiveJVM, tailJVM)
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-streams" % "1.0.0-RC21-2",
-      "co.fs2" %% "fs2-core" % fs2_CrossVersion.value
+      "dev.zio" %% "zio-streams" % "1.0.0",
+      "co.fs2" %% "fs2-core" % fs2_CrossVersion.value,
+      "com.typesafe.akka" %% "akka-stream" % "2.6.9"
     ))

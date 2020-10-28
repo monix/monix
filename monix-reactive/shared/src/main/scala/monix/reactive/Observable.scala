@@ -767,6 +767,56 @@ abstract class Observable[+A] extends Serializable { self =>
     new BufferWithSelectorObservable(self, sampler, maxSize, sizeOf)
   }
 
+  /** Buffers elements while predicate returns true,
+    * after which it emits the buffered events as a single bundle
+    * and creates a new buffer.
+    *
+    * Usage:
+    *
+    * {{{
+    *   import monix.eval.Task
+    *
+    *   Observable(1, 1, 1, 2, 2, 1, 3)
+    *     .bufferWhile(_ == 1)
+    *     .doOnNext(l => Task(println(s"Emitted batch $$l")))
+    *
+    *   // Emitted batch List(1, 1, 1)
+    *   // Emitted batch List(2)
+    *   // Emitted batch List(2, 1)
+    *   // Emitted batch List(3)
+    * }}}
+    *
+    * @see [[bufferWhileInclusive]] for a similar operator that includes
+    *      the value that caused `predicate` to return `false`
+    */
+  final def bufferWhile(p: A => Boolean): Observable[Seq[A]] =
+    self.liftByOperator(new BufferWhileOperator(p, inclusive = false))
+
+  /** Buffers elements while predicate returns true,
+    * after which it emits the buffered events as a single bundle,
+    * including the value that caused `predicate` to return `false`
+    * and creates a new buffer.
+    *
+    * Usage:
+    *
+    * {{{
+    *   import monix.eval.Task
+    *
+    *   Observable(1, 1, 1, 2, 2, 1, 3)
+    *     .bufferWhileInclusive(_ == 1)
+    *     .doOnNext(l => Task(println(s"Emitted batch $$l")))
+    *
+    *   // Emitted batch List(1, 1, 1, 2)
+    *   // Emitted batch List(2)
+    *   // Emitted batch List(1, 3)
+    * }}}
+    *
+    * @see [[bufferWhile]] for a similar operator that does not include
+    *      the value that caused `predicate` to return `false`
+    */
+  final def bufferWhileInclusive(p: A => Boolean): Observable[Seq[A]] =
+    self.liftByOperator(new BufferWhileOperator(p, inclusive = true))
+
   /** $bufferWithSelectorDesc
     *
     * @param selector is the observable that triggers the
