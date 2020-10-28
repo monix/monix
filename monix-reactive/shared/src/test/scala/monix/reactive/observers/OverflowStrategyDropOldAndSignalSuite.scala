@@ -196,7 +196,7 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     val dropped = if (Platform.isJVM) 993 else 986
 
     assertEquals(received, (first to 1100).sum + 28)
-    assertEquals(log.get(), dropped)
+    assertEquals(log.get(), dropped.toLong)
 
     log.set(0)
     assertEquals(buffer.onNext(42), Continue)
@@ -283,7 +283,7 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
       def onComplete() = wasCompleted = true
     })
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x); () }
     buffer.onComplete()
     startConsuming.success(Continue)
 
@@ -305,7 +305,7 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
       def onComplete() = wasCompleted = true
     })
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x); () }
     buffer.onComplete()
     s.tick()
 
@@ -330,13 +330,13 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
       }
     )
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x); () }
     buffer.onError(DummyException("dummy"))
     startConsuming.success(Continue)
 
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
-    assertEquals(sum, (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
   test("should do onError only after all the queue was drained, test2") { implicit s =>
@@ -352,12 +352,12 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
       def onComplete() = throw new IllegalStateException()
     })
 
-    (0 until 9999).foreach(x => buffer.onNext(x))
+    (0 until 9999).foreach { x => buffer.onNext(x); () }
     buffer.onError(DummyException("dummy"))
 
     s.tick()
     assertEquals(errorThrown, DummyException("dummy"))
-    assertEquals(sum, (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
   test("should do synchronous execution in batches") { implicit s =>
@@ -382,9 +382,9 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 0)
 
     s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize)
+    assertEquals(received, Platform.recommendedBatchSize.toLong)
     s.tickOne()
-    assertEquals(received, Platform.recommendedBatchSize * 2)
+    assertEquals(received, Platform.recommendedBatchSize.toLong * 2)
     s.tickOne()
     assertEquals(wasCompleted, true)
   }

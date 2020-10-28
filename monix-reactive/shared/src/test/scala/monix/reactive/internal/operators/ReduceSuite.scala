@@ -28,7 +28,7 @@ import scala.concurrent.duration._
 object ReduceSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     if (sourceCount > 1) {
-      val o = Observable.range(1, sourceCount + 1).reduce(_ + _)
+      val o = Observable.range(1, sourceCount.toLong + 1).reduce(_ + _)
       Sample(o, 1, sum(sourceCount), Zero, Zero)
     } else {
       val o = Observable.range(1, 3).reduce(_ + _)
@@ -40,12 +40,12 @@ object ReduceSuite extends BaseOperatorSuite {
     sourceCount * (sourceCount + 1) / 2
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(1, sourceCount + 1).endWithError(ex).reduce(_ + _)
+    val o = Observable.range(1, sourceCount.toLong + 1).endWithError(ex).reduce(_ + _)
     Sample(o, 0, 0, Zero, Zero)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount + 1).reduce { (acc, elem) =>
+    val o = Observable.range(0, sourceCount.toLong + 1).reduce { (acc, elem) =>
       if (elem == sourceCount)
         throw ex
       else

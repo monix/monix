@@ -31,5 +31,8 @@ object compat {
     def hasDefiniteSize[X](i: IterableOnce[X]): Boolean = i.knownSize >= 0
 
     def newBuilder[From, A, C](bf: BuildFrom[From, A, C], from: From): mutable.Builder[A, C] = bf.newBuilder(from)
+
+    @inline def toSeq[A](array: Array[AnyRef]): Seq[A] =
+      new scala.collection.immutable.ArraySeq.ofRef(array).asInstanceOf[Seq[A]]
   }
 }

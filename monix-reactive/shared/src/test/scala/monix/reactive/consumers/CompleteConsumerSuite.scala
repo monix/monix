@@ -20,10 +20,9 @@ package monix.reactive.consumers
 import minitest.TestSuite
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
-import monix.execution.exceptions.DummyException
 import monix.reactive.{Consumer, Observable}
 
-import concurrent.duration._
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 object CompleteConsumerSuite extends TestSuite[TestScheduler] {

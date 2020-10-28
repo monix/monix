@@ -43,26 +43,26 @@ abstract class AtomicNumberSuite[A, R <: AtomicNumber[A]](
   val two = ev.plus(ev.one, ev.one)
 
   test("should get()") {
-    assert(Atomic(value).get == value)
-    assert(Atomic(maxValue).get == maxValue)
-    assert(Atomic(minValue).get == minValue)
+    assert(Atomic(value).get() == value)
+    assert(Atomic(maxValue).get() == maxValue)
+    assert(Atomic(minValue).get() == minValue)
   }
 
   test("should set()") {
     val r = Atomic(zero)
     r.set(value)
-    assert(r.get == value)
+    assert(r.get() == value)
     r.set(minValue)
-    assert(r.get == minValue)
+    assert(r.get() == minValue)
     r.set(maxValue)
-    assert(r.get == maxValue)
+    assert(r.get() == maxValue)
   }
 
   test("should compareAndSet()") {
     val r = Atomic(zero)
     assert(r.compareAndSet(zero, one))
     assert(!r.compareAndSet(zero, one))
-    assert(r.get == one)
+    assert(r.get() == one)
   }
 
   test("should getAndSet()") {
@@ -71,49 +71,49 @@ abstract class AtomicNumberSuite[A, R <: AtomicNumber[A]](
     assert(r.getAndSet(value) == one)
     assert(r.getAndSet(minValue) == value)
     assert(r.getAndSet(maxValue) == minValue)
-    assert(r.get == maxValue)
+    assert(r.get() == maxValue)
   }
 
   test("should increment()") {
     val r = Atomic(value)
     r.increment()
-    assert(r.get == ev.plus(value, one))
+    assert(r.get() == ev.plus(value, one))
     r.increment()
-    assert(r.get == ev.plus(value, ev.plus(one, one)))
+    assert(r.get() == ev.plus(value, ev.plus(one, one)))
   }
 
   test("should increment() and overflow on max") {
     if (!hasOverflow) ignore()
     val r = Atomic(maxValue)
     r.increment()
-    assert(r.get == minValue)
+    assert(r.get() == minValue)
   }
 
   test("should increment(value)") {
     val r = Atomic(value)
     r.increment(ev.toInt(value))
-    assert(r.get == ev.plus(value, ev.fromInt(ev.toInt(value))))
+    assert(r.get() == ev.plus(value, ev.fromInt(ev.toInt(value))))
   }
 
   test("should decrement()") {
     val r = Atomic(value)
     r.decrement()
-    assert(r.get == ev.minus(value, one))
+    assert(r.get() == ev.minus(value, one))
     r.decrement()
-    assert(r.get == ev.minus(value, ev.plus(one, one)))
+    assert(r.get() == ev.minus(value, ev.plus(one, one)))
   }
 
   test("should decrement(value)") {
     val r = Atomic(value)
     r.decrement(ev.toInt(value))
-    assert(r.get == ev.minus(value, ev.fromInt(ev.toInt(value))))
+    assert(r.get() == ev.minus(value, ev.fromInt(ev.toInt(value))))
   }
 
   test("should decrement() and overflow on min") {
     if (!hasOverflow) ignore()
     val r = Atomic(minValue)
     r.decrement()
-    assert(r.get == maxValue)
+    assert(r.get() == maxValue)
   }
 
   test("should incrementAndGet()") {
@@ -148,35 +148,35 @@ abstract class AtomicNumberSuite[A, R <: AtomicNumber[A]](
     val r = Atomic(value)
     assert(r.getAndIncrement() == value)
     assert(r.getAndIncrement() == ev.plus(value, one))
-    assert(r.get == ev.plus(value, two))
+    assert(r.get() == ev.plus(value, two))
   }
 
   test("should getAndIncrement(value)") {
     val r = Atomic(value)
     assert(r.getAndIncrement(2) == value)
     assert(r.getAndIncrement(2) == ev.plus(value, two))
-    assert(r.get == ev.plus(value, ev.plus(two, two)))
+    assert(r.get() == ev.plus(value, ev.plus(two, two)))
   }
 
   test("should getAndIncrement and overflow on max") {
     if (!hasOverflow) ignore()
     val r = Atomic(maxValue)
     assertEquals(r.getAndIncrement(), maxValue)
-    assertEquals(r.get, minValue)
+    assertEquals(r.get(), minValue)
   }
 
   test("should getAndDecrement()") {
     val r = Atomic(value)
     assert(r.getAndDecrement() == value)
     assert(r.getAndDecrement() == ev.minus(value, one))
-    assert(r.get == ev.minus(value, two))
+    assert(r.get() == ev.minus(value, two))
   }
 
   test("should getAndDecrement(value)") {
     val r = Atomic(value)
     assert(r.getAndDecrement(2) == value)
     assert(r.getAndDecrement(2) == ev.minus(value, two))
-    assert(r.get == ev.minus(value, ev.plus(two, two)))
+    assert(r.get() == ev.minus(value, ev.plus(two, two)))
   }
 
   test("should addAndGet(value)") {
@@ -189,35 +189,35 @@ abstract class AtomicNumberSuite[A, R <: AtomicNumber[A]](
     if (!hasOverflow) ignore()
     val r = Atomic(maxValue)
     assertEquals(r.addAndGet(ev.one), minValue)
-    assertEquals(r.get, minValue)
+    assertEquals(r.get(), minValue)
   }
 
   test("should add(value)") {
     val r = Atomic(value)
     r.add(value)
-    assert(r.get == ev.plus(value, value))
+    assert(r.get() == ev.plus(value, value))
     r.add(value)
-    assert(r.get == ev.plus(value, ev.plus(value, value)))
+    assert(r.get() == ev.plus(value, ev.plus(value, value)))
   }
 
   test("should add(value) and overflow on max") {
     if (!hasOverflow) ignore()
     val r = Atomic(maxValue)
     r.add(ev.one)
-    assertEquals(r.get, minValue)
+    assertEquals(r.get(), minValue)
   }
 
   test("should getAndAdd(value)") {
     val r = Atomic(value)
     assert(r.getAndAdd(value) == value)
-    assert(r.get == ev.plus(value, value))
+    assert(r.get() == ev.plus(value, value))
   }
 
   test("should getAndAdd and overflow on max") {
     if (!hasOverflow) ignore()
     val r = Atomic(maxValue)
     assertEquals(r.getAndAdd(ev.one), maxValue)
-    assertEquals(r.get, minValue)
+    assertEquals(r.get(), minValue)
   }
 
   test("should subtractAndGet(value)") {
@@ -235,48 +235,48 @@ abstract class AtomicNumberSuite[A, R <: AtomicNumber[A]](
   test("should subtract(value)") {
     val r = Atomic(value)
     r.subtract(value)
-    assert(r.get == ev.minus(value, value))
+    assert(r.get() == ev.minus(value, value))
     r.subtract(value)
-    assert(r.get == ev.minus(value, ev.plus(value, value)))
+    assert(r.get() == ev.minus(value, ev.plus(value, value)))
   }
 
   test("should subtract(value) and overflow on min") {
     if (!hasOverflow) ignore()
     val r = Atomic(minValue)
     r.subtract(ev.one)
-    assertEquals(r.get, maxValue)
+    assertEquals(r.get(), maxValue)
   }
 
   test("should getAndSubtract(value)") {
     val r = Atomic(value)
     assert(r.getAndSubtract(value) == value)
-    assert(r.get == zero)
+    assert(r.get() == zero)
   }
 
   test("should getAndSubtract(value) and overflow on min") {
     if (!hasOverflow) ignore()
     val r = Atomic(minValue)
     assertEquals(r.getAndSubtract(ev.one), minValue)
-    assertEquals(r.get, maxValue)
+    assertEquals(r.get(), maxValue)
   }
 
   test("should transform(inline #1)") {
     val r = Atomic(value)
     r.transform(x => ev.plus(x, x))
-    assert(r.get == ev.plus(value, value))
+    assert(r.get() == ev.plus(value, value))
   }
 
   test("should transform(inline #2)") {
     val r = Atomic(value)
     r.transform(ev.plus(one, _))
-    assert(r.get == ev.plus(one, value))
+    assert(r.get() == ev.plus(one, value))
   }
 
   test("should transform(function)") {
     val r = Atomic(value)
     def fn(x: A): A = ev.plus(x, x)
     r.transform(fn)
-    assert(r.get == ev.plus(value, value))
+    assert(r.get() == ev.plus(value, value))
   }
 
   test("should transformAndGet(inline #1)") {
@@ -298,44 +298,44 @@ abstract class AtomicNumberSuite[A, R <: AtomicNumber[A]](
   test("should getAndTransform(inline #1)") {
     val r = Atomic(value)
     assert(r.getAndTransform(x => ev.plus(x, x)) == value)
-    assert(r.get == ev.plus(value, value))
+    assert(r.get() == ev.plus(value, value))
   }
 
   test("should getAndTransform(inline #2)") {
     val r = Atomic(value)
     assert(r.getAndTransform(ev.plus(one, _)) == value)
-    assert(r.get == ev.plus(one, value))
+    assert(r.get() == ev.plus(one, value))
   }
 
   test("should getAndTransform(function)") {
     val r = Atomic(value)
     def fn(x: A) = ev.plus(x, x)
     assert(r.getAndTransform(fn) == value)
-    assert(r.get == ev.plus(value, value))
+    assert(r.get() == ev.plus(value, value))
   }
 
   test("should transformAndExtract()") {
     val r = Atomic(value)
     assert(r.transformAndExtract(x => (ev.plus(value, one), ev.plus(x, x))) == ev.plus(value, one))
-    assert(r.get == ev.plus(value, value))
+    assert(r.get() == ev.plus(value, value))
   }
 
   test("should transformAndExtract()") {
     val r = Atomic(value)
     assert(r.transformAndExtract(x => (ev.plus(value, one), ev.plus(x, x))) == ev.plus(value, one))
-    assert(r.get == ev.plus(value, value))
+    assert(r.get() == ev.plus(value, value))
   }
 
   test("should maybe overflow on max") {
     val r = Atomic(maxValue)
     r.increment()
-    assert(r.get == ev.plus(maxValue, one))
+    assert(r.get() == ev.plus(maxValue, one))
   }
 
   test("should maybe overflow on min") {
     val r = Atomic(minValue)
     r.decrement()
-    assert(r.get == ev.minus(minValue, one))
+    assert(r.get() == ev.minus(minValue, one))
   }
 }
 
@@ -351,10 +351,10 @@ abstract class AtomicDoubleSuite(strategy: PaddingStrategy, allowPlatformIntrins
     allowUnsafe) {
 
   test("should store MinPositiveValue, NaN, NegativeInfinity, PositiveInfinity") {
-    assert(Atomic(Double.MinPositiveValue).get == Double.MinPositiveValue)
-    assert(Atomic(Double.NaN).get.isNaN)
-    assert(Atomic(Double.NegativeInfinity).get.isNegInfinity)
-    assert(Atomic(Double.PositiveInfinity).get.isPosInfinity)
+    assert(Atomic(Double.MinPositiveValue).get() == Double.MinPositiveValue)
+    assert(Atomic(Double.NaN).get().isNaN)
+    assert(Atomic(Double.NegativeInfinity).get().isNegInfinity)
+    assert(Atomic(Double.PositiveInfinity).get().isPosInfinity)
   }
 }
 
@@ -370,10 +370,10 @@ abstract class AtomicFloatSuite(strategy: PaddingStrategy, allowPlatformIntrinsi
     allowUnsafe) {
 
   test("should store MinPositiveValue, NaN, NegativeInfinity, PositiveInfinity") {
-    assert(Atomic(Float.MinPositiveValue).get == Float.MinPositiveValue)
-    assert(Atomic(Float.NaN).get.isNaN)
-    assert(Atomic(Float.NegativeInfinity).get.isNegInfinity)
-    assert(Atomic(Float.PositiveInfinity).get.isPosInfinity)
+    assert(Atomic(Float.MinPositiveValue).get() == Float.MinPositiveValue)
+    assert(Atomic(Float.NaN).get().isNaN)
+    assert(Atomic(Float.NegativeInfinity).get().isNegInfinity)
+    assert(Atomic(Float.PositiveInfinity).get().isPosInfinity)
   }
 }
 

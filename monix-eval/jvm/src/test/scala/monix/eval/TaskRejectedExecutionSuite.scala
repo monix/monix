@@ -25,22 +25,23 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 
 object TaskRejectedExecutionSuite extends SimpleTestSuite {
-
   val limited = Scheduler(new ExecutionContext {
-    def execute(runnable: Runnable): Unit = throw new RejectedExecutionException()
+    def execute(runnable: Runnable): Unit =
+      throw new RejectedExecutionException()
     def reportFailure(cause: Throwable): Unit =
       fail("Exceptions should not be reported using scheduler")
   })
 
-  def testRejected[A](task: Task[A]): Unit =
+  def testRejected[A](task: Task[A]): Unit = {
     intercept[RejectedExecutionException] {
-
       val f = Future.traverse(1 to 10) { _ =>
         task.runToFuture(limited)
       }
-
       Await.result(f, 3.seconds)
+      ()
     }
+    ()
+  }
 
   test("Tasks should propagate RejectedExecutionException") {
     testRejected(Task.pure(0).executeAsync)

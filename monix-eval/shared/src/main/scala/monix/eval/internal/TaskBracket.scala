@@ -24,7 +24,6 @@ import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.atomic.Atomic
 import monix.execution.internal.Platform
-
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
 
@@ -242,7 +241,10 @@ private[monix] object TaskBracket {
     final def cancel: Task[Unit] =
       Task.suspend {
         if (waitsForResult.compareAndSet(expect = true, update = false))
-          releaseOnCancel(a).redeemWith(ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)), _ => Task(p.success(())))
+          releaseOnCancel(a).redeemWith(
+            ex => Task { p.success(()); () }.flatMap(_ => Task.raiseError(ex)),
+            _ => Task { p.success(()); () }
+          )
         else
           TaskFromFuture.strict(p.future)
       }
@@ -257,7 +259,10 @@ private[monix] object TaskBracket {
 
     private final def unsafeRecover(e: Throwable): Task[B] = {
       if (waitsForResult.compareAndSet(expect = true, update = false))
-        releaseOnError(a, e).redeemWith(ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)), _ => Task{p.success(()); ()}).flatMap(new ReleaseRecover(e))
+        releaseOnError(a, e).redeemWith(
+          ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)),
+          _ => Task { p.success(()); () }
+        ).flatMap(new ReleaseRecover(e))
       else
         Task.never
     }

@@ -78,11 +78,13 @@ private[eval] object TaskFromFuture {
       implicit val ec = ctx.scheduler
       if (p.isCompleted) {
         p.subscribe(trampolinedCB(cb, null))
+        ()
       } else {
         val conn = ctx.connection
         val ref = SingleAssignCancelable()
         conn.push(ref)
         ref := p.subscribe(trampolinedCB(cb, conn))
+        ()
       }
     }
 

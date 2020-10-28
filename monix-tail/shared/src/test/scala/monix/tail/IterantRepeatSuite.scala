@@ -69,6 +69,7 @@ object IterantRepeatSuite extends BaseTestSuite {
           x
         }
       }.toListL.value()
+      ()
     }
 
     assertEquals(values, expectedValues)

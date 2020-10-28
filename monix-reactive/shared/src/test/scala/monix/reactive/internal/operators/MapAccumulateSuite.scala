@@ -17,18 +17,17 @@
 
 package monix.reactive.internal.operators
 
-import cats.laws._
-import cats.laws.discipline._
-import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
-import scala.concurrent.duration._
+import monix.reactive.Observable
+
 import scala.concurrent.duration.Duration.Zero
+import scala.concurrent.duration._
 import scala.util.Failure
 
 object MapAccumulateSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .mapAccumulate(0L)((acc, elem) => (acc + elem, acc * elem))
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
@@ -37,7 +36,7 @@ object MapAccumulateSuite extends BaseOperatorSuite {
     sourceCount
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val o = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+    val o = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
       .mapAccumulate(0L)((acc, elem) => (acc + elem, acc * elem))
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -50,7 +49,7 @@ object MapAccumulateSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(0, sourceCount).mapAccumulate(0L) { (acc, elem) =>
+    val o = Observable.range(0L, sourceCount.toLong).mapAccumulate(0L) { (acc, elem) =>
       if (elem == sourceCount - 1)
         throw ex
       else

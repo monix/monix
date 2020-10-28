@@ -24,7 +24,7 @@ import scala.concurrent.duration.Duration.Zero
 object DistinctUntilChangedSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable
-      .range(0, sourceCount)
+      .range(0L, sourceCount.toLong)
       .flatMap(i => Observable.fromIterable(Seq(i, i, i)))
       .distinctUntilChanged
 
@@ -36,7 +36,7 @@ object DistinctUntilChangedSuite extends BaseOperatorSuite {
       val o = Observable.now(1L).endWithError(ex).distinctUntilChanged
       Sample(o, 1, 1, Zero, Zero)
     } else {
-      val source = Observable.range(0, sourceCount).flatMap(i => Observable.fromIterable(Seq(i, i, i)))
+      val source = Observable.range(0L, sourceCount.toLong).flatMap(i => Observable.fromIterable(Seq(i, i, i)))
       val o = createObservableEndingInError(source, ex).distinctUntilChanged
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }

@@ -65,8 +65,6 @@ object FromObserverConsumerSuite extends BaseTestSuite {
       val lh = Task.raiseError[Unit](ex)
 
       val rh = Task.create[Unit] { (s, cb) =>
-        implicit val scheduler = s
-
         val consumer = Consumer.fromObserver(_ =>
           new Observer[Int] {
             def onError(ex: Throwable): Unit = throw ex

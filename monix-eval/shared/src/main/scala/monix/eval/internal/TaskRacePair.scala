@@ -71,6 +71,7 @@ private[eval] object TaskRacePair {
               cb.onSuccess(Left((valueA, fiberB)))
             } else {
               pa.success(valueA)
+              ()
             }
 
           def onError(ex: Throwable): Unit =
@@ -81,6 +82,7 @@ private[eval] object TaskRacePair {
               }.runAsyncAndForget
             } else {
               pa.failure(ex)
+              ()
             }
         }
       )
@@ -97,6 +99,7 @@ private[eval] object TaskRacePair {
               cb.onSuccess(Right((fiberA, valueB)))
             } else {
               pb.success(valueB)
+              ()
             }
 
           def onError(ex: Throwable): Unit =
@@ -107,6 +110,7 @@ private[eval] object TaskRacePair {
               }.runAsyncAndForget
             } else {
               pb.failure(ex)
+              ()
             }
         }
       )

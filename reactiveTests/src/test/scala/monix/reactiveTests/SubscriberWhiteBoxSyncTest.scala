@@ -24,7 +24,7 @@ import monix.reactiveTests.SubscriberWhiteBoxSyncTest.Value
 import org.reactivestreams.tck.SubscriberWhiteboxVerification.WhiteboxSubscriberProbe
 import org.reactivestreams.tck.SubscriberWhiteboxVerification
 import org.reactivestreams.{Subscriber, Subscription}
-import org.scalatest.testng.TestNGSuiteLike
+import org.scalatestplus.testng.TestNGSuiteLike
 
 class SubscriberWhiteBoxSyncTest
   extends SubscriberWhiteboxVerification[Value](env())

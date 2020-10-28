@@ -45,7 +45,7 @@ final class AtomicFloat private (private[this] val ref: BoxedInt) extends Atomic
 
   @tailrec
   def increment(v: Int = 1): Unit = {
-    val current = get
+    val current = get()
     val update = incrementOp(current, v)
     if (!compareAndSet(current, update))
       increment(v)
@@ -53,7 +53,7 @@ final class AtomicFloat private (private[this] val ref: BoxedInt) extends Atomic
 
   @tailrec
   def add(v: Float): Unit = {
-    val current = get
+    val current = get()
     val update = plusOp(current, v)
     if (!compareAndSet(current, update))
       add(v)
@@ -61,7 +61,7 @@ final class AtomicFloat private (private[this] val ref: BoxedInt) extends Atomic
 
   @tailrec
   def incrementAndGet(v: Int = 1): Float = {
-    val current = get
+    val current = get()
     val update = incrementOp(current, v)
     if (!compareAndSet(current, update))
       incrementAndGet(v)
@@ -71,7 +71,7 @@ final class AtomicFloat private (private[this] val ref: BoxedInt) extends Atomic
 
   @tailrec
   def addAndGet(v: Float): Float = {
-    val current = get
+    val current = get()
     val update = plusOp(current, v)
     if (!compareAndSet(current, update))
       addAndGet(v)
@@ -81,7 +81,7 @@ final class AtomicFloat private (private[this] val ref: BoxedInt) extends Atomic
 
   @tailrec
   def getAndIncrement(v: Int = 1): Float = {
-    val current = get
+    val current = get()
     val update = incrementOp(current, v)
     if (!compareAndSet(current, update))
       getAndIncrement(v)
@@ -91,7 +91,7 @@ final class AtomicFloat private (private[this] val ref: BoxedInt) extends Atomic
 
   @tailrec
   def getAndAdd(v: Float): Float = {
-    val current = get
+    val current = get()
     val update = plusOp(current, v)
     if (!compareAndSet(current, update))
       getAndAdd(v)
@@ -101,7 +101,7 @@ final class AtomicFloat private (private[this] val ref: BoxedInt) extends Atomic
 
   @tailrec
   def subtract(v: Float): Unit = {
-    val current = get
+    val current = get()
     val update = minusOp(current, v)
     if (!compareAndSet(current, update))
       subtract(v)
@@ -109,7 +109,7 @@ final class AtomicFloat private (private[this] val ref: BoxedInt) extends Atomic
 
   @tailrec
   def subtractAndGet(v: Float): Float = {
-    val current = get
+    val current = get()
     val update = minusOp(current, v)
     if (!compareAndSet(current, update))
       subtractAndGet(v)
@@ -119,7 +119,7 @@ final class AtomicFloat private (private[this] val ref: BoxedInt) extends Atomic
 
   @tailrec
   def getAndSubtract(v: Float): Float = {
-    val current = get
+    val current = get()
     val update = minusOp(current, v)
     if (!compareAndSet(current, update))
       getAndSubtract(v)

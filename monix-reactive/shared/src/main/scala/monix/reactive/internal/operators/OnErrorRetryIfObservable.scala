@@ -83,6 +83,7 @@ private[reactive] final class OnErrorRetryIfObservable[+A](source: Observable[A]
     // We need to do an `orderedUpdate`, because `onError` might have
     // already executed and we might be resubscribed by now.
     task.orderedUpdate(cancelable, retryIdx)
+    ()
   }
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {

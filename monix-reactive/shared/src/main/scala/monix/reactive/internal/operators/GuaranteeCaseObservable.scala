@@ -98,7 +98,7 @@ private[reactive] class GuaranteeCaseObservable[A](source: Observable[A], f: Exi
           FutureUtils.transformWith(async, asyncTransformRef)(immediate)
       }
 
-    private[this] val asyncTransformRef: (Try[Ack] => Future[Ack]) = {
+    private[this] val asyncTransformRef: Try[Ack] => Future[Ack] = {
       case Success(value) =>
         detectStopOrFailure(value)
       case Failure(e) =>

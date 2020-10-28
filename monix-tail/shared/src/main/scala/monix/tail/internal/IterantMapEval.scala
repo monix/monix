@@ -74,7 +74,7 @@ private[tail] object IterantMapEval {
       Iterant.raiseError(e)
 
     private def processCursor(ref: NextCursor[F, A], cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
-      if (!cursor.hasNext) {
+      if (!cursor.hasNext()) {
         Suspend[F, B](rest.map(this))
       } else {
         val head = cursor.next()

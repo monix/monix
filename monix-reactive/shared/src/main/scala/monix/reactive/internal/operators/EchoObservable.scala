@@ -56,6 +56,7 @@ private[reactive] final class EchoObservable[+A](source: Observable[A], timeout:
         // No need to synchronize this assignment, since we have a
         // happens-before relationship between scheduleOnce invocations.
         task := scheduler.scheduleOnce(delayMillis, TimeUnit.MILLISECONDS, self)
+        ()
       }
 
       def run(): Unit = {

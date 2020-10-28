@@ -112,8 +112,8 @@ object FutureLiftSuite extends TestSuite[TestScheduler] {
 
     val p = Promise[Int]()
     val token = io.unsafeRunCancelable {
-      case Left(e) => p.failure(e)
-      case Right(a) => p.success(a)
+      case Left(e) => p.failure(e); ()
+      case Right(a) => p.success(a); ()
     }
 
     // Cancelling
@@ -133,8 +133,8 @@ object FutureLiftSuite extends TestSuite[TestScheduler] {
 
     val p = Promise[Int]()
     val token = io.unsafeRunCancelable {
-      case Left(e) => p.failure(e)
-      case Right(a) => p.success(a)
+      case Left(e) => p.failure(e); ()
+      case Right(a) => p.success(a); ()
     }
 
     // Cancelling
@@ -166,8 +166,8 @@ object FutureLiftSuite extends TestSuite[TestScheduler] {
     val io = mkInstance[IO]
     val p = Promise[Int]()
     val token = io.unsafeRunCancelable {
-      case Left(e) => p.failure(e)
-      case Right(a) => p.success(a)
+      case Left(e) => p.failure(e); ()
+      case Right(a) => p.success(a); ()
     }
 
     // Cancelling

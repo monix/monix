@@ -51,7 +51,7 @@ object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
     channel.unsafeSubscribeFn(createObserver)
     channel.unsafeSubscribeFn(createObserver)
 
-    for (x <- Seq(10, 20, 30)) channel.onNext(x)
+    for (x <- Seq(10, 20, 30)) channel.onNext(x.toLong)
 
     s.tick()
     assertEquals(sum, 0)

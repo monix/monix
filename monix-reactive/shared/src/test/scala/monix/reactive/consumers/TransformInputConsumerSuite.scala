@@ -35,7 +35,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
     check1 { (random: Observable[Int]) =>
       val source = random.map(Math.floorMod(_, 10))
       val consumer = Consumer.foldLeft[Long, Long](0L)(_ + _)
-      val transformed = consumer.transformInput[Int](_.map(_ + 100))
+      val transformed = consumer.transformInput[Int](_.map(_.toLong + 100))
       source.consumeWith(transformed) <-> source.foldLeftL(0L)(_ + _ + 100)
     }
   }
@@ -74,7 +74,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
           callback.onError(ex)
 
         override def onComplete(): Unit =
-          callback.onSuccess(sum.get)
+          callback.onSuccess(sum.get())
       }
     }
 
@@ -90,7 +90,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
     s.tick(1.second)
     assert(s.state.tasks.isEmpty, "s.state.tasks.isEmpty")
 
-    assertEquals(sum.get, 1001)
+    assertEquals(sum.get(), 1001)
     assertEquals(result.value, None)
   }
 }

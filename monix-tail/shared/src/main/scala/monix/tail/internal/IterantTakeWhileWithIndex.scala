@@ -33,9 +33,9 @@ private[tail] object IterantTakeWhileWithIndex {
     extends Iterant.Visitor[F, A, Iterant[F, A]] { loop =>
 
     private[this] var isActive = true
-    private[this] var index = 0
+    private[this] var index = 0L
 
-    private def getAndIncrement(): Int = {
+    private def getAndIncrement(): Long = {
       val old = index
       index = old + 1
       old

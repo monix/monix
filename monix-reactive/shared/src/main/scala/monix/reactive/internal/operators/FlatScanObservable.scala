@@ -100,7 +100,7 @@ private[reactive] final class FlatScanObservable[A, R](
     }
 
     @tailrec private def cancelState(): Unit = {
-      stateRef.get match {
+      stateRef.get() match {
         case current @ Active(ref) =>
           if (stateRef.compareAndSet(current, Cancelled)) {
             ref.cancel()
@@ -141,7 +141,7 @@ private[reactive] final class FlatScanObservable[A, R](
       // WARN: Concurrent cancellation might have happened, due
       // to the `Cancelled` state being thread-unsafe because of
       // the logic using `lazySet` below; hence the extra check
-      if (!isActive.get) {
+      if (!isActive.get()) {
         Stop
       } else
         try {
@@ -186,7 +186,7 @@ private[reactive] final class FlatScanObservable[A, R](
               // `isActive == false` here b/c it was updated before `stateRef` (JMM);
               // And if `stateRef = Cancelled` happened afterwards, then we should
               // see it in the outer match statement
-              if (isActive.get) {
+              if (isActive.get()) {
                 asyncUpstreamAck.future.syncTryFlatten
               } else {
                 cancelState()
@@ -230,7 +230,7 @@ private[reactive] final class FlatScanObservable[A, R](
       // the only race condition that can happen is for the child to
       // set this to `null` between this `get` and the upcoming
       // `getAndSet`, which is totally fine
-      val childRef = stateRef.get match {
+      val childRef = stateRef.get() match {
         case Active(ref) => ref
         case WaitComplete(_, ref) => ref
         case _ => null
@@ -258,7 +258,7 @@ private[reactive] final class FlatScanObservable[A, R](
           // `Cancelled` state is thread unsafe, we need a second check.
           // Assumption is that `isActive = false` would be visible in case of
           // a race condition!
-          if (!isActive.get) cancelState()
+          if (!isActive.get()) cancelState()
 
         case WaitComplete(_, _) =>
           // This branch happens if the child has triggered the completion
@@ -293,7 +293,7 @@ private[reactive] final class FlatScanObservable[A, R](
     private def sendOnComplete(): Unit = {
       if (!delayErrors) out.onComplete()
       else
-        this.errors.get match {
+        this.errors.get() match {
           case Nil => out.onComplete()
           case list => out.onError(CompositeException(list))
         }
@@ -348,6 +348,7 @@ private[reactive] final class FlatScanObservable[A, R](
             // stop it and we are free to send the final error
             out.onError(ex)
             asyncUpstreamAck.trySuccess(Stop)
+            ()
 
           case WaitComplete(otherEx, _) =>
             // Branch happens when the main subscriber has already
@@ -359,6 +360,7 @@ private[reactive] final class FlatScanObservable[A, R](
             // Send our immediate error downstream and stop everything
             out.onError(ex)
             asyncUpstreamAck.trySuccess(Stop)
+            ()
 
           case Cancelled =>
             // User cancelled, but we have to log errors somewhere
@@ -383,9 +385,10 @@ private[reactive] final class FlatScanObservable[A, R](
               case None =>
                 asyncUpstreamAck.completeWith(ack)
             }
-
+            ()
           case Cancelled =>
             asyncUpstreamAck.trySuccess(Stop)
+            ()
 
           case WaitComplete(exOpt, _) =>
             // An `onComplete` or `onError` event happened since

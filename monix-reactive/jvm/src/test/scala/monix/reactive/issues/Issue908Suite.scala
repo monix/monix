@@ -41,7 +41,6 @@ object Issue908Suite extends TestSuite[SchedulerService] {
   }
 
   def tearDown(env: SchedulerService): Unit = {
-    import monix.execution.Scheduler.Implicits.global
     env.shutdown()
     assert(env.awaitTermination(1.minute), "scheduler.awaitTermination")
   }

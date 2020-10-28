@@ -29,7 +29,7 @@ object IterantConsumeSuite extends BaseTestSuite {
   val iterationsCount = {
     if (Platform.isJVM) {
       // Discriminate CI
-      if (System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true")
+      if (isCI)
         2000
       else
         10000
@@ -103,7 +103,6 @@ object IterantConsumeSuite extends BaseTestSuite {
   }
 
   testAsync("Iterant.channel") { _ =>
-    import cats.implicits._
     implicit val ec: Scheduler = Scheduler.Implicits.global
 
     val task = Iterant[Task].channel[Int]().flatMap {

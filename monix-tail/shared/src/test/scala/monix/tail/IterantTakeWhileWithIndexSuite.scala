@@ -85,7 +85,7 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
       val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1, allowErrors = false)
         .guarantee(Coeval.eval(cancelable.cancel()))
 
-      stream.takeWhileWithIndex((_, _) => false).toListL.value == Nil &&
+      stream.takeWhileWithIndex((_, _) => false).toListL.value() == Nil &&
       (list.length < 2 || cancelable.isCanceled)
     }
   }
@@ -126,7 +126,10 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
       val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty))
       val stream = (iter.onErrorIgnore ++ suffix).guarantee(Coeval.eval(cancelable.cancel()))
 
-      intercept[DummyException] { stream.takeWhileWithIndex((_, _) => true).toListL.value() }
+      intercept[DummyException] { 
+        stream.takeWhileWithIndex((_, _) => true).toListL.value() 
+        ()
+      }
       cancelable.isCanceled
     }
   }

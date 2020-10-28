@@ -301,11 +301,11 @@ private[reactive] object LoadBalanceConsumer {
     }
 
     def activeCount: Int =
-      stateRef.get.activeCount
+      stateRef.get().activeCount
 
     @tailrec
     def offer(value: IndexedSubscriber[In]): Unit =
-      stateRef.get match {
+      stateRef.get() match {
         case current @ Available(queue, canceledIDs, ac) =>
           if (ac > 0 && !canceledIDs(value.id)) {
             val update = Available(queue.enqueue(value), canceledIDs, ac)
@@ -318,14 +318,16 @@ private[reactive] object LoadBalanceConsumer {
             val update = Available[In](Queue.empty, canceledIDs, ac)
             if (!stateRef.compareAndSet(current, update))
               offer(value)
-            else
+            else {
               promise.success(value)
+              ()
+            }
           }
       }
 
     @tailrec
     def poll(): Future[IndexedSubscriber[In]] =
-      stateRef.get match {
+      stateRef.get() match {
         case current @ Available(queue, canceledIDs, ac) =>
           if (ac <= 0)
             Future.successful(null)
@@ -350,7 +352,7 @@ private[reactive] object LoadBalanceConsumer {
 
     @tailrec
     def deactivateAll(): Unit =
-      stateRef.get match {
+      stateRef.get() match {
         case current @ Available(_, canceledIDs, _) =>
           val update: State[In] = Available(Queue.empty, canceledIDs, 0)
           if (!stateRef.compareAndSet(current, update))
@@ -359,13 +361,15 @@ private[reactive] object LoadBalanceConsumer {
           val update: State[In] = Available(Queue.empty, canceledIDs, 0)
           if (!stateRef.compareAndSet(current, update))
             deactivateAll()
-          else
+          else {
             promise.success(null)
+            ()
+          }
       }
 
     @tailrec
     def deactivate(ref: IndexedSubscriber[In]): Boolean =
-      stateRef.get match {
+      stateRef.get() match {
         case current @ Available(queue, canceledIDs, count) =>
           if (count <= 0) true
           else {

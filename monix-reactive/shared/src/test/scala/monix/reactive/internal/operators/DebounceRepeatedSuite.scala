@@ -26,11 +26,11 @@ object DebounceRepeatedSuite extends BaseOperatorSuite {
       .now(1L)
       .delayOnComplete(1.day)
       .debounceRepeated(1.second)
-      .take(sourceCount)
+      .take(sourceCount.toLong)
 
     val count = sourceCount
     val sum = sourceCount
-    Sample(o, count, sum, 1.second, 1.second)
+    Sample(o, count, sum.toLong, 1.second, 1.second)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = None

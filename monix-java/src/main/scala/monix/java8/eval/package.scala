@@ -72,7 +72,7 @@ package object eval {
           }
         }
       })
-      Cancelable(() => cf.cancel(true))
+      Cancelable({ () => cf.cancel(true); () })
     })
     // $COVERAGE-ON$
   }

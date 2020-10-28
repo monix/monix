@@ -318,6 +318,7 @@ final class ConcurrentQueue[F[_], A] private (
     if (ref ne null) {
       if (consumersAwaiting.compareAndSet(ref, null)) {
         ref.complete(Constants.successOfUnit)
+        ()
       } else {
         notifyConsumers()
       }
@@ -336,6 +337,7 @@ final class ConcurrentQueue[F[_], A] private (
       if (ref ne null) {
         if (producersAwaiting.compareAndSet(ref, null)) {
           ref.complete(Constants.successOfUnit)
+          ()
         } else {
           notifyProducers()
         }

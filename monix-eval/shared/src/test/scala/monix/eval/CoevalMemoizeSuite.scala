@@ -27,18 +27,18 @@ object CoevalMemoizeSuite extends BaseTestSuite {
     var effect = 0
     val coeval = Coeval.eval { effect += 1; effect }.memoize
 
-    val f = coeval.runTry
+    val f = coeval.runTry()
     assertEquals(f, Success(1))
   }
 
   test("Coeval.eval.memoize should work for next subscribers") { implicit s =>
     var effect = 0
     val coeval = Coeval.eval { effect += 1; effect }.memoize
-    coeval.runTry
+    coeval.runTry()
 
-    val f1 = coeval.runTry
+    val f1 = coeval.runTry()
     assertEquals(f1, Success(1))
-    val f2 = coeval.runTry
+    val f2 = coeval.runTry()
     assertEquals(f2, Success(1))
   }
 
@@ -46,18 +46,18 @@ object CoevalMemoizeSuite extends BaseTestSuite {
     var effect = 0
     val coeval = Coeval.evalOnce { effect += 1; effect }.memoize
 
-    val f = coeval.runTry
+    val f = coeval.runTry()
     assertEquals(f, Success(1))
   }
 
   test("Coeval.evalOnce.memoize should work for next subscribers") { implicit s =>
     var effect = 0
     val coeval = Coeval.evalOnce { effect += 1; effect }.memoize
-    coeval.runTry
+    coeval.runTry()
 
-    val f1 = coeval.runTry
+    val f1 = coeval.runTry()
     assertEquals(f1, Success(1))
-    val f2 = coeval.runTry
+    val f2 = coeval.runTry()
     assertEquals(f2, Success(1))
   }
 
@@ -75,7 +75,7 @@ object CoevalMemoizeSuite extends BaseTestSuite {
     var coeval = Coeval { effect += 1; effect }
     val count = if (Platform.isJVM) 100000 else 5000
     for (_ <- 0 until count) coeval = coeval.memoize
-    assertEquals(coeval.runTry, Success(1))
+    assertEquals(coeval.runTry(), Success(1))
   }
 
   test("Coeval.apply.memoize effects") { implicit s =>
@@ -85,11 +85,11 @@ object CoevalMemoizeSuite extends BaseTestSuite {
       effect += 1; x + 1
     }
 
-    val result1 = coeval2.runTry
+    val result1 = coeval2.runTry()
     assertEquals(effect, 2)
     assertEquals(result1, Success(4))
 
-    val result2 = coeval2.runTry
+    val result2 = coeval2.runTry()
     assertEquals(effect, 3)
     assertEquals(result2, Success(4))
   }
@@ -101,11 +101,11 @@ object CoevalMemoizeSuite extends BaseTestSuite {
       effect += 1; x + 1
     }
 
-    val result1 = coeval2.runTry
+    val result1 = coeval2.runTry()
     assertEquals(effect, 2)
     assertEquals(result1, Success(4))
 
-    val result2 = coeval2.runTry
+    val result2 = coeval2.runTry()
     assertEquals(effect, 3)
     assertEquals(result2, Success(4))
   }
@@ -119,11 +119,11 @@ object CoevalMemoizeSuite extends BaseTestSuite {
       effect += 1; x + 1
     }
 
-    val result1 = coeval2.runTry
+    val result1 = coeval2.runTry()
     assertEquals(effect, 2)
     assertEquals(result1, Success(4))
 
-    val result2 = coeval2.runTry
+    val result2 = coeval2.runTry()
     assertEquals(effect, 3)
     assertEquals(result2, Success(4))
   }

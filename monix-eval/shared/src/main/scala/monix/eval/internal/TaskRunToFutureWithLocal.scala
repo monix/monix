@@ -22,7 +22,7 @@ import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, Map, Now, Suspend}
 import monix.eval.internal.TaskRunLoop._
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.misc.Local
-import monix.execution.{Callback, Cancelable, CancelableFuture, Scheduler}
+import monix.execution.{Callback, CancelableFuture, Scheduler}
 
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
@@ -124,17 +124,7 @@ private[eval] object TaskRunToFutureWithLocal {
             case null =>
               // Restore Local on the current thread
               Local.setContext(prev)
-
-              val p = Promise[A]()
-              scheduler.execute(new Runnable {
-                override def run(): Unit = {
-                  // Call callback with isolated Local
-                  Local.setContext(isolated)
-                  p.success(unboxed.asInstanceOf[A])
-                }
-              })
-
-              return CancelableFuture(p.future, Cancelable.empty)
+              return CancelableFuture.successfulWithLocal(unboxed.asInstanceOf[A], isolated)
 
             case bind =>
               // Try/catch described as statement to prevent ObjectRef ;-)
@@ -190,6 +180,6 @@ private[eval] object TaskRunToFutureWithLocal {
 
     Local.setContext(previousCtx)
 
-    CancelableFuture(p.future, context.connection.toCancelable(scheduler))
+    CancelableFuture.applyWithLocal(p.future, context.connection.toCancelable(scheduler), isolatedCtx)
   }
 }

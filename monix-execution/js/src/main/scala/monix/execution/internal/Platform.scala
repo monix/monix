@@ -20,9 +20,10 @@ package monix.execution.internal
 import monix.execution.UncaughtExceptionReporter
 import monix.execution.exceptions.CompositeException
 import monix.execution.schedulers.CanBlock
-
 import scala.concurrent.Awaitable
 import scala.concurrent.duration.Duration
+import scala.scalajs.js
+import scala.util.control.NonFatal
 
 private[monix] object Platform {
   /**
@@ -36,6 +37,25 @@ private[monix] object Platform {
     * or `false` otherwise.
     */
   final val isJVM = false
+
+  /**
+    * Reads environment variable in a platform-specific way.
+    */
+  def getEnv(key: String): Option[String] = {
+    import js.Dynamic.global
+    try {
+      // Node.js specific API, could fail
+      if (js.typeOf(global.process) == "object" && js.typeOf(global.process.env) == "object")
+        global.process.env.selectDynamic(key).asInstanceOf[js.UndefOr[String]]
+          .toOption
+          .collect { case s: String => s.trim }
+          .filter(_.nonEmpty)
+      else
+        None
+    } catch {
+      case NonFatal(_) => None
+    }
+  }
 
   /** Recommended batch size used for breaking synchronous loops in
     * asynchronous batches. When streaming value from a producer to

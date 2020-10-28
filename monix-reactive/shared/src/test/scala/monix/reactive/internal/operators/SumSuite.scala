@@ -23,12 +23,12 @@ import scala.concurrent.duration.Duration._
 
 object SumSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val o = Observable.range(0, sourceCount).sum
+    val o = Observable.range(0L, sourceCount.toLong).sum
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = {
-    val o = Observable.range(0, sourceCount + 1).endWithError(ex).sum
+    val o = Observable.range(0, sourceCount.toLong + 1).endWithError(ex).sum
     Some(Sample(o, 0, 0, Zero, Zero))
   }
 
@@ -50,7 +50,7 @@ object SumSuite extends BaseOperatorSuite {
       def parseString(str: String): Option[Long] = throw ex
     }
 
-    val o = Observable.range(0, sourceCount + 1).sum(num)
+    val o = Observable.range(0, sourceCount.toLong + 1).sum(num)
     Some(Sample(o, 0, 0, Zero, Zero))
   }
 

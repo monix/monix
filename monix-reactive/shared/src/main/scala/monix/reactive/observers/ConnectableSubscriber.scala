@@ -109,7 +109,7 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
   @volatile private[this] var isConnected = false
 
   // Only accessible in `connect()`
-  private[this] var connectionRef: CancelableFuture[Ack] = null
+  private[this] var connectionRef: CancelableFuture[Ack] = _
 
   /** Connects the underling observer to the upstream publisher.
     *
@@ -169,12 +169,13 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
 
             def onComplete(): Unit = {
               if (!scheduledDone) {
-                ack.syncOnContinue(bufferWasDrained.trySuccess(Continue))
+                ack.syncOnContinue { bufferWasDrained.trySuccess(Continue); () }
               } else if (scheduledError ne null) {
                 if (bufferWasDrained.trySuccess(Stop))
                   underlying.onError(scheduledError)
               } else if (bufferWasDrained.trySuccess(Stop))
                 underlying.onComplete()
+              ()
             }
 
             def onError(ex: Throwable): Unit = {
@@ -215,6 +216,7 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
         throw new IllegalStateException("Observer was already connected, so cannot pushFirst")
       else if (!scheduledDone)
         queue += elem
+      ()
     }
 
   /** Schedule elements to be pushed to the underlying subscriber
@@ -234,6 +236,7 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
         throw new IllegalStateException("Observer was already connected, so cannot pushFirst")
       else if (!scheduledDone)
         queue.appendAll(xs)
+      ()
     }
 
   /** Schedule a complete event when [[connect]] happens,
@@ -306,6 +309,7 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
     // we cannot take a fast path here
     connectedFuture.syncTryFlatten
       .syncOnContinue(underlying.onComplete())
+    ()
   }
 
   /** The [[Subscriber.onError]] method that pushes an
@@ -318,6 +322,7 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
     // we cannot take a fast path here
     connectedFuture.syncTryFlatten
       .syncOnContinue(underlying.onError(ex))
+    ()
   }
 }
 

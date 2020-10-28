@@ -49,7 +49,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
       effect += 1
     })
 
-    for (_ <- 0 until 10000) task.unsafeToFuture
+    for (_ <- 0 until 10000) task.unsafeToFuture()
     s.tick()
     assertEquals(effect, 10000)
   }
@@ -65,7 +65,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
       effect += 1
     })
 
-    for (_ <- 0 until 10000) task.unsafeToFuture
+    for (_ <- 0 until 10000) task.unsafeToFuture()
     assertEquals(effect, 10000)
   }
 
@@ -84,7 +84,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         IO.pure(acc)
     }
 
-    val f = loop(100000, 0).unsafeToFuture; s.tick()
+    val f = loop(100000, 0).unsafeToFuture(); s.tick()
     assertEquals(f.value, Some(Success(100000)))
   }
 
@@ -104,7 +104,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
           IO.pure(acc)
       }
 
-    val f = loop(100000, 0).unsafeToFuture; s.tick()
+    val f = loop(100000, 0).unsafeToFuture(); s.tick()
     assertEquals(f.value, Some(Success(100000)))
   }
 
@@ -114,7 +114,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         maxFailures = 5,
         resetTimeout = 1.minute
       )
-      .unsafeRunSync
+      .unsafeRunSync()
 
     def loop(n: Int, acc: Int): IO[Int] = {
       if (n > 0)
@@ -125,7 +125,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         IO.pure(acc)
     }
 
-    val f = loop(100000, 0).unsafeToFuture; s.tick()
+    val f = loop(100000, 0).unsafeToFuture(); s.tick()
     assertEquals(f.value, Some(Success(100000)))
   }
 
@@ -135,7 +135,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         maxFailures = 5,
         resetTimeout = 1.minute
       )
-      .unsafeRunSync
+      .unsafeRunSync()
 
     def loop(n: Int, acc: Int): IO[Int] =
       IO.suspend {
@@ -145,7 +145,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
           IO.pure(acc)
       }
 
-    val f = loop(100000, 0).unsafeToFuture; s.tick()
+    val f = loop(100000, 0).unsafeToFuture(); s.tick()
     assertEquals(f.value, Some(Success(100000)))
   }
 
@@ -175,21 +175,21 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     val taskInError = circuitBreaker.protect(IO[Int](throw dummy))
     val taskSuccess = circuitBreaker.protect(IO { 1 })
 
-    assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
-    assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
+    assertEquals(taskInError.unsafeToFuture().value, Some(Failure(dummy)))
+    assertEquals(taskInError.unsafeToFuture().value, Some(Failure(dummy)))
     assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed(2))
 
     // A successful value should reset the counter
-    assertEquals(taskSuccess.unsafeToFuture.value, Some(Success(1)))
+    assertEquals(taskSuccess.unsafeToFuture().value, Some(Success(1)))
     assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed(0))
 
-    assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
-    assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
-    assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
-    assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
+    assertEquals(taskInError.unsafeToFuture().value, Some(Failure(dummy)))
+    assertEquals(taskInError.unsafeToFuture().value, Some(Failure(dummy)))
+    assertEquals(taskInError.unsafeToFuture().value, Some(Failure(dummy)))
+    assertEquals(taskInError.unsafeToFuture().value, Some(Failure(dummy)))
     assertEquals(circuitBreaker.state.unsafeRunSync(), CircuitBreaker.Closed(4))
 
-    assertEquals(taskInError.unsafeToFuture.value, Some(Failure(dummy)))
+    assertEquals(taskInError.unsafeToFuture().value, Some(Failure(dummy)))
     circuitBreaker.state.unsafeRunSync() match {
       case CircuitBreaker.Open(sa, rt) =>
         assertEquals(sa, s.clockMonotonic(MILLISECONDS))
@@ -203,13 +203,21 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     for (_ <- 0 until 30) {
       val now = s.clockMonotonic(MILLISECONDS)
       val nextTimeout = {
-        val value = resetTimeout * 2
+        val value = resetTimeout * 2.toLong
         if (value > 10.minutes) 10.minutes else value
       }
 
-      intercept[ExecutionRejectedException](taskInError.unsafeToFuture.value.get.get)
+      intercept[ExecutionRejectedException] {
+        taskInError.unsafeToFuture().value.get.get
+        ()
+      }
+
       s.tick(resetTimeout - 1.second)
-      intercept[ExecutionRejectedException](taskInError.unsafeToFuture.value.get.get)
+
+      intercept[ExecutionRejectedException] {
+        taskInError.unsafeToFuture().value.get.get
+        ()
+      }
 
       // After 1 minute we should attempt a reset
       s.tick(1.second)
@@ -223,7 +231,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
 
       // Starting the HalfOpen state
       val delayedTask = circuitBreaker.protect(IO.sleep(1.second) *> IO.raiseError(dummy))
-      val delayedResult = delayedTask.unsafeToFuture
+      val delayedResult = delayedTask.unsafeToFuture()
 
       circuitBreaker.state.unsafeRunSync() match {
         case CircuitBreaker.HalfOpen(rt) =>
@@ -233,8 +241,14 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
       }
 
       // Rejecting all other tasks
-      intercept[ExecutionRejectedException](taskInError.unsafeToFuture.value.get.get)
-      intercept[ExecutionRejectedException](taskInError.unsafeToFuture.value.get.get)
+      intercept[ExecutionRejectedException] {
+        taskInError.unsafeToFuture().value.get.get
+        ()
+      }
+      intercept[ExecutionRejectedException] {
+        taskInError.unsafeToFuture().value.get.get
+        ()
+      }
 
       // Should migrate back into Open
       s.tick(1.second)
@@ -247,7 +261,10 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
           fail(s"Invalid state: $other")
       }
 
-      intercept[ExecutionRejectedException](taskInError.unsafeToFuture.value.get.get)
+      intercept[ExecutionRejectedException] {
+        taskInError.unsafeToFuture().value.get.get
+        ()
+      }
 
       // Calculate next reset timeout
       resetTimeout = nextTimeout
@@ -257,7 +274,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     s.tick(resetTimeout)
 
     val delayedTask = circuitBreaker.protect(IO.sleep(1.second) *> IO(1))
-    val delayedResult = delayedTask.unsafeToFuture
+    val delayedResult = delayedTask.unsafeToFuture()
 
     circuitBreaker.state.unsafeRunSync() match {
       case CircuitBreaker.HalfOpen(rt) =>
@@ -266,7 +283,10 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         fail(s"Invalid state: $other")
     }
 
-    intercept[ExecutionRejectedException](taskInError.unsafeToFuture.value.get.get)
+    intercept[ExecutionRejectedException] {
+      taskInError.unsafeToFuture().value.get.get
+      ()
+    }
 
     s.tick(1.second)
     assertEquals(delayedResult.value, Some(Success(1)))
@@ -285,6 +305,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         maxFailures = -1,
         resetTimeout = 1.minute
       )
+      ()
     }
 
     intercept[IllegalArgumentException] {
@@ -293,6 +314,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         maxFailures = 2,
         resetTimeout = -1.minute
       )
+      ()
     }
 
     intercept[IllegalArgumentException] {
@@ -302,6 +324,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         resetTimeout = 1.minute,
         exponentialBackoffFactor = 0.5
       )
+      ()
     }
 
     intercept[IllegalArgumentException] {
@@ -312,6 +335,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
         exponentialBackoffFactor = 2,
         maxResetTimeout = Duration.Zero
       )
+      ()
     }
     ()
   }
@@ -398,7 +422,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
   }
 
   private def awaitCloseSuccessfulTest(s: TestScheduler, cb: CircuitBreaker[IO]) = {
-    cb.protect(IO.raiseError(DummyException("dummy"))).unsafeToFuture
+    cb.protect(IO.raiseError(DummyException("dummy"))).unsafeToFuture()
     s.tick()
 
     cb.state.unsafeRunSync() match {
@@ -406,12 +430,12 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
       case other => fail(s"Unexpected state: $other")
     }
 
-    val f = cb.awaitClose.unsafeToFuture
+    val f = cb.awaitClose.unsafeToFuture()
     s.tick()
     assertEquals(f.value, None)
 
     s.tick(1.second)
-    cb.protect(IO(1)).unsafeToFuture
+    cb.protect(IO(1)).unsafeToFuture()
     s.tick()
 
     assertEquals(cb.state.unsafeRunSync(), CircuitBreaker.Closed(0))
@@ -426,7 +450,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
       CircuitBreaker.unsafe[F](1, 1.second)
 
     val cb = mkInstance[IO]
-    cb.protect(IO.raiseError(DummyException("dummy"))).unsafeToFuture
+    cb.protect(IO.raiseError(DummyException("dummy"))).unsafeToFuture()
     s.tick()
 
     cb.state.unsafeRunSync() match {
@@ -434,12 +458,12 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
       case other => fail(s"Unexpected state: $other")
     }
 
-    val f = cb.awaitClose.unsafeToFuture
+    val f = cb.awaitClose.unsafeToFuture()
     s.tick()
     assertEquals(f.value, None)
 
     s.tick(1.second)
-    cb.protect(IO(1)).unsafeToFuture
+    cb.protect(IO(1)).unsafeToFuture()
     s.tick()
 
     assertEquals(cb.state.unsafeRunSync(), CircuitBreaker.Closed(0))

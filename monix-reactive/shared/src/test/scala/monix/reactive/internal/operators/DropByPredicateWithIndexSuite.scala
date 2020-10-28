@@ -26,7 +26,7 @@ object DropByPredicateWithIndexSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
       val o = Observable
-        .range(1, sourceCount * 2)
+        .range(1L, sourceCount.toLong * 2)
         .dropWhileWithIndex((e, idx) => e < sourceCount)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -34,7 +34,7 @@ object DropByPredicateWithIndexSuite extends BaseOperatorSuite {
   }
 
   def sum(sourceCount: Int): Long =
-    (1 until sourceCount * 2).drop(sourceCount - 1).sum
+    (1 until sourceCount * 2).drop(sourceCount - 1).sum.toLong
 
   def count(sourceCount: Int) =
     sourceCount
@@ -42,7 +42,7 @@ object DropByPredicateWithIndexSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = createObservableEndingInError(Observable.range(1, sourceCount + 2), ex)
+      val o = createObservableEndingInError(Observable.range(1, sourceCount.toLong + 2), ex)
         .dropWhileWithIndex((e, idx) => idx == 0)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -50,7 +50,7 @@ object DropByPredicateWithIndexSuite extends BaseOperatorSuite {
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val o = Observable.range(1, sourceCount * 2).dropWhileWithIndex { (e, idx) =>
+    val o = Observable.range(1L, sourceCount.toLong * 2).dropWhileWithIndex { (e, idx) =>
       if (e < sourceCount) true else throw ex
     }
 

@@ -18,10 +18,12 @@
 package monix.eval
 
 import cats.effect.IO
+import cats.implicits.catsStdInstancesForList
+import cats.syntax.foldable._
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
-import monix.execution.{CancelableFuture, ExecutionModel, Scheduler}
+import monix.execution.{ExecutionModel, Scheduler}
 import monix.execution.misc.Local
 import monix.execution.schedulers.TracingScheduler
 
@@ -184,7 +186,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
     def runAssertion(run: Task[Unit] => Any, method: String): Future[Unit] = {
-      val p = Promise[Unit]
+      val p = Promise[Unit]()
       val local = Local(0)
       val task = Task.evalAsync(local := 50).guarantee(Task(p.success(())).void)
 
@@ -291,8 +293,6 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       val prev = local.get
 
       for {
-        // TODO: figure out why the first one fails if test starts on a different ec
-        _ <- Future.unit
         isolated <- Task.evalAsync {
           local.update(prev + i)
           Local.getContext()
@@ -301,7 +301,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
           local.get
         }
       } yield {
-        promises(i).success(TestResult(Local.getContext(), isolated, next, i))
+        val _ = promises(i).success(TestResult(Local.getContext(), isolated, next, i))
       }
     }
 
@@ -329,8 +329,6 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       val prev = local.get
 
       for {
-        // TODO: figure out why the first one fails if test starts on a different ec
-        _ <- Future.unit
         isolated <- Task.eval {
           local.update(prev + i)
           Local.getContext()
@@ -339,7 +337,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
           local.get
         }
       } yield {
-        promises(i).success(TestResult(Local.getContext(), isolated, next, i))
+        val _ = promises(i).success(TestResult(Local.getContext(), isolated, next, i))
       }
     }
 
@@ -366,8 +364,6 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       val prev = local.get
 
       for {
-        // TODO: figure out why the first one fails if test starts on a different ec
-        _ <- Future.unit
         isolated <- Task.evalAsync {
           local.update(prev + i)
           Local.getContext()
@@ -376,7 +372,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
           local.get
         }
       } yield {
-        promises(i).success(TestResult(Local.getContext(), isolated, next, i))
+        val _ = promises(i).success(TestResult(Local.getContext(), isolated, next, i))
       }
     }
 
@@ -389,5 +385,113 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
           assertEquals(ctx, expected)
           assertEquals(next, expectedValue)
       })
+  }
+
+  testAsync("Task.eval.runToFuture continuations keep isolated context in longer continuations") {
+    implicit val s: Scheduler = Scheduler.Implicits.traced
+
+    val local = Local(0)
+
+    val f1 = for {
+      _ <- Task {
+        val i = local.get
+        local.update(i + 1)
+      }.runToFuture
+      i1 <- Future(local.get)
+      i2 <- Future(local.get)
+      _  <- Future(local.update(i2 + 1))
+      i3 <- Future(local.get)
+    } yield {
+      assertEquals(i1, 1)
+      assertEquals(i2, 1)
+      assertEquals(i3, 2)
+      assertEquals(local.get, 2)
+    }
+
+    val f2 = for {
+      _ <- Task.evalAsync {
+        val i = local.get
+        local.update(i + 1)
+      }.runToFuture
+      i1 <- Future(local.get)
+      i2 <- Future(local.get)
+      _  <- Future(local.update(i2 + 1))
+      i3 <- Future(local.get)
+    } yield {
+      assertEquals(i1, 1)
+      assertEquals(i2, 1)
+      assertEquals(i3, 2)
+      assertEquals(local.get, 2)
+    }
+
+    f1.flatMap(_ => f2)
+  }
+
+  testAsync("Task.eval.runToFuture can isolate future continuations") {
+    implicit val s: Scheduler = Scheduler.Implicits.traced
+
+    val local = Local(0)
+
+    for {
+      _  <- Task(local.update(1)).runToFuture
+      i1 <- Future(local.get)
+      i2 <- Local.isolate {
+        Future(local.update(i1 + 1))
+          .flatMap(_ => Future(local.get))
+      }
+      i3 <- Future(local.get)
+    } yield {
+      assertEquals(i1, 1)
+      assertEquals(i2, 2)
+      assertEquals(i3, 1)
+      assertEquals(local.get, 1)
+    }
+  }
+
+  testAsync("Task.runToFuture resulting future can be reused") {
+    implicit val s: Scheduler = Scheduler.Implicits.traced
+
+    val local = Local(0)
+
+    val f1 = for {
+      _ <- Task {
+        val i = local.get
+        local.update(i + 10)
+      }.runToFuture
+      i1 <- Future(local.get)
+      i2 <- Future(local.get)
+      _  <- Future(local.update(i2 + 10))
+      i3 <- Future(local.get)
+    } yield {
+      assertEquals(i1, 10)
+      assertEquals(i2, 10)
+      assertEquals(i3, 20)
+      assertEquals(local.get, 20)
+    }
+
+    val f2 = for {
+      _ <- Task.evalAsync {
+        val i = local.get
+        local.update(i + 1)
+      }.runToFuture
+      i1 <- Future(local.get)
+      i2 <- Future(local.get)
+      _  <- Future(local.update(i2 + 1))
+      i3 <- Future(local.get)
+    } yield {
+      assertEquals(i1, 1)
+      assertEquals(i2, 1)
+      assertEquals(i3, 2)
+      assertEquals(local.get, 2)
+    }
+
+    // TODO: f12 and f21 should be the other way around
+    val f12 = f1.flatMap(_ => f2).map(_ => assertEquals(local.get, 20))
+    val f21 = f2.flatMap(_ => f1).map(_ => assertEquals(local.get, 2))
+
+    val f13 = f1.map(_ => assertEquals(local.get, 20))
+    val f23 = f2.map(_ => assertEquals(local.get, 2))
+
+    List(f12, f21, f13, f23).sequence_
   }
 }

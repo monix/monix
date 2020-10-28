@@ -77,7 +77,7 @@ private[tail] object IterantToReactivePublisher {
     def request(n: Long): Unit = {
       // Tail-recursive function modifying `requested`
       @tailrec def loop(n: Long): Unit =
-        state.get match {
+        state.get() match {
           case null =>
             if (!state.compareAndSet(null, Request(n)))
               loop(n)
@@ -117,7 +117,7 @@ private[tail] object IterantToReactivePublisher {
       cancelWithSignal(None)
 
     @tailrec def cancelWithSignal(signal: Option[Throwable]): Unit = {
-      state.get match {
+      state.get() match {
         case current @ (null | Request(_)) =>
           if (!state.compareAndSet(current, Interrupt(signal)))
             cancelWithSignal(signal)
@@ -153,6 +153,7 @@ private[tail] object IterantToReactivePublisher {
         token.unsafeRunAsync(
           AttemptCallback.empty(UncaughtExceptionReporter.default)
         ))
+      ()
     }
 
     private final class Loop extends Iterant.Visitor[F, A, F[Unit]] {
@@ -194,12 +195,12 @@ private[tail] object IterantToReactivePublisher {
         while (continue) {
           continue = false
 
-          ref.get match {
+          ref.get() match {
             case current @ Request(n) =>
               if (n > 0) {
                 if (n < Long.MaxValue) {
                   // Processing requests in batches
-                  val toProcess = math.min(Platform.recommendedBatchSize, n)
+                  val toProcess = math.min(Platform.recommendedBatchSize.toLong, n)
                   val update = n - toProcess
                   if (!parent.state.compareAndSet(current, Request(update)))
                     continue = true
@@ -208,7 +209,7 @@ private[tail] object IterantToReactivePublisher {
                     if (cb ne null) cb(rightUnit)
                   }
                 } else {
-                  requested = Platform.recommendedBatchSize
+                  requested = Platform.recommendedBatchSize.toLong
                   if (cb ne null) cb(rightUnit)
                 }
               } else if (cb ne null) {

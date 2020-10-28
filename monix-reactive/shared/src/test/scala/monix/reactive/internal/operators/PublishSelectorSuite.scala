@@ -37,7 +37,7 @@ object PublishSelectorSuite extends BaseTestSuite {
 
     s.tick()
     assertEquals(f.value, Some(Success(500 * 999 * 3)))
-    assertEquals(isStarted.get, 1)
+    assertEquals(isStarted.get(), 1)
   }
 
   test("treating Stop event") { implicit s =>
@@ -51,13 +51,13 @@ object PublishSelectorSuite extends BaseTestSuite {
       .publishSelector { source =>
         source.map(_ => 1)
       }
-      .take(2000)
+      .take(2000L)
       .sumL
       .runToFuture
 
     s.tick()
     assertEquals(f.value, Some(Success(2000)))
-    assertEquals(isStarted.get, 1)
-    assert(isCanceled.get, "isCanceled")
+    assertEquals(isStarted.get(), 1)
+    assert(isCanceled.get(), "isCanceled")
   }
 }

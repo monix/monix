@@ -45,7 +45,7 @@ abstract class ConcurrentAtomicSuite[A, R <: Atomic[A]](
 
     val f = Future.sequence(futures)
     Await.result(f, 30.seconds)
-    assert(r.get == valueFromInt(500))
+    assert(r.get() == valueFromInt(500))
   }
 
   test("should perform concurrent getAndSet") {
@@ -57,7 +57,7 @@ abstract class ConcurrentAtomicSuite[A, R <: Atomic[A]](
 
     val f = Future.sequence(futures)
     Await.result(f, 30.seconds)
-    assert(r.get == valueFromInt(99))
+    assert(r.get() == valueFromInt(99))
   }
 }
 
@@ -76,7 +76,7 @@ abstract class ConcurrentAtomicBooleanSuite(strategy: PaddingStrategy, allowPlat
     }
     val result = Await.result(Future.sequence(futures), 30.seconds)
     assert(result.count(_ == true) == 1)
-    assert(r.get)
+    assert(r.get())
   }
 
   test("should not flip to true when already true") {

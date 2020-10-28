@@ -134,10 +134,10 @@ final class TestScheduler private (
     * Returns the internal state of the `TestScheduler`, useful for testing
     * that certain execution conditions have been met.
     */
-  def state: State = stateRef.get
+  def state: State = stateRef.get()
 
   override def clockRealTime(unit: TimeUnit): Long = {
-    val d: FiniteDuration = stateRef.get.clock
+    val d: FiniteDuration = stateRef.get().clock
     unit.convert(d.length, d.unit)
   }
 
@@ -146,7 +146,7 @@ final class TestScheduler private (
 
   @tailrec
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
-    val current: State = stateRef.get
+    val current: State = stateRef.get()
     val (cancelable, newState) = TestScheduler.scheduleOnce(current, FiniteDuration(initialDelay, unit), r, cancelTask)
 
     if (stateRef.compareAndSet(current, newState)) cancelable
@@ -156,14 +156,14 @@ final class TestScheduler private (
 
   @tailrec
   protected override def executeAsync(r: Runnable): Unit = {
-    val current: State = stateRef.get
+    val current: State = stateRef.get()
     val update = TestScheduler.execute(current, r)
     if (!stateRef.compareAndSet(current, update)) executeAsync(r)
   }
 
   @tailrec
   override def reportFailure(t: Throwable): Unit = {
-    val current: State = stateRef.get
+    val current: State = stateRef.get()
     val update = current.copy(lastReportedError = t)
     if (!stateRef.compareAndSet(current, update)) reportFailure(t)
   }
@@ -196,7 +196,7 @@ final class TestScheduler private (
     *        was executed, or `false` otherwise
     */
   @tailrec def tickOne(): Boolean = {
-    val current = stateRef.get
+    val current = stateRef.get()
 
     // extracting one task by taking the immediate tasks
     extractOneTask(current, current.clock) match {
@@ -264,7 +264,7 @@ final class TestScheduler private (
   def tick(time: FiniteDuration = Duration.Zero, maxImmediateTasks: Option[Int] = None): Unit = {
     @tailrec
     def loop(time: FiniteDuration, iterCount: Int, maxIterCount: Int): Unit = {
-      val current: State = stateRef.get
+      val current: State = stateRef.get()
       val currentClock = current.clock + time
 
       extractOneTask(current, currentClock) match {
@@ -302,7 +302,7 @@ final class TestScheduler private (
 
   @tailrec
   private def cancelTask(t: Task): Unit = {
-    val current: State = stateRef.get
+    val current: State = stateRef.get()
     val update = current.copy(tasks = current.tasks - t)
     if (!stateRef.compareAndSet(current, update)) cancelTask(t)
   }

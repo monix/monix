@@ -40,7 +40,7 @@ private[reactive] final class WhileBusyDropEventsOperator[A] extends Operator[A,
               ack = out.onNext(elem)
               Continue
             case Stop => Stop
-            case async => Continue
+            case _ => Continue
           }
 
       def onError(ex: Throwable) =

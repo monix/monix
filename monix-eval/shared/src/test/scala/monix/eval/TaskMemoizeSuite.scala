@@ -22,7 +22,7 @@ import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
-import scala.concurrent.{Await, Promise}
+import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 import concurrent.duration._
 
@@ -606,7 +606,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
   test("TaskRunLoop.startLightWithCallback for failure") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
-    val task = Task.eval { effect += 1; throw dummy }.map(x => x).memoize
+    val task = Task.eval[Int] { effect += 1; throw dummy }.map(x => x).memoize
 
     val p1 = Promise[Int]()
     task.runAsync(Callback.fromPromise(p1))

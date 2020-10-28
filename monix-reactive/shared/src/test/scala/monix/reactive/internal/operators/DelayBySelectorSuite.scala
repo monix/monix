@@ -23,21 +23,21 @@ import scala.util.Success
 
 object DelayBySelectorSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
-    val source = Observable.range(0, sourceCount)
+    val source = Observable.range(0L, sourceCount.toLong)
     val o = source.delayOnNextBySelector(x => Observable.now(x).delayExecution(1.second))
     val c = sourceCount
-    Sample(o, c, c * (c - 1) / 2, 1.second, 1.second)
+    Sample(o, c, (c * (c - 1) / 2).toLong, 1.second, 1.second)
   }
 
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
-    val source = createObservableEndingInError(Observable.range(0, sourceCount), ex)
+    val source = createObservableEndingInError(Observable.range(0L, sourceCount.toLong), ex)
     val o = source.delayOnNextBySelector(x => Observable.now(x).delayExecution(1.second))
     val c = sourceCount
     Sample(o, c - 1, (c - 1) * (c - 2) / 2, 1.second, 1.second)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
-    val source = Observable.range(0, sourceCount + 1)
+    val source = Observable.range(0, sourceCount.toLong + 1)
     val o = source.delayOnNextBySelector { x =>
       if (x < sourceCount)
         Observable.now(x).delayExecution(1.second)
@@ -46,7 +46,7 @@ object DelayBySelectorSuite extends BaseOperatorSuite {
     }
 
     val c = sourceCount
-    Sample(o, c, c * (c - 1) / 2, 1.second, 1.second)
+    Sample(o, c, (c * (c - 1) / 2).toLong, 1.second, 1.second)
   }
 
   override def cancelableObservables() = {

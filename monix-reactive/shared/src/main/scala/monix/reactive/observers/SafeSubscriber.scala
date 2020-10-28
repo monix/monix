@@ -57,10 +57,12 @@ final class SafeSubscriber[-A] private (subscriber: Subscriber[A]) extends Subsc
     }
   }
 
-  def onError(ex: Throwable): Unit =
+  def onError(ex: Throwable): Unit = {
     ack.syncOnContinue(signalError(ex))
+    ()
+  }
 
-  def onComplete(): Unit =
+  def onComplete(): Unit = {
     ack.syncOnContinue {
       if (!isDone) {
         isDone = true
@@ -72,6 +74,8 @@ final class SafeSubscriber[-A] private (subscriber: Subscriber[A]) extends Subsc
         }
       }
     }
+    ()
+  }
 
   private def flattenAndCatchFailures(ack: Future[Ack]): Future[Ack] = {
     // Fast path.

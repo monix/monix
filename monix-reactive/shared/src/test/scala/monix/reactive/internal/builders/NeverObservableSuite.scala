@@ -32,7 +32,7 @@ object NeverObservableSuite extends TestSuite[TestScheduler] {
     Observable.never.unsafeSubscribeFn(new Observer[Any] {
       def onNext(elem: Any) = throw new IllegalStateException()
       def onComplete(): Unit = throw new IllegalStateException()
-      def onError(ex: Throwable) = new IllegalStateException()
+      def onError(ex: Throwable) = throw new IllegalStateException()
     })
 
     s.tick(100.days)

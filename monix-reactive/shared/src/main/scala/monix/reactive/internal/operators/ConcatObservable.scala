@@ -50,6 +50,7 @@ private[reactive] final class ConcatObservable[A](lh: Observable[A], rh: Observa
           // This can create a stack issue, but `chainedSubscribe`
           // creates light async boundaries, so should be safe
           ack.syncOnContinue(chain(rh, conn, out))
+          ()
         }
       }
     )

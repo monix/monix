@@ -424,7 +424,7 @@ object Callback {
     }
 
     override final def run(): Unit = {
-      state.get match {
+      state.get() match {
         case 1 =>
           val v = value
           value = null.asInstanceOf[A]

@@ -25,11 +25,11 @@ object DebounceSuite extends BaseOperatorSuite {
     val o = Observable
       .interval(2.seconds)
       .debounce(1.second)
-      .take(sourceCount)
+      .take(sourceCount.toLong)
 
     val count = sourceCount
     val sum = sourceCount * (sourceCount - 1) / 2
-    Sample(o, count, sum, 1.second, 2.second)
+    Sample(o, count, sum.toLong, 1.second, 2.second)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
@@ -38,13 +38,13 @@ object DebounceSuite extends BaseOperatorSuite {
     val o = createObservableEndingInError(
       Observable
         .interval(2.seconds)
-        .take(sourceCount),
+        .take(sourceCount.toLong),
       ex)
       .debounce(1.second)
 
     val count = sourceCount - 1
     val sum = sourceCount * (sourceCount - 1) / 2
-    Sample(o, count, sum, 1.second, 2.second)
+    Sample(o, count, sum.toLong, 1.second, 2.second)
   }
 
   override def cancelableObservables(): Seq[Sample] = {

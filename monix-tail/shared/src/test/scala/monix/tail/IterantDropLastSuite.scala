@@ -72,6 +72,7 @@ object IterantDropLastSuite extends BaseTestSuite {
 
       intercept[DummyException] {
         stream.dropLast(1).toListL.value()
+        ()
       }
       cancelable.isCanceled
     }

@@ -39,8 +39,10 @@ final class AtomicInt private (private[this] val ref: BoxedInt) extends AtomicNu
   def lazySet(update: Int): Unit =
     ref.lazySet(update)
 
-  def increment(v: Int = 1): Unit =
+  def increment(v: Int = 1): Unit = {
     ref.getAndAdd(v)
+    ()
+  }
 
   def incrementAndGet(v: Int = 1): Int =
     ref.getAndAdd(v) + v
@@ -54,8 +56,10 @@ final class AtomicInt private (private[this] val ref: BoxedInt) extends AtomicNu
   def addAndGet(v: Int): Int =
     ref.getAndAdd(v) + v
 
-  def add(v: Int): Unit =
+  def add(v: Int): Unit = {
     ref.getAndAdd(v)
+    ()
+  }
 
   def subtract(v: Int): Unit =
     add(-v)

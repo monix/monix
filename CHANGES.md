@@ -943,7 +943,7 @@ Bug fixes:
 
 Chores:
 
-- [PR #502](https://github.com/monix/monix/pull/502): update SBT to 1.1
+- [PR #502](https://github.com/monix/monix/pull/502): update sbt to 1.1
 - [PR #488](https://github.com/monix/monix/pull/488):
   add note about execution model for `Observable.fromInputStream`
 - [PR #531](https://github.com/monix/monix/pull/531)
@@ -1173,7 +1173,7 @@ Administrative and build changes:
   dropped Scala 2.10 support
 - enabled automatic deployments through Travis-ci, wrote a blog post
   documenting the necessarily steps, see
-  [Automatic Releases to Maven Central with Travis and SBT](https://alexn.org/blog/2017/08/16/automatic-releases-sbt-travis.html)
+  [Automatic Releases to Maven Central with Travis and sbt](https://alexn.org/blog/2017/08/16/automatic-releases-sbt-travis.html)
 - [PR #423](https://github.com/monix/monix/pull/423): updates Scala.js
   to 0.6.20, the final in the series before 1.0.0
 
@@ -1944,5 +1944,5 @@ List of changes:
 
 - [Issue #125](https://github.com/monix/monix/issues/125) - Modify contract of AsyncScheduler,
   and add a new Scheduler type based entirely on Java's ScheduledExecutor
-- Update versions of SBT dependencies
+- Update versions of sbt dependencies
 - Documentation changes (fixed missing argument in Observable docs, add code of conduct mention)

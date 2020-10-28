@@ -15,13 +15,12 @@
  * limitations under the License.
  */
 
-package monix.reactive
-package internal
-package deprecated
+package monix.reactive.internal.deprecated
 
 import cats.Eval
 import cats.effect.IO
 import monix.execution.Scheduler
+import monix.reactive.{Observable, OverflowStrategy}
 
 private[reactive] trait ObservableDeprecatedBuilders extends Any {
   /** DEPRECATED — please use [[Observable!.executeAsync .executeAsync]].

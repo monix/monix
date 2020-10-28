@@ -44,7 +44,7 @@ object CollectSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           Observable.now(2L).collect { case x if x % 2 == 0 => x }
         else
-          Observable.range(1, sourceCount * 2 + 1, 1).collect { case x if x % 2 == 0 => x }
+          Observable.range(1, sourceCount.toLong * 2 + 1, 1).collect { case x if x % 2 == 0 => x }
 
       Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
     }
@@ -58,7 +58,7 @@ object CollectSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           createObservableEndingInError(Observable.now(2L), ex).collect { case x if x % 2 == 0 => x }
         else
-          createObservableEndingInError(Observable.range(1, sourceCount * 2 + 1, 1), ex).collect {
+          createObservableEndingInError(Observable.range(1, sourceCount.toLong * 2 + 1, 1), ex).collect {
             case x if x % 2 == 0 => x
           }
 
@@ -73,7 +73,7 @@ object CollectSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           Observable.now(1L).collect { case _ => throw ex }
         else
-          Observable.range(1, sourceCount * 2 + 1, 1).collect {
+          Observable.range(1, sourceCount.toLong * 2 + 1, 1).collect {
             case x if x % 2 == 0 =>
               if (x == sourceCount * 2)
                 throw ex
@@ -87,7 +87,7 @@ object CollectSuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[CollectSuite.Sample] = {
     val o = Observable
-      .range(0, Platform.recommendedBatchSize)
+      .range(0, Platform.recommendedBatchSize.toLong)
       .delayOnNext(1.second)
       .collect { case x if x % 2 == 0 => x }
 

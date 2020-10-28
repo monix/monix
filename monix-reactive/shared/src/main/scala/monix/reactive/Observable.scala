@@ -19,20 +19,7 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
-import cats.{
-  ~>,
-  Alternative,
-  Applicative,
-  Apply,
-  CoflatMap,
-  Eq,
-  FlatMap,
-  Functor,
-  FunctorFilter,
-  Monoid,
-  NonEmptyParallel,
-  Order
-}
+import cats.{Alternative, Applicative, Apply, CoflatMap, Eq, FlatMap, Functor, FunctorFilter, Monoid, NonEmptyParallel, Order, ~>}
 import cats.effect.{Bracket, Effect, ExitCase, Resource}
 import monix.eval.{Coeval, Task, TaskLift, TaskLike}
 import monix.eval.Task.defaultOptions
@@ -42,7 +29,7 @@ import monix.execution._
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
 import monix.execution.cancelables.{BooleanCancelable, SingleAssignCancelable}
 import monix.execution.exceptions.{DownstreamTimeoutException, UpstreamTimeoutException}
-import monix.reactive.Observable.Operator
+import monix.reactive.Observable.{Operator, Transformer}
 import monix.reactive.OverflowStrategy.Synchronous
 import monix.reactive.internal.builders
 import monix.reactive.internal.builders._
@@ -1039,7 +1026,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * the source completes after emitting no items.
     */
   final def defaultIfEmpty[B >: A](default: => B): Observable[B] =
-    self.liftByOperator(new DefaultIfEmptyOperator[B](default _))
+    self.liftByOperator(new DefaultIfEmptyOperator[B](() => default))
 
   /** Delays emitting the final `onComplete` event by the specified amount. */
   final def delayOnComplete(delay: FiniteDuration): Observable[A] =
@@ -1835,7 +1822,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[flatScan0]] for the version that emits seed element at the beginning
     */
   final def flatScan[R](seed: => R)(op: (R, A) => Observable[R]): Observable[R] =
-    new FlatScanObservable[A, R](self, seed _, op, delayErrors = false)
+    new FlatScanObservable[A, R](self, () => seed, op, delayErrors = false)
 
   /** Applies a binary operator to a start value and to elements
     * produced by the source observable, going from left to right,
@@ -1854,7 +1841,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[flatScan]]
     */
   final def flatScanDelayErrors[R](seed: => R)(op: (R, A) => Observable[R]): Observable[R] =
-    new FlatScanObservable[A, R](self, seed _, op, delayErrors = true)
+    new FlatScanObservable[A, R](self, () => seed, op, delayErrors = true)
 
   /** Version of [[flatScan0]] that delays the errors from the emitted
     * streams until the source completes.
@@ -2163,7 +2150,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * buffer gets dropped and the error gets emitted immediately.
     */
   final def takeLast(n: Int): Observable[A] =
-    if (n <= 0) Observable.empty else self.liftByOperator(new TakeLastOperator(n))
+    if (n <= 0) Observable.empty else new TakeLastObservable[A](self, n)
 
   /** Maps elements from the source using a function that can do
     * asynchronous processing by means of [[monix.eval.Task Task]].
@@ -2652,7 +2639,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecover[B >: A](pf: PartialFunction[Throwable, B]): Observable[B] =
-    onErrorHandleWith(ex => (pf.andThen(Observable.now _).applyOrElse(ex, Observable.raiseError _)))
+    onErrorHandleWith(ex => (pf.andThen(b => Observable.now(b)).applyOrElse(ex, Observable.raiseError _)))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -2905,7 +2892,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @see [[scan0]] for the version that emits seed element at the beginning
     */
   final def scan[S](seed: => S)(op: (S, A) => S): Observable[S] =
-    new ScanObservable[A, S](self, seed _, op)
+    new ScanObservable[A, S](self, () => seed, op)
 
   /**
     * Applies a binary operator to a start value and all elements of
@@ -2918,7 +2905,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * the returned observable.
     */
   final def mapAccumulate[S, R](seed: => S)(op: (S, A) => (S, R)): Observable[R] =
-    new MapAccumulateObservable[A, S, R](self, seed _, op)
+    new MapAccumulateObservable[A, S, R](self, () => seed, op)
 
   /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new
@@ -3154,14 +3141,9 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def tail: Observable[A] = drop(1L)
 
-  /** Drops the first `n` elements (from the start).
-    *
-    * @param n the number (Int) of elements to drop
-    * @return a new Observable that drops the first ''n'' elements
-    *         emitted by the source
-    */
+  /** Overload of [[drop(n:Long* drop(Long)]]. */
   final def drop(n: Int): Observable[A] =
-    self.liftByOperator(new DropFirstOperator(n))
+    self.liftByOperator(new DropFirstOperator(n.toLong))
 
   /** Drops the first `n` elements (from the start).
     *
@@ -3855,6 +3837,7 @@ abstract class Observable[+A] extends Serializable { self =>
           SafeSubscriber(
             Subscriber.fromReactiveSubscriber(subscriber, subscription)
           ))
+        ()
       }
     }
 
@@ -4054,7 +4037,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *         is empty
     */
   final def foldWhileLeft[S](seed: => S)(op: (S, A) => Either[S, S]): Observable[S] =
-    new FoldWhileLeftObservable[A, S](self, seed _, op)
+    new FoldWhileLeftObservable[A, S](self, () => seed, op)
 
   /** Folds the source observable, from start to finish, until the
     * source completes, or until the operator short-circuits the
@@ -4243,7 +4226,7 @@ abstract class Observable[+A] extends Serializable { self =>
   /** Only emits the first element emitted by the source observable,
     * after which it's completed immediately.
     */
-  final def head: Observable[A] = take(1)
+  final def head: Observable[A] = take(1L)
 
   /** Selects the first `n` elements (from the start).
     *
@@ -4267,7 +4250,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        observable, returning the next state
     */
   final def foldLeft[R](seed: => R)(op: (R, A) => R): Observable[R] =
-    new FoldLeftObservable[A, R](self, seed _, op)
+    new FoldLeftObservable[A, R](self, () => seed, op)
 
   /** Applies a binary operator to a start value and all elements of
     * the source, going left to right and returns a new `Task` that
@@ -4664,6 +4647,11 @@ abstract class Observable[+A] extends Serializable { self =>
     Task.create { (s, onFinish) =>
       unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s))
     }
+
+  /** Transforms the source using the given transformer function. */
+  def transform[B](transformer: Transformer[A, B]): Observable[B] =
+    transformer(this)
+
 }
 
 /** Observable builders.
@@ -4707,6 +4695,12 @@ object Observable extends ObservableDeprecatedBuilders {
     */
   type Operator[-I, +O] = Subscriber[O] => Subscriber[I]
 
+  /** A `Transformer` is a function used for transforming observables.
+    *
+    * See [[Observable.transform]]
+    */
+  type Transformer[-A, +B] = Observable[A] => Observable[B]
+
   /** Given a sequence of elements, builds an observable from it. */
   def apply[A](elems: A*): Observable[A] =
     Observable.fromIterable(elems)
@@ -4743,7 +4737,7 @@ object Observable extends ObservableDeprecatedBuilders {
     * emits a single element.
     */
   def eval[A](a: => A): Observable[A] =
-    new builders.EvalAlwaysObservable(a _)
+    new builders.EvalAlwaysObservable(() => a)
 
   /** Lifts a non-strict value into an observable that emits a single element,
     * but upon subscription delay its evaluation by the specified timespan
@@ -4784,7 +4778,7 @@ object Observable extends ObservableDeprecatedBuilders {
     *    }
     * }}}
     */
-  def tailRecM[A, B](a: A)(f: (A) => Observable[Either[A, B]]): Observable[B] =
+  def tailRecM[A, B](a: A)(f: A => Observable[Either[A, B]]): Observable[B] =
     new builders.TailRecMObservable[A, B](a, f)
 
   /** Given a subscribe function, lifts it into an [[Observable]].
@@ -5329,7 +5323,7 @@ object Observable extends ObservableDeprecatedBuilders {
     * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
     * supported data-type into [[Observable]].
     */
-  def liftFrom[F[_]](implicit F: ObservableLike[F]): (F ~> Observable) = F
+  def liftFrom[F[_]](implicit F: ObservableLike[F]): F ~> Observable = F
 
   /** Alias for [[defer]]. */
   def suspend[A](fa: => Observable[A]): Observable[A] = defer(fa)
@@ -5338,7 +5332,7 @@ object Observable extends ObservableDeprecatedBuilders {
     * given factory on each subscription.
     */
   def defer[A](fa: => Observable[A]): Observable[A] =
-    new builders.DeferObservable(fa _)
+    new builders.DeferObservable(() => fa)
 
   /** Builds a new observable from a strict `head` and a lazily
     * evaluated tail.
@@ -6053,6 +6047,30 @@ object Observable extends ObservableDeprecatedBuilders {
       Observable.empty
     } else {
       new CombineLatestListObservable[A](sources)
+    }
+  }
+
+  /** Given a sequence of priority/observable pairs, combines them into a new
+    * observable that eagerly emits source items downstream as soon as demand is
+    * signaled, choosing the item from the highest priority (greater numbers
+    * mean higher priority) source when items from multiple sources are
+    * available. If items are available from multiple sources with the same
+    * highest priority, one of them is chosen arbitrarily.
+    *
+    * Source items are buffered only to the extent necessary to accommodate
+    * backpressure from downstream, and thus if only a single item is available
+    * when demand is signaled, it will be emitted regardless of priority.
+    *
+    * Backpressure is propagated from downstream to the source observables, so
+    * that items from a given source will always be emitted downstream in the
+    * same order as received from the source, and at most a single item from a
+    * given source will be in flight at a time.
+    */
+  def mergePrioritizedList[A](sources: (Int, Observable[A])*): Observable[A] = {
+    if (sources.isEmpty) {
+      Observable.empty
+    } else {
+      new MergePrioritizedListObservable[A](sources)
     }
   }
 

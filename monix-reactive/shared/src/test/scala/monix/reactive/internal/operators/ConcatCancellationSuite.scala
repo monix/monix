@@ -29,7 +29,7 @@ object ConcatCancellationSuite extends BaseTestSuite {
     val a = Observable.now(1L)
     val b = Observable.interval(1.second)
     val c = (a ++ b).doOnNextF(_ => Task { items += 1 })
-    val d = c.take(10).subscribe()
+    val d = c.take(10L).subscribe()
 
     assert(items > 0, "items > 0")
     assert(sc.state.tasks.nonEmpty, "tasks.nonEmpty")

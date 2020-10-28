@@ -38,13 +38,13 @@ import scala.annotation.tailrec
   */
 final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCancelable {
   def isCanceled: Boolean =
-    state.get.isCanceled
+    state.get().isCanceled
 
   /** Acquires a new [[monix.execution.Cancelable Cancelable]]. */
   @tailrec
   def acquire(): Cancelable = {
     @tailrec def decrementCounter(): State = {
-      val oldState = state.get
+      val oldState = state.get()
       val newState = oldState.copy(activeCounter = oldState.activeCounter - 1)
       if (state.compareAndSet(oldState, newState)) {
         newState
@@ -55,7 +55,7 @@ final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCan
       }
     }
 
-    val oldState = state.get
+    val oldState = state.get()
     if (oldState.isCanceled) {
       Cancelable.empty
     } else if (!state.compareAndSet(oldState, oldState.copy(activeCounter = oldState.activeCounter + 1))) {
@@ -72,7 +72,7 @@ final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCan
   }
 
   override def cancel(): Unit = {
-    val oldState = state.get
+    val oldState = state.get()
     if (!oldState.isCanceled)
       if (state.compareAndSet(oldState, oldState.copy(isCanceled = true))) {
         if (oldState.activeCounter == 0)

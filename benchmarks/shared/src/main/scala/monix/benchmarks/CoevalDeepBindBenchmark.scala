@@ -60,7 +60,7 @@ class CoevalDeepBindBenchmark {
         _ <- if(j > size) Coeval.pure(j) else loop(j + 1)
       } yield j
 
-    loop(0).value
+    loop(0).value()
   }
 
   @Benchmark
@@ -71,6 +71,6 @@ class CoevalDeepBindBenchmark {
         _ <- if(j > size) Coeval(j) else loop(j + 1)
       } yield j
 
-    loop(0).value
+    loop(0).value()
   }
 }

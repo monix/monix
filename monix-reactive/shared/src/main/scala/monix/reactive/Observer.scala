@@ -212,13 +212,16 @@ object Observer {
                 case Success(Continue) => run()
                 case other => promise.complete(other)
               }
-            else
+            else {
               promise.success(Stop)
+              ()
+            }
           } else {
             if ((ack eq Continue) || (ack eq Stop))
               promise.success(ack.asInstanceOf[Ack])
             else
               promise.completeWith(ack)
+            ()
           }
         }
 
@@ -226,9 +229,11 @@ object Observer {
           try fastLoop(0)
           catch {
             case ex if NonFatal(ex) =>
-              try target.onError(ex)
-              finally {
+              try {
+                target.onError(ex)
+              } finally {
                 promise.failure(ex)
+                ()
               }
           }
         }

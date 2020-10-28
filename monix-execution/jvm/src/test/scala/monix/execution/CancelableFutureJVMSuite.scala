@@ -19,6 +19,7 @@ package monix.execution
 
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler.Implicits.global
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
 import scala.util.Success
@@ -50,8 +51,8 @@ object CancelableFutureJVMSuite extends SimpleTestSuite {
 
   test("never") {
     val f = CancelableFuture.never[Int]
-    intercept[TimeoutException] { Await.result(f, 1.milli) }
-    intercept[TimeoutException] { Await.ready(f, 1.milli) }
+    intercept[TimeoutException] { Await.result(f, 1.milli); () }
+    intercept[TimeoutException] { Await.ready(f, 1.milli); () }
     ()
   }
 }

@@ -66,11 +66,13 @@ object CallbackSuite extends TestSuite[TestScheduler] {
 
   test("contramap should pipe onError") { implicit s =>
     var result = Option.empty[Try[Int]]
-    val callback = TestCallback({ v =>
-      result = Some(Success(v))
-    }, { e =>
-      result = Some(Failure(e))
-    })
+    val callback = TestCallback(
+      { v =>
+        result = Some(Success(v))
+      },
+      { e =>
+        result = Some(Failure(e))
+      })
 
     val stringCallback = callback.contramap[String](_.toInt)
     val dummy = DummyException("dummy")
@@ -186,8 +188,8 @@ object CallbackSuite extends TestSuite[TestScheduler] {
   test("fromAttempt success") { _ =>
     val p = Promise[Int]()
     val cb = Callback[Throwable].fromAttempt[Int] {
-      case Right(a) => p.success(a)
-      case Left(e) => p.failure(e)
+      case Right(a) => p.success(a); ()
+      case Left(e) => p.failure(e); ()
     }
 
     cb.onSuccess(10)
@@ -197,8 +199,8 @@ object CallbackSuite extends TestSuite[TestScheduler] {
   test("fromAttempt error") { _ =>
     val p = Promise[Int]()
     val cb = Callback[Throwable].fromAttempt[Int] {
-      case Right(a) => p.success(a)
-      case Left(e) => p.failure(e)
+      case Right(a) => p.success(a); ()
+      case Left(e) => p.failure(e); ()
     }
 
     val err = DummyException("dummy")

@@ -75,7 +75,7 @@ private[reactive] final class FirstStartedObservable[A](source: Observable[A]*) 
       private[this] var finishLineCache = -1
 
       private def shouldStream(): Boolean = {
-        if (finishLineCache != idx) finishLineCache = finishLine.get
+        if (finishLineCache != idx) finishLineCache = finishLine.get()
         if (finishLineCache == idx)
           true
         else if (finishLineCache >= 0 || !finishLine.compareAndSet(-1, idx))

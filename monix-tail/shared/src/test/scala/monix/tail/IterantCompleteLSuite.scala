@@ -19,11 +19,9 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import cats.syntax.all._
 import monix.eval.Coeval
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
-
 import scala.util.Failure
 
 object IterantCompleteLSuite extends BaseTestSuite {

@@ -18,7 +18,6 @@
 package monix.execution.internal
 
 import monix.execution.schedulers.CanBlock
-
 import scala.concurrent.{Await, Awaitable}
 import scala.concurrent.duration.Duration
 import scala.util.Try
@@ -35,6 +34,12 @@ private[monix] object Platform {
     * or `false` otherwise.
     */
   final val isJVM = true
+
+  /**
+    * Reads environment variable in a platform-specific way.
+    */
+  def getEnv(key: String): Option[String] =
+    Option(System.getenv(key)).map(_.trim).filter(_.nonEmpty)
 
   /** Recommended batch size used for breaking synchronous loops in
     * asynchronous batches. When streaming value from a producer to
@@ -154,13 +159,14 @@ private[monix] object Platform {
     *        ...
     * </pre>
     */
-  val fusionMaxStackDepth =
+  val fusionMaxStackDepth = {
     Option(System.getProperty("monix.environment.fusionMaxStackDepth"))
       .filter(s => s != null && s.nonEmpty)
       .flatMap(s => Try(s.toInt).toOption)
       .filter(_ > 0)
       .map(_ - 1)
       .getOrElse(127)
+  }
 
   /** Blocks for the result of `fa`.
     *

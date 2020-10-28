@@ -36,7 +36,7 @@ object AsyncBoundarySuite extends BaseOperatorSuite {
             .asyncBoundary(Unbounded)
         else
           Observable
-            .range(1, sourceCount + 1, 1)
+            .range(1, sourceCount.toLong + 1, 1)
             .asyncBoundary(Unbounded)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)

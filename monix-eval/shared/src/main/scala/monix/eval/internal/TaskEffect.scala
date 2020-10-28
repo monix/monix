@@ -37,7 +37,8 @@ private[eval] object TaskEffect {
     implicit s: Scheduler,
     opts: Task.Options
   ): SyncIO[Unit] = SyncIO {
-    execute(fa, cb); ()
+    execute(fa, cb)
+    ()
   }
 
   /**
@@ -52,8 +53,8 @@ private[eval] object TaskEffect {
 
   private def execute[A](fa: Task[A], cb: Either[Throwable, A] => IO[Unit])(
     implicit s: Scheduler,
-    opts: Task.Options) = {
-
+    opts: Task.Options
+  ): CancelToken[Task] = {
     fa.runAsyncOptF(new Callback[Throwable, A] {
       private def signal(value: Either[Throwable, A]): Unit =
         try cb(value).unsafeRunAsync(noop)

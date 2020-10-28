@@ -25,6 +25,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropAllOnOverflowQueue[String](100)
     intercept[NullPointerException] {
       q.offer(null)
+      ()
     }
     ()
   }
@@ -44,10 +45,12 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
 
     intercept[IllegalArgumentException] {
       DropHeadOnOverflowQueue[Int](0)
+      ()
     }
 
     intercept[IllegalArgumentException] {
       DropHeadOnOverflowQueue[Int](-100)
+      ()
     }
     ()
   }
@@ -152,7 +155,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     assert(q.isEmpty)
     assert(!q.nonEmpty)
 
-    intercept[NoSuchElementException](q.head)
+    intercept[NoSuchElementException] { q.head; () }
     assertEquals(q.headOption, None)
 
     q.offer(1)
@@ -166,7 +169,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     assert(q.isEmpty)
     assert(!q.nonEmpty)
 
-    intercept[NoSuchElementException](q.head)
+    intercept[NoSuchElementException] { q.head; () }
     assertEquals(q.headOption, None)
   }
 

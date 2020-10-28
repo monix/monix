@@ -107,6 +107,7 @@ object InlineMacrosTest extends SimpleTestSuite {
     val box = TestBox(2)
     intercept[MatchError] {
       box.map { case 1 => 2 }
+      ()
     }
     ()
   }

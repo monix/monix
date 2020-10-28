@@ -56,8 +56,8 @@ object ObserveOnSuite extends BaseTestSuite {
       }
 
     s.tick()
-    assertEquals(signaledBefore, count)
-    assertEquals(signaledAfter, 0)
+    assertEquals(signaledBefore, count.toLong)
+    assertEquals(signaledAfter, 0L)
 
     io.tick()
     assertEquals(signaledAfter, count)
@@ -70,7 +70,7 @@ object ObserveOnSuite extends BaseTestSuite {
 
     val io = TestScheduler()
     Observable
-      .range(0, count)
+      .range(0, count.toLong)
       .doOnNext(_ => Task { signaledBefore += 1 })
       .observeOn(io)
       .foreach { _ =>
@@ -78,10 +78,10 @@ object ObserveOnSuite extends BaseTestSuite {
       }
 
     s.tick()
-    assertEquals(signaledBefore, count)
+    assertEquals(signaledBefore, count.toLong)
     assertEquals(signaledAfter, 0)
 
     io.tick()
-    assertEquals(signaledAfter, count)
+    assertEquals(signaledAfter, count.toLong)
   }
 }
