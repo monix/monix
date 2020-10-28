@@ -139,10 +139,10 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
     }
 
   def transform[S](f: Try[A] => Try[S])(implicit executor: ExecutionContext): CancelableFuture[S] = {
-    val g: Try[A] => Try[S] = (result => {
+    val g: Try[A] => Try[S] = result => {
       if (isolatedCtx ne null) Local.setContext(isolatedCtx)
       f(result)
-    })
+    }
     val next = FutureUtils.transform(underlying, g)
     CancelableFuture.applyWithLocal(next, cancelable, isolatedCtx)
   }
@@ -360,8 +360,14 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
   private[execution] final case class Async[+A](underlying: Future[A], cancelable: Cancelable, override val isolatedCtx: Local.Context = null)
     extends CancelableFuture[A] {
 
-    override def onComplete[U](f: (Try[A]) => U)(implicit executor: ExecutionContext): Unit =
-      underlying.onComplete(f)(executor)
+    override def onComplete[U](f: (Try[A]) => U)(implicit executor: ExecutionContext): Unit = {
+      val g: Try[A] => U = result => {
+        if (isolatedCtx ne null) Local.setContext(isolatedCtx)
+        f(result)
+      }
+
+      underlying.onComplete(g)(executor)
+    }
     override def isCompleted: Boolean =
       underlying.isCompleted
     override def value: Option[Try[A]] =

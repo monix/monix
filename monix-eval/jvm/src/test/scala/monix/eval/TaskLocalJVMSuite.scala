@@ -337,7 +337,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
           local.get
         }
       } yield {
-        val _ = promises(i).success(TestResult(Local.getContext(), isolated, next, i))
+        val _ = promises(i).success(TestResult(Local.getContext(), isolated, next, prev + i))
       }
     }
 
@@ -448,6 +448,27 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     }
   }
 
+  testAsync("Task.eval.runToFuture can isolate future continuations on failure") {
+    implicit val s: Scheduler = Scheduler.Implicits.traced
+
+    val local = Local(0)
+
+    for {
+      _  <- Task(local.update(1)).flatMap(_ => Task.raiseError(DummyException("boom"))).runToFuture.recover{ case _ => ()}
+      i1 <- Future(local.get)
+      i2 <- Local.isolate {
+        Future(local.update(i1 + 1))
+          .flatMap(_ => Future(local.get))
+      }
+      i3 <- Future(local.get)
+    } yield {
+      assertEquals(i1, 1)
+      assertEquals(i2, 2)
+      assertEquals(i3, 1)
+      assertEquals(local.get, 1)
+    }
+  }
+
   testAsync("Task.runToFuture resulting future can be reused") {
     implicit val s: Scheduler = Scheduler.Implicits.traced
 
@@ -493,5 +514,23 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     val f23 = f2.map(_ => assertEquals(local.get, 2))
 
     List(f12, f21, f13, f23).sequence_
+  }
+
+  testAsync("Task.eval.runToFuture is isolated from outside changes") {
+    implicit val s: Scheduler = Scheduler.Implicits.traced
+
+    val local = Local(0)
+
+    val t1 = for {
+      i1 <- Task(local.get)
+      _ <- Task.sleep(10.millis)
+      i2 <- Task(local.get)
+    } yield assertEquals(i1, i2)
+
+    val f = t1.runToFuture
+
+    local.update(100)
+
+    f
   }
 }
