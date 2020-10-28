@@ -7,12 +7,16 @@ import MonixBuildUtils._
 val benchmarkProjects = List(
   "benchmarksPrev",
   "benchmarksNext"
-).map(_ + "/compile")
+).map(_ + "/compile").mkString(" ;")
 
-addCommandAlias("ci",          ";ci-jvm ;ci-js")
+val jvmTests = List(
+  "reactiveTests",
+  "tracingTests"
+).map(_ + "/test").mkString(" ;")
+
 addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;ci-meta")
 addCommandAlias("ci-js",       ";clean ;coreJS/test:compile ;coreJS/test ;coreJS/package")
-addCommandAlias("ci-jvm",      ";clean ;coreJVM/test:compile ;coreJVM/test ;coreJVM/package")
+addCommandAlias("ci-jvm",      s";clean ;coreJVM/test:compile ;coreJVM/test ;coreJVM/package ;tracingTests/test")
 addCommandAlias("ci-meta",     ";mimaReportBinaryIssues ;unidoc")
 addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 
@@ -664,6 +668,37 @@ lazy val reactiveTests = project.in(file("reactiveTests"))
       reactiveStreamsTCKLib % Test,
       scalaTestLib.value % Test,
     ))
+
+// --------------------------------------------
+// monix-tracing-tests (not published)
+
+lazy val FullTracingTest = config("fulltracing").extend(Test)
+
+lazy val tracingTests = project.in(file("tracingTests"))
+  .configure(monixSubModule(
+    "monix-tracing-tests",
+    publishArtifacts = false
+  ))
+  .dependsOn(evalJVM % "compile->compile; test->test")
+  .configs(FullTracingTest)
+  .settings(testFrameworks := Seq(new TestFramework("minitest.runner.Framework")))
+  .settings(inConfig(FullTracingTest)(Defaults.testSettings): _*)
+  .settings(
+    unmanagedSourceDirectories in FullTracingTest += {
+      baseDirectory.value.getParentFile / "src" / "fulltracing" / "scala"
+    },
+    test in Test := (test in Test).dependsOn(test in FullTracingTest).value,
+    fork in Test := true,
+    fork in FullTracingTest := true,
+    javaOptions in Test ++= Seq(
+      "-Dmonix.eval.tracing=true",
+      "-Dmonix.eval.stackTracingMode=cached"
+    ),
+    javaOptions in FullTracingTest ++= Seq(
+      "-Dmonix.eval.tracing=true",
+      "-Dmonix.eval.stackTracingMode=full"
+    )
+  )
 
 // --------------------------------------------
 // monix-benchmarks-{prev,next} (not published)
