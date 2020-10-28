@@ -18,8 +18,10 @@
 package monix.eval.internal
 
 import monix.eval.Task
-import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, Map, Now, Suspend}
+import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, Map, Now, Suspend, Trace}
 import monix.eval.internal.TaskRunLoop._
+import monix.eval.tracing.TaskEvent
+import monix.eval.internal.TracingPlatform.{enhancedExceptions, isStackTracing}
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.misc.Local
 import monix.execution.{Callback, CancelableFuture, Scheduler}
@@ -45,13 +47,22 @@ private[eval] object TaskRunToFutureWithLocal {
     val em = scheduler.executionModel
     var frameIndex = frameStart(em)
 
+    // we might not need to initialize full Task.Context
+    var tracingCtx: StackTracedContext = null
+
     val prev = Local.getContext()
     val isolated = prev.isolate()
 
     do {
       if (frameIndex != 0) {
         current match {
-          case FlatMap(fa, bindNext) =>
+          case bind @ FlatMap(fa, bindNext, _) =>
+            if (isStackTracing) {
+              val trace = bind.trace
+              if (tracingCtx eq null) tracingCtx = new StackTracedContext
+              if (trace ne null) tracingCtx.pushEvent(trace.asInstanceOf[TaskEvent])
+            }
+
             if (bFirst ne null) {
               if (bRest eq null) bRest = ChunkedArrayStack()
               bRest.push(bFirst)
@@ -76,6 +87,11 @@ private[eval] object TaskRunToFutureWithLocal {
             }
 
           case bindNext @ Map(fa, _, _) =>
+            if (isStackTracing) {
+              val trace = bindNext.trace
+              if (tracingCtx eq null) tracingCtx = new StackTracedContext
+              if (trace ne null) tracingCtx.pushEvent(trace.asInstanceOf[TaskEvent])
+            }
             if (bFirst ne null) {
               if (bRest eq null) bRest = ChunkedArrayStack()
               bRest.push(bFirst)
@@ -93,6 +109,11 @@ private[eval] object TaskRunToFutureWithLocal {
             }
 
           case Error(error) =>
+            if (isStackTracing && enhancedExceptions) {
+              if (tracingCtx eq null) tracingCtx = new StackTracedContext
+              augmentException(error, tracingCtx)
+            }
+
             findErrorHandler(bFirst, bRest) match {
               case null =>
                 return CancelableFuture.failed(error)
@@ -105,7 +126,13 @@ private[eval] object TaskRunToFutureWithLocal {
                 bFirst = null
             }
 
+          case Trace(sourceTask, frame) =>
+            if (tracingCtx eq null) tracingCtx = new StackTracedContext
+            tracingCtx.pushEvent(frame)
+            current = sourceTask
+
           case async =>
+            if (tracingCtx eq null) tracingCtx = new StackTracedContext
             return goAsync4Future(
               async,
               scheduler,
@@ -115,7 +142,8 @@ private[eval] object TaskRunToFutureWithLocal {
               frameIndex,
               forceFork = false,
               prev,
-              isolated
+              isolated,
+              tracingCtx = tracingCtx
             )
         }
 
@@ -140,8 +168,9 @@ private[eval] object TaskRunToFutureWithLocal {
           }
         }
       } else {
+        if (tracingCtx eq null) tracingCtx = new StackTracedContext
         // Force async boundary
-        return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceFork = true, prev, isolated)
+        return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceFork = true, prev, isolated, tracingCtx = tracingCtx)
       }
     } while (true)
     // $COVERAGE-OFF$
@@ -159,14 +188,15 @@ private[eval] object TaskRunToFutureWithLocal {
     nextFrame: FrameIndex,
     forceFork: Boolean,
     previousCtx: Local.Context,
-    isolatedCtx: Local.Context): CancelableFuture[A] = {
+    isolatedCtx: Local.Context,
+    tracingCtx: StackTracedContext): CancelableFuture[A] = {
 
     Local.setContext(isolatedCtx)
 
     val p = Promise[A]()
 
     val cb = Callback.fromPromise(p).asInstanceOf[Callback[Throwable, Any]]
-    val context = Context(scheduler, opts)
+    val context = Context(scheduler, opts, TaskConnection(), tracingCtx)
 
     if (!forceFork) source match {
       case async: Async[Any] =>
