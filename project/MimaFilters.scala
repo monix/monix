@@ -45,7 +45,23 @@ object MimaFilters {
     exclude[MissingClassProblem]("monix.eval.internal.CoevalDeprecated$"),
     // Fixed observable.takeLast, replaced with TakeLastObservable
     exclude[MissingClassProblem]("monix.reactive.internal.operators.TakeLastOperator"),
-    // Signature changes in internal classes
+    // Changes in Task model due to Asynchronous Stack Traces
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Context.copy"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Context.this"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Context.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Context.apply"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Map.apply"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Map.this"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Task#Map.copy$default$3"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Map.index"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Map.copy"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#FlatMap.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#FlatMap.this"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#FlatMap.copy"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.copy"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.this"),
+      // Signature changes in internal classes
     exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture#Async*"),
     exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture#Pure*")
   )

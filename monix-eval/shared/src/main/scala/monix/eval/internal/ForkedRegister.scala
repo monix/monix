@@ -44,8 +44,8 @@ private[eval] object ForkedRegister {
     */
   @tailrec def detect(task: Task[_], limit: Int = 8): Boolean = {
     if (limit > 0) task match {
-      case Async(_: ForkedRegister[_], _, _, _) => true
-      case FlatMap(other, _) => detect(other, limit - 1)
+      case Async(_: ForkedRegister[_], _, _, _, _) => true
+      case FlatMap(other, _, _) => detect(other, limit - 1)
       case Map(other, _, _) => detect(other, limit - 1)
       case ContextSwitch(other, _, _) => detect(other, limit - 1)
       case _ => false

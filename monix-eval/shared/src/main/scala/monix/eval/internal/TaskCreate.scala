@@ -20,7 +20,7 @@ package monix.eval.internal
 import java.util.concurrent.RejectedExecutionException
 
 import cats.effect.{CancelToken, IO}
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.Context
 import monix.eval.{Coeval, Task}
 import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.CallbackCalledMultipleTimesException
@@ -45,11 +45,7 @@ private[eval] object TaskCreate {
       def setConnection(ref: TaskConnectionRef, token: CancelToken[Task])(implicit s: Scheduler): Unit =
         ref := token
     }
-    Async(
-      start,
-      trampolineBefore = false,
-      trampolineAfter = false
-    )
+    TracedAsync[A](start, trampolineBefore = false, trampolineAfter = false, traceKey = fn)
   }
 
   /**
@@ -66,7 +62,7 @@ private[eval] object TaskCreate {
       def setConnection(ref: TaskConnectionRef, token: Cancelable)(implicit s: Scheduler): Unit =
         ref := token
     }
-    Async(start, trampolineBefore = false, trampolineAfter = false)
+    TracedAsync[A](start, trampolineBefore = false, trampolineAfter = false, traceKey = fn)
   }
 
   /**
@@ -92,7 +88,7 @@ private[eval] object TaskCreate {
           }
       }
     }
-    Async(start, trampolineBefore = false, trampolineAfter = false)
+    TracedAsync[A](start, trampolineBefore = false, trampolineAfter = false, traceKey = fn)
   }
 
   /**
@@ -114,7 +110,7 @@ private[eval] object TaskCreate {
           }
       }
     }
-    Async(start, trampolineBefore = false, trampolineAfter = false)
+    TracedAsync[A](start, trampolineBefore = false, trampolineAfter = false, traceKey = k)
   }
 
   /**
@@ -141,7 +137,7 @@ private[eval] object TaskCreate {
           }
       }
     }
-    Async(start, trampolineBefore = false, trampolineAfter = false)
+    TracedAsync[A](start, trampolineBefore = false, trampolineAfter = false, traceKey = k)
   }
 
   private abstract class Cancelable0Start[A, Token](fn: (Scheduler, Callback[Throwable, A]) => Token)
