@@ -33,7 +33,7 @@ import monix.execution.misc.Local
   * async boundaries (aka when threads get forked) by the `Task`
   * run-loop implementation, but only when the `Task` reference
   * gets executed with [[Task.Options.localContextPropagation]]
-  * set to `true`.
+  * set to `true`, or it uses a [[monix.execution.schedulers.TracingScheduler]].
   *
   * One way to achieve this is with [[Task.executeWithOptions]],
   * a single call is sufficient just before `runAsync`:

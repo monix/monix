@@ -60,6 +60,9 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.eval.Task#FlatMap.copy"),
     exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.apply"),
     exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.copy"),
-    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.this")
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.this"),
+      // Signature changes in internal classes
+    exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture#Async*"),
+    exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture#Pure*")
   )
 }
