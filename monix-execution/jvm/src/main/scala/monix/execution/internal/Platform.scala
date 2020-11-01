@@ -136,38 +136,6 @@ private[monix] object Platform {
       .map(_.toLowerCase)
       .exists(v => v == "yes" || v == "true" || v == "1")
 
-  /**
-    * Establishes the maximum stack depth for fused `.map` operations.
-    *
-    * The default is `128`, from which we subtract one as an
-    * optimization. This default has been reached like this:
-    *
-    *  - according to official docs, the default stack size on 32-bits
-    *    Windows and Linux was 320 KB, whereas for 64-bits it is 1024 KB
-    *  - according to measurements chaining `Function1` references uses
-    *    approximately 32 bytes of stack space on a 64 bits system;
-    *    this could be lower if "compressed oops" is activated
-    *  - therefore a "map fusion" that goes 128 in stack depth can use
-    *    about 4 KB of stack space
-    *
-    * If this parameter becomes a problem, it can be tuned by setting
-    * the `monix.environment.fusionMaxStackDepth` environment variable when
-    * executing the Java VM:
-    *
-    * <pre>
-    *   java -Dmonix.environment.fusionMaxStackDepth=32 \
-    *        ...
-    * </pre>
-    */
-  val fusionMaxStackDepth = {
-    Option(System.getProperty("monix.environment.fusionMaxStackDepth"))
-      .filter(s => s != null && s.nonEmpty)
-      .flatMap(s => Try(s.toInt).toOption)
-      .filter(_ > 0)
-      .map(_ - 1)
-      .getOrElse(127)
-  }
-
   /** Blocks for the result of `fa`.
     *
     * This operation is only supported on top of the JVM, whereas for

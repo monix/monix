@@ -15,7 +15,7 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.execution.schedulers.TrampolineExecutionContext#JVMOptimalTrampoline.*")
   )
 
-  lazy val changesFor_3_2_3 = Seq(
+  lazy val changesFor_3_3_0 = Seq(
     // Upgraded JCTools to 3.0.0
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue#Java8SPMC.this"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue#Java7.this"),
@@ -61,8 +61,17 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.apply"),
     exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.copy"),
     exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.this"),
-      // Signature changes in internal classes
+    // Signature changes in internal classes
     exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture#Async*"),
-    exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture#Pure*")
+    exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture#Pure*"),
+    // Changes in Coeval model due to Better Stack Traces
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#FlatMap.copy"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#FlatMap.this"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#Map.index"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Coeval#Map.copy"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Coeval#Map.copy$default$3"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Coeval#Map.this"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Coeval#Map.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#FlatMap.apply")
   )
 }

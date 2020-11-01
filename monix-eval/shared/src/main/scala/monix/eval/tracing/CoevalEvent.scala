@@ -15,25 +15,16 @@
  * limitations under the License.
  */
 
-package monix.execution.internal
+package monix.eval.tracing
 
-import minitest.SimpleTestSuite
+/**
+  * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
+  */
+sealed abstract class CoevalEvent
 
-object PlatformSuite extends SimpleTestSuite {
-  test("isJS") {
-    assert(!Platform.isJVM, "!isJVM")
-    assert(Platform.isJS, "isJS")
-  }
+object CoevalEvent {
 
-  test("recommendedBatchSize default ") {
-    assertEquals(Platform.recommendedBatchSize, 512)
-  }
+  final case class StackTrace(stackTrace: List[StackTraceElement]) extends CoevalEvent
 
-  test("autoCancelableRunLoops") {
-    assert(Platform.autoCancelableRunLoops)
-  }
-
-  test("localContextPropagation") {
-    assert(!Platform.localContextPropagation)
-  }
 }
+

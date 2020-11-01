@@ -22,10 +22,11 @@ import cats.kernel.Semigroup
 import cats.{Monoid, ~>}
 import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
 import monix.eval.internal._
+import monix.eval.internal.TracingPlatform.{isCachedStackTracing, isFullStackTracing}
+import monix.eval.tracing.CoevalEvent
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
-import monix.execution.internal.Platform.fusionMaxStackDepth
 
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.collection.mutable
@@ -408,7 +409,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * [[scala.util.Try Try]] or [[redeemWith]] for an alternative.
     */
   final def attempt: Coeval[Either[Throwable, A]] =
-    FlatMap(this, AttemptCoeval.asInstanceOf[A => Coeval[Either[Throwable, A]]])
+    FlatMap(this, AttemptCoeval.asInstanceOf[A => Coeval[Either[Throwable, A]]], null)
 
   /** Returns a task that treats the source as the acquisition of a resource,
     * which is then exploited by the `use` function and then `released`.
@@ -583,7 +584,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * `NoSuchElementException`.
     */
   final def failed: Coeval[Throwable] =
-    Coeval.FlatMap(this, Coeval.Failed)
+    Coeval.FlatMap(this, Coeval.Failed, null)
 
   /** Creates a new `Coeval` by applying a function to the successful result
     * of the source, and returns a new instance equivalent
@@ -607,8 +608,17 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *     }
     * }}}
     */
-  final def flatMap[B](f: A => Coeval[B]): Coeval[B] =
-    FlatMap(this, f)
+  final def flatMap[B](f: A => Coeval[B]): Coeval[B] = {
+    val trace = if (isCachedStackTracing) {
+      CoevalTracing.cached(f.getClass)
+    } else if (isFullStackTracing) {
+      CoevalTracing.uncached()
+    } else {
+      null
+    }
+
+    FlatMap(this, f, trace)
+  }
 
   /** Describes flatMap-driven loops, as an alternative to recursive functions.
     *
@@ -686,17 +696,17 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *
     * `fa.map(f) <-> fa.flatMap(x => Coeval.pure(f(x)))`
     */
-  final def map[B](f: A => B): Coeval[B] =
-    this match {
-      case Map(source, g, index) =>
-        // Allowed to do a fixed number of map operations fused before
-        // resetting the counter in order to avoid stack overflows;
-        // See `monix.execution.internal.Platform` for details.
-        if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
-        else Map(this, f, 0)
-      case _ =>
-        Map(this, f, 0)
+  final def map[B](f: A => B): Coeval[B] = {
+    val trace = if (isCachedStackTracing) {
+      CoevalTracing.cached(f.getClass)
+    } else if (isFullStackTracing) {
+      CoevalTracing.uncached()
+    } else {
+    null
     }
+
+    Map(this, f, trace)
+  }
 
   /** Creates a new [[Coeval]] that will expose any triggered error from
     * the source.
@@ -705,7 +715,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * [[scala.Either Either]] or [[redeemWith]] for an alternative.
     */
   final def materialize: Coeval[Try[A]] =
-    FlatMap(this, MaterializeCoeval.asInstanceOf[A => Coeval[Try[A]]])
+    FlatMap(this, MaterializeCoeval.asInstanceOf[A => Coeval[Try[A]]], null)
 
   /** Dematerializes the source's result from a `Try`.
     *
@@ -763,7 +773,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *        in case it ends in success
     */
   def redeem[B](recover: Throwable => B, map: A => B): Coeval[B] =
-    Coeval.FlatMap(this, new Coeval.Redeem(recover, map))
+    Coeval.FlatMap(this, new Coeval.Redeem(recover, map), null)
 
   /** Returns a new value that transforms the result of the source,
     * given the `recover` or `bind` functions, which get executed depending
@@ -788,7 +798,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *        in case of success
     */
   def redeemWith[B](recover: Throwable => Coeval[B], bind: A => Coeval[B]): Coeval[B] =
-    Coeval.FlatMap(this, new StackFrame.RedeemWith(recover, bind))
+    Coeval.FlatMap(this, new StackFrame.RedeemWith(recover, bind), null)
 
   /** Deprecated — use [[redeem]] instead.
     *
@@ -836,7 +846,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * See [[onErrorRecoverWith]] for the version that takes a partial function.
     */
   final def onErrorHandleWith[B >: A](f: Throwable => Coeval[B]): Coeval[B] =
-    FlatMap(this, new StackFrame.ErrorHandler(f, nowConstructor))
+    FlatMap(this, new StackFrame.ErrorHandler(f, nowConstructor), null)
 
   /** Creates a new coeval that in case of error will fallback to the
     * given backup coeval.
@@ -1017,30 +1027,41 @@ object Coeval extends CoevalInstancesLevel0 {
     * Alias of [[eval]].
     */
   def apply[A](f: => A): Coeval[A] =
-    Always(() => f)
+    eval(f)
 
   /** Returns a `Coeval` that on execution is always successful, emitting
     * the given strict value.
     */
-  def now[A](a: A): Coeval[A] = Now(a)
+  def now[A](a: A): Coeval[A] = {
+    val nextCoeval = Coeval.Now(a)
+    if (isFullStackTracing) CoevalTracing.decorated(nextCoeval)
+    else nextCoeval
+  }
 
   /** Lifts a value into the coeval context. Alias for [[now]]. */
-  def pure[A](a: A): Coeval[A] = Now(a)
+  def pure[A](a: A): Coeval[A] = now(a)
 
   /** Returns a `Coeval` that on execution is always finishing in error
     * emitting the specified exception.
     */
-  def raiseError[A](ex: Throwable): Coeval[A] =
-    Error(ex)
+  def raiseError[A](ex: Throwable): Coeval[A] = {
+    val nextCoeval = Coeval.Error(ex)
+    if (isFullStackTracing) CoevalTracing.decorated(nextCoeval)
+    else nextCoeval
+  }
 
   /** Promote a non-strict value representing a `Coeval`
     * to a `Coeval` of the same type.
     */
   def defer[A](fa: => Coeval[A]): Coeval[A] =
-    Suspend(() => fa)
+    suspend(fa)
 
   /** Alias for [[defer]]. */
-  def suspend[A](fa: => Coeval[A]): Coeval[A] = defer(fa)
+  def suspend[A](fa: => Coeval[A]): Coeval[A] = {
+    val nextCoeval = Suspend(() => fa)
+    if (isFullStackTracing) CoevalTracing.decorated(nextCoeval)
+    else nextCoeval
+  }
 
   /** Promote a non-strict value to a `Coeval` that is memoized on the first
     * evaluation, the result being then available on subsequent evaluations.
@@ -1058,13 +1079,17 @@ object Coeval extends CoevalInstancesLevel0 {
     * Note that since `Coeval` is not memoized, this will recompute the
     * value each time the `Coeval` is executed.
     */
-  def eval[A](a: => A): Coeval[A] = Always(() => a)
+  def eval[A](a: => A): Coeval[A] = {
+    val nextCoeval = Always(() => a)
+    if (isFullStackTracing) CoevalTracing.decorated(nextCoeval)
+    else nextCoeval
+  }
 
   /** Alias for [[eval]]. */
   def delay[A](a: => A): Coeval[A] = eval(a)
 
   /** A `Coeval[Unit]` provided for convenience. */
-  val unit: Coeval[Unit] = Now(())
+  val unit: Coeval[Unit] = pure(())
 
   /**
     * Converts any value that has a [[CoevalLike]] instance into a `Coeval`.
@@ -1550,10 +1575,10 @@ object Coeval extends CoevalInstancesLevel0 {
   /** Internal state, the result of [[Coeval.defer]] */
   private[eval] final case class Suspend[+A](thunk: () => Coeval[A]) extends Coeval[A]
   /** Internal [[Coeval]] state that is the result of applying `flatMap`. */
-  private[eval] final case class FlatMap[S, A](source: Coeval[S], f: S => Coeval[A]) extends Coeval[A]
+  private[eval] final case class FlatMap[S, A](source: Coeval[S], f: S => Coeval[A], trace: AnyRef) extends Coeval[A]
 
   /** Internal [[Coeval]] state that is the result of applying `map`. */
-  private[eval] final case class Map[S, +A](source: Coeval[S], f: S => A, index: Int)
+  private[eval] final case class Map[S, +A](source: Coeval[S], f: S => A, trace: AnyRef)
     extends Coeval[A] with (S => Coeval[A]) {
 
     def apply(value: S): Coeval[A] =
@@ -1561,6 +1586,8 @@ object Coeval extends CoevalInstancesLevel0 {
     override def toString: String =
       super[Coeval].toString
   }
+
+  private[monix] final case class Trace[A](source: Coeval[A], trace: CoevalEvent) extends Coeval[A]
 
   private val nowConstructor: Any => Coeval[Nothing] =
     ((a: Any) => new Now(a)).asInstanceOf[Any => Coeval[Nothing]]
