@@ -72,6 +72,9 @@ object MimaFilters {
     exclude[IncompatibleResultTypeProblem]("monix.eval.Coeval#Map.copy$default$3"),
     exclude[IncompatibleMethTypeProblem]("monix.eval.Coeval#Map.this"),
     exclude[IncompatibleMethTypeProblem]("monix.eval.Coeval#Map.apply"),
-    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#FlatMap.apply")
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#FlatMap.apply"),
+    // Remove unused fusionMaxStackDepth
+    exclude[DirectMissingMethodProblem]("monix.execution.internal.Platform.fusionMaxStackDepth"),
+    exclude[DirectMissingMethodProblem]("monix.execution.internal.Platform.fusionMaxStackDepth")
   )
 }
