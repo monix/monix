@@ -402,7 +402,7 @@ def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
   mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
   mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_3
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_3_0
 )
 
 lazy val doctestTestSettings = Seq(

@@ -18,8 +18,12 @@
 package monix.eval.internal
 
 import monix.eval.Coeval
-import monix.eval.Coeval.{Always, Eager, Error, FlatMap, Map, Now, Suspend}
+import monix.eval.Coeval.{Always, Eager, Error, FlatMap, Map, Now, Suspend, Trace}
+import monix.eval.tracing.{CoevalEvent, CoevalTrace}
 import monix.execution.internal.collection.ChunkedArrayStack
+import monix.eval.internal.TracingPlatform.{enhancedExceptions, isStackTracing}
+
+import scala.reflect.NameTransformer
 import scala.util.control.NonFatal
 
 private[eval] object CoevalRunLoop {
@@ -35,10 +39,17 @@ private[eval] object CoevalRunLoop {
     // Values from Now, Always and Once are unboxed in this var, for code reuse
     var hasUnboxed: Boolean = false
     var unboxed: AnyRef = null
+    var tracingCtx: CoevalStackTracedContext = null
 
     do {
       current match {
-        case FlatMap(fa, bindNext) =>
+        case bind@FlatMap(fa, bindNext, _) =>
+          if (isStackTracing) {
+            val trace = bind.trace
+            if (tracingCtx eq null) tracingCtx = new CoevalStackTracedContext
+            if (trace ne null) tracingCtx.pushEvent(trace.asInstanceOf[CoevalEvent])
+          }
+
           if (bFirst ne null) {
             if (bRest eq null) bRest = ChunkedArrayStack()
             bRest.push(bFirst)
@@ -61,6 +72,12 @@ private[eval] object CoevalRunLoop {
           }
 
         case bindNext @ Map(fa, _, _) =>
+          if (isStackTracing) {
+            val trace = bindNext.trace
+            if (tracingCtx eq null) tracingCtx = new CoevalStackTracedContext
+            if (trace ne null) tracingCtx.pushEvent(trace.asInstanceOf[CoevalEvent])
+          }
+
           if (bFirst ne null) {
             if (bRest eq null) bRest = ChunkedArrayStack()
             bRest.push(bFirst)
@@ -78,6 +95,11 @@ private[eval] object CoevalRunLoop {
           }
 
         case ref @ Error(ex) =>
+          if (isStackTracing && enhancedExceptions) {
+            if (tracingCtx eq null) tracingCtx = new CoevalStackTracedContext
+            augmentException(ex, tracingCtx)
+          }
+
           findErrorHandler(bFirst, bRest) match {
             case null =>
               return ref
@@ -88,6 +110,11 @@ private[eval] object CoevalRunLoop {
               } catch { case e if NonFatal(e) => current = Error(e) }
               bFirst = null
           }
+
+        case Trace(sourceTask, frame) =>
+          if (tracingCtx eq null) tracingCtx = new CoevalStackTracedContext
+          tracingCtx.pushEvent(frame)
+          current = sourceTask
       }
 
       if (hasUnboxed) {
@@ -149,4 +176,41 @@ private[eval] object CoevalRunLoop {
     null
     // $COVERAGE-ON$
   }
+
+  /**
+    * If stack tracing and contextual exceptions are enabled, this
+    * function will rewrite the stack trace of a captured exception
+    * to include the async stack trace.
+    */
+  private[internal] def augmentException(ex: Throwable, ctx: CoevalStackTracedContext): Unit = {
+    val stackTrace = ex.getStackTrace
+    if (stackTrace.nonEmpty) {
+      val augmented = stackTrace(stackTrace.length - 1).getClassName.indexOf('@') != -1
+      if (!augmented) {
+        val prefix = dropRunLoopFrames(stackTrace)
+        val suffix = ctx
+          .getStackTraces()
+          .flatMap(t => CoevalTrace.getOpAndCallSite(t.stackTrace))
+          .map {
+            case (methodSite, callSite) =>
+              val op = NameTransformer.decode(methodSite.getMethodName)
+
+              new StackTraceElement(op + " @ " + callSite.getClassName,
+                callSite.getMethodName,
+                callSite.getFileName,
+                callSite.getLineNumber)
+          }
+          .toArray
+        ex.setStackTrace(prefix ++ suffix)
+      }
+    }
+  }
+
+  private def dropRunLoopFrames(frames: Array[StackTraceElement]): Array[StackTraceElement] =
+    frames.takeWhile(ste => !runLoopFilter.exists(ste.getClassName.startsWith(_)))
+
+  private[this] val runLoopFilter = List(
+    "monix.eval.",
+    "scala."
+  )
 }

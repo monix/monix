@@ -94,15 +94,6 @@ private[monix] object Platform {
     */
   final val localContextPropagation: Boolean = false
 
-  /**
-    * Establishes the maximum stack depth for fused `.map` operations
-    * for JavaScript.
-    *
-    * The default for JavaScript is 32, from which we subtract 1
-    * as an optimization.
-    */
-  final val fusionMaxStackDepth = 31
-
   /** Blocks for the result of `fa`.
     *
     * This operation is only supported on top of the JVM, whereas for

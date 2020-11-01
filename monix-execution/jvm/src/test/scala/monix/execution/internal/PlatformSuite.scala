@@ -36,8 +36,4 @@ object PlatformSuite extends SimpleTestSuite {
   test("localContextPropagation") {
     assert(!Platform.localContextPropagation)
   }
-
-  test("fusionMaxStackDepth") {
-    assertEquals(Platform.fusionMaxStackDepth, 127)
-  }
 }
