@@ -20,13 +20,13 @@ package monix.reactive.internal.builders
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.BooleanCancelable
+import monix.execution.compat.internal.toSeq
 import monix.execution.exceptions.APIContractViolationException
 import monix.execution.{Ack, Cancelable, ExecutionModel, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
-import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
@@ -142,18 +142,21 @@ private[reactive] final class BufferedIteratorAsObservable[A](iterator: Iterator
     // must signal onError
     var iteratorTriggeredError: Throwable = null
 
-    val buffer = ListBuffer.empty[A]
+    val buffer = new Array[AnyRef](bufferSize)
     var size = 0
 
     try {
       while (iteratorHasNext && size < bufferSize) {
         val next = iter.next()
-        buffer.append(next)
+        buffer(size) = next.asInstanceOf[AnyRef]
         size += 1
         iteratorHasNext = iter.hasNext
       }
 
-      ack = out.onNext(buffer.toList)
+      ack =
+        if (size == bufferSize) out.onNext(toSeq(buffer))
+        else out.onNext(toSeq(buffer.take(size)))
+
     } catch {
       case NonFatal(ex) if streamErrors =>
         iteratorTriggeredError = ex
@@ -171,7 +174,7 @@ private[reactive] final class BufferedIteratorAsObservable[A](iterator: Iterator
     } else {
       // Logic for collapsing execution loops
       val nextIndex =
-        if (ack == Continue) em.nextFrameIndex(syncIndex) // TODO check if its fine to add batch size
+        if (ack == Continue) em.nextFrameIndex(syncIndex + (size - 1))
         else if (ack == Stop) -1
         else 0
 

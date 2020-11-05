@@ -63,23 +63,21 @@ class ObservableIteratorBenchmark {
     allElements = chunks.flatten
   }
 
-//  @Benchmark
-//  def monixObservable(): Int = {
-//    val stream = Observable
-//      .fromIteratorUnsafe(allElements.iterator)
-//      .bufferTumbling(chunkSize)
-//      .map(sumIntScala)
-//      .filter(_ % 2 == 0)
-//
-//    sum(stream)
-//  }
+  @Benchmark
+  def bufferTumbling(): Int = {
+    val stream = Observable
+      .fromIteratorUnsafe(allElements.iterator)
+      .bufferTumbling(chunkSize)
+      .map(sumIntScala)
+
+    sum(stream)
+  }
 
   @Benchmark
-  def monixObservableChunked(): Int = {
+  def fromIteratorBufferedUnsafe(): Int = {
     val stream = Observable
       .fromIteratorBufferedUnsafe(allElements.iterator, chunkSize)
       .map(sumIntScala)
-      .filter(_ % 2 == 0)
 
     sum(stream)
   }

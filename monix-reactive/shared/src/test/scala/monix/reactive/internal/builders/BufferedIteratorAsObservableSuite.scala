@@ -21,14 +21,16 @@ import cats.effect.Resource
 import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
-import monix.execution.exceptions.APIContractViolationException
-import monix.execution.{Ack, Scheduler}
+import monix.execution.exceptions.{APIContractViolationException, DummyException}
 import monix.execution.schedulers.TestScheduler
+import monix.execution.{Ack, ExecutionModel, Scheduler}
 import monix.reactive.Observable
-import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
+
+import scala.collection.immutable.ArraySeq
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.Success
 
 object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -55,7 +57,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assert(errorThrown.isInstanceOf[APIContractViolationException])
   }
 
-  test("fromIterator(resource) should call finalizer") { implicit s =>
+  test("fromIteratorBuffered(resource) should call finalizer") { implicit s =>
     var onFinishCalled = 0
     var onCompleteCalled = 0
     var sum = 0
@@ -63,7 +65,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     val n = s.executionModel.recommendedBatchSize * 4
     val seq = 0 until n
     val obs = Observable
-      .fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }), 1)
+      .fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }), 4)
       .map { x =>
         assertEquals(onFinishCalled, 0); x
       }
@@ -85,7 +87,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, n * (n - 1) / 2)
   }
 
-  test("fromIterator(resource) should back-pressure onNext before calling finalizer") { implicit s =>
+  test("fromIteratorBuffered(resource) should back-pressure onNext before calling finalizer") { implicit s =>
     var onFinishCalled = 0
     var onCompleteCalled = 0
     var sum = 0
@@ -93,7 +95,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     val n = s.executionModel.recommendedBatchSize * 4
     val seq = 0 until n
     val obs = Observable
-      .fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }), 1)
+      .fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }), 4)
       .mapEval(x => Task(assertEquals(onFinishCalled, 0)).map(_ => x).delayExecution(1.millis))
 
     obs.unsafeSubscribeFn(new Subscriber[Seq[Int]] {
@@ -120,7 +122,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     val n = s.executionModel.recommendedBatchSize * 4
     val seq = 0 until n
     val obs = Observable
-      .fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }), 1)
+      .fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }), 4)
       .endWithError(ex)
 
     obs.unsafeSubscribeFn(new Subscriber[Seq[Int]] {
@@ -349,5 +351,53 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     // sends onComplete downstream and there isn't much we can do here
     assertEquals(onCompleteCalled, 1)
     assertEquals(s.state.lastReportedError, ex)
+  }
+
+  test("fromIteratorBufferedUnsafe insert asynchronous boundaries in BatchedExecution") { s =>
+    implicit val sc = s.withExecutionModel(ExecutionModel.Default)
+
+    var onCompleteCalled = 0
+    var count = 0
+
+    val n = s.executionModel.recommendedBatchSize
+    val seq = 0 until n * 4
+    val obs = Observable
+      .fromIteratorBufferedUnsafe(seq.iterator, n)
+        .delayOnNext(1.millis)
+
+    obs.executeAsync.unsafeSubscribeFn(new Subscriber[Seq[Int]] {
+      implicit val scheduler: Scheduler = sc
+
+      def onNext(elem: Seq[Int]): Ack = { count += elem.size; Continue }
+      def onComplete(): Unit = onCompleteCalled += 1
+      def onError(ex: Throwable): Unit =
+        throw new IllegalStateException("onError")
+    })
+
+    s.tick(1.millis)
+    assertEquals(count, n)
+
+    s.tick(1.millis)
+    assertEquals(count, n * 2)
+
+    s.tick(1.millis)
+    assertEquals(count, n * 3)
+
+    s.tick(1.millis)
+    assertEquals(count, n * 4)
+
+    assertEquals(onCompleteCalled, 1)
+  }
+
+  test("emits buffers") { implicit s =>
+    val seq = 0 to 10
+    val f = Observable
+      .fromIteratorBufferedUnsafe(seq.iterator, 4)
+        .toListL
+        .runToFuture
+
+    s.tick()
+
+    assertEquals(f.value, Some(Success(List(ArraySeq(0, 1, 2, 3), ArraySeq(4, 5, 6, 7), ArraySeq(8, 9, 10)))))
   }
 }
