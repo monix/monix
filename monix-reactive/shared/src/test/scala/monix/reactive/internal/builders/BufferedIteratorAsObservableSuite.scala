@@ -27,7 +27,6 @@ import monix.execution.{Ack, ExecutionModel, Scheduler}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-import scala.collection.immutable.ArraySeq
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Success
@@ -390,14 +389,18 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
   }
 
   test("emits buffers") { implicit s =>
+    import monix.execution.compat.internal.toSeq
+
     val seq = 0 to 10
     val f = Observable
       .fromIteratorBufferedUnsafe(seq.iterator, 4)
         .toListL
         .runToFuture
 
+    val expected = List(Seq(0, 1, 2, 3), Seq(4, 5, 6, 7), Seq(8, 9, 10)).map(seq => toSeq(seq.map(_.asInstanceOf[AnyRef]).toArray[AnyRef]))
+
     s.tick()
 
-    assertEquals(f.value, Some(Success(List(ArraySeq(0, 1, 2, 3), ArraySeq(4, 5, 6, 7), ArraySeq(8, 9, 10)))))
+    assertEquals(f.value, Some(Success(expected)))
   }
 }

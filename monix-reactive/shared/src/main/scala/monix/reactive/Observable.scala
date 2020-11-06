@@ -4997,7 +4997,7 @@ object Observable extends ObservableDeprecatedBuilders {
     * {{{
     *   import monix.eval.Task
     *
-    *   Observable.fromIteratorBuffered(Task(Iterator.from(1)))
+    *   Observable.fromIteratorBuffered(Task(Iterator.from(1)), 2)
     * }}}
     *
     * @see [[fromIterable]]
