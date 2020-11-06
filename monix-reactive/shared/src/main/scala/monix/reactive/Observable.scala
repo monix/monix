@@ -4986,7 +4986,7 @@ object Observable extends ObservableDeprecatedBuilders {
   def fromIteratorUnsafe[A](iterator: Iterator[A]): Observable[A] =
     new builders.IteratorAsObservable[A](iterator)
 
-  /** Wraps a [[scala.Iterator]] into an `Observable`.
+  /** Wraps a [[scala.Iterator]] into an `Observable` that emits events in `chunkSize` batches.
     *
     * This function uses [[monix.eval.Task Task]] in order to suspend
     * the creation of the `Iterator`, because reading from an `Iterator`
@@ -4997,19 +4997,19 @@ object Observable extends ObservableDeprecatedBuilders {
     * {{{
     *   import monix.eval.Task
     *
-    *   Observable.fromIterator(Task(Iterator.from(1)))
+    *   Observable.fromIteratorBuffered(Task(Iterator.from(1)))
     * }}}
     *
     * @see [[fromIterable]]
     *
-    * @see [[fromIterator[A](resource* fromIterator(Resource)]] for a version
+    * @see [[fromIteratorBuffered[A](resource* fromIteratorBuffered(Resource)]] for a version
     *      that uses `cats.effect.Resource`
     *
-    * @see [[fromIteratorUnsafe]] for the unsafe version that can wrap an
+    * @see [[fromIteratorBufferedUnsafe]] for the unsafe version that can wrap an
     *      iterator directly
     */
-  def fromIteratorBuffered[A](task: Task[Iterator[A]], chunkSize: Int): Observable[Seq[A]] =
-    Observable.fromTask(task.map(fromIteratorBufferedUnsafe(_, chunkSize))).flatten
+  def fromIteratorBuffered[A](task: Task[Iterator[A]], bufferSize: Int): Observable[Seq[A]] =
+    Observable.fromTask(task.map(fromIteratorBufferedUnsafe(_, bufferSize))).flatten
 
   /** Wraps a [[scala.Iterator]] into an `Observable` in the context of a
     * [[https://typelevel.org/cats-effect/datatypes/resource.html cats.effect.Resource]],
@@ -5017,16 +5017,16 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     * @see [[fromIterable]]
     *
-    * @see [[fromIterator[A](task* fromIterator(task)]] for a version
+    * @see [[fromIteratorBuffered[A](task* fromIteratorBuffered(task)]] for a version
     *      that uses [[monix.eval.Task Task]] for suspending side effects
     *
-    * @see [[fromIteratorUnsafe]] for the unsafe version that can wrap an
+    * @see [[fromIteratorBufferedUnsafe]] for the unsafe version that can wrap an
     *      iterator directly
     */
-  def fromIteratorBuffered[A](resource: Resource[Task, Iterator[A]], chunkSize: Int): Observable[Seq[A]] =
-    Observable.fromResource(resource).flatMap(fromIteratorBufferedUnsafe(_, chunkSize))
+  def fromIteratorBuffered[A](resource: Resource[Task, Iterator[A]], bufferSize: Int): Observable[Seq[A]] =
+    Observable.fromResource(resource).flatMap(fromIteratorBufferedUnsafe(_, bufferSize))
 
-  /** Converts any `Iterator` into an observable.
+  /** Converts any `Iterator` into an observable that emits events in `bufferSize` batches.
     *
     * '''UNSAFE WARNING''': reading from an `Iterator` is a destructive process.
     * Therefore only a single subscriber is supported, the result being
@@ -5034,16 +5034,16 @@ object Observable extends ObservableDeprecatedBuilders {
     * all subscribers, except for the first one, will be terminated with a
     * [[monix.execution.exceptions.APIContractViolationException APIContractViolationException]].
     *
-    * @see [[fromIterator[A](task* fromIterator(task)]] or
-    *      [[fromIterator[A](resource* fromIterator(resource)]]
+    * @see [[fromIteratorBuffered[A](task* fromIteratorBuffered(task)]] or
+    *      [[fromIteratorBuffered[A](resource* fromIteratorBuffered(resource)]]
     *      for safe alternatives
     *
     * @param iterator to transform into an observable
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
-  def fromIteratorBufferedUnsafe[A](iterator: Iterator[A], chunkSize: Int): Observable[Seq[A]] =
-    new builders.BufferedIteratorAsObservable[A](iterator, chunkSize)
+  def fromIteratorBufferedUnsafe[A](iterator: Iterator[A], bufferSize: Int): Observable[Seq[A]] =
+    new builders.BufferedIteratorAsObservable[A](iterator, bufferSize)
 
   /** Transforms any `cats.effect.Resource` into an [[Observable]].
     *
