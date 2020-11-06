@@ -361,12 +361,7 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     extends CancelableFuture[A] {
 
     override def onComplete[U](f: (Try[A]) => U)(implicit executor: ExecutionContext): Unit = {
-      val g: Try[A] => U = result => {
-        if (isolatedCtx ne null) Local.setContext(isolatedCtx)
-        f(result)
-      }
-
-      underlying.onComplete(g)(executor)
+      underlying.onComplete(f)(executor)
     }
     override def isCompleted: Boolean =
       underlying.isCompleted
