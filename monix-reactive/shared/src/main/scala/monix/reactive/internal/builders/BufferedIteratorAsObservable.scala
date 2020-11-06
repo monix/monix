@@ -33,7 +33,7 @@ import scala.util.{Failure, Success}
 
 private[reactive] final class BufferedIteratorAsObservable[A](iterator: Iterator[A], bufferSize: Int)
   extends Observable[Seq[A]] {
-  require(bufferSize > 0, "chunkSize must be strictly positive")
+  require(bufferSize > 0, "bufferSize must be strictly positive")
 
   private[this] val wasSubscribed = Atomic(false)
 
