@@ -45,7 +45,7 @@ val fs2_ForScala211Version = "2.1.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.2.2"
+val monixSeries = "3.3.0"
 
 lazy val cats_CrossVersion = Def.setting {
   CrossVersion.partialVersion(scalaVersion.value) match {
@@ -711,7 +711,7 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   ))
   .settings(
     libraryDependencies ++= Seq(
-      "io.monix" %% "monix" % "3.2.2",
+      "io.monix" %% "monix" % "3.3.0",
       "dev.zio" %% "zio-streams" % "1.0.0",
       "co.fs2" %% "fs2-core" % fs2_CrossVersion.value,
       "com.typesafe.akka" %% "akka-stream" % "2.6.9"
