@@ -14,6 +14,7 @@ We can consider doing backports on-demand.
 ### Better Stack Traces
 
 This release includes a highly requested feature of better stack traces for `Task` and `Coeval`!
+Big thanks to @RaasAhsan and @djspiewak for providing the original implementation that we have ported.
 
 They are enabled by default, but it is configurable. 
 Refer to [Stack Traces section](https://monix.io/docs/current/eval/stacktraces.html) for more details.
