@@ -1,3 +1,167 @@
+## Version 3.3.0 (Nov 7, 2020)
+
+The release is binary and source compatible with 3.x.x line.
+It is released for the following Scala and ScalaJS versions:
+- Scala 2.11: ScalaJS 0.6.x
+- Scala 2.12: ScalaJS 0.6.x and 1.3.x
+- Scala 2.13: ScalaJS 0.6.x and 1.3.x
+
+Note that most likely, this is going to be the last release on ScalaJS 0.6.x.
+We can consider doing backports on-demand.
+
+## Highlights
+
+### Better Stack Traces
+
+This release includes a highly requested feature of better stack traces for `Task` and `Coeval`!
+
+They are enabled by default, but it is configurable. 
+Refer to [Stack Traces section](https://monix.io/docs/current/eval/stacktraces.html) for more details.
+
+We have measured about 10-30% performance hit in CACHED mode (the default) in microbenchmarks.
+If you have any performance tests, we would greatly appreciate any reports!
+If the hit is too big, you can disable the stack traces with `-Dmonix.eval.stackTracingMode=none`.
+
+For the following code:
+
+```scala 
+package test.app
+
+import monix.eval.Task
+import monix.execution.Scheduler
+import cats.implicits._
+import scala.concurrent.duration._
+
+object TestTracingApp extends App {
+  implicit val s = Scheduler.global
+
+  def customMethod: Task[Unit] =
+    Task.now(()).guarantee(Task.sleep(10.millis))
+
+  val tracingTestApp: Task[Unit] = for {
+    _ <- Task.shift
+    _ <- Task.unit.attempt
+    _ <- (Task(println("Started the program")), Task.unit).parTupled
+    _ <- customMethod
+    _ <- if (true) Task.raiseError(new Exception("boom")) else Task.unit
+  } yield ()
+
+  tracingTestApp.onErrorHandleWith(ex => Task(ex.printStackTrace())).runSyncUnsafe
+}
+```
+
+The default (cached) stack trace is going to be:
+
+``` 
+java.lang.Exception: boom
+        at test.app.TestTracingApp$.$anonfun$tracingTestApp$5(TestTracingApp.scala:36)
+        at guarantee @ test.app.TestTracingApp$.customMethod(TestTracingApp.scala:29)
+        at flatMap @ test.app.TestTracingApp$.$anonfun$tracingTestApp$4(TestTracingApp.scala:35)
+        at parTupled @ test.app.TestTracingApp$.$anonfun$tracingTestApp$2(TestTracingApp.scala:34)
+        at parTupled @ test.app.TestTracingApp$.$anonfun$tracingTestApp$2(TestTracingApp.scala:34)
+        at flatMap @ test.app.TestTracingApp$.$anonfun$tracingTestApp$2(TestTracingApp.scala:34)
+        at flatMap @ test.app.TestTracingApp$.$anonfun$tracingTestApp$1(TestTracingApp.scala:33)
+        at flatMap @ test.app.TestTracingApp$.delayedEndpoint$test$app$TestTracingApp$1(TestTracingApp.scala:32)
+```
+
+Before `3.3.0` and with stack traces disabled, stack traces are a mess:
+
+```
+java.lang.Exception: boom
+        at test.app.TestTracingApp$.$anonfun$tracingTestApp$5(TestTracingApp.scala:36)
+        at monix.eval.internal.TaskRunLoop$.startFull(TaskRunLoop.scala:188)
+        at monix.eval.internal.TaskRestartCallback.syncOnSuccess(TaskRestartCallback.scala:101)
+        at monix.eval.internal.TaskRestartCallback$$anon$1.run(TaskRestartCallback.scala:118)
+        at monix.execution.internal.Trampoline.monix$execution$internal$Trampoline$$immediateLoop(Trampoline.scala:66)
+        at monix.execution.internal.Trampoline.startLoop(Trampoline.scala:32)
+        at monix.execution.schedulers.TrampolineExecutionContext$JVMNormalTrampoline.super$startLoop(TrampolineExecutionContext.scala:142)
+        at monix.execution.schedulers.TrampolineExecutionContext$JVMNormalTrampoline.$anonfun$startLoop$1(TrampolineExecutionContext.scala:142)
+        at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.scala:18)
+        at scala.concurrent.BlockContext$.withBlockContext(BlockContext.scala:94)
+        at monix.execution.schedulers.TrampolineExecutionContext$JVMNormalTrampoline.startLoop(TrampolineExecutionContext.scala:142)
+        at monix.execution.internal.Trampoline.execute(Trampoline.scala:40)
+        at monix.execution.schedulers.TrampolineExecutionContext.execute(TrampolineExecutionContext.scala:57)
+        at monix.execution.schedulers.BatchingScheduler.execute(BatchingScheduler.scala:50)
+        at monix.execution.schedulers.BatchingScheduler.execute$(BatchingScheduler.scala:47)
+        at monix.execution.schedulers.AsyncScheduler.execute(AsyncScheduler.scala:31)
+        at monix.eval.internal.TaskRestartCallback.onSuccess(TaskRestartCallback.scala:72)
+        at monix.eval.internal.TaskRunLoop$.startFull(TaskRunLoop.scala:183)
+        at monix.eval.internal.TaskRestartCallback.syncOnSuccess(TaskRestartCallback.scala:101)
+        at monix.eval.internal.TaskRestartCallback.onSuccess(TaskRestartCallback.scala:74)
+        at monix.eval.internal.TaskSleep$SleepRunnable.run(TaskSleep.scala:71)
+        at java.util.concurrent.ForkJoinTask$RunnableExecuteAction.exec(ForkJoinTask.java:1402)
+        at java.util.concurrent.ForkJoinTask.doExec(ForkJoinTask.java:289)
+        at java.util.concurrent.ForkJoinPool$WorkQueue.runTask(ForkJoinPool.java:1056)
+        at java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1692)
+        at java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:157)
+```
+
+### Better Task => Future interop when using Local
+
+Running `Task` isolates `Local`, which was not available in the `Future`, resulting in `runToFuture`.
+This release enables it and unblocks compelling use cases, such as reading proper request context in Akka HTTP Directive.
+We've created an [AkkaHTTP Example](https://github.com/Avasil/akka-monix-local-example/blob/master/src/main/scala/AkkaHTTPExample.scala)
+that demonstrates it.
+
+Latest behavior is:
+
+```scala
+implicit val s: Scheduler = Scheduler.Implicits.traced
+
+val local = Local(0)
+
+for {
+  _  <- Task(local.update(1)).runToFuture
+  value <- Future(local.get)
+} yield println(s"Local value in Future $value")
+
+println(s"Local value on the current thread = $value")
+
+// => Local value on the current thread = 0
+// => Local value in Future = 1
+```
+
+`Task` still isolates the `Local`, but the `Future` continuation keeps the same reference and can read it.
+Before the change, `Local` would be `0` in the `Future`.
+
+More information about `Local` can be found in the new [Local documentation](https://monix.io/docs/current/execution/local.html).
+
+### Relevant updates
+
+- [#1205](https://github.com/monix/monix/pull/1205): Observable.mergePrioritizedList
+- [#1209](https://github.com/monix/monix/pull/1209): Bring back Observable.transform and Transformer alias
+- [#1198](https://github.com/monix/monix/pull/1198): Fix flatMapIterable calling recursively itself
+- [#1213](https://github.com/monix/monix/pull/1213): Propagate Local isolation in runToFuture
+- [#1217](https://github.com/monix/monix/pull/1217): Fix performance regression in bufferSliding
+- [#1244](https://github.com/monix/monix/pull/1244): Add support for compression: Gzip and deflate
+- [#1262](https://github.com/monix/monix/pull/1262): Fix bug in Task.runSyncUnsafe related to ContextSwitch
+- [#1265](https://github.com/monix/monix/pull/1265): Implement Observable#bufferWhile and bufferWhileInclusive
+- [#1267](https://github.com/monix/monix/pull/1267): Implement Asynchronous Stack Traces for Task
+- [#1276](https://github.com/monix/monix/pull/1276): Add Task/Coeval convenience methods like .when 
+- [#1282](https://github.com/monix/monix/pull/1282): Add 'as' in Task and Coeval
+- [#1284](https://github.com/monix/monix/pull/1284): Add left/right builders for Task and Coeval
+- [#1286](https://github.com/monix/monix/pull/1286): Add none/some builders for Task and Coeval
+- [#1291](https://github.com/monix/monix/pull/1291): tapEval, tapError methods at Task and Coeval
+- [#1293](https://github.com/monix/monix/pull/1293): removing no-op onComplete() in Observable.takeByTimespan
+- [#1299](https://github.com/monix/monix/pull/1299): Fix a bug in Local.value
+- [#1307](https://github.com/monix/monix/pull/1307): Observable.fromIteratorBuffered
+
+
+### People who made this release possible
+
+- Adrian (@adrian-salajan)
+- Alexandru Nedelcu (@alexelcu)
+- ctoomey (@ctoomey)
+- Dmitro Pochapsky (@pchpsky)
+- Georgy Khotyan (@GKhotyan)
+- James Yoo (@jyoo980)
+- Kasper Kondzielski (@ghostbuster91)
+- Pau Alarcón (@paualarco)
+- Piotr Gawryś (@Avasil)
+- Sandeep Kota (@sandeepkota)
+- tafit3 (@tafit3)
+- Vladyslav (@VladPodilnyk)
+
 ## Version 3.2.2 (June 4, 2020)
 
 The release is binary and source compatible with 3.x.x line.
