@@ -23,7 +23,6 @@ import monix.eval.Coeval
 
 import scala.util.Try
 
-
 /** Cats type class instances for [[monix.eval.Coeval Coeval]].
   *
   * As can be seen the implemented type classes are for now

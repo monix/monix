@@ -20,7 +20,6 @@ package monix.eval
 import java.util.concurrent.CompletableFuture
 
 import minitest.TestSuite
-import monix.execution.{CancelableFuture, FutureUtils}
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 

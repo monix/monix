@@ -38,35 +38,9 @@ val scalaCompat_Version = "2.2.0"
 val customScalaJS_Version =
   Option(sys.env.getOrElse("SCALAJS_VERSION", null)).filter(_.nonEmpty)
 
-// Scala 2.11 specific versions
-val cats_ForScala211Version = "2.0.0"
-val catsEffect_ForScala211Version = "2.0.0"
-val fs2_ForScala211Version = "2.1.0"
-
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
 val monixSeries = "3.2.2"
-
-lazy val cats_CrossVersion = Def.setting {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 11)) => cats_ForScala211Version
-    case _ => cats_Version
-  }
-}
-
-lazy val catsEffect_CrossVersion = Def.setting {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 11)) => catsEffect_ForScala211Version
-    case _ => catsEffect_Version
-  }
-}
-
-lazy val fs2_CrossVersion = Def.setting {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 11)) => fs2_ForScala211Version
-    case _ => fs2_Version
-  }
-}
 
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Libraries
@@ -81,15 +55,15 @@ lazy val scalaCompilerLib = Def.setting {
 
 /** [[https://typelevel.org/cats/typeclasses/lawtesting.html]] */
 lazy val catsLawsLib =
-  Def.setting { "org.typelevel" %%% "cats-laws" % cats_CrossVersion.value }
+  Def.setting { "org.typelevel" %%% "cats-laws" % cats_Version }
 
 /** [[https://typelevel.org/cats-effect/]] */
 lazy val catsEffectLib =
-  Def.setting { "org.typelevel" %%% "cats-effect" % catsEffect_CrossVersion.value }
+  Def.setting { "org.typelevel" %%% "cats-effect" % catsEffect_Version }
 
 /** [[https://typelevel.org/cats-effect/]] */
 lazy val catsEffectLawsLib =
-  Def.setting { "org.typelevel" %%% "cats-effect-laws" % catsEffect_CrossVersion.value }
+  Def.setting { "org.typelevel" %%% "cats-effect-laws" % catsEffect_Version }
 
 /** [[https://github.com/monix/implicitbox]] */
 lazy val implicitBoxLib =
@@ -245,7 +219,6 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   ),
 
   logBuffered in Test := false,
-  logBuffered in IntegrationTest := false,
 
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
@@ -312,15 +285,6 @@ lazy val crossVersionSourcesSettings: Seq[Setting[_]] =
     (unmanagedSourceDirectories in sc) ++= {
       (unmanagedSourceDirectories in sc).value.flatMap { dir =>
         Seq(
-          scalaPartV.value match {
-            case Some((2, y)) if y == 11 => new File(dir.getPath + "_2.11")
-            case Some((2, y)) if y == 12 => new File(dir.getPath + "_2.12")
-            case Some((2, y)) if y >= 13 => new File(dir.getPath + "_2.13")
-          },
-          scalaPartV.value match {
-            case Some((2, n)) if n >= 12 => new File(dir.getPath + "_2.12+")
-            case _                       => new File(dir.getPath + "_2.12-")
-          },
           scalaPartV.value match {
             case Some((2, n)) if n >= 13 => new File(dir.getPath + "_2.13+")
             case _                       => new File(dir.getPath + "_2.13-")
@@ -713,7 +677,7 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
     libraryDependencies ++= Seq(
       "io.monix" %% "monix" % "3.2.2",
       "dev.zio" %% "zio-streams" % "1.0.0",
-      "co.fs2" %% "fs2-core" % fs2_CrossVersion.value,
+      "co.fs2" %% "fs2-core" % fs2_Version,
       "com.typesafe.akka" %% "akka-stream" % "2.6.9"
   ))
 
@@ -727,6 +691,6 @@ lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .settings(
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio-streams" % "1.0.0",
-      "co.fs2" %% "fs2-core" % fs2_CrossVersion.value,
+      "co.fs2" %% "fs2-core" % fs2_Version,
       "com.typesafe.akka" %% "akka-stream" % "2.6.9"
     ))

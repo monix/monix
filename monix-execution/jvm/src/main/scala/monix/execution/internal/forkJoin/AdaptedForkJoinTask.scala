@@ -17,6 +17,8 @@
 
 package monix.execution.internal.forkJoin
 
+import java.util.concurrent.ForkJoinTask
+
 private[monix] final class AdaptedForkJoinTask(runnable: Runnable) extends ForkJoinTask[Unit] {
 
   def setRawResult(u: Unit): Unit = ()
