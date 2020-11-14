@@ -24,7 +24,7 @@ import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()

@@ -18,5 +18,5 @@
 package monix.execution
 package internal
 
-// Left blank, because we've got nothing specific for Scala 2.11 at this point
+// Left blank, because we've got nothing specific for Scala.js at this point
 private[execution] abstract class CancelableFutureForPlatform

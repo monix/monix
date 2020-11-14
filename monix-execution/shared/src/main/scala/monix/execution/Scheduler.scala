@@ -18,8 +18,10 @@
 package monix.execution
 
 import java.util.concurrent.Executor
+
 import monix.execution.internal.RunnableAction
 import monix.execution.schedulers.SchedulerCompanionImpl
+
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, TimeUnit}
@@ -303,6 +305,7 @@ object Scheduler extends SchedulerCompanionImpl {
 
   /** Utilities complementing the `Scheduler` interface. */
   implicit final class Extensions(val source: Scheduler) extends AnyVal with schedulers.ExecuteExtensions {
+
     /** Schedules a task to run in the future, after `initialDelay`.
       *
       * For example the following schedules a message to be printed to
