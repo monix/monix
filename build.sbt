@@ -32,7 +32,6 @@ val minitest_Version = "2.8.2"
 val scalaTest_Version = "3.0.8"
 val implicitBox_Version = "0.2.0"
 val kindProjector_Version = "0.11.0"
-val betterMonadicFor_Version = "0.3.1"
 val silencer_Version = "1.7.1"
 val scalaCompat_Version = "2.2.0"
 val customScalaJS_Version =
@@ -120,10 +119,6 @@ lazy val scalaTestLib =
 /** [[https://github.com/scala/scala-collection-compat]] */
 lazy val scalaCollectionCompatLib =
   Def.setting { "org.scala-lang.modules" %%% "scala-collection-compat" % scalaCompat_Version }
-
-/** [[https://github.com/oleg-py/better-monadic-for]] */
-lazy val betterMonadicForCompilerPlugin =
-  "com.olegpy" %% "better-monadic-for" % betterMonadicFor_Version
 
 /** [[https://github.com/ghik/silencer]] */
 lazy val silencerCompilerPlugin =
@@ -227,7 +222,6 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   scalacOptions += "-P:silencer:pathFilters=.*[/]src_managed[/].*",
   // Syntax improvements, linting, etc.
   addCompilerPlugin(kindProjectorCompilerPlugin),
-  addCompilerPlugin(betterMonadicForCompilerPlugin),
   addCompilerPlugin(silencerCompilerPlugin),
 
   libraryDependencies ++= Seq(
@@ -253,7 +247,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   // -- Settings meant for deployment on oss.sonatype.org
   publishTo in ThisBuild := sonatypePublishToBundle.value,
   isSnapshot in ThisBuild := {
-    !isVersionStable.value || !publishStableMonixVersion.value  
+    !isVersionStable.value || !publishStableMonixVersion.value
   },
   dynverSonatypeSnapshots in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
   sonatypeProfileName in ThisBuild := organization.value,
