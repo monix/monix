@@ -80,11 +80,9 @@ object MimaFilters {
 
   lazy val changesFor_3_4_0 = Seq(
     // Remove redundant private interfaces after Scala 2.11 removal
-    exclude[MissingTypesProblem]("monix.execution.Scheduler$Extensions"),
     exclude[MissingClassProblem]("monix.execution.internal.forkJoin.package"),
     exclude[MissingClassProblem]("monix.execution.internal.forkJoin.package$"),
     exclude[MissingClassProblem]("monix.execution.internal.forkJoin.package$ForkJoinPool$"),
-    exclude[MissingClassProblem]("monix.execution.schedulers.ExecuteExtensions"),
     exclude[MissingClassProblem]("monix.execution.misc.compat"),
     exclude[MissingClassProblem]("monix.execution.misc.compat$")
   )
