@@ -17,7 +17,7 @@
 
 package monix.catnap
 
-import cats.effect.concurrent.{MVar => CatsMVar}
+import cats.effect.concurrent.{Ref, MVar2 => CatsMVar}
 import cats.effect.{Async, Concurrent, ContextShift}
 import monix.catnap.internal.AsyncUtils
 import monix.execution.atomic.PaddingStrategy
@@ -64,7 +64,7 @@ import monix.execution.internal.GenericVar.Id
 final class MVar[F[_], A] private (underlying: MVar.Impl[F, A]) extends CatsMVar[F, A] {
 
   /** Returns `true` if the var is empty, `false` if full. */
-  def isEmpty: F[Boolean] =
+  override def isEmpty: F[Boolean] =
     underlying.isEmpty
 
   /**
@@ -79,7 +79,7 @@ final class MVar[F[_], A] private (underlying: MVar.Impl[F, A]) extends CatsMVar
     *         with the given value being next in line to
     *         be consumed
     */
-  def put(a: A): F[Unit] =
+  override def put(a: A): F[Unit] =
     underlying.put(a)
 
   /**
@@ -87,7 +87,7 @@ final class MVar[F[_], A] private (underlying: MVar.Impl[F, A]) extends CatsMVar
     *
     * @return whether or not the put succeeded
     */
-  def tryPut(a: A): F[Boolean] =
+  override def tryPut(a: A): F[Boolean] =
     underlying.tryPut(a)
 
   /**
@@ -99,14 +99,14 @@ final class MVar[F[_], A] private (underlying: MVar.Impl[F, A]) extends CatsMVar
     * @return a task that on evaluation will be completed after
     *         a value was retrieved
     */
-  def take: F[A] =
+  override def take: F[A] =
     underlying.take
 
   /** Empty the `MVar` if full
     *
     * @return an Option holding the current value, None means it was empty
     */
-  def tryTake: F[Option[A]] =
+  override def tryTake: F[Option[A]] =
     underlying.tryTake
 
   /** Tries reading the current value, or blocks (asynchronously)
@@ -117,15 +117,63 @@ final class MVar[F[_], A] private (underlying: MVar.Impl[F, A]) extends CatsMVar
     * @return a task that on evaluation will be completed after
     *         a value has been read
     */
-  def read: F[A] =
+  override def read: F[A] =
     underlying.read
 
   /** Tries reading the current value, returning `Some(a)` if the var
     * is full, but without modifying the var in any way. Or `None`
     * if the var is empty.
     */
-  def tryRead: F[Option[A]] =
+  override def tryRead: F[Option[A]] =
     underlying.tryRead
+
+  /**
+    * Replaces a value in MVar and returns the old value.
+    *
+    * @note This operation is only safe from deadlocks if there are no other producers for this `MVar`.
+    *
+    * @param newValue is a new value
+    * @return the value taken
+    */
+  override def swap(newValue: A): F[A] =
+    underlying.swap(newValue)
+
+  /**
+    * Applies the effectful function `f` on the contents of this `MVar`. In case of failure, it sets the contents of the
+    * `MVar` to the original value.
+    *
+    * @note This operation is only safe from deadlocks if there are no other producers for this `MVar`.
+    *
+    * @param f effectful function that operates on the contents of this `MVar`
+    * @return the value produced by applying `f` to the contents of this `MVar`
+    */
+  override def use[B](f: A => F[B]): F[B] =
+    underlying.use(f)
+
+  /**
+    * Modifies the contents of the `MVar` using the effectful function `f`, but also allows for returning a value derived
+    * from the original contents of the `MVar`. Like [[use]], in case of failure, it sets the contents of the `MVar` to
+    * the original value.
+    *
+    * @note This operation is only safe from deadlocks if there are no other producers for this `MVar`.
+    *
+    * @param f effectful function that operates on the contents of this `MVar`
+    * @return the second value produced by applying `f` to the contents of this `MVar`
+    */
+  override def modify[B](f: A => F[(A, B)]): F[B] =
+    underlying.modify(f)
+
+  /**
+    * Modifies the contents of the `MVar` using the effectful function `f`. Like [[use]], in case of failure, it sets the
+    * contents of the `MVar` to the original value.
+    *
+    * @note This operation is only safe from deadlocks if there are no other producers for this `MVar`.
+    *
+    * @param f effectful function that operates on the contents of this `MVar`
+    * @return no useful value. Executed only for the effects.
+    */
+  override def modify_(f: A => F[A]): F[Unit] =
+    underlying.modify_(f)
 }
 
 object MVar {
@@ -207,6 +255,14 @@ object MVar {
 
     protected def create[T](k: (Either[Throwable, T] => Unit) => F[Unit]): F[T]
 
+    def swap(newValue: A): F[A]
+
+    def use[B](f: A => F[B]): F[B]
+
+    def modify[B](f: A => F[(A, B)]): F[B]
+
+    def modify_(f: A => F[A]): F[Unit]
+
     final def isEmpty: F[Boolean] =
       F.delay(unsafeIsEmpty())
     final def tryPut(a: A): F[Boolean] =
@@ -260,6 +316,25 @@ object MVar {
       F.delay(f(id))
     override protected def emptyCancelable: F[Unit] =
       F.unit
+
+    override def swap(newValue: A): F[A] =
+      F.flatMap(take) { oldValue =>
+        F.map(put(newValue))(_ => oldValue)
+      }
+
+    override def use[B](f: A => F[B]): F[B] =
+      modify(a => F.map(f(a))((a, _)))
+
+    override def modify[B](f: A => F[(A, B)]): F[B] =
+      F.flatMap(take) { a =>
+        F.flatMap(F.onError(f(a)) { case _ => put(a) }) {
+          case (newA, b) =>
+            F.as(put(newA), b)
+        }
+      }
+
+    override def modify_(f: A => F[A]): F[Unit] =
+      modify(a => F.map(f(a))((_, ())))
   }
 
   private final class ConcurrentImpl[F[_], A](initial: Option[A], ps: PaddingStrategy)(
@@ -273,5 +348,35 @@ object MVar {
       F.delay(f(id))
     override protected def emptyCancelable: F[Unit] =
       F.unit
+
+    override def swap(newValue: A): F[A] =
+      F.continual(take) {
+        case Left(t)         => F.raiseError(t)
+        case Right(oldValue) => F.as(put(newValue), oldValue)
+      }
+
+    override def use[B](f: A => F[B]): F[B] =
+      modify(a => F.map(f(a))((a, _)))
+
+    override def modify[B](f: A => F[(A, B)]): F[B] =
+      F.bracket(Ref[F].of[Option[A]](None)) { signal =>
+        F.flatMap(F.continual[A, A](take) {
+          case Left(t)  => F.raiseError(t)
+          case Right(a) => F.as(signal.set(Some(a)), a)
+        }) { a =>
+          F.continual[(A, B), B](f(a)) {
+            case Left(t)          => F.raiseError(t)
+            case Right((newA, b)) => F.as(signal.set(Some(newA)), b)
+          }
+        }
+      } { signal =>
+        F.flatMap(signal.get) {
+          case Some(a) => put(a)
+          case None    => F.unit
+        }
+      }
+
+    override def modify_(f: A => F[A]): F[Unit] =
+      modify(a => F.map(f(a))((_, ())))
   }
 }
