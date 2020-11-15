@@ -255,13 +255,24 @@ object MVar {
 
     protected def create[T](k: (Either[Throwable, T] => Unit) => F[Unit]): F[T]
 
-    def swap(newValue: A): F[A]
+    def swap(newValue: A): F[A] =
+      F.flatMap(take) { oldValue =>
+        F.map(put(newValue))(_ => oldValue)
+      }
 
-    def use[B](f: A => F[B]): F[B]
+    def use[B](f: A => F[B]): F[B] =
+      modify(a => F.map(f(a))((a, _)))
 
-    def modify[B](f: A => F[(A, B)]): F[B]
+    def modify[B](f: A => F[(A, B)]): F[B] =
+      F.flatMap(take) { a =>
+        F.flatMap(F.onError(f(a)) { case _ => put(a) }) {
+          case (newA, b) =>
+            F.as(put(newA), b)
+        }
+      }
 
-    def modify_(f: A => F[A]): F[Unit]
+    def modify_(f: A => F[A]): F[Unit] =
+      modify(a => F.map(f(a))((_, ())))
 
     final def isEmpty: F[Boolean] =
       F.delay(unsafeIsEmpty())
@@ -316,25 +327,6 @@ object MVar {
       F.delay(f(id))
     override protected def emptyCancelable: F[Unit] =
       F.unit
-
-    override def swap(newValue: A): F[A] =
-      F.flatMap(take) { oldValue =>
-        F.map(put(newValue))(_ => oldValue)
-      }
-
-    override def use[B](f: A => F[B]): F[B] =
-      modify(a => F.map(f(a))((a, _)))
-
-    override def modify[B](f: A => F[(A, B)]): F[B] =
-      F.flatMap(take) { a =>
-        F.flatMap(F.onError(f(a)) { case _ => put(a) }) {
-          case (newA, b) =>
-            F.as(put(newA), b)
-        }
-      }
-
-    override def modify_(f: A => F[A]): F[Unit] =
-      modify(a => F.map(f(a))((_, ())))
   }
 
   private final class ConcurrentImpl[F[_], A](initial: Option[A], ps: PaddingStrategy)(
