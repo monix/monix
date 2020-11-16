@@ -1,0 +1,121 @@
+/*
+ * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * See the project homepage at: https://monix.io
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package monix.reactive.internal.operators
+
+import monix.execution.Ack
+import monix.execution.Ack.{Continue, Stop}
+import monix.reactive.Observable.Operator
+import monix.reactive.observers.Subscriber
+
+import scala.concurrent.Future
+
+private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => S, aggregate: (S, A) => S) extends Operator[A, S] {
+
+  def apply(downstream: Subscriber[S]): Subscriber.Sync[A] = {
+    new Subscriber.Sync[A] {
+      upstreamSubscriber =>
+      implicit val scheduler = downstream.scheduler
+
+      private[this] var aggregated: Option[S] = None
+      private[this] var lastAck: Future[Ack] = Continue
+      private[this] var pendingAck: Boolean = false
+      private[this] var downstreamIsDone = false
+
+      def onNext(elem: A): Ack = {
+        upstreamSubscriber.synchronized {
+          if (downstreamIsDone) Stop
+          else {
+            if (!pendingAck) {
+              val downstreamAck = downstream.onNext(seed(elem))
+              lastAck = downstreamAck
+
+              if (downstreamAck == Continue) Continue
+              else if (downstreamAck == Stop) {
+                downstreamIsDone = true
+                Stop
+              }
+              else {
+                pendingAck = true
+                downstreamAck.map { ack =>
+                  if (ack == Stop) {
+                    downstreamIsDone = true
+                  } else if (ack == Continue) {
+                    emitAggregated()
+                  }
+                }
+
+                Continue
+              }
+            } else {
+              aggregated = Some(aggregated match {
+                case Some(agg) => aggregate(agg, elem)
+                case None => seed(elem)
+              })
+              Continue
+            }
+          }
+        }
+      }
+
+      private def emitAggregated(): Unit = {
+        upstreamSubscriber.synchronized {
+          aggregated match {
+            case Some(agg) =>
+              aggregated = None
+              if (!downstreamIsDone) {
+                lastAck = downstream.onNext(agg)
+
+                lastAck.map { _ =>
+                  upstreamSubscriber.synchronized {
+                    if (aggregated.isDefined) emitAggregated()
+                    else pendingAck = false
+                  }
+                }
+              }
+              ()
+            case None =>
+              pendingAck = false
+          }
+        }
+      }
+
+      def onError(ex: Throwable): Unit =
+        upstreamSubscriber.synchronized {
+          if (!downstreamIsDone) {
+            downstreamIsDone = true
+            downstream.onError(ex)
+          }
+        }
+
+      def onComplete(): Unit =
+        // Can't emit the aggregated element immediately as the previous `onNext` may not yet have been acked.
+        upstreamSubscriber.synchronized {
+          lastAck.map {
+            case Continue =>
+              upstreamSubscriber.synchronized {
+                emitAggregated()
+                downstream.onComplete()
+              }
+            case _ =>
+          }
+          ()
+        }
+
+    }
+  }
+}
