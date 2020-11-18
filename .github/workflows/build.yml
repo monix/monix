@@ -18,13 +18,13 @@ jobs:
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
         scala: [ 2.12.12, 2.13.3 ]
-    
+
     env:
       CI: true
-    
+
     steps:
       - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v7
+      - uses: olafurpg/setup-scala@v10
         with:
           java-version: "adopt@1.${{ matrix.java }}"
 
@@ -68,10 +68,10 @@ jobs:
 
     env:
       CI: true
-    
+
     steps:
       - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v7
+      - uses: olafurpg/setup-scala@v10
         with:
           java-version: "adopt@1.${{ matrix.java }}"
 
@@ -120,7 +120,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v7
+      - uses: olafurpg/setup-scala@v10
         with:
           java-version: "adopt@1.${{ matrix.java }}"
 
@@ -162,7 +162,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v7
+      - uses: olafurpg/setup-scala@v10
         with:
           java-version: "adopt@1.${{ matrix.java }}"
 
@@ -207,7 +207,7 @@ jobs:
         with:
           fetch-depth: 100
 
-      - uses: olafurpg/setup-scala@v2
+      - uses: olafurpg/setup-scala@v10
         with:
           java-version: "adopt@1.8"
 
