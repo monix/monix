@@ -35,8 +35,6 @@ val kindProjector_Version = "0.11.0"
 val betterMonadicFor_Version = "0.3.1"
 val silencer_Version = "1.7.1"
 val scalaCompat_Version = "2.2.0"
-val customScalaJS_Version =
-  Option(sys.env.getOrElse("SCALAJS_VERSION", null)).filter(_.nonEmpty)
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -133,7 +131,7 @@ val crossScalaVersionsFromBuildYaml =
 
 crossScalaVersionsFromBuildYaml in Global := {
   val manifest = (baseDirectory in ThisBuild).value / ".github" / "workflows" / "build.yml"
-  scalaVersionsFromBuildYaml(manifest, customScalaJS_Version)
+  scalaVersionsFromBuildYaml(manifest)
 }
 
 lazy val publishStableMonixVersion =
@@ -226,11 +224,11 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   // -- Settings meant for deployment on oss.sonatype.org
   publishTo in ThisBuild := sonatypePublishToBundle.value,
   isSnapshot in ThisBuild := {
-    !isVersionStable.value || !publishStableMonixVersion.value  
+    !isVersionStable.value || !publishStableMonixVersion.value
   },
   dynverSonatypeSnapshots in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
   sonatypeProfileName in ThisBuild := organization.value,
-  sonatypeSessionName := s"[sbt-sonatype] ${name.value}${customScalaJS_Version.fold("-nojs")(v => s"-sjs$v")}-${version.value}",
+  sonatypeSessionName := s"[sbt-sonatype] ${name.value}-${version.value}",
 
   publishMavenStyle := true,
   publishArtifact in Test := false,
@@ -352,14 +350,7 @@ lazy val sharedJSSettings = Seq(
     val l = (baseDirectory in LocalRootProject).value.toURI.toString
     val g = s"https://raw.githubusercontent.com/monix/monix/${gitHubTreeTagOrHash.value}/"
     s"-P:scalajs:mapSourceURI:$l->$g"
-  },
-  // Needed in order to publish for multiple Scala.js versions:
-  // https://github.com/olafurpg/sbt-ci-release#how-do-i-publish-cross-built-scalajs-projects
-  skip.in(publish) := customScalaJS_Version.isEmpty,
-)
-
-lazy val sharedJVMSettings = Seq(
-  skip.in(publish) := customScalaJS_Version.isDefined
+  }
 )
 
 def mimaSettings(projectName: String) = Seq(
@@ -414,7 +405,6 @@ def jvmModule(
 ): Project => Project =
   pr => {
     pr.configure(monixSubModule(projectName, publishArtifacts = publishArtifacts))
-      .settings(sharedJVMSettings)
       .settings(testDependencies)
       .settings(if (withDocTests) doctestTestSettings else Seq.empty)
       .settings(if (withMimaChecks) mimaSettings(projectName) else Seq.empty)

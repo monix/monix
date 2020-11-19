@@ -15,9 +15,6 @@ on:
 jobs:
   publish:
     name: Publish to Sonatype (Request)
-    strategy:
-      matrix:
-        scalajs: ["", 1.3.0]
 
     runs-on: ubuntu-20.04
     steps:
@@ -36,9 +33,8 @@ jobs:
         env:
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
 
-      - name: SCALAJS_VERSION=${{ matrix.scalajs }} sbt ci-release
+      - name: sbt ci-release
         run: |
-          echo "SCALAJS_VERSION=$SCALAJS_VERSION"
           git fetch --depth=100 origin +refs/tags/*:refs/tags/*
           if [ "$PUBLISH_STABLE_VERSION" = "true" ]; then
             sbt ci-release
@@ -50,5 +46,4 @@ jobs:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          SCALAJS_VERSION: ${{ matrix.scalajs }}
           PUBLISH_STABLE_VERSION: ${{ github.event.inputs.stable_version }}
