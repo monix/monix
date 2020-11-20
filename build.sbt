@@ -16,7 +16,7 @@ val jvmTests = List(
 
 addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;ci-meta")
 addCommandAlias("ci-js",       ";clean ;coreJS/test:compile ;coreJS/test ;coreJS/package")
-addCommandAlias("ci-jvm",      s";clean ;coreJVM/test:compile ;coreJVM/test ;coreJVM/package ;tracingTests/test")
+addCommandAlias("ci-jvm",      ";clean ;coreJVM/test:compile ;coreJVM/test ;coreJVM/package ;tracingTests/test")
 addCommandAlias("ci-meta",     ";mimaReportBinaryIssues ;unidoc")
 addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 
@@ -91,7 +91,7 @@ lazy val scalaTestLib =
 
 /** [[https://github.com/scala/scala-collection-compat]] */
 lazy val scalaCollectionCompatLib =
-  Def.setting { "org.scala-lang.modules" %%% "scala-collection-compat" % scalaCompat_Version }
+  Def.setting { ("org.scala-lang.modules" %%% "scala-collection-compat" % scalaCompat_Version).withDottyCompat(scalaVersion.value) }
 
 /** [[https://github.com/oleg-py/better-monadic-for]] */
 lazy val betterMonadicForCompilerPlugin =
@@ -193,18 +193,38 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   // Turning off fatal warnings for doc generation
   scalacOptions.in(Compile, doc) ~= filterConsoleScalacOptions,
   // Silence everything in auto-generated files
-  scalacOptions += "-P:silencer:pathFilters=.*[/]src_managed[/].*",
+  scalacOptions ++= {
+    if (isDotty.value)
+      Seq("-language:Scala2", "-source:3.0-migration")
+    else
+      Seq("-P:silencer:pathFilters=.*[/]src_managed[/].*")
+  },
+
+  scalacOptions --= {
+    if (isDotty.value)
+      Seq("-Xfatal-warnings")
+    else
+      Seq()
+  },
+
   // Syntax improvements, linting, etc.
-  addCompilerPlugin(kindProjectorCompilerPlugin),
-  addCompilerPlugin(betterMonadicForCompilerPlugin),
-  addCompilerPlugin(silencerCompilerPlugin),
+  libraryDependencies ++= {
+    if (isDotty.value)
+      Seq()
+    else
+      Seq(
+        compilerPlugin(kindProjectorCompilerPlugin),
+        compilerPlugin(betterMonadicForCompilerPlugin),
+        compilerPlugin(silencerCompilerPlugin)
+      )
+  },
 
   libraryDependencies ++= Seq(
     scalaCollectionCompatLib.value % "provided;optional",
   ),
   // ScalaDoc settings
   autoAPIMappings := true,
-  scalacOptions in ThisBuild ++= Seq(
+  scalacOptions ++= Seq(
     // Note, this is used by the doc-source-url feature to determine the
     // relative path of a given source file. If it's not a prefix of a the
     // absolute path of the source file, the absolute path of that file
@@ -281,8 +301,8 @@ lazy val crossVersionSourcesSettings: Seq[Setting[_]] =
       (unmanagedSourceDirectories in sc).value.flatMap { dir =>
         Seq(
           scalaPartV.value match {
-            case Some((2, n)) if n >= 13 => new File(dir.getPath + "_2.13+")
-            case _                       => new File(dir.getPath + "_2.13-")
+            case Some((2, 12)) => new File(dir.getPath + "_2.13-")
+            case _             => new File(dir.getPath + "_2.13+")
           }
         )
       }
