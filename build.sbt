@@ -178,20 +178,17 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   */
 
   // Disabled from the sbt-tpolecat set
-  scalacOptions in Compile ~= { options: Seq[String] =>
-    options.filterNot(
-      Set(
-        "-Wunused:privates",
-        "-Ywarn-unused:privates",
-        "-Ywarn-unused:implicits",
-        "-Wunused:implicits",
-        "-Ywarn-unused:imports",
-        "-Wunused:explicits",
-        "-Ywarn-unused:params",
-        "-Wunused:params",
-      )
-    )
-  },
+  scalacOptions in Compile --= Seq(
+    "-Wunused:privates",
+    "-Ywarn-unused:privates",
+    "-Wunused:implicits",
+    "-Ywarn-unused:implicits",
+    "-Wunused:imports",
+    "-Ywarn-unused:imports",
+    "-Wunused:explicits",
+    "-Ywarn-unused:params",
+    "-Wunused:params",
+  ),
 
   // Turning off fatal warnings for doc generation
   scalacOptions.in(Compile, doc) ~= filterConsoleScalacOptions,

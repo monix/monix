@@ -23,7 +23,7 @@ object BoxedLong {
   val MinValue = BoxedLong(Long.MinValue)
   val MaxValue = BoxedLong(Long.MaxValue)
 
-  implicit val numeric = new Numeric[BoxedLong] {
+  implicit val numeric: Numeric[BoxedLong] = new Numeric[BoxedLong] {
     def plus(x: BoxedLong, y: BoxedLong): BoxedLong =
       BoxedLong(x.value + y.value)
     def toDouble(x: BoxedLong): Double =

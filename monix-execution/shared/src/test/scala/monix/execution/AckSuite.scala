@@ -335,7 +335,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     val source: Future[Ack] = Continue
     val fn: Ack => Ack = {
       val value = true
-      ack: Ack =>
+      (ack: Ack) =>
         ack match {
           case Stop => Stop
           case Continue =>
@@ -354,7 +354,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     val source: Future[Ack] = Future(Continue)
     val fn: Ack => Ack = {
       val value = true
-      ack: Ack =>
+      (ack: Ack) =>
         ack match {
           case Stop => Stop
           case Continue =>
@@ -457,7 +457,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     val source: Future[Ack] = Continue
     val fn: Ack => Ack = {
       val value = true
-      ack: Ack =>
+      (ack: Ack) =>
         ack match {
           case Stop => Stop
           case Continue =>
@@ -476,7 +476,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     val source: Future[Ack] = Future(Continue)
     val fn: Ack => Ack = {
       val value = true
-      ack: Ack =>
+      (ack: Ack) =>
         ack match {
           case Stop => Stop
           case Continue =>
