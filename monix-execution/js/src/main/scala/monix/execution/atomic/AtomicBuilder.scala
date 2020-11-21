@@ -24,7 +24,7 @@ package monix.execution.atomic
   * driven by implicits.
   */
 trait AtomicBuilder[A, R <: Atomic[A]] extends Serializable {
-  def buildInstance(initialValue: A, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean): R
+  def buildInstance(initialValue: A, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): R
 
   def buildSafeInstance(initialValue: A, padding: PaddingStrategy): R
 }
@@ -34,9 +34,10 @@ private[atomic] object Implicits {
     /** Provides an [[AtomicBuilder]] instance for [[AtomicAny]]. */
     implicit def AtomicRefBuilder[A <: AnyRef]: AtomicBuilder[A, AtomicAny[A]] =
       new AtomicBuilder[A, AtomicAny[A]] {
-        def buildInstance(initialValue: A, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
+        def buildInstance(initialValue: A, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
           AtomicAny(initialValue)
-        def buildSafeInstance(initialValue: A, strategy: PaddingStrategy) =
+
+        def buildSafeInstance(initialValue: A, padding: PaddingStrategy) =
           AtomicAny(initialValue)
       }
   }
@@ -45,9 +46,10 @@ private[atomic] object Implicits {
     /** Provides an [[AtomicBuilder]] instance for [[AtomicNumberAny]]. */
     implicit def AtomicNumberBuilder[A <: AnyRef: Numeric]: AtomicBuilder[A, AtomicNumberAny[A]] =
       new AtomicBuilder[A, AtomicNumberAny[A]] {
-        def buildInstance(initialValue: A, strategy: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
+        def buildInstance(initialValue: A, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
           AtomicNumberAny(initialValue)
-        def buildSafeInstance(initialValue: A, strategy: PaddingStrategy) =
+
+        def buildSafeInstance(initialValue: A, padding: PaddingStrategy) =
           AtomicNumberAny(initialValue)
       }
   }

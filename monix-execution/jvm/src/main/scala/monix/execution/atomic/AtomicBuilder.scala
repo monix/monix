@@ -32,18 +32,19 @@ trait AtomicBuilder[A, R <: Atomic[A]] extends Serializable {
 private[atomic] object Implicits {
   abstract class Level1 {
     /** Provides an [[AtomicBuilder]] instance for [[AtomicAny]]. */
-    implicit def AtomicRefBuilder[A <: AnyRef] = new AtomicBuilder[A, AtomicAny[A]] {
-      def buildInstance(initialValue: A, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
-        AtomicAny.create(initialValue, padding, allowPlatformIntrinsics)
+    implicit def AtomicRefBuilder[A <: AnyRef]: AtomicBuilder[A, AtomicAny[A]] =
+      new AtomicBuilder[A, AtomicAny[A]] {
+        def buildInstance(initialValue: A, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
+          AtomicAny.create(initialValue, padding, allowPlatformIntrinsics)
 
-      def buildSafeInstance(initialValue: A, padding: PaddingStrategy) =
-        AtomicAny.safe(initialValue, padding)
-    }
+        def buildSafeInstance(initialValue: A, padding: PaddingStrategy) =
+          AtomicAny.safe(initialValue, padding)
+      }
   }
 
   abstract class Level2 extends Level1 {
     /** Provides an [[AtomicBuilder]] instance for [[AtomicNumberAny]]. */
-    implicit def AtomicNumberBuilder[A <: AnyRef: Numeric] =
+    implicit def AtomicNumberBuilder[A <: AnyRef: Numeric]: AtomicBuilder[A, AtomicNumberAny[A]] =
       new AtomicBuilder[A, AtomicNumberAny[A]] {
         def buildInstance(initialValue: A, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
           AtomicNumberAny.create(initialValue, padding, allowPlatformIntrinsics)(implicitly[Numeric[A]])
