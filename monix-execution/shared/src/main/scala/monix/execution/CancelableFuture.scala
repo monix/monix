@@ -155,7 +155,7 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
     // FutureUtils will use a polyfill for Scala 2.11 and will
     // use the real `transformWith` on Scala 2.12
     val f2 = FutureUtils.transformWith(
-      underlying, { result: Try[A] =>
+      underlying, { (result: Try[A]) =>
         if (isolatedCtx ne null) Local.setContext(isolatedCtx)
         val nextRef: Future[S] =
           try f(result)

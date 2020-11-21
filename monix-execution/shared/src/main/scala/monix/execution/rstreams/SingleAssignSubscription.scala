@@ -67,49 +67,55 @@ final class SingleAssignSubscription private () extends Subscription {
     }
   }
 
-  @tailrec
   def cancel(): Unit = {
-    val current = state.get()
+    @tailrec
+    def loop(): Unit = {
+      val current = state.get()
 
-    current match {
-      case Empty =>
-        if (!state.compareAndSet(current, EmptyCanceled))
-          cancel() // retry
+      current match {
+        case Empty =>
+          if (!state.compareAndSet(current, EmptyCanceled))
+            loop() // retry
 
-      case EmptyRequest(_) =>
-        if (!state.compareAndSet(current, EmptyCanceled))
-          cancel() // retry
+        case EmptyRequest(_) =>
+          if (!state.compareAndSet(current, EmptyCanceled))
+            loop() // retry
 
-      case WithSubscription(s) =>
-        if (!state.compareAndSet(current, Canceled))
-          cancel() // retry
-        else
-          s.cancel()
+        case WithSubscription(s) =>
+          if (!state.compareAndSet(current, Canceled))
+            loop() // retry
+          else
+            s.cancel()
 
-      case EmptyCanceled | Canceled =>
-        () // do nothing
+        case EmptyCanceled | Canceled =>
+          () // do nothing
+      }
     }
+    loop()
   }
 
-  @tailrec
   def request(n: Long): Unit = {
-    val current = state.get()
+    @tailrec
+    def loop(): Unit = {
+      val current = state.get()
 
-    current match {
-      case Empty =>
-        if (!state.compareAndSet(current, EmptyRequest(n)))
-          request(n) // retry
+      current match {
+        case Empty =>
+          if (!state.compareAndSet(current, EmptyRequest(n)))
+            loop() // retry
 
-      case EmptyRequest(previous) =>
-        if (!state.compareAndSet(current, EmptyRequest(previous + n)))
-          request(n) // retry
+        case EmptyRequest(previous) =>
+          if (!state.compareAndSet(current, EmptyRequest(previous + n)))
+            loop() // retry
 
-      case WithSubscription(s) =>
-        s.request(n)
+        case WithSubscription(s) =>
+          s.request(n)
 
-      case EmptyCanceled | Canceled =>
-        ()
+        case EmptyCanceled | Canceled =>
+          ()
+      }
     }
+    loop()
   }
 }
 

@@ -34,6 +34,8 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionException, Future}
 import scala.util.{Failure, Success, Try}
 
+import scala.language.implicitConversions
+
 trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstances {
   override lazy val checkConfig: Parameters =
     Parameters.default
@@ -134,7 +136,7 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances with TestUtils 
       }
     }
 
-  implicit lazy val equalityThrowable = new Eq[Throwable] {
+  implicit lazy val equalityThrowable: Eq[Throwable] = new Eq[Throwable] {
     override def eqv(x: Throwable, y: Throwable): Boolean = {
       val ex1 = extractEx(x)
       val ex2 = extractEx(y)

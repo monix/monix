@@ -231,8 +231,8 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
         true
     }
 
-  @tailrec
   private val readCancel: (Id => Unit) = {
+    @tailrec
     def loop(id: Id): Unit =
       stateRef.get() match {
         case current @ WaitForPut(reads, takes) =>

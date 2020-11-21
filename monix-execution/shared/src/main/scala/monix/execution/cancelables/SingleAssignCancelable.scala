@@ -85,23 +85,26 @@ final class SingleAssignCancelable private (extra: Cancelable) extends Assignabl
     }
   }
 
-  @tailrec
   override def cancel(): Unit = {
-    state.get() match {
-      case IsCanceled | IsEmptyCanceled => ()
-      case IsActive(s) =>
-        state.set(IsCanceled)
-        if (extra != null) extra.cancel()
-        s.cancel()
-      case Empty =>
-        if (state.compareAndSet(Empty, IsEmptyCanceled)) {
+    @tailrec
+    def loop(): Unit = {
+      state.get() match {
+        case IsCanceled | IsEmptyCanceled => ()
+        case IsActive(s) =>
+          state.set(IsCanceled)
           if (extra != null) extra.cancel()
-        } else {
-          // $COVERAGE-OFF$
-          cancel() // retry
-          // $COVERAGE-ON$
-        }
+          s.cancel()
+        case Empty =>
+          if (state.compareAndSet(Empty, IsEmptyCanceled)) {
+            if (extra != null) extra.cancel()
+          } else {
+            // $COVERAGE-OFF$
+            loop() // retry
+            // $COVERAGE-ON$
+          }
+      }
     }
+    loop()
   }
 
   private def raiseError(): Nothing = {

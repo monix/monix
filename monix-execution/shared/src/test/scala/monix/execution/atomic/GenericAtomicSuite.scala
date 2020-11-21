@@ -83,7 +83,7 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
     val r = Atomic(zero)
     r.transform {
       def increment(y: A): A = valueFromInt(valueToInt(y) + 1)
-      x: A => increment(x)
+      (x: A) => increment(x)
     }
     assert(r.get() == one)
   }
@@ -132,7 +132,7 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
     val r = Atomic(zero)
     val result = r.transformAndGet {
       def increment(y: A): A = valueFromInt(valueToInt(y) + 1)
-      x: A => increment(x)
+      (x: A) => increment(x)
     }
     assertEquals(result, one)
   }
@@ -180,7 +180,7 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
     val r = Atomic(zero)
     val result = r.getAndTransform {
       def increment(y: A): A = valueFromInt(valueToInt(y) + 1)
-      x: A => increment(x)
+      (x: A) => increment(x)
     }
     assertEquals(result, zero)
     assertEquals(r.get(), one)
@@ -233,7 +233,7 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
     val r = Atomic(zero)
     val result = r.transformAndExtract {
       def increment(y: A): A = valueFromInt(valueToInt(y) + 1)
-      x: A => (x, increment(x))
+      (x: A) => (x, increment(x))
     }
 
     assertEquals(result, zero)
