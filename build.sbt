@@ -34,7 +34,7 @@ val implicitBox_Version = "0.3.0"
 val kindProjector_Version = "0.11.1"
 val betterMonadicFor_Version = "0.3.1"
 val silencer_Version = "1.7.1"
-val scalaCompat_Version = "2.2.0"
+val scalaCompat_Version = "2.3.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
