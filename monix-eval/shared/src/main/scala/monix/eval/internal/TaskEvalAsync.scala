@@ -38,7 +38,7 @@ private[eval] object TaskEvalAsync {
   private final class EvalAsyncRegister[A](a: () => A) extends ForkedRegister[A] {
 
     def apply(ctx: Task.Context, cb: Callback[Throwable, A]): Unit =
-      ctx.scheduler.executeAsync(() => {
+      ctx.scheduler.execute(() => {
         ctx.frameRef.reset()
         var streamError = true
         try {

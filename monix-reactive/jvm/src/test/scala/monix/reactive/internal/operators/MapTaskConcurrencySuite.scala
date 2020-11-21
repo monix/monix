@@ -73,7 +73,7 @@ object MapTaskConcurrencySuite extends BaseConcurrencySuite {
 
       // Creating race condition
       if (i % 2 == 0) {
-        s.executeAsync(() => c.cancel())
+        s.execute(() => c.cancel())
       } else {
         c.cancel()
       }

@@ -311,7 +311,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
     val latchWorkersFinished = new CountDownLatch(WORKERS)
 
     for (_ <- 0 until WORKERS) {
-      sc.executeAsync { () =>
+      sc.execute { () =>
         latchWorkersStart.countDown()
         try { f; () }
         finally latchWorkersFinished.countDown()

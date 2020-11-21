@@ -98,7 +98,7 @@ object OverflowStrategyDropNewAndSignalSuite extends TestSuite[TestScheduler] {
 
     def loop(n: Int): Unit =
       if (n > 0)
-        s.executeAsync { () =>
+        s.execute { () =>
           buffer.onNext(n); loop(n - 1)
         } else
         buffer.onComplete()

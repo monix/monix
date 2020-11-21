@@ -45,11 +45,11 @@ object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
     var effect = 0
     val p = Promise[Int]()
 
-    s.executeAsync { () =>
+    s.execute { () =>
       effect += 1
-      s.executeAsync { () =>
+      s.execute { () =>
         effect += 2
-        s.executeAsync { () =>
+        s.execute { () =>
           effect += 3
           p.success(effect)
           ()

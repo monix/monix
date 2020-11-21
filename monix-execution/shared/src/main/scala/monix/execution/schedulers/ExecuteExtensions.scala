@@ -18,66 +18,21 @@
 package monix.execution
 package schedulers
 
-/** Defines extension methods for [[Scheduler]] meant for	
+/** Defines extension methods for [[Scheduler]] meant for
   * executing runnables.
   */
 private[execution] trait ExecuteExtensions extends Any {
   def source: Scheduler
 
-  /** Schedules the given callback for asynchronous	
-    * execution in the thread-pool.	
-    *
-    * On Scala < 2.12 it is described as a macro, so it	
-    * has zero overhead, being perfectly equivalent with	
-    * `execute(new Runnable { ... })`.	
-    *
-    * On Scala 2.12 because of the Java 8 SAM types integration,	
-    * this extension macro is replaced with a method that takes	
-    * a plain `Runnable` as parameter.	
-    *
-    * @param cb the callback to execute asynchronously	
-    */
+  @deprecated("Use `execute` directly, since Scala 2.11 support has been dropped", "3.4.0")
   def executeAsync(cb: Runnable): Unit =
     source.execute(cb)
 
-  /** Schedules the given callback for asynchronous	
-    * execution in the thread-pool, but also indicates the	
-    * start of a	
-    * [[monix.execution.schedulers.TrampolinedRunnable thread-local trampoline]]
-    * in case the scheduler is a	
-    * [[monix.execution.schedulers.BatchingScheduler BatchingScheduler]].	
-    *
-    * This utility is provided as an optimization. If you don't understand	
-    * what this does, then don't worry about it.	
-    *
-    * On Scala < 2.12 it is described as a macro, so it	
-    * has zero overhead. On Scala 2.12 because of the Java 8 SAM	
-    * types integration, this extension macro is replaced with a	
-    * method that takes a plain `TrampolinedRunnable` as parameter.	
-    *
-    * @param cb the callback to execute asynchronously	
-    */
-  def executeAsyncBatch(cb: TrampolinedRunnable): Unit = {
-    val r = StartAsyncBatchRunnable(cb, source)
-    source.execute(r)
-  }
+  @deprecated("Extension methods are now implemented on `Scheduler` directly", "3.4.0")
+  def executeAsyncBatch(cb: TrampolinedRunnable): Unit =
+    source.executeAsyncBatch(cb)
 
-  /** Schedules the given callback for immediate execution as a	
-    * [[monix.execution.schedulers.TrampolinedRunnable TrampolinedRunnable]].	
-    * Depending on the execution context, it might	
-    * get executed on the current thread by using an internal	
-    * trampoline, so it is still safe from stack-overflow exceptions.	
-    *
-    * On Scala < 2.12 it is described as a macro, so it	
-    * has zero overhead, being perfectly equivalent with	
-    * `execute(new TrampolinedRunnable { ... })`.	
-    *
-    * On Scala 2.12 because of the Java 8 SAM types integration,	
-    * this extension macro is replaced with a method that takes	
-    * a plain `TrampolinedRunnable` as parameter.	
-    *
-    * @param cb the callback to execute asynchronously	
-    */
+  @deprecated("Extension methods are now implemented on `Scheduler` directly", "3.4.0")
   def executeTrampolined(cb: TrampolinedRunnable): Unit =
-    source.execute(cb)
+    source.executeTrampolined(cb)
 }

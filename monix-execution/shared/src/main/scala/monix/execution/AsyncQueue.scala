@@ -388,7 +388,7 @@ final class AsyncQueue[A] private[monix] (
 
     // Async boundary, for fairness reasons; also creates a full
     // memory barrier between the promise registration and what follows
-    scheduler.executeAsync { () =>
+    scheduler.execute { () =>
       // Trying to read one more time
       val value = f()
       if (filter(value)) {

@@ -28,9 +28,9 @@ import monix.execution.{ExecutionModel => ExecModel}
 /** Helper for building a [[Scheduler]].
   *
   * You can inherit from this class and provided a correct
-  * [[Scheduler.scheduleOnce(initialDelay* scheduleOnce]]
-  * you'll get [[Scheduler.scheduleWithFixedDelay]] and
-  * [[Scheduler.scheduleAtFixedRate]] for free.
+  * [[Scheduler.scheduleOnce(initialDelay:Long* scheduleOnce]]
+  * you'll get [[Scheduler.scheduleWithFixedDelay(initialDelay:Long*]] and
+  * [[Scheduler.scheduleAtFixedRate(initialDelay:Long*]] for free.
   */
 trait ReferenceScheduler extends Scheduler {
   override def clockRealTime(unit: TimeUnit): Long =
