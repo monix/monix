@@ -277,7 +277,6 @@ private[monix] trait SchedulerCompanion {
 }
 
 object Scheduler extends SchedulerCompanionImpl {
-  self: SchedulerCompanion =>
 
   /** The [[Scheduler]] supports processing in batches via an internal
     * trampoline.
