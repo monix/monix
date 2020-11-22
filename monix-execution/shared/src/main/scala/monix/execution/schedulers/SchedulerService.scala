@@ -50,7 +50,7 @@ trait SchedulerService extends Scheduler {
     * tasks are executed, but no new tasks will be accepted.
     *
     * This method does not wait for previously submitted tasks to
-    * complete execution. Use [[awaitTermination]] to do that.
+    * complete execution. Use [[awaitTermination(timeout:Long*]] to do that.
     */
   def shutdown(): Unit
 
@@ -98,25 +98,34 @@ trait SchedulerService extends Scheduler {
 
   // Overriding the return type
   override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): SchedulerService
+
+  /** Overload of [[awaitTermination(timeout:Long*]]. */
+  final def awaitTermination(timeout: FiniteDuration, awaitOn: ExecutionContext): Future[Boolean] =
+    awaitTermination(timeout.length, timeout.unit, awaitOn)
+
+  /** A blocking version of [[awaitTermination(timeout:Long*]]
+    * that blocks the current thread.
+    *
+    * Due to requiring a [[CanBlock]] permit, calls to this function want
+    * compile on top of JavaScript, since blocking operations are not supported
+    * for JS engines.
+    */
+  final def awaitTermination(timeout: FiniteDuration)(implicit permit: CanBlock): Boolean = {
+    val fa = awaitTermination(timeout, immediate)
+    Platform.await(fa, timeout)
+  }
 }
 
 object SchedulerService {
   /** Extensions for the [[SchedulerService]] interface. */
+  @deprecated("Extension methods are now implemented on `SchedulerService` directly", "3.4.0")
   implicit class Extensions(val self: SchedulerService) extends AnyVal {
-    /** Overload of [[SchedulerService.awaitTermination]]. */
+    @deprecated("Extension methods are now implemented on `SchedulerService` directly", "3.4.0")
     def awaitTermination(timeout: FiniteDuration, awaitOn: ExecutionContext): Future[Boolean] =
-      self.awaitTermination(timeout.length, timeout.unit, awaitOn)
+      self.awaitTermination(timeout, awaitOn)
 
-    /** A blocking version of [[SchedulerService.awaitTermination]] that
-      * blocks the current thread.
-      *
-      * Due to requiring a [[CanBlock]] permit, calls to this function want
-      * compile on top of JavaScript, since blocking operations are not supported
-      * for JS engines.
-      */
-    def awaitTermination(timeout: FiniteDuration)(implicit permit: CanBlock): Boolean = {
-      val fa = self.awaitTermination(timeout, immediate)
-      Platform.await(fa, timeout)
-    }
+    @deprecated("Extension methods are now implemented on `SchedulerService` directly", "3.4.0")
+    def awaitTermination(timeout: FiniteDuration)(implicit permit: CanBlock): Boolean =
+      self.awaitTermination(timeout)(permit)
   }
 }
