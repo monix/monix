@@ -148,7 +148,7 @@ private[eval] object TaskRunLoop {
                 if (rcb ne null) rcb.contextSwitch(context)
                 if (restore ne null) {
                   /*_*/
-                  current = FlatMap(next, new RestoreContext(old, restore), null)
+                  current = FlatMap(next, new RestoreContext(old, restore.asInstanceOf[RestoreFunction]), null)
                   /*_*/
                 }
               }
@@ -439,7 +439,7 @@ private[eval] object TaskRunLoop {
               bRest.push(bFirst)
             }
             /*_*/
-            bFirst = bindNext /*_*/
+            bFirst = bindNext.asInstanceOf[Bind] /*_*/
             current = fa
 
           case Now(value) =>
@@ -466,7 +466,7 @@ private[eval] object TaskRunLoop {
               if (bRest eq null) bRest = ChunkedArrayStack()
               bRest.push(bFirst)
             }
-            bFirst = bindNext
+            bFirst = bindNext.asInstanceOf[Bind]
             current = fa
 
           case Suspend(thunk) =>
@@ -569,7 +569,7 @@ private[eval] object TaskRunLoop {
               bRest.push(bFirst)
             }
             /*_*/
-            bFirst = bindNext /*_*/
+            bFirst = bindNext.asInstanceOf[Bind] /*_*/
             current = fa
 
           case Now(value) =>
@@ -596,7 +596,7 @@ private[eval] object TaskRunLoop {
               if (bRest eq null) bRest = ChunkedArrayStack()
               bRest.push(bFirst)
             }
-            bFirst = bindNext
+            bFirst = bindNext.asInstanceOf[Bind]
             current = fa
 
           case Suspend(thunk) =>
@@ -835,7 +835,9 @@ private[eval] object TaskRunLoop {
   private[internal] def frameStart(em: ExecutionModel): FrameIndex =
     em.nextFrameIndex(0)
 
-  private final class RestoreContext(old: Context, restore: (Any, Throwable, Context, Context) => Context)
+  private type RestoreFunction = (Any, Throwable, Context, Context) => Context
+
+  private final class RestoreContext(old: Context, restore: RestoreFunction)
     extends StackFrame[Any, Task[Any]] {
 
     def apply(a: Any): Task[Any] =
