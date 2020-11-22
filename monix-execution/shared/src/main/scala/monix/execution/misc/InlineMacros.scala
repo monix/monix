@@ -17,10 +17,10 @@
 
 package monix.execution.misc
 
-import scala.reflect.macros.whitebox
+//import scala.reflect.macros.whitebox
 
 trait InlineMacros {
-  val c: whitebox.Context
+  /*val c: whitebox.Context
 
   import c.universe._
 
@@ -105,5 +105,5 @@ trait InlineMacros {
           }
         }
       }
-    }
+    }*/
 }

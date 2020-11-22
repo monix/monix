@@ -528,13 +528,13 @@ lazy val executionProfile =
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .configure(executionProfile.jvm)
-  .settings(macroDependencies)
+  //.settings(macroDependencies)
   .dependsOn(executionShadedJCTools)
   .settings(libraryDependencies += reactiveStreamsLib)
 
 lazy val executionJS = project.in(file("monix-execution/js"))
   .configure(executionProfile.js)
-  .settings(macroDependencies)
+  //.settings(macroDependencies)
 
 // --------------------------------------------
 // monix-catnap

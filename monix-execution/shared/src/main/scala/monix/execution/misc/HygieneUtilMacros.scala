@@ -17,11 +17,11 @@
 
 package monix.execution.misc
 
-import scala.reflect.macros.whitebox
+//import scala.reflect.macros.whitebox
 
 /** Utilities for macro-hygiene. */
 trait HygieneUtilMacros {
-  val c: whitebox.Context
+  /*val c: whitebox.Context
 
   import c.universe._
 
@@ -43,5 +43,5 @@ trait HygieneUtilMacros {
           case _ => false
         }
       }
-  }
+  }*/
 }

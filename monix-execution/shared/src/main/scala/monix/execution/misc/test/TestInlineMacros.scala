@@ -17,10 +17,10 @@
 
 package monix.execution.misc.test
 
-import monix.execution.misc._
-import scala.reflect.macros.whitebox
+//import monix.execution.misc._
+//import scala.reflect.macros.whitebox
 
-private[execution] object TestInlineMacros {
+private[execution] object TestInlineMacros {/*
   def testInlineSingleArg(): Either[String, Unit] =
     macro Macros.testInlineSingleArg
 
@@ -170,5 +170,5 @@ private[execution] object TestInlineMacros {
       }
     }
 
-  }
+  }*/
 }

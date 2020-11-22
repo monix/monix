@@ -19,7 +19,7 @@ package monix.execution.misc
 
 import monix.execution.atomic.AtomicAny
 import scala.annotation.tailrec
-import scala.reflect.macros.whitebox
+//import scala.reflect.macros.whitebox
 
 /**
   * @define canBindLocalsDesc The implementation uses the [[CanBindLocals]]
@@ -135,10 +135,10 @@ object Local extends LocalCompanionDeprecated {
     * state of `Local.Context` and restore the current state when complete.
     */
   private[monix] def bindCurrentIf[R](b: Boolean)(f: => R): R =
-    macro Macros.localLetCurrentIf
+    ???//macro Macros.localLetCurrentIf
 
   /** Macros implementations for [[bind]] and [[bindClear]]. */
-  private class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
+  /*private class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
     import c.universe._
 
     def localLet(ctx: Tree)(f: Tree): Tree =
@@ -159,7 +159,7 @@ object Local extends LocalCompanionDeprecated {
         }"""
       )
     }
-  }
+  }*/
 
   /** Represents the current state of all [[Local locals]] for a given
     * execution context.

@@ -17,20 +17,21 @@
 
 package monix.execution.misc.test
 
-import monix.execution.misc.{HygieneUtilMacros, InlineMacros}
+/*import monix.execution.misc.{HygieneUtilMacros, InlineMacros}
 import scala.reflect.macros.whitebox
-
+*/
 /** Represents a boxed value, to be used in the testing
   * of [[InlineMacros]].
   */
 private[execution] final case class TestBox[A](value: A) {
-  def map[B](f: A => B): TestBox[B] = macro TestBox.Macros.mapMacroImpl[A, B]
+  def map[B](f: A => B): TestBox[B] = ???// macro TestBox.Macros.mapMacroImpl[A, B]
 }
 
 /** Represents a boxed value, to be used in the testing
   * of [[InlineMacros]].
   */
 private[execution] object TestBox {
+  /*
   class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
     import c.universe._
 
@@ -53,5 +54,5 @@ private[execution] object TestBox {
 
       inlineAndReset[TestBox[B]](tree)
     }
-  }
+  }*/
 }

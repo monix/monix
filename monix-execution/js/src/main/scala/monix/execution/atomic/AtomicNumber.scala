@@ -28,13 +28,13 @@ abstract class AtomicNumber[A] extends Atomic[A] {
   /** Adds to the atomic number the given value. */
   def add(v: A): Unit
   /** Adds to the atomic number the given value. Alias for `add`. */
-  final def `-=`(value: A): Unit = macro Atomic.Macros.subtractMacro[A]
+  final def `-=`(value: A): Unit = ???//macro Atomic.Macros.subtractMacro[A]
   /** Decrements the atomic number with the given integer. */
   def decrement(v: Int = 1): Unit
   /** Subtracts from the atomic number the given value. */
   def subtract(v: A): Unit
   /** Subtracts from the atomic number the given value. Alias for `subtract`. */
-  final def `+=`(value: A): Unit = macro Atomic.Macros.addMacro[A]
+  final def `+=`(value: A): Unit = ???//macro Atomic.Macros.addMacro[A]
 
   /** Increments the atomic number and returns the result. */
   def incrementAndGet(v: Int = 1): A
