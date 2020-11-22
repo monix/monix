@@ -27,7 +27,7 @@ object CallbackInstanceSuite extends TestSuite[TestScheduler] {
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
 
   test("contramap has a cats Contramap instance") { implicit s =>
-    val instance = implicitly[Contravariant[Callback[Throwable, ?]]]
+    val instance = implicitly[Contravariant[Callback[Throwable, *]]]
     val callback = TestCallback()
     val stringCallback = instance.contramap(callback)((x: String) => x.toInt)
     stringCallback.onSuccess("1")

@@ -71,7 +71,7 @@ final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)(
   cs: ContextShift[F])
   extends cats.effect.concurrent.Semaphore[F] {
 
-  private[this] implicit val F0 = F.unify
+  private[this] implicit val F0: Async[F] = F.unify
 
   /** Returns the number of permits currently available. Always non-negative.
     *
