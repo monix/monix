@@ -41,7 +41,7 @@ private[eval] object CoevalRunLoop {
     var unboxed: AnyRef = null
     var tracingCtx: CoevalStackTracedContext = null
 
-    do {
+    while (true) {
       current match {
         case bind@FlatMap(fa, bindNext, _) =>
           if (isStackTracing) {
@@ -133,7 +133,7 @@ private[eval] object CoevalRunLoop {
             bFirst = null
         }
       }
-    } while (true)
+    }
     // $COVERAGE-OFF$
     null // Unreachable code
     // $COVERAGE-ON$
@@ -145,13 +145,13 @@ private[eval] object CoevalRunLoop {
       case _ =>
         if (bRest eq null) null
         else {
-          do {
+          while (true) {
             val ref = bRest.pop()
             if (ref eq null)
               return null
             else if (ref.isInstanceOf[StackFrame[_, _]])
               return ref.asInstanceOf[StackFrame[Any, Coeval[Any]]]
-          } while (true)
+          }
           // $COVERAGE-OFF$
           null
           // $COVERAGE-ON$
@@ -164,14 +164,14 @@ private[eval] object CoevalRunLoop {
       return bFirst
 
     if (bRest eq null) return null
-    do {
+    while (true) {
       val next = bRest.pop()
       if (next eq null) {
         return null
       } else if (!next.isInstanceOf[StackFrame.ErrorHandler[_, _]]) {
         return next
       }
-    } while (true)
+    }
     // $COVERAGE-OFF$
     null
     // $COVERAGE-ON$

@@ -64,7 +64,7 @@ private[eval] object TaskRunLoop {
     var context = contextInit
     var em = context.scheduler.executionModel
 
-    do {
+    while (true) {
       if (currentIndex != 0) {
         current match {
           case bind @ FlatMap(fa, bindNext, _) =>
@@ -201,7 +201,7 @@ private[eval] object TaskRunLoop {
         restartAsync(current, context, cba, rcb, bFirstRef, bRestRef)
         return
       }
-    } while (true)
+    }
   }
 
   /** Internal utility, for forcing an asynchronous boundary in the
@@ -273,7 +273,7 @@ private[eval] object TaskRunLoop {
     // we might not need to initialize full Task.Context
     var tracingCtx: StackTracedContext = null
 
-    do {
+    while (true) {
       if (frameIndex != 0) {
         current match {
           case bind @ FlatMap(fa, bindNext, _) =>
@@ -401,7 +401,7 @@ private[eval] object TaskRunLoop {
           isCancelable = true,
           tracingCtx = tracingCtx)
       }
-    } while (true)
+    }
     // $COVERAGE-OFF$
     null
     // $COVERAGE-ON$
@@ -424,7 +424,7 @@ private[eval] object TaskRunLoop {
     // we might not need to initialize full Task.Context
     var tracingCtx: StackTracedContext = null
 
-    do {
+    while (true) {
       if (frameIndex != 0) {
         current match {
           case bind @ FlatMap(fa, bindNext, _) =>
@@ -528,7 +528,7 @@ private[eval] object TaskRunLoop {
         // Force async boundary
         return goAsync4Step(current, scheduler, opts, bFirst, bRest, frameIndex, forceFork = true, tracingCtx = tracingCtx)
       }
-    } while (true)
+    }
     // $COVERAGE-OFF$
     null
     // $COVERAGE-ON$
@@ -554,7 +554,7 @@ private[eval] object TaskRunLoop {
     // we might not need to initialize full Task.Context
     var tracingCtx: StackTracedContext = null
 
-    do {
+    while (true) {
       if (frameIndex != 0) {
         current match {
           case bind @ FlatMap(fa, bindNext, _) =>
@@ -667,7 +667,7 @@ private[eval] object TaskRunLoop {
         // Force async boundary
         return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceFork = true, tracingCtx = tracingCtx)
       }
-    } while (true)
+    }
     // $COVERAGE-OFF$
     null
     // $COVERAGE-ON$
@@ -800,13 +800,13 @@ private[eval] object TaskRunLoop {
       case _ =>
         if (bRest eq null) null
         else {
-          do {
+          while (true) {
             val ref = bRest.pop()
             if (ref eq null)
               return null
             else if (ref.isInstanceOf[StackFrame[_, _]])
               return ref.asInstanceOf[StackFrame[Any, Task[Any]]]
-          } while (true)
+          }
           // $COVERAGE-OFF$
           null
           // $COVERAGE-ON$
@@ -819,14 +819,14 @@ private[eval] object TaskRunLoop {
       return bFirst
 
     if (bRest eq null) return null
-    do {
+    while (true) {
       val next = bRest.pop()
       if (next eq null) {
         return null
       } else if (!next.isInstanceOf[StackFrame.ErrorHandler[_, _]]) {
         return next
       }
-    } while (true)
+    }
     // $COVERAGE-OFF$
     null
     // $COVERAGE-ON$

@@ -49,7 +49,7 @@ private[eval] object TaskRunSyncUnsafe {
     // we might not need to initialize full Task.Context
     var tracingCtx: StackTracedContext = null
 
-    do {
+    while (true) {
       current match {
         case bind @ FlatMap(fa, bindNext, _) =>
           if (isStackTracing) {
@@ -140,7 +140,7 @@ private[eval] object TaskRunSyncUnsafe {
             bFirst = null
         }
       }
-    } while (true)
+    }
     // $COVERAGE-OFF$
     throw new IllegalStateException("out of loop")
     // $COVERAGE-ON$
