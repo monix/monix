@@ -363,10 +363,14 @@ lazy val unidocSettings = Seq(
 lazy val sharedJSSettings = Seq(
   coverageExcludedFiles := ".*",
   // Use globally accessible (rather than local) source paths in JS source maps
-  scalacOptions += {
-    val l = (baseDirectory in LocalRootProject).value.toURI.toString
-    val g = s"https://raw.githubusercontent.com/monix/monix/${gitHubTreeTagOrHash.value}/"
-    s"-P:scalajs:mapSourceURI:$l->$g"
+  scalacOptions ++= {
+    if (isDotty.value)
+      Seq()
+    else {
+      val l = (baseDirectory in LocalRootProject).value.toURI.toString
+      val g = s"https://raw.githubusercontent.com/monix/monix/${gitHubTreeTagOrHash.value}/"
+      Seq(s"-P:scalajs:mapSourceURI:$l->$g")
+    }
   }
 )
 
