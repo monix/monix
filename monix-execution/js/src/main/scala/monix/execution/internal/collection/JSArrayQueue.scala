@@ -39,6 +39,8 @@ private[monix] final class JSArrayQueue[A] private (_size: Int, triggerEx: Int =
     queue.length - offset >= capacity
   override def length: Int =
     queue.length - offset
+  override def size: Int =
+    length
   override def isEmpty: Boolean =
     queue.length - offset == 0
 
