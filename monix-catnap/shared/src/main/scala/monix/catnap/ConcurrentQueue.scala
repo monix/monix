@@ -44,9 +44,9 @@ import scala.collection.mutable.ArrayBuffer
   *   import monix.execution.Scheduler.global
   *
   *   // For being able to do IO.start
-  *   implicit val cs = SchedulerEffect.contextShift[IO](global)
+  *   implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](global)(IO.ioEffect)
   *   // We need a `Timer` for this to work
-  *   implicit val timer = SchedulerEffect.timer[IO](global)
+  *   implicit val timer: Timer[IO] = SchedulerEffect.timer[IO](global)
   *
   *   def consumer(queue: ConcurrentQueue[IO, Int], index: Int): IO[Unit] =
   *     queue.poll.flatMap { a =>

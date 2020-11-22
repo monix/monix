@@ -36,7 +36,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     SchedulerEffect.timerLiftIO[IO](ec)
 
   implicit def contextShift(implicit ec: TestScheduler): ContextShift[IO] =
-    SchedulerEffect.contextShift[IO](ec)
+    SchedulerEffect.contextShift[IO](ec)(IO.ioEffect)
 
   test("should work for successful async tasks") { implicit s =>
     val circuitBreaker = CircuitBreaker.unsafe[IO](

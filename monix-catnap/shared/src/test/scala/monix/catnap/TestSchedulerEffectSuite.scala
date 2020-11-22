@@ -17,7 +17,7 @@
 
 package monix.catnap
 
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
 
@@ -81,7 +81,7 @@ object TestSchedulerEffectSuite extends TestSuite[TestScheduler] {
   }
 
   test("timer[IO]") { s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val timer = SchedulerEffect.timer[IO](s)
     val clockMono = timer.clock.monotonic(MILLISECONDS)
