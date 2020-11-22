@@ -36,7 +36,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
   test("should execute asynchronously") { s =>
     var wasExecuted = false
-    s.executeAsync { () =>
+    s.execute { () =>
       wasExecuted = true
     }
     assert(!wasExecuted)
@@ -48,10 +48,10 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
   test("should execute the whole stack") { s =>
     var iterations = 0
 
-    s.executeAsync { () =>
-      s.executeAsync { () =>
+    s.execute { () =>
+      s.execute { () =>
         iterations += 1
-        s.executeAsync { () =>
+        s.execute { () =>
           iterations += 1
         }
       }
@@ -59,9 +59,9 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
       assert(iterations == 0)
       iterations += 1
 
-      s.executeAsync { () =>
+      s.execute { () =>
         iterations += 1
-        s.executeAsync { () =>
+        s.execute { () =>
           iterations += 1
         }
       }
@@ -229,7 +229,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
   test("execute extension method") { implicit s =>
     var wasExecuted = false
-    s.executeAsync { () =>
+    s.execute { () =>
       wasExecuted = true
     }
 

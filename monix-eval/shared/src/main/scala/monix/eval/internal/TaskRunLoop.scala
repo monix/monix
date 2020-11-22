@@ -219,7 +219,7 @@ private[eval] object TaskRunLoop {
       if (context.options.localContextPropagation) Local.getContext()
       else null
 
-    context.scheduler.executeAsync { () =>
+    context.scheduler.execute { () =>
       // Checking for the cancellation status after the async boundary;
       // This is consistent with the behavior on `Async` tasks, i.e. check
       // is done *after* the evaluation and *before* signaling the result
@@ -783,7 +783,7 @@ private[eval] object TaskRunLoop {
         ctx.frameRef := nextFrame
         (ctx, cb) => startFull(source, ctx, cb, null, bFirst, bRest, ctx.frameRef())
       } else { (ctx, cb) =>
-        ctx.scheduler.executeAsync(() => startFull(source, ctx, cb, null, bFirst, bRest, 1))
+        ctx.scheduler.execute(() => startFull(source, ctx, cb, null, bFirst, bRest, 1))
       }
 
     Left(

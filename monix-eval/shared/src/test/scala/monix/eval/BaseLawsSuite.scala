@@ -111,7 +111,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
     def genCancelable: Gen[Task[A]] =
       for (a <- getArbitrary[A]) yield Task.cancelable0[A] { (sc, cb) =>
         val isActive = Atomic(true)
-        sc.executeAsync { () =>
+        sc.execute { () =>
           if (isActive.getAndSet(false))
             cb.onSuccess(a)
         }

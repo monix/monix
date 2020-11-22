@@ -91,7 +91,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     val b = BooleanCancelable()
     val fa = CancelableFuture.async[Int] { _ =>
       val ch = ChainedCancelable()
-      s.executeAsync(() => { ch := b; () })
+      s.execute(() => { ch := b; () })
       ch
     }
 
@@ -107,7 +107,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     val b = BooleanCancelable()
     val fa = CancelableFuture.async[Int] { _ =>
       val ch = ChainedCancelable()
-      s.executeAsync(() => { ch := b; () })
+      s.execute(() => { ch := b; () })
       ch
     }
 
@@ -561,7 +561,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
 
   test("async works for success") { implicit s =>
     val fa = CancelableFuture.async[Int] { cb =>
-      s.executeAsync(() => cb(Success(1)))
+      s.execute(() => cb(Success(1)))
       Cancelable.empty
     }
 
@@ -572,7 +572,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
   test("async works for failure") { implicit s =>
     val dummy = DummyException("dummy")
     val fa = CancelableFuture.async[Int] { cb =>
-      s.executeAsync(() => cb(Failure(dummy)))
+      s.execute(() => cb(Failure(dummy)))
       Cancelable.empty
     }
 

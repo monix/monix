@@ -105,7 +105,7 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     val ws = s.withExecutionModel(AlwaysAsyncExecution)
 
     var effect = 0
-    ws.executeAsync { () =>
+    ws.execute { () =>
       effect += 1
     }
 
@@ -138,7 +138,7 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     val ws = s.withExecutionModel(AlwaysAsyncExecution)
 
     val dummy = new RuntimeException("dummy")
-    ws.executeAsync { () =>
+    ws.execute { () =>
       throw dummy
     }
 

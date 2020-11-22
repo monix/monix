@@ -263,6 +263,112 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
     Features.empty
     // $COVERAGE-ON$
   }
+
+  /** Schedules a task to run in the future, after `initialDelay`.
+    *
+    * For example the following schedules a message to be printed to
+    * standard output after 5 minutes:
+    * {{{
+    *   val task = scheduler.scheduleOnce(5.minutes) {
+    *     print("Hello, world!")
+    *   }
+    *
+    *   // later, if you change your mind ...
+    *   task.cancel()
+    * }}}
+    *
+    * @param initialDelay is the time to wait until the execution happens
+    * @param action is the callback to be executed
+    * @return a `Cancelable` that can be used to cancel the created task
+    *         before execution.
+    */
+  final def scheduleOnce(initialDelay: FiniteDuration)(action: => Unit): Cancelable =
+    scheduleOnce(initialDelay.length, initialDelay.unit, RunnableAction(action))
+
+  /** Schedules for execution a periodic task that is first executed
+    * after the given initial delay and subsequently with the given
+    * delay between the termination of one execution and the
+    * commencement of the next.
+    *
+    * For example the following schedules a message to be printed to
+    * standard output every 10 seconds with an initial delay of 5
+    * seconds:
+    * {{{
+    *   val task = s.scheduleWithFixedDelay(5.seconds, 10.seconds) {
+    *     print("Repeated message")
+    *   }
+    *
+    *   // later if you change your mind ...
+    *   task.cancel()
+    * }}}
+    *
+    * @param initialDelay is the time to wait until the first execution happens
+    * @param delay is the time to wait between 2 successive executions of the task
+    * @param action is the callback to be executed
+    * @return a cancelable that can be used to cancel the execution of
+    *         this repeated task at any time.
+    */
+  final def scheduleWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)(action: => Unit): Cancelable =
+    scheduleWithFixedDelay(initialDelay.toMillis, delay.toMillis, MILLISECONDS, RunnableAction(action))
+
+  /** Schedules a periodic task that becomes enabled first after the given
+    * initial delay, and subsequently with the given period. Executions will
+    * commence after `initialDelay` then `initialDelay + period`, then
+    * `initialDelay + 2 * period` and so on.
+    *
+    * If any execution of the task encounters an exception, subsequent executions
+    * are suppressed. Otherwise, the task will only terminate via cancellation or
+    * termination of the scheduler. If any execution of this task takes longer
+    * than its period, then subsequent executions may start late, but will not
+    * concurrently execute.
+    *
+    * For example the following schedules a message to be printed to standard
+    * output approximately every 10 seconds with an initial delay of 5 seconds:
+    * {{{
+    *   val task = scheduler.scheduleAtFixedRate(5.seconds, 10.seconds) {
+    *     print("Repeated message")
+    *   }
+    *
+    *   // later if you change your mind ...
+    *   task.cancel()
+    * }}}
+    *
+    * @param initialDelay is the time to wait until the first execution happens
+    * @param period is the time to wait between 2 successive executions of the task
+    * @param action is the callback to be executed
+    * @return a cancelable that can be used to cancel the execution of
+    *         this repeated task at any time.
+    */
+  final def scheduleAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)(action: => Unit): Cancelable =
+    scheduleAtFixedRate(initialDelay.toMillis, period.toMillis, MILLISECONDS, RunnableAction(action))
+
+  /** Schedules the given callback for asynchronous
+    * execution in the thread-pool, but also indicates the
+    * start of a
+    * [[monix.execution.schedulers.TrampolinedRunnable thread-local trampoline]]
+    * in case the scheduler is a
+    * [[monix.execution.schedulers.BatchingScheduler BatchingScheduler]].
+    *
+    * This utility is provided as an optimization. If you don't understand
+    * what this does, then don't worry about it.
+    *
+    * @param cb the callback to execute asynchronously
+    */
+  final def executeAsyncBatch(cb: schedulers.TrampolinedRunnable): Unit = {
+    val r = schedulers.StartAsyncBatchRunnable(cb, this)
+    execute(r)
+  }
+
+  /** Schedules the given callback for immediate execution as a
+    * [[monix.execution.schedulers.TrampolinedRunnable TrampolinedRunnable]].
+    * Depending on the execution context, it might
+    * get executed on the current thread by using an internal
+    * trampoline, so it is still safe from stack-overflow exceptions.
+    *
+    * @param cb the callback to execute asynchronously
+    */
+  final def executeTrampolined(cb: schedulers.TrampolinedRunnable): Unit =
+    execute(cb)
 }
 
 private[monix] trait SchedulerCompanion {
@@ -303,84 +409,19 @@ object Scheduler extends SchedulerCompanionImpl {
   val TRACING = Features.flag(2)
 
   /** Utilities complementing the `Scheduler` interface. */
+  @deprecated("Extension methods are now implemented on `Scheduler` directly", "3.4.0")
   implicit final class Extensions(val source: Scheduler) extends AnyVal with schedulers.ExecuteExtensions {
 
-    /** Schedules a task to run in the future, after `initialDelay`.
-      *
-      * For example the following schedules a message to be printed to
-      * standard output after 5 minutes:
-      * {{{
-      *   val task = scheduler.scheduleOnce(5.minutes) {
-      *     print("Hello, world!")
-      *   }
-      *
-      *   // later, if you change your mind ...
-      *   task.cancel()
-      * }}}
-      *
-      * @param initialDelay is the time to wait until the execution happens
-      * @param action is the callback to be executed
-      * @return a `Cancelable` that can be used to cancel the created task
-      *         before execution.
-      */
+    @deprecated("Extension methods are now implemented on `Scheduler` directly", "3.4.0")
     def scheduleOnce(initialDelay: FiniteDuration)(action: => Unit): Cancelable =
       source.scheduleOnce(initialDelay.length, initialDelay.unit, RunnableAction(action))
 
-    /** Schedules for execution a periodic task that is first executed
-      * after the given initial delay and subsequently with the given
-      * delay between the termination of one execution and the
-      * commencement of the next.
-      *
-      * For example the following schedules a message to be printed to
-      * standard output every 10 seconds with an initial delay of 5
-      * seconds:
-      * {{{
-      *   val task = s.scheduleWithFixedDelay(5.seconds, 10.seconds) {
-      *     print("Repeated message")
-      *   }
-      *
-      *   // later if you change your mind ...
-      *   task.cancel()
-      * }}}
-      *
-      * @param initialDelay is the time to wait until the first execution happens
-      * @param delay is the time to wait between 2 successive executions of the task
-      * @param action is the callback to be executed
-      * @return a cancelable that can be used to cancel the execution of
-      *         this repeated task at any time.
-      */
+    @deprecated("Extension methods are now implemented on `Scheduler` directly", "3.4.0")
     def scheduleWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)(action: => Unit): Cancelable = {
       source.scheduleWithFixedDelay(initialDelay.toMillis, delay.toMillis, MILLISECONDS, RunnableAction(action))
     }
 
-    /** Schedules a periodic task that becomes enabled first after the given
-      * initial delay, and subsequently with the given period. Executions will
-      * commence after `initialDelay` then `initialDelay + period`, then
-      * `initialDelay + 2 * period` and so on.
-      *
-      * If any execution of the task encounters an exception, subsequent executions
-      * are suppressed. Otherwise, the task will only terminate via cancellation or
-      * termination of the scheduler. If any execution of this task takes longer
-      * than its period, then subsequent executions may start late, but will not
-      * concurrently execute.
-      *
-      * For example the following schedules a message to be printed to standard
-      * output approximately every 10 seconds with an initial delay of 5 seconds:
-      * {{{
-      *   val task = scheduler.scheduleAtFixedRate(5.seconds, 10.seconds) {
-      *     print("Repeated message")
-      *   }
-      *
-      *   // later if you change your mind ...
-      *   task.cancel()
-      * }}}
-      *
-      * @param initialDelay is the time to wait until the first execution happens
-      * @param period is the time to wait between 2 successive executions of the task
-      * @param action is the callback to be executed
-      * @return a cancelable that can be used to cancel the execution of
-      *         this repeated task at any time.
-      */
+    @deprecated("Extension methods are now implemented on `Scheduler` directly", "3.4.0")
     def scheduleAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)(action: => Unit): Cancelable = {
       source.scheduleAtFixedRate(initialDelay.toMillis, period.toMillis, MILLISECONDS, RunnableAction(action))
     }

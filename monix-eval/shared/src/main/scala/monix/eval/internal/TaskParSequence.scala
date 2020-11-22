@@ -110,7 +110,7 @@ private[eval] object TaskParSequence {
         if (tasksCount == 0) {
           // With no tasks available, we need to return an empty sequence;
           // Needs to ensure full async delivery due to implementing ForkedStart!
-          context.scheduler.executeAsync(() => finalCallback.onSuccess(makeBuilder().result()))
+          context.scheduler.execute(() => finalCallback.onSuccess(makeBuilder().result()))
         } else if (tasksCount == 1) {
           // If it's a single task, then execute it directly
           val source = tasks(0).map(r => (makeBuilder() += r).result())

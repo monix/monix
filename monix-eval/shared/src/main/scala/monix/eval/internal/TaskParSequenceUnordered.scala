@@ -65,7 +65,7 @@ private[eval] object TaskParSequenceUnordered {
           else {
             // Needs to force async execution in case we had no tasks,
             // due to the contract of ForkedStart
-            s.executeAsync(() => finalCallback.onSuccess(list))
+            s.execute(() => finalCallback.onSuccess(list))
           }
         case _ =>
           () // invalid state

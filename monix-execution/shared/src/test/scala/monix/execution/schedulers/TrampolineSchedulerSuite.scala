@@ -40,11 +40,11 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
       var effect = 0
       val p = Promise[Int]()
 
-      s.executeAsync { () =>
+      s.execute { () =>
         effect += 1
-        s.executeAsync { () =>
+        s.execute { () =>
           effect += 2
-          s.executeAsync { () =>
+          s.execute { () =>
             effect += 3
             p.success(effect)
             ()
@@ -142,11 +142,11 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
       if (!Platform.isJVM) ignore("test relevant only for the JVM")
 
       var effect = 0
-      s.executeAsync { () =>
-        s.executeAsync { () =>
+      s.execute { () =>
+        s.execute { () =>
           effect += 20
         }
-        s.executeAsync { () =>
+        s.execute { () =>
           effect += 20
         }
 

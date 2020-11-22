@@ -75,7 +75,7 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
 
       // Creating race condition
       if (i % 2 == 0) {
-        s.executeAsync(() => c.cancel())
+        s.execute(() => c.cancel())
       } else {
         c.cancel()
       }
@@ -87,7 +87,7 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
     def one(p: Promise[Unit])(x: Long): Observable[Long] =
       Observable.unsafeCreate { sub =>
         val ref = BooleanCancelable { () => p.trySuccess(()); () }
-        sub.scheduler.executeAsync { () =>
+        sub.scheduler.execute { () =>
           if (!ref.isCanceled) {
             Observable.now(x).unsafeSubscribeFn(sub)
             ()
@@ -109,7 +109,7 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
         .subscribe()
 
       // Creating race condition
-      s.executeAsync(() => c.cancel())
+      s.execute(() => c.cancel())
       Await.result(p.future, cancelTimeout)
     }
   }
@@ -128,7 +128,7 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
         .subscribe()
 
       // Creating race condition
-      s.executeAsync(() => c.cancel())
+      s.execute(() => c.cancel())
       Await.result(p.future, cancelTimeout)
     }
   }

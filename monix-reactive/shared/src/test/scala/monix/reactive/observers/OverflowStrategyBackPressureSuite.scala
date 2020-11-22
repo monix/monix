@@ -131,7 +131,7 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
     val buffer = BufferedSubscriber[Int](underlying, BackPressure(1000))
     def loop(n: Int): Unit =
       if (n > 0)
-        s.executeAsync { () =>
+        s.execute { () =>
           buffer.onNext(n); loop(n - 1)
         } else
         buffer.onComplete()
@@ -169,7 +169,7 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
     val buffer = BufferedSubscriber[Int](underlying, BackPressure(512))
     def loop(n: Int): Unit =
       if (n > 0)
-        s.executeAsync { () =>
+        s.execute { () =>
           buffer.onNext(n); loop(n - 1)
         } else
         buffer.onComplete()

@@ -224,7 +224,7 @@ object ForkJoinSchedulerSuite extends ExecutorSchedulerSuite {
     val finish = new CountDownLatch(1)
 
     for (_ <- 0 until threadsCount)
-      scheduler.executeAsync { () =>
+      scheduler.execute { () =>
         blocking {
           latch.countDown()
           finish.await(15, TimeUnit.MINUTES)
