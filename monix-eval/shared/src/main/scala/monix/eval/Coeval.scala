@@ -436,12 +436,12 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *       Coeval.eval {
     *         // Yes, ugly Java, non-FP loop;
     *         // side-effects are suspended though
-    *         var line: String = null
+    *         var line: String = ""
     *         val buff = new StringBuilder()
-    *         do {
+    *         while (line != null) {
     *           line = in.readLine()
     *           if (line != null) buff.append(line)
-    *         } while (line != null)
+    *         }
     *         buff.toString()
     *       }
     *     } { in =>

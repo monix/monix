@@ -32,11 +32,11 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "There should be no tasks left!")
 
-  implicit def timer(implicit ec: TestScheduler) =
+  implicit def timer(implicit ec: TestScheduler): Timer[IO] =
     SchedulerEffect.timerLiftIO[IO](ec)
 
-  implicit def contextShift(implicit ec: TestScheduler) =
-    SchedulerEffect.contextShift[IO](ec)
+  implicit def contextShift(implicit ec: TestScheduler): ContextShift[IO] =
+    SchedulerEffect.contextShift[IO](ec)(IO.ioEffect)
 
   test("should work for successful async tasks") { implicit s =>
     val circuitBreaker = CircuitBreaker.unsafe[IO](
@@ -380,7 +380,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
   }
 
   test("works with Sync only") { implicit s =>
-    implicit val clock = SchedulerEffect.clock[SyncIO](s)
+    implicit val clock: Clock[SyncIO] = SchedulerEffect.clock[SyncIO](s)
     val cb = CircuitBreaker.unsafe[SyncIO](1, 1.second)
 
     val dummy = DummyException("dummy")

@@ -1339,12 +1339,12 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *       Task.eval {
     *         // Yes, ugly Java, non-FP loop;
     *         // side-effects are suspended though
-    *         var line: String = null
+    *         var line: String = ""
     *         val buff = new StringBuilder()
-    *         do {
+    *         while (line != null) {
     *           line = in.readLine()
     *           if (line != null) buff.append(line)
-    *         } while (line != null)
+    *         }
     *         buff.toString()
     *       }
     *     } { in =>
@@ -1600,11 +1600,11 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *       new InputStreamReader(new FileInputStream(path), "utf-8"))
     *
     *     val buffer = new StringBuffer()
-    *     var line: String = null
-    *     do {
+    *     var line: String = ""
+    *     while (line != null) {
     *       line = in.readLine()
     *       if (line != null) buffer.append(line)
-    *     } while (line != null)
+    *     }
     *
     *     buffer.toString
     *   }

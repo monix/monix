@@ -53,7 +53,7 @@ private[eval] object TaskRunToFutureWithLocal {
     val prev = Local.getContext()
     val isolated = prev.isolate()
 
-    do {
+    while (true) {
       if (frameIndex != 0) {
         current match {
           case bind @ FlatMap(fa, bindNext, _) =>
@@ -172,7 +172,7 @@ private[eval] object TaskRunToFutureWithLocal {
         // Force async boundary
         return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceFork = true, prev, isolated, tracingCtx = tracingCtx)
       }
-    } while (true)
+    }
     // $COVERAGE-OFF$
     null
     // $COVERAGE-ON$

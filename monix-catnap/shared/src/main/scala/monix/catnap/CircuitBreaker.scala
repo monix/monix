@@ -102,7 +102,7 @@ import scala.concurrent.duration._
   *   // Using cats.effect.IO for this sample, but you can use any effect
   *   // type that integrates with Cats-Effect, including monix.eval.Task:
   *   import cats.effect.{Clock, IO}
-  *   implicit val clock = Clock.create[IO]
+  *   implicit val clock: Clock[IO] = Clock.create[IO]
   *
   *   // Using the "unsafe" builder for didactic purposes, but prefer
   *   // the safe "apply" builder:
@@ -594,7 +594,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
     * {{{
     *   import scala.concurrent.duration._
     *   import cats.effect.{IO, Clock}
-    *   implicit val clock = Clock.create[IO]
+    *   implicit val clock: Clock[IO] = Clock.create[IO]
     *
     *   val cb = CircuitBreaker[IO].of(
     *     maxFailures = 10,

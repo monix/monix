@@ -51,9 +51,9 @@ import scala.collection.mutable.ArrayBuffer
   *   import monix.execution.Scheduler.global
   *
   *   // For being able to do IO.start
-  *   implicit val cs = SchedulerEffect.contextShift[IO](global)
+  *   implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](global)(IO.ioEffect)
   *   // We need a `Timer` for this to work
-  *   implicit val timer = SchedulerEffect.timer[IO](global)
+  *   implicit val timer: Timer[IO] = SchedulerEffect.timer[IO](global)
   *
   *   // Completion event
   *   sealed trait Complete
@@ -295,7 +295,7 @@ final class ConcurrentChannel[F[_], E, A] private (
         case connected @ Connected(_, _) =>
           // broadcasting to many?
           val arr = connected.array
-          (arr.length: @switch) match {
+          arr.length match {
             case 0 => helpers.continueF
             case 1 => arr(0).push(a)
             case _ => triggerBroadcastBool[F, E, A](helpers, arr, _.push(a))
@@ -343,7 +343,7 @@ final class ConcurrentChannel[F[_], E, A] private (
       state.get() match {
         case current @ Connected(_, _) =>
           val arr = current.array
-          (arr.length: @switch) match {
+          arr.length match {
             case 0 => helpers.continueF
             case 1 => arr(0).pushMany(seq)
             case _ => triggerBroadcastBool[F, E, A](helpers, arr, _.pushMany(seq))
@@ -374,7 +374,7 @@ final class ConcurrentChannel[F[_], E, A] private (
           if (onChange ne null) {
             onChange.complete(Constants.successOfUnit)
           }
-          (arr.length: @switch) match {
+          arr.length match {
             case 0 => F.unit
             case 1 => arr(0).halt
             case _ => triggerBroadcastUnit[F, E, A](helpers, arr, _.halt)

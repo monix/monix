@@ -60,11 +60,13 @@ import scala.concurrent.{Future => ScalaFuture}
   *   val sum: IO[Int] = IO(delayed(1 + 1)).futureLift
   * }}}
   */
-trait FutureLift[F[_], Future[_]] extends (Lambda[A => F[Future[A]]] ~> F) {
+trait FutureLift[F[_], Future[_]] extends (FutureLift.Lambda[F, Future, *] ~> F) {
   def apply[A](fa: F[Future[A]]): F[A]
 }
 
 object FutureLift extends internal.FutureLiftForPlatform {
+  type Lambda[F[_], Future[_], A] = F[Future[A]]
+
   /**
     * Accessor for [[FutureLift]] values that are in scope.
     * {{{

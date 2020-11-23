@@ -17,7 +17,7 @@
 
 package monix.catnap
 
-import cats.effect.{Async, IO}
+import cats.effect.{Async, ContextShift, IO}
 import minitest.TestSuite
 import monix.catnap.syntax._
 import monix.execution.exceptions.DummyException
@@ -31,8 +31,8 @@ object FutureLiftSuite extends TestSuite[TestScheduler] {
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "There should be no tasks left!")
 
-  implicit def contextShift(implicit ec: TestScheduler) =
-    SchedulerEffect.contextShift[IO](ec)
+  implicit def contextShift(implicit ec: TestScheduler): ContextShift[IO] =
+    SchedulerEffect.contextShift[IO](ec)(IO.ioEffect)
 
   test("IO(future).futureLift") { implicit s =>
     var effect = 0
