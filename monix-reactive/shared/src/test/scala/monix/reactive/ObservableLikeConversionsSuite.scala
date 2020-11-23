@@ -18,12 +18,13 @@
 package monix.reactive
 
 import cats.Eval
-import cats.effect.{IO, SyncIO}
+import cats.effect.{ContextShift, IO, SyncIO}
 import monix.catnap.SchedulerEffect
 import monix.eval.TaskConversionsSuite.{CIO, CustomConcurrentEffect, CustomEffect}
 import monix.eval.{Coeval, Task}
 import monix.execution.exceptions.DummyException
 import org.reactivestreams.{Publisher, Subscriber, Subscription}
+
 import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
@@ -54,7 +55,7 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(IO)") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val p = Promise[Int]()
     val f = Observable.from(IO.fromFuture(IO.pure(p.future))).runAsyncGetFirst
@@ -68,7 +69,7 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(IO) for errors") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
@@ -215,8 +216,8 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(custom Effect)") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
-    implicit val F = new CustomEffect()
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
+    implicit val F: CustomEffect = new CustomEffect()
 
     var effect = false
     val source = CIO(IO { effect = true; 1 })
@@ -230,8 +231,8 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(custom Effect) for errors") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
-    implicit val F = new CustomEffect()
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
+    implicit val F: CustomEffect = new CustomEffect()
 
     var effect = false
     val dummy = DummyException("dummy")
@@ -246,8 +247,8 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(custom ConcurrentEffect)") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
-    implicit val F = new CustomConcurrentEffect()
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
+    implicit val F: CustomConcurrentEffect = new CustomConcurrentEffect()
 
     var effect = false
     val source = CIO(IO { effect = true; 1 })
@@ -261,8 +262,8 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   }
 
   test("Observable.from(custom ConcurrentEffect) for errors") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
-    implicit val F = new CustomConcurrentEffect()
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
+    implicit val F: CustomConcurrentEffect = new CustomConcurrentEffect()
 
     var effect = false
     val dummy = DummyException("dummy")

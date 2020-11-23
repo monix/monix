@@ -25,7 +25,7 @@ import concurrent.duration._
 import scala.util.Success
 
 object UncancelableSuite extends BaseTestSuite {
-  implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
+  implicit val opts: Task.Options = Task.defaultOptions.disableAutoCancelableRunLoops
 
   test("uncancelable works") { implicit ec =>
     val obs = Observable

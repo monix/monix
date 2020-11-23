@@ -61,7 +61,7 @@ private[tail] object IterantRepeat {
     }
 
     def cycle(): Iterant[F, A] = {
-      Concat(F.pure(apply(source)), repeatTask)
+      Concat(F.pure(this.apply(source)), repeatTask)
     }
 
     override def visit(ref: Next[F, A]): Iterant[F, A] = {

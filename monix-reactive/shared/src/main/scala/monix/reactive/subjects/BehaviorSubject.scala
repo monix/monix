@@ -46,36 +46,41 @@ final class BehaviorSubject[A] private (initialValue: A) extends Subject[A, A] {
   def size: Int =
     stateRef.get().subscribers.size
 
-  @tailrec
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
-    val state = stateRef.get()
 
-    if (state.errorThrown != null) {
-      subscriber.onError(state.errorThrown)
-      Cancelable.empty
-    } else if (state.isDone) {
-      Observable
-        .now(state.cached)
-        .unsafeSubscribeFn(subscriber)
-    } else {
-      val c = ConnectableSubscriber(subscriber)
-      val newState = state.addNewSubscriber(c)
+    @tailrec
+    def subscribeLoop(): Cancelable = {
+      val state = stateRef.get()
 
-      if (stateRef.compareAndSet(state, newState)) {
-        c.pushFirst(state.cached)
-        val connecting = c.connect()
-
-        val cancelable = Cancelable { () =>
-          removeSubscriber(c)
-        }
-        connecting.syncOnStopOrFailure(_ => cancelable.cancel())
-        cancelable
+      if (state.errorThrown != null) {
+        subscriber.onError(state.errorThrown)
+        Cancelable.empty
+      } else if (state.isDone) {
+        Observable
+          .now(state.cached)
+          .unsafeSubscribeFn(subscriber)
       } else {
-        // retry
-        unsafeSubscribeFn(subscriber)
+        val c = ConnectableSubscriber(subscriber)
+        val newState = state.addNewSubscriber(c)
+
+        if (stateRef.compareAndSet(state, newState)) {
+          c.pushFirst(state.cached)
+          val connecting = c.connect()
+
+          val cancelable = Cancelable { () =>
+            removeSubscriber(c)
+          }
+          connecting.syncOnStopOrFailure(_ => cancelable.cancel())
+          cancelable
+        } else {
+          // retry
+          subscribeLoop()
+        }
       }
     }
+
+    subscribeLoop()
   }
 
   @tailrec

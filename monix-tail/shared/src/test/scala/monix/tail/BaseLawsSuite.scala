@@ -48,7 +48,7 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
       .withMaxSize(6)
 
   // Stack-safety tests are very taxing, so reducing burden
-  implicit val effectParams =
+  implicit val effectParams: EffectParameters =
     EffectParameters.default.copy(stackSafeIterationsCount = {
       if (isCI)
         100
@@ -75,6 +75,6 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
     }
   }
 
-  val emptyRuleSet: Laws#RuleSet =
-    new Laws { val ref = new DefaultRuleSet("dummy", None) }.ref
+//  val emptyRuleSet: Laws#RuleSet =
+//    new Laws { val ref = new DefaultRuleSet("dummy", None) }.ref
 }

@@ -105,7 +105,7 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
 
     val obs = Observable
       .intervalAtFixedRate(2.seconds, 2.seconds)
-      .takeUntilEvalF[FutureIO](future)
+      .takeUntilEvalF[FutureIO, Unit](future)
       .toListL
       .runToFuture
 

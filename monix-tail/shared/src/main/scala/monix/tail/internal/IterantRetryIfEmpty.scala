@@ -53,7 +53,7 @@ private[tail] object IterantRetryIfEmpty {
     }
 
     def cycle(): Iterant[F, A] = {
-      Concat(F.pure(apply(source)), retryTask)
+      Concat(F.pure(this.apply(source)), retryTask)
     }
 
     override def visit(ref: Next[F, A]): Iterant[F, A] = {

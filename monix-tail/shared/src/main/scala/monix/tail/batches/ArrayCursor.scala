@@ -82,7 +82,7 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A](
     val newLength = limit - oldOffset
 
     if (newLength <= 0) {
-      BatchCursor.fromAnyArray[B](Array.empty, 0, 0)
+      BatchCursor.fromAnyArray[B](Array.empty[AnyRef], 0, 0)
     } else {
       val copy = new Array[AnyRef](newLength)
       var i = 0

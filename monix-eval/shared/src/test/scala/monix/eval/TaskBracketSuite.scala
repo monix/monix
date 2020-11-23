@@ -56,7 +56,7 @@ object TaskBracketSuite extends BaseTestSuite {
     val dummy = new DummyException("dummy")
     var input = Option.empty[(Int, Either[Option[Throwable], Int])]
 
-    val task = Task.evalAsync(1).bracketE(_ => throw dummy) { (a, i) =>
+    val task = Task.evalAsync(1).bracketE(_ => throw dummy) { (a, i: Either[Option[Throwable], Int]) =>
       Task.eval { input = Some((a, i)) }
     }
 

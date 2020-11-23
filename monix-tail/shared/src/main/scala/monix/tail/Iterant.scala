@@ -303,7 +303,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Example: {{{
     *   import monix.eval.Task
     *
-    *   val source: Iterant[Task, List[Int]] = Iterant.suspend(???)
+    *   val source: Iterant[Task, List[Int]] = Iterant.suspend(Task(???))
     *
     *   // This will trigger an error because of the invariance:
     *   // val sequences: Iterant[Task, Seq[Int]] = source
@@ -3202,8 +3202,8 @@ private[tail] trait IterantInstances {
 
   /** Provides the `cats.effect.Sync` instance for [[Iterant]]. */
   class CatsSyncInstances[F[_]](implicit F: Sync[F])
-    extends StackSafeMonad[Iterant[F, ?]] with MonadError[Iterant[F, ?], Throwable] with Defer[Iterant[F, ?]]
-    with MonoidK[Iterant[F, ?]] with CoflatMap[Iterant[F, ?]] with FunctorFilter[Iterant[F, ?]] {
+    extends StackSafeMonad[Iterant[F, *]] with MonadError[Iterant[F, *], Throwable] with Defer[Iterant[F, *]]
+    with MonoidK[Iterant[F, *]] with CoflatMap[Iterant[F, *]] with FunctorFilter[Iterant[F, *]] {
 
     override def pure[A](a: A): Iterant[F, A] =
       Iterant.pure(a)
@@ -3256,7 +3256,7 @@ private[tail] trait IterantInstances {
     override def recoverWith[A](fa: Iterant[F, A])(pf: PartialFunction[Throwable, Iterant[F, A]]): Iterant[F, A] =
       fa.onErrorRecoverWith(pf)
 
-    override def functor: Functor[Iterant[F, ?]] = this
+    override def functor: Functor[Iterant[F, *]] = this
 
     override def mapFilter[A, B](fa: Iterant[F, A])(f: A => Option[B]): Iterant[F, B] =
       fa.map(f).collect { case Some(b) => b }

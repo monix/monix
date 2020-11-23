@@ -29,7 +29,7 @@ import monix.catnap.{ConcurrentChannel, ConsumerF}
 
 object TaskLocalSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
-  implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+  implicit val opts: Task.Options = Task.defaultOptions.enableLocalContextPropagation
 
   testAsync("TaskLocal.apply") {
     val test =

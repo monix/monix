@@ -119,7 +119,7 @@ private[tail] object IterantZipMap {
 
       def visit(lh: Iterant[F, A], rh: Iterant[F, B]): Iterant[F, C] = {
         rhRef = rh
-        apply(lh)
+        this.apply(lh)
       }
 
       def visit(ref: Next[F, A]): Iterant[F, C] =
@@ -177,7 +177,7 @@ private[tail] object IterantZipMap {
 
       def visit(lh: LH, rh: Iterant[F, B]): Iterant[F, C] = {
         lhRef = lh
-        apply(rh)
+        this.apply(rh)
       }
     }
 

@@ -32,7 +32,7 @@ object PublishSelectorSuite extends BaseTestSuite {
       .publishSelector { source =>
         Observable(source, source, source).merge
       }
-      .sumL
+      .sumL[Long]
       .runToFuture
 
     s.tick()
