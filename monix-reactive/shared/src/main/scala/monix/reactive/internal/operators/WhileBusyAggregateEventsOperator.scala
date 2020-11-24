@@ -23,6 +23,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
+import scala.util.{Failure, Success}
 import scala.util.control.NonFatal
 
 private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => S, aggregate: (S, A) => S) extends Operator[A, S] {
@@ -58,12 +59,13 @@ private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => 
               }
               else {
                 pendingAck = true
-                downstreamAck.map { ack =>
-                  if (ack == Stop) {
+                downstreamAck.onComplete {
+                  case Failure(ex) =>
+                    onError(ex)
+                  case Success(Stop) =>
                     downstreamIsDone = true
-                  } else if (ack == Continue) {
-                    emitAggregated()
-                  }
+                  case Success(Continue) =>
+                    upstreamSubscriber.synchronized { emitAggregated() }
                 }
 
                 Continue
