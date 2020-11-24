@@ -64,7 +64,21 @@ object WhileBusyAggregateEventsOperatorSuite extends BaseOperatorSuite {
     )
   }
 
-  override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
+  override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = Some {
+    require(sourceCount > 0, "sourceCount should be strictly positive")
+
+    val o = Observable
+        .range(0, sourceCount.toLong)
+        .whileBusyAggregateEvents{ elem =>
+          if (sourceCount == 1) throw ex else elem
+        }{ case (acc, elem) =>
+          if (elem == sourceCount - 1) throw ex
+          else elem + acc
+        }
+        .throttle(waitNext, 1)
+
+    Sample(o, 0, 0, waitNext, waitNext)
+  }
 
   test("performs no conflation when upstream is slow than downstream") { implicit s =>
     val result = Observable.range(0, 10)

@@ -23,6 +23,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => S, aggregate: (S, A) => S) extends Operator[A, S] {
 
@@ -36,12 +37,18 @@ private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => 
       private[this] var pendingAck: Boolean = false
       private[this] var downstreamIsDone = false
 
-      def onNext(elem: A): Ack = {
+      override def onNext(elem: A): Ack = {
         upstreamSubscriber.synchronized {
           if (downstreamIsDone) Stop
           else {
             if (!pendingAck) {
-              val downstreamAck = downstream.onNext(seed(elem))
+              val downstreamAck = try {
+                downstream.onNext(seed(elem))
+              } catch {
+                case ex if NonFatal(ex) =>
+                  downstream.onError(ex)
+                  Stop
+              }
               lastAck = downstreamAck
 
               if (downstreamAck == Continue) Continue
@@ -62,11 +69,17 @@ private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => 
                 Continue
               }
             } else {
-              aggregated = Some(aggregated match {
-                case Some(agg) => aggregate(agg, elem)
-                case None => seed(elem)
-              })
-              Continue
+              try {
+                aggregated = Some(aggregated match {
+                  case Some(agg) => aggregate(agg, elem)
+                  case None => seed(elem)
+                })
+                Continue
+              } catch {
+                case ex if NonFatal(ex) =>
+                  downstream.onError(ex)
+                  Stop
+              }
             }
           }
         }
@@ -94,7 +107,7 @@ private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => 
         }
       }
 
-      def onError(ex: Throwable): Unit =
+      override def onError(ex: Throwable): Unit =
         upstreamSubscriber.synchronized {
           if (!downstreamIsDone) {
             downstreamIsDone = true
@@ -102,7 +115,7 @@ private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => 
           }
         }
 
-      def onComplete(): Unit =
+      override def onComplete(): Unit =
         // Can't emit the aggregated element immediately as the previous `onNext` may not yet have been acked.
         upstreamSubscriber.synchronized {
           lastAck.map {
