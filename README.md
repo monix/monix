@@ -144,6 +144,7 @@ Submit a PR ❤️
 - [Iterators](https://www.iteratorshq.com)
 - [Sony Electronics](https://www.sony.com)
 - [Zalando](https://www.zalando.com)
+- [Zendesk](https://www.zendesk.com)
 
 ## License
 
