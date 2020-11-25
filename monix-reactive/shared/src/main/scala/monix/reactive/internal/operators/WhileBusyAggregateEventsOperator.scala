@@ -59,15 +59,7 @@ private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => 
               }
               else {
                 pendingAck = true
-                downstreamAck.onComplete {
-                  case Failure(ex) =>
-                    onError(ex)
-                  case Success(Stop) =>
-                    downstreamIsDone = true
-                  case Success(Continue) =>
-                    upstreamSubscriber.synchronized { emitAggregated() }
-                }
-
+                emitAggregatedOnAckContinue(downstreamAck)
                 Continue
               }
             } else {
@@ -115,17 +107,22 @@ private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => 
             aggregated = None
             if (!downstreamIsDone) {
               lastAck = downstream.onNext(agg)
-
-              lastAck.map { _ =>
-                upstreamSubscriber.synchronized {
-                  if (aggregated.isDefined) emitAggregated()
-                  else pendingAck = false
-                }
-              }
+              emitAggregatedOnAckContinue(lastAck)
             }
             ()
           case None =>
             pendingAck = false
+        }
+      }
+
+      private def emitAggregatedOnAckContinue(ack: Future[Ack]): Unit = {
+        lastAck.onComplete {
+          case Failure(ex) =>
+            onError(ex)
+          case Success(Stop) =>
+            downstreamIsDone = true
+          case Success(Continue) =>
+            upstreamSubscriber.synchronized { emitAggregated() }
         }
       }
 
