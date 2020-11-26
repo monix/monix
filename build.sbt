@@ -23,7 +23,7 @@ addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions
 
-val cats_Version = "2.3.0-M2"
+val cats_Version = "2.3.0"
 val catsEffect_Version = "2.3.0-M1"
 val fs2_Version = "2.4.4"
 val jcTools_Version = "3.0.1"
