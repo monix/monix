@@ -3589,6 +3589,54 @@ abstract class Observable[+A] extends Serializable { self =>
   final def whileBusyDropEventsAndSignal[B >: A](onOverflow: Long => B): Observable[B] =
     self.liftByOperator(new WhileBusyDropEventsAndSignalOperator[B](onOverflow))
 
+  /** Conflates events when a downstream is slower than the upstream.
+    *
+    * Emits: Immediately when an element is received if the downstream is waiting for elements. Otherwise emits when the
+    * downstream stops backpressuring and there is a conflated element available.
+    * Back pressures: Never (conflates instead)
+    *
+    * Usage:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *   import cats.data.Chain
+    *
+    *   // Emits [0], [1, 2], [3, 4]
+    *   Observable.range(0, 5)
+    *     .throttle(1.second, 1)
+    *     .whileBusyAggregateEvents(Chain.apply(_)){ case (chain, ele) => chain.append(ele) }
+    *     .throttle(2.seconds, 1)
+    * }}}
+    *
+    */
+  def whileBusyAggregateEvents[S](seed: A => S)(aggregate: (S, A) => S): Observable[S] = {
+    self.liftByOperator(new WhileBusyAggregateEventsOperator[A, S](seed, aggregate))
+  }
+
+  /** Reduces elements when a downstream is slower than the upstream.
+    *
+    * Emits: Immediately when an element is received if the downstream is waiting for elements. Otherwise emits when the
+    * downstream stops backpressuring and there is a reduced element available.
+    * Back pressures: Never (reduces instead)
+    *
+    * Usage:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *   import cats.data.Chain
+    *
+    *   // Emits 0, 3 (1+2), 7 (3+4)
+    *   Observable.range(0, 5)
+    *     .throttle(1.second, 1)
+    *     .whileBusyReduceEvents(_ + _)
+    *     .throttle(2.seconds, 1)
+    * }}}
+    *
+    */
+  final def whileBusyReduceEvents[B >: A](op: (B, B) => B): Observable[B] = {
+    self.whileBusyAggregateEvents[B](identity)(op)
+  }
+
   /** Combines the elements emitted by the source with the latest element
     * emitted by another observable.
     *
