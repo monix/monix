@@ -29,7 +29,6 @@ val fs2_Version = "2.4.4"
 val jcTools_Version = "3.2.0"
 val reactiveStreams_Version = "1.0.3"
 val minitest_Version = "2.9.0"
-val scalaTest_Version = "3.0.8"
 val implicitBox_Version = "0.3.0"
 val kindProjector_Version = "0.11.2"
 val betterMonadicFor_Version = "0.3.1"
@@ -84,10 +83,6 @@ lazy val kindProjectorCompilerPlugin =
 /** [[https://github.com/monix/minitest/]] */
 lazy val minitestLib =
   Def.setting { "io.monix" %%% "minitest-laws" % minitest_Version }
-
-/** [[https://github.com/scalatest/scalatest]] */
-lazy val scalaTestLib =
-  Def.setting { "org.scalatest" %%% "scalatest" % scalaTest_Version }
 
 /** [[https://github.com/scala/scala-collection-compat]] */
 lazy val scalaCollectionCompatLib =
@@ -617,8 +612,7 @@ lazy val reactiveTests = project.in(file("reactiveTests"))
   .dependsOn(reactiveJVM, tailJVM)
   .settings(
     libraryDependencies ++= Seq(
-      reactiveStreamsTCKLib % Test,
-      scalaTestLib.value % Test,
+      reactiveStreamsTCKLib % Test
     ))
 
 // --------------------------------------------
