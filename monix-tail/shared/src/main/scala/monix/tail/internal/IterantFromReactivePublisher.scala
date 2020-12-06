@@ -112,12 +112,12 @@ private[tail] object IterantFromReactivePublisher {
           if (!state.compareAndSet(current, Enqueue(queue.enqueue(a), length + 1, toReceive)))
             onNext(a)
 
-        case current @ Take(cb, toReceive) =>
-          val toReceive2 = decrementToReceive(toReceive, 1)
+        case current: Take[F, A] =>
+          val toReceive2 = decrementToReceive(current.toReceive, 1)
           if (!state.compareAndSet(current, Empty(updateToReceive(toReceive2))))
             onNext(a)
           else
-            cb(Right(Next(a, generate(toReceive2))))
+            current.cb(Right(Next(a, generate(toReceive2))))
 
         case Canceled =>
           () // was canceled, ignore event
@@ -148,9 +148,9 @@ private[tail] object IterantFromReactivePublisher {
             finish(fa)
           }
 
-        case current @ Take(cb, _) =>
+        case current : Take[F, A] =>
           if (state.compareAndSet(current, Stop(fa)))
-            cb(Right(fa))
+            current.cb(Right(fa))
           else
             finish(fa)
 
@@ -190,7 +190,7 @@ private[tail] object IterantFromReactivePublisher {
             }
           }
 
-        case Stop(fa) =>
+        case Stop(fa: Iterant[F, A]) =>
           cb(Right(fa))
 
         case Canceled =>

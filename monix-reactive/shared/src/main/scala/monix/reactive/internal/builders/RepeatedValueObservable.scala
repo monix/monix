@@ -19,7 +19,7 @@ package monix.reactive.internal.builders
 
 import java.util.concurrent.TimeUnit
 import monix.execution.cancelables.MultiAssignCancelable
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{Ack, Cancelable, Scheduler}
 import monix.execution.Ack.{Continue, Stop}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -45,7 +45,7 @@ private[reactive] final class RepeatedValueObservable[A](initialDelay: FiniteDur
 
   private[this] def runnable(subscriber: Subscriber[A], task: MultiAssignCancelable): Runnable =
     new Runnable { self =>
-      private[this] implicit val s = subscriber.scheduler
+      private[this] implicit val s: Scheduler = subscriber.scheduler
       private[this] val periodMs = period.toMillis
       private[this] var startedAt = 0L
 

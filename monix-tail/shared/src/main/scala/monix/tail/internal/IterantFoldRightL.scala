@@ -97,7 +97,7 @@ private[tail] object IterantFoldRightL {
       if (suspendRef == null) suspendRef = F.suspend {
         self.remainder match {
           case null => fail(new NullPointerException("foldRight/remainder"))
-          case rest => apply(rest)
+          case rest => this.apply(rest)
         }
       }
       remainder = node

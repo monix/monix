@@ -417,7 +417,7 @@ object Consumer {
   }
 
   /** `cats.Contravariant` instance for [[Consumer]]. */
-  implicit def catsContravariant[C]: Contravariant[Consumer[?, C]] = new Contravariant[Consumer[?, C]] {
+  implicit def catsContravariant[C]: Contravariant[Consumer[*, C]] = new Contravariant[Consumer[*, C]] {
     override def contramap[A, B](fa: Consumer[A, C])(f: B => A): Consumer[B, C] =
       fa.contramap(f)
   }

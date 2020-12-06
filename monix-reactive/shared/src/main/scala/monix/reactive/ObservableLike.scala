@@ -158,8 +158,8 @@ object ObservableLike extends ObservableLikeImplicits0 {
   /**
     * Converts a Scala `Either` to a [[Observable]].
     */
-  implicit def fromEither[E <: Throwable]: ObservableLike[Either[E, ?]] =
-    new ObservableLike[Either[E, ?]] {
+  implicit def fromEither[E <: Throwable]: ObservableLike[Either[E, *]] =
+    new ObservableLike[Either[E, *]] {
       def apply[A](fa: Either[E, A]): Observable[A] =
         Observable.fromEither(fa)
     }

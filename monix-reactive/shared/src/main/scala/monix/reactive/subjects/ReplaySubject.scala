@@ -39,7 +39,6 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A]) exte
   def size: Int =
     stateRef.get().subscribers.size
 
-  @tailrec
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     def streamOnDone(buffer: Iterable[A], errorThrown: Throwable): Cancelable =
       Observable
@@ -59,31 +58,35 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A]) exte
               subscriber.onComplete()
         })
 
-    val state = stateRef.get()
-    val buffer = state.buffer
+    @tailrec
+    def subscribeLoop(): Cancelable = {
+      val state = stateRef.get()
+      val buffer = state.buffer
 
-    if (state.isDone) {
-      // fast path
-      streamOnDone(buffer, state.errorThrown)
-    } else {
-      val c = ConnectableSubscriber(subscriber)
-      val newState = state.addNewSubscriber(c)
-      if (stateRef.compareAndSet(state, newState)) {
-        c.pushFirstAll(buffer)
-
-        import subscriber.scheduler
-        val connecting = c.connect()
-        connecting.syncOnStopOrFailure(_ => removeSubscriber(c))
-
-        Cancelable { () =>
-          try removeSubscriber(c)
-          finally connecting.cancel()
-        }
+      if (state.isDone) {
+        // fast path
+        streamOnDone(buffer, state.errorThrown)
       } else {
-        // retry
-        unsafeSubscribeFn(subscriber)
+        val c = ConnectableSubscriber(subscriber)
+        val newState = state.addNewSubscriber(c)
+        if (stateRef.compareAndSet(state, newState)) {
+          c.pushFirstAll(buffer)
+
+          import subscriber.scheduler
+          val connecting = c.connect()
+          connecting.syncOnStopOrFailure(_ => removeSubscriber(c))
+
+          Cancelable { () =>
+            try removeSubscriber(c)
+            finally connecting.cancel()
+          }
+        } else {
+          // retry
+          subscribeLoop()
+        }
       }
     }
+    subscribeLoop()
   }
 
   @tailrec

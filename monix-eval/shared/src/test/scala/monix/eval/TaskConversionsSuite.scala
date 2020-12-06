@@ -88,7 +88,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromConcurrent(task.toConcurrent[IO]) == task") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     check1 { (task: Task[Int]) =>
       Task.fromConcurrentEffect(task.toConcurrent[IO]) <-> task
     }
@@ -106,7 +106,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromConcurrent(io)") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val f = Task.fromConcurrentEffect(IO(1)).runToFuture
     assertEquals(f.value, Some(Success(1)))
@@ -118,7 +118,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromAsync(Effect)") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val ioEffect: Effect[CIO] = new CustomEffect
 
     val f = Task.fromEffect(CIO(IO(1))).runToFuture
@@ -135,7 +135,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromConcurrent(ConcurrentEffect)") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val ioEffect: ConcurrentEffect[CIO] = new CustomConcurrentEffect()
 
     val f = Task.fromConcurrentEffect(CIO(IO(1))).runToFuture
@@ -200,7 +200,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromConcurrent(io) is cancelable") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val timer = SchedulerEffect.timer[IO](s)
     val io = timer.sleep(10.seconds)
@@ -220,7 +220,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromConcurrent(ConcurrentEffect) is cancelable") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val effect: ConcurrentEffect[CIO] = new CustomConcurrentEffect
 
     val timer = SchedulerEffect.timer[CIO](s)
@@ -240,7 +240,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromConcurrent(task.to[IO]) preserves cancelability") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val task0 = Task(1).delayExecution(10.seconds)
     val task = Task.fromConcurrentEffect(task0.toConcurrent[IO])
@@ -259,7 +259,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromConcurrent(task.to[CIO]) preserves cancelability") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val effect: ConcurrentEffect[CIO] = new CustomConcurrentEffect
 
     val task0 = Task(1).delayExecution(10.seconds)
@@ -279,7 +279,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromAsync(task.to[IO]) preserves cancelability (because IO is known)") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val task0 = Task(1).delayExecution(10.seconds)
     val task = Task.fromEffect(task0.toConcurrent[IO])
@@ -298,8 +298,8 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromConcurrent(task.toConcurrent[F]) <-> task (Effect)") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
-    implicit val effect = new CustomConcurrentEffect
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
+    implicit val effect: CustomConcurrentEffect = new CustomConcurrentEffect
 
     check1 { (task: Task[Int]) =>
       Task.fromConcurrentEffect(task.toConcurrent[CIO]) <-> task
@@ -307,8 +307,8 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromAsync(task.toAsync[F]) <-> task") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
-    implicit val effect = new CustomEffect
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
+    implicit val effect: CustomEffect = new CustomEffect
 
     check1 { (task: Task[Int]) =>
       Task.fromEffect(task.toAsync[CIO]) <-> task
@@ -316,8 +316,8 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromConcurrent(task.to[F]) <-> task (ConcurrentEffect)") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
-    implicit val effect = new CustomConcurrentEffect
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
+    implicit val effect: CustomConcurrentEffect = new CustomConcurrentEffect
 
     check1 { (task: Task[Int]) =>
       Task.fromConcurrentEffect(task.toConcurrent[CIO]) <-> task

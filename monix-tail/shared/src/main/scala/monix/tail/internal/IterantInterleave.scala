@@ -80,7 +80,7 @@ private[tail] object IterantInterleave {
 
       def visit(lh: Iterant[F, A], rh: Iterant[F, A]): Iterant[F, A] = {
         rhRef = F.pure(rh)
-        apply(lh)
+        this.apply(lh)
       }
 
       def visit(ref: Next[F, A]): Iterant[F, A] =

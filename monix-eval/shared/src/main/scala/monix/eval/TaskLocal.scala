@@ -36,25 +36,29 @@ import monix.execution.misc.Local
   * set to `true`, or it uses a [[monix.execution.schedulers.TracingScheduler]].
   *
   * One way to achieve this is with [[Task.executeWithOptions]],
-  * a single call is sufficient just before `runAsync`:
+  * a single call is sufficient just before `runToFuture`:
   *
   * {{{
-  *   import monix.execution.Scheduler.Implicits.global
+  *   {
+  *     import monix.execution.Scheduler.Implicits.global
   *
-  *   val t = Task(42)
-  *   t.executeWithOptions(_.enableLocalContextPropagation)
-  *     // triggers the actual execution
-  *     .runToFuture
+  *     val t = Task(42)
+  *     t.executeWithOptions(_.enableLocalContextPropagation)
+  *       // triggers the actual execution
+  *       .runToFuture
+  *   }
   * }}}
   *
-  * Another possibility is to use [[Task.runToFutureOpt]] or
-  * [[Task.runToFutureOpt]] instead of `runAsync` and specify the set of
+  * Another possibility is to use [[Task.runToFutureOpt]]
+  * instead of `runToFuture` and specify the set of
   * options implicitly:
   *
   * {{{
   *   {
-  *     implicit val options = Task.defaultOptions.enableLocalContextPropagation
+  *     import monix.execution.Scheduler.Implicits.global
+  *     implicit val options: Task.Options = Task.defaultOptions.enableLocalContextPropagation
   *
+  *     val t = Task(42)
   *     // Options passed implicitly
   *     val f = t.runToFutureOpt
   *   }
@@ -88,14 +92,11 @@ import monix.execution.misc.Local
   *   // Task, any Scheduler will do, however for transporting locals
   *   // over async boundaries managed by Future and others, you need
   *   // a `TracingScheduler` here:
-  *   import monix.execution.Scheduler.Implicits.global
+  *   import monix.execution.Scheduler.Implicits.traced
   *
-  *   // Needs enabling the "localContextPropagation" option
-  *   // just before execution
-  *   implicit val opts = Task.defaultOptions.enableLocalContextPropagation
-  *
-  *   // Triggering actual execution
-  *   val result = task.runToFutureOpt
+  *   // Triggering actual execution,
+  *   // runToFutureOpt is not needed if `TracingScheduler` is used
+  *   val result = task.runToFuture
   * }}}
   */
 final class TaskLocal[A] private (ref: Local[A]) {

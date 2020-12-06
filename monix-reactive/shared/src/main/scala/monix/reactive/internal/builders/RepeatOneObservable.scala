@@ -38,12 +38,12 @@ private[reactive] final class RepeatOneObservable[A](elem: A) extends Observable
   def reschedule(ack: Future[Ack], o: Subscriber[A], c: BooleanCancelable, em: ExecutionModel)(
     implicit s: Scheduler): Unit =
     ack.onComplete {
-      case Success(success) =>
-        if (success == Continue) fastLoop(o, c, em, 0)
+      case Success(Continue) =>
+        fastLoop(o, c, em, 0)
+      case Success(Stop) =>
+        ()
       case Failure(ex) =>
         s.reportFailure(ex)
-      case _ =>
-        () // this was a Stop, do nothing
     }
 
   @tailrec

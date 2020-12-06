@@ -24,7 +24,7 @@ import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.Promise
 
 object TaskOptionsSuite extends SimpleTestSuite {
-  implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+  implicit val opts: Options = Task.defaultOptions.enableLocalContextPropagation
 
   def extractOptions[A](fa: Task[A]): Task[Options] =
     Task.Async { (ctx, cb) =>

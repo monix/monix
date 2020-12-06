@@ -759,10 +759,10 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param sizeOf is the function to compute the weight of each
     *        element in the buffer
     */
-  final def bufferTimedWithPressure(
+  final def bufferTimedWithPressure[AA >: A](
     period: FiniteDuration,
     maxSize: Int,
-    sizeOf: A => Int = _ => 1): Observable[Seq[A]] = {
+    sizeOf: AA => Int = (_: AA) => 1): Observable[Seq[AA]] = {
     val sampler = Observable.intervalAtFixedRate(period, period)
     new BufferWithSelectorObservable(self, sampler, maxSize, sizeOf)
   }
@@ -1133,7 +1133,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param trigger the observable that must either emit an item or
     *        complete in order for the source to be subscribed.
     */
-  final def delayExecutionWith(trigger: Observable[_]): Observable[A] =
+  final def delayExecutionWith[B](trigger: Observable[B]): Observable[A] =
     new DelayExecutionWithTriggerObservable(self, trigger)
 
   /** Version of [[delayExecutionWith]] that can work with generic `F[_]`
@@ -1146,7 +1146,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *  - `scala.concurrent.Future`
     *  - ...
     */
-  final def delayExecutionWithF[F[_]](trigger: F[_])(implicit F: ObservableLike[F]): Observable[A] =
+  final def delayExecutionWithF[F[_], B](trigger: F[B])(implicit F: ObservableLike[F]): Observable[A] =
     delayExecutionWith(F.apply(trigger))
 
   /** Converts the source Observable that emits `Notification[A]` (the
@@ -1520,11 +1520,12 @@ abstract class Observable[+A] extends Serializable { self =>
     * {{{
     *   import cats.implicits._
     *   import cats.effect._
+    *   import cats.effect.Timer
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
     *   import monix.catnap.SchedulerEffect
     *   // Needed for IO.sleep
-    *   implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
+    *  implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](global)
     *
     *   Observable.range(0, 100)
     *     .delayExecution(1.second)
@@ -1573,11 +1574,12 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * {{{
     *   import cats.effect._
+    *   import cats.effect.Timer
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
     *   import monix.catnap.SchedulerEffect
     *   // Needed for IO.sleep
-    *   implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
+    *  implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](global)
     *
     *   Observable.range(0, 10)
     *     .doOnSubscribeF(IO.sleep(1.second))
@@ -1620,11 +1622,12 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * {{{
     *   import cats.effect._
+    *   import cats.effect.Timer
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
     *   import monix.catnap.SchedulerEffect
     *   // Needed for IO.sleep
-    *   implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
+    *   implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](global)
     *
     *   Observable.range(0, 100)
     *     .doAfterSubscribeF(IO.sleep(1.second))
@@ -2233,11 +2236,12 @@ abstract class Observable[+A] extends Serializable { self =>
     * {{{
     *   import cats.implicits._
     *   import cats.effect.IO
+    *   import cats.effect.Timer
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
     *   import monix.catnap.SchedulerEffect
     *   // Needed for IO.sleep
-    *   implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
+    *   implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](global)
     *
     *   Observable.range(0, 100).mapEvalF { x =>
     *     IO.sleep(1.second) *> IO(x)
@@ -2394,9 +2398,8 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def merge[B](implicit
     ev: A <:< Observable[B],
-    os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
+    os: OverflowStrategy[B] = OverflowStrategy.Default[B]): Observable[B] =
     self.mergeMap(x => x)(os)
-
   /** Concurrently merges the observables emitted by the source with
     * the given generator function into a single observable.
     *
@@ -3248,7 +3251,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * @param trigger operation that will cancel the stream as soon as it completes.
     */
-  final def takeUntilEvalF[F[_]](trigger: F[_])(implicit taskLike: TaskLike[F]): Observable[A] =
+  final def takeUntilEvalF[F[_], B](trigger: F[B])(implicit taskLike: TaskLike[F]): Observable[A] =
     self.takeUntil(Observable.fromTaskLike(trigger))
 
   /** Takes longest prefix of elements that satisfy the given predicate
@@ -3293,7 +3296,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param  n      maximum number of items emitted per given `period`
     */
   final def throttle(period: FiniteDuration, n: Int): Observable[A] =
-    bufferTimedWithPressure(period, n).flatMap(Observable.fromIterable)
+    bufferTimedWithPressure[A](period, n).flatMap(Observable.fromIterable)
 
   /** Returns an Observable that emits only the first item emitted by
     * the source Observable during sequential time windows of a
@@ -5441,12 +5444,13 @@ object Observable extends ObservableDeprecatedBuilders {
     *  {{{
     *    import cats.implicits._
     *    import cats.effect.IO
+    *    import cats.effect.Timer
     *    import scala.concurrent.duration._
     *    import monix.execution.Scheduler.global
     *    import monix.catnap.SchedulerEffect
     *
     *    // Needed for IO.sleep
-    *    implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
+    *    implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](global)
     *    val task = IO.sleep(5.seconds) *> IO(println("Hello!"))
     *
     *    Observable.fromTaskLike(task)

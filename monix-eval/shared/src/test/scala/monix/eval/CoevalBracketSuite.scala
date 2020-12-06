@@ -54,7 +54,7 @@ object CoevalBracketSuite extends BaseTestSuite {
     val dummy = new DummyException("dummy")
     var input = Option.empty[(Int, Either[Throwable, Int])]
 
-    val coeval = Coeval(1).bracketE(_ => throw dummy) { (a, i) =>
+    val coeval = Coeval(1).bracketE(_ => throw dummy) { (a, i: Either[Throwable, Int]) =>
       Coeval.eval { input = Some((a, i)) }
     }
 

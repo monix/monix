@@ -91,7 +91,7 @@ private[tail] sealed abstract class AndThen[-T, +R] extends (T => R) with Produc
     var continue = true
     while (continue) {
       self match {
-        case Concat(left, inner) =>
+        case Concat(left, inner: AndThen[Any, Any]) =>
           self = left.asInstanceOf[AndThen[Any, Any]]
           right = inner.andThenF(right)
 
