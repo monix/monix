@@ -156,8 +156,8 @@ object TaskLike extends TaskLikeImplicits0 {
   /**
     * Converts a Scala `Either` to a [[Task]].
     */
-  implicit def fromEither[E <: Throwable]: TaskLike[Either[E, ?]] =
-    new TaskLike[Either[E, ?]] {
+  implicit def fromEither[E <: Throwable]: TaskLike[Either[E, *]] =
+    new TaskLike[Either[E, *]] {
       def apply[A](fa: Either[E, A]): Task[A] =
         Task.fromEither(fa)
     }
