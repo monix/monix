@@ -303,7 +303,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * Example: {{{
     *   import monix.eval.Task
     *
-    *   val source: Iterant[Task, List[Int]] = Iterant.suspend(Task(???))
+    *   val source: Iterant[Task, List[Int]] = Iterant.suspend(Task[Iterant[Task, List[Int]]](???))
     *
     *   // This will trigger an error because of the invariance:
     *   // val sequences: Iterant[Task, Seq[Int]] = source
