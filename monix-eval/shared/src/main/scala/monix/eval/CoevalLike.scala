@@ -108,8 +108,8 @@ object CoevalLike {
   /**
     * Converts a Scala `Either` to a [[Coeval]].
     */
-  implicit def fromEither[E <: Throwable]: CoevalLike[Either[E, ?]] =
-    new CoevalLike[Either[E, ?]] {
+  implicit def fromEither[E <: Throwable]: CoevalLike[Either[E, *]] =
+    new CoevalLike[Either[E, *]] {
       def apply[A](fa: Either[E, A]): Coeval[A] =
         Coeval.fromEither(fa)
     }
