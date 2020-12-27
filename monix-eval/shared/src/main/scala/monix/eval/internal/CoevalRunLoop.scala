@@ -211,6 +211,6 @@ private[eval] object CoevalRunLoop {
 
   private[this] val runLoopFilter = List(
     "monix.eval.",
-    "scala."
+    "scala.runtime."
   )
 }

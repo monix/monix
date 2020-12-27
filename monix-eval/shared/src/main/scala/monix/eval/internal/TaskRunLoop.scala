@@ -878,7 +878,7 @@ private[eval] object TaskRunLoop {
 
   private[this] val runLoopFilter = List(
     "monix.eval.",
-    "scala."
+    "scala.runtime."
   )
 
 }
