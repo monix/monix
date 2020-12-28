@@ -54,7 +54,7 @@ abstract class Subject[I, +O] extends Observable[O] with Observer[I] { self =>
 }
 
 object Subject {
-  /** Transforms the source [[Subject]] into a `org.reactivestreams.Procesor`
+  /** Transforms the source [[Subject]] into a `org.reactivestreams.Processor`
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
     * specification.
     *
