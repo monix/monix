@@ -22,6 +22,7 @@ import monix.execution.atomic.Atomic
 import monix.reactive.{BaseTestSuite, Observable}
 
 import scala.util.Success
+import scala.concurrent.duration._
 
 object PublishSelectorSuite extends BaseTestSuite {
   test("publishSelector sanity test") { implicit s =>
@@ -59,5 +60,15 @@ object PublishSelectorSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(2000)))
     assertEquals(isStarted.get(), 1)
     assert(isCanceled.get(), "isCanceled")
+  }
+
+  test("publish selector respects subscription when used with chained operators") { implicit s =>
+    val ob = Observable.now(1)
+      .publishSelector(_.takeLast(1))
+      .takeLast(1)
+
+    s.tick(1.second)
+    val f = ob.headL.runToFuture
+    assertEquals(f.value, Some(Success(1)))
   }
 }
