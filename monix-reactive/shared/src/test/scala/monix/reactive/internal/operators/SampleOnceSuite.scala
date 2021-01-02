@@ -25,15 +25,16 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 object SampleOnceSuite extends BaseOperatorSuite {
-  def waitTime = 300.millisecond
+  def waitFirst = 1.second
+  def waitNext = 1.second
 
   def createObservable(sourceCount: Int) = Some {
     val o = Observable
-      .intervalAtFixedRate(waitTime)
+      .intervalAtFixedRate(500.millis, 1.second)
       .sample(1.second)
       .take(sourceCount.toLong)
 
-    Sample(o, count(sourceCount), sum(sourceCount), waitTime, waitTime)
+    Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
   def sum(sourceCount: Int) = {
@@ -47,7 +48,7 @@ object SampleOnceSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = Some {
     val source = Observable.intervalAtFixedRate(1.second).take(sourceCount.toLong + 1)
     val o = createObservableEndingInError(source, ex).sample(500.millis)
-    Sample(o, count(sourceCount), sum(sourceCount), waitTime, waitTime)
+    Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
   }
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
