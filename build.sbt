@@ -23,18 +23,17 @@ addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions
 
-val cats_Version = "2.3.0"
-val catsEffect_Version = "2.3.0"
+val cats_Version = "2.4.2"
+val catsEffect_Version = "2.3.3"
 val fs2_Version = "2.4.4"
 val jcTools_Version = "3.2.0"
 val reactiveStreams_Version = "1.0.3"
-val minitest_Version = "2.9.0"
-val scalaTest_Version = "3.0.8"
-val implicitBox_Version = "0.3.0"
-val kindProjector_Version = "0.11.2"
+val minitest_Version = "2.9.3"
+val implicitBox_Version = "0.3.2"
+val kindProjector_Version = "0.11.3"
 val betterMonadicFor_Version = "0.3.1"
 val silencer_Version = "1.7.1"
-val scalaCompat_Version = "2.3.1"
+val scalaCompat_Version = "2.3.2"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -84,10 +83,6 @@ lazy val kindProjectorCompilerPlugin =
 /** [[https://github.com/monix/minitest/]] */
 lazy val minitestLib =
   Def.setting { "io.monix" %%% "minitest-laws" % minitest_Version }
-
-/** [[https://github.com/scalatest/scalatest]] */
-lazy val scalaTestLib =
-  Def.setting { "org.scalatest" %%% "scalatest" % scalaTest_Version }
 
 /** [[https://github.com/scala/scala-collection-compat]] */
 lazy val scalaCollectionCompatLib =
@@ -254,7 +249,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
   homepage := Some(url("https://monix.io")),
   headerLicense := Some(HeaderLicense.Custom(
-    """|Copyright (c) 2014-2020 by The Monix Project Developers.
+    """|Copyright (c) 2014-2021 by The Monix Project Developers.
        |See the project homepage at: https://monix.io
        |
        |Licensed under the Apache License, Version 2.0 (the "License");
@@ -641,8 +636,7 @@ lazy val reactiveTests = project.in(file("reactiveTests"))
   .dependsOn(reactiveJVM, tailJVM)
   .settings(
     libraryDependencies ++= Seq(
-      reactiveStreamsTCKLib % Test,
-      scalaTestLib.value % Test,
+      reactiveStreamsTCKLib % Test
     ))
 
 // --------------------------------------------

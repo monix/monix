@@ -143,6 +143,7 @@ Submit a PR ❤️
 - [Hypefactors](https://www.hypefactors.com)
 - [Iterators](https://www.iteratorshq.com)
 - [Sony Electronics](https://www.sony.com)
+- [Tinkoff](https://tinkoff.ru)
 - [Zalando](https://www.zalando.com)
 - [Zendesk](https://www.zendesk.com)
 

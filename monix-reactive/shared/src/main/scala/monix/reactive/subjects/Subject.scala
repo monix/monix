@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,7 +54,7 @@ abstract class Subject[I, +O] extends Observable[O] with Observer[I] { self =>
 }
 
 object Subject {
-  /** Transforms the source [[Subject]] into a `org.reactivestreams.Procesor`
+  /** Transforms the source [[Subject]] into a `org.reactivestreams.Processor`
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
     * specification.
     *
