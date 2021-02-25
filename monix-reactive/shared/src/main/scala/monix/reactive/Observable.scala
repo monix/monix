@@ -5632,6 +5632,12 @@ object Observable extends ObservableDeprecatedBuilders {
   def unfoldEval[S, A](seed: => S)(f: S => Task[Option[(A, S)]]): Observable[A] =
     new UnfoldEvalObservable(seed, f)
 
+  def paginate[S, A](seed: => S)(f: S => (A, Option[S])): Observable[A] =
+    new PaginateObservable(seed, f)
+
+  def paginateEval[S, A](seed: => S)(f: S => Task[(A, Option[S])]): Observable[A] =
+    new PaginateEvalObservable(seed, f)
+
   /** Version of [[unfoldEval]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
     * conversions.
