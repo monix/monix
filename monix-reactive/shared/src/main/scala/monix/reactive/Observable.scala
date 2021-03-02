@@ -5644,7 +5644,7 @@ object Observable extends ObservableDeprecatedBuilders {
 
   /** Similar to [[unfoldEval]], but allows to take emission one step further.
     * @example {{{
-    *  Observable.unfoldEval(0)(i => if (i < 10) Task.now((i, Some(i + 1))) else Task.now((i,None))).toListL
+    *  Observable.paginateEval(0)(i => if (i < 10) Task.now((i, Some(i + 1))) else Task.now((i,None))).toListL
     *
     *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     *  }}}
