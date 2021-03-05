@@ -5615,6 +5615,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     *  }}}
+    *
+    *  @see [[paginate]] for a way to return one more value when generator returns `None`
     */
   def unfold[S, A](seed: => S)(f: S => Option[(A, S)]): Observable[A] =
     new UnfoldObservable(seed, f)
@@ -5628,6 +5630,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     *  }}}
+    *
+    *  @see [[paginateEval]] for a way to return one more value when generator returns `None`
     */
   def unfoldEval[S, A](seed: => S)(f: S => Task[Option[(A, S)]]): Observable[A] =
     new UnfoldEvalObservable(seed, f)
