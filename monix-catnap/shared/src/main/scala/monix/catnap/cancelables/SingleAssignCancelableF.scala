@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package monix.catnap.cancelables
+package monix.catnap
+package cancelables
 
-import cats.effect.{CancelToken, Sync}
-import monix.catnap.CancelableF
+import cats.effect.Sync
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.atomic.Atomic
 import scala.annotation.tailrec
@@ -59,11 +59,11 @@ final class SingleAssignCancelableF[F[_]] private (extra: CancelableF[F])(implic
           else
             loop()
       }
-    F.suspend(loop())
+    F.defer(loop())
   }
 
   def set(ref: CancelableF[F]): F[Unit] =
-    F.suspend(unsafeLoop(ref))
+    F.defer(unsafeLoop(ref))
 
   @tailrec
   private def unsafeLoop(ref: CancelableF[F]): F[Unit] = {

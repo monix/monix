@@ -17,36 +17,36 @@
 
 package monix.catnap.cancelables
 
-import cats.effect.IO
+import cats.effect.SyncIO
 import minitest.SimpleTestSuite
 import monix.catnap.CancelableF
 
 object AssignableCancelableFSuite extends SimpleTestSuite {
   test("alreadyCanceled") {
-    val ac = AssignableCancelableF.alreadyCanceled[IO]
+    val ac = AssignableCancelableF.alreadyCanceled[SyncIO]
     var effect = 0
 
     assertEquals(ac.isCanceled.unsafeRunSync(), true)
-    ac.set(CancelableF.wrap(IO { effect += 1 })).unsafeRunSync()
+    ac.set(CancelableF.wrap(SyncIO { effect += 1 })).unsafeRunSync()
     assertEquals(effect, 1)
 
     ac.cancel.unsafeRunSync()
     assertEquals(effect, 1)
-    ac.set(CancelableF.wrap(IO { effect += 1 })).unsafeRunSync()
+    ac.set(CancelableF.wrap(SyncIO { effect += 1 })).unsafeRunSync()
     assertEquals(effect, 2)
   }
 
   test("dummy") {
-    val ac = AssignableCancelableF.dummy[IO]
+    val ac = AssignableCancelableF.dummy[SyncIO]
     var effect = 0
 
     assertEquals(ac.isCanceled.unsafeRunSync(), false)
-    ac.set(CancelableF.wrap(IO { effect += 1 })).unsafeRunSync()
+    ac.set(CancelableF.wrap(SyncIO { effect += 1 })).unsafeRunSync()
     assertEquals(effect, 0)
 
     ac.cancel.unsafeRunSync()
     assertEquals(effect, 0)
-    ac.set(CancelableF.wrap(IO { effect += 1 })).unsafeRunSync()
+    ac.set(CancelableF.wrap(SyncIO { effect += 1 })).unsafeRunSync()
     assertEquals(effect, 0)
 
     assertEquals(ac.isCanceled.unsafeRunSync(), false)

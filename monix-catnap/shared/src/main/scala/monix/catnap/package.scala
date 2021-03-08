@@ -15,22 +15,8 @@
  * limitations under the License.
  */
 
-package monix.catnap.internal
+package monix
 
-import cats.effect.{Async}
-
-private[monix] object AsyncUtils {
-  /**
-    * The `cancelable` builder from cats-effect 2
-    */
-  def cancelable[F[_], A](k: (Either[Throwable, A] => Unit) => F[Unit])(implicit F: Async[F]): F[A] =
-    F.async[A] { cb => F.pure(Some(k(cb))) }
-
-  /**
-    * The `asyncF` builder from cats-effect 2
-    */
-  def asyncF[F[_], A](register: (Either[Throwable, A] => Unit) => F[Unit])(implicit F: Async[F]): F[A] =
-    F.async[A] { cb => F.map(register(cb))(asNone) }
-
-  private[this] val asNone = (_: Any) => None
+package object catnap {
+  type CancelToken[F[_]] = F[Unit]
 }

@@ -19,7 +19,7 @@ package monix.catnap
 package cancelables
 
 import cats.Applicative
-import cats.effect.{CancelToken, Sync}
+import cats.effect.Sync
 import monix.catnap.CancelableF
 import monix.catnap.CancelableF.Empty
 import monix.execution.annotations.UnsafeBecauseImpure
@@ -98,7 +98,7 @@ object BooleanCancelableF {
       F.delay(canceled.get())
 
     def cancel: CancelToken[F] =
-      F.suspend {
+      F.defer {
         if (!canceled.getAndSet(true)) {
           val ref = this.ref
           this.ref = null.asInstanceOf[CancelToken[F]]

@@ -19,7 +19,6 @@ package monix.catnap
 package cancelables
 
 import cats.Applicative
-import cats.effect.CancelToken
 import monix.catnap.CancelableF
 import monix.catnap.CancelableF.Empty
 

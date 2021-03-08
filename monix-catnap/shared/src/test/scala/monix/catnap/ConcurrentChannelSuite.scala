@@ -17,7 +17,7 @@
 
 package monix.catnap
 
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.IO
 import cats.implicits._
 import minitest.TestSuite
 import monix.execution.BufferCapacity.{Bounded, Unbounded}
@@ -26,6 +26,7 @@ import monix.execution.exceptions.APIContractViolationException
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.execution.{BufferCapacity, Scheduler, TestUtils}
+import TestUtils.ioRuntime
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
@@ -40,7 +41,7 @@ object ConcurrentChannelFakeSuite extends BaseConcurrentChannelSuite[TestSchedul
       if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
       else IO.unit
 
-    test(name) { ec =>
+    test(name) { implicit ec =>
       val result = repeatTest(f(ec), times).unsafeToFuture()
       ec.tick(1.day)
       result.value match {
@@ -79,11 +80,6 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
   val boundedConfig = ConsumerF.Config(capacity = Some(Bounded(10)))
   val unboundedConfig = ConsumerF.Config(capacity = Some(Unbounded()))
 
-  implicit def contextShift(implicit s: Scheduler): ContextShift[IO] =
-    SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
-  implicit def timer(implicit s: Scheduler): Timer[IO] =
-    SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
-
   /** TO IMPLEMENT ... */
   def testIO(name: String, times: Int = 1)(f: Scheduler => IO[Unit]): Unit
 
@@ -109,7 +105,7 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       _     <- chan.push(2)
       _     <- chan.push(3)
       _     <- chan.halt(0)
-      r     <- fiber.join
+      r     <- fiber.joinWithNever
     } yield r
   }
 
@@ -119,7 +115,7 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       fiber <- chan.consume.use(_.pull).start
       _     <- chan.awaitConsumers(1)
       _     <- chan.push(1)
-      r     <- fiber.join
+      r     <- fiber.joinWithNever
     } yield {
       assertEquals(r, Right(1))
     }
@@ -138,11 +134,11 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       _     <- chan.awaitConsumers(1)
       _     <- IO.sleep(3.millis)
       _     <- chan.push(1)
-      _     <- IO.shift *> IO.shift *> chan.push(2)
+      _     <- IO.cede *> IO.cede *> chan.push(2)
       _     <- IO.sleep(3.millis)
       _     <- chan.push(3)
       _     <- chan.halt(4)
-      r     <- fiber.join
+      r     <- fiber.joinWithNever
     } yield {
       assertEquals(r, 1 + 2 + 3 + 4)
     }
@@ -154,7 +150,7 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       fiber <- chan.consume.use(_.pullMany(10, 10)).start
       _     <- chan.awaitConsumers(1)
       _     <- chan.pushMany(1 to 10)
-      r     <- fiber.join.map(_.map(_.sum))
+      r     <- fiber.joinWithNever.map(_.map(_.sum))
     } yield {
       assertEquals(r, Right(55))
     }
@@ -173,11 +169,11 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       _     <- chan.awaitConsumers(1)
       _     <- IO.sleep(3.millis)
       _     <- chan.pushMany(1 to 20)
-      _     <- IO.shift *> IO.shift *> chan.pushMany(21 to 40)
+      _     <- IO.cede *> IO.cede *> chan.pushMany(21 to 40)
       _     <- IO.sleep(3.millis)
       _     <- chan.pushMany(41 to 60)
       _     <- chan.halt(100)
-      r     <- fiber.join
+      r     <- fiber.joinWithNever
     } yield {
       assertEquals(r, 100 + 30 * 61)
     }
@@ -206,7 +202,7 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       _ <- channel.awaitConsumers(1)
       _ <- loop(9)
       _ <- loop(10)
-      r <- f.join
+      r <- f.joinWithNever
     } yield {
       assertEquals(r, Right(5 * 11))
     }
@@ -240,7 +236,7 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       b1      <- channel.push(1)
       b2      <- channel.push(2)
       _       <- channel.halt(10)
-      _       <- fiber.join.timeoutTo(10.millis, IO.unit).guarantee(fiber.cancel)
+      _       <- fiber.joinWithNever.timeoutTo(10.millis, IO.unit).guarantee(fiber.cancel)
     } yield {
       assertEquals(b1, false)
       assertEquals(b2, false)
@@ -263,7 +259,7 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       fiber   <- channel.consume.use(consume).start
       b1      <- channel.pushMany(Seq(1, 2, 3))
       _       <- channel.halt(10)
-      _       <- fiber.join.timeoutTo(10.millis, IO.unit).guarantee(fiber.cancel)
+      _       <- fiber.joinWithNever.timeoutTo(10.millis, IO.unit).guarantee(fiber.cancel)
     } yield {
       assertEquals(b1, false)
     }
@@ -287,7 +283,7 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       _       <- channel.push(100)
       _       <- channel.pushMany(Seq(100, 100))
       _       <- channel.halt(100)
-      r       <- fiber.join
+      r       <- fiber.joinWithNever
     } yield {
       assertEquals(r, 400)
     }
@@ -309,9 +305,9 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       _       <- channel.push(100)
       _       <- channel.pushMany(Seq(100, 100))
       _       <- channel.halt(100)
-      r1      <- fiber1.join
-      r2      <- fiber2.join
-      r3      <- fiber3.join
+      r1      <- fiber1.joinWithNever
+      r2      <- fiber2.joinWithNever
+      r3      <- fiber3.joinWithNever
     } yield {
       assertEquals(r1, 400)
       assertEquals(r2, 400)
@@ -323,9 +319,9 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
     for {
       channel <- ConcurrentChannel[IO].of[Int, Int]
       await   <- channel.awaitConsumers(3).start
-      _       <- await.join.timeoutTo(1.millis, IO.unit)
+      _       <- await.joinWithNever.timeoutTo(1.millis, IO.unit)
       _       <- channel.halt(0)
-      r       <- await.join
+      r       <- await.joinWithNever
     } yield {
       assertEquals(r, false)
     }
@@ -347,16 +343,16 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       c1      <- channel.consume.use(c => c.pull *> c.pull).start
       await   <- channel.awaitConsumers(3).start
       c2      <- channel.consume.use(c => c.pull).start
-      _       <- await.join.timeoutTo(3.millis, IO.unit)
+      _       <- await.joinWithNever.timeoutTo(3.millis, IO.unit)
       _       <- channel.push(1)
-      r2      <- c2.join
+      r2      <- c2.joinWithNever
       c3      <- channel.consume.use(c => c.pull).start
       c4      <- channel.consume.use(c => c.pull).start
-      _       <- await.join
+      _       <- await.joinWithNever
       _       <- channel.halt(0)
-      r1      <- c1.join
-      r3      <- c3.join
-      r4      <- c4.join
+      r1      <- c1.joinWithNever
+      r3      <- c3.joinWithNever
+      r4      <- c4.joinWithNever
     } yield {
       assertEquals(r1, Left(0))
       assertEquals(r2, Right(1))
@@ -378,7 +374,7 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       _       <- channel.awaitConsumers(1)
       _       <- channel.pushMany(Seq.empty)
       _       <- channel.halt(100)
-      r       <- fiber.join
+      r       <- fiber.joinWithNever
     } yield {
       assertEquals(r, 100)
     }
@@ -721,7 +717,7 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       _       <- channel.awaitConsumers(consumers)
       _       <- produce(channel)
       _       <- channel.halt(0)
-      sum     <- fiber.join
+      sum     <- fiber.joinWithNever
     } yield {
       val perProducer = count.toLong * (count + 1) / 2
       assertEquals(sum, perProducer * producers * consumers)

@@ -22,6 +22,7 @@ import monix.execution.BufferCapacity.Bounded
 import monix.execution.{BufferCapacity, Scheduler}
 import monix.execution.schedulers.SchedulerService
 import scala.concurrent.duration._
+import TestUtils.ioRuntime
 
 abstract class ConcurrentChannelJVMSuite(parallelism: Int) extends BaseConcurrentChannelSuite[SchedulerService] {
 

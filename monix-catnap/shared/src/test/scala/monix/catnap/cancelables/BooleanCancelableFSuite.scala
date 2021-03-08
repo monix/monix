@@ -18,14 +18,14 @@
 package monix.catnap
 package cancelables
 
-import cats.effect.IO
+import cats.effect.{IO, SyncIO}
 import minitest.SimpleTestSuite
 
 object BooleanCancelableFSuite extends SimpleTestSuite {
   test("apply") {
     var effect = 0
-    val task = IO { effect += 1 }
-    val ref = BooleanCancelableF[IO](task)
+    val task = SyncIO { effect += 1 }
+    val ref = BooleanCancelableF[SyncIO](task)
 
     val cf = ref.unsafeRunSync()
     assert(!cf.isCanceled.unsafeRunSync(), "!cf.isCanceled")
@@ -50,7 +50,7 @@ object BooleanCancelableFSuite extends SimpleTestSuite {
   }
 
   test("alreadyCanceled") {
-    val cf = BooleanCancelableF.alreadyCanceled[IO]
+    val cf = BooleanCancelableF.alreadyCanceled[SyncIO]
     assert(cf.isCanceled.unsafeRunSync(), "cf.isCanceled")
     cf.cancel.unsafeRunSync()
     cf.cancel.unsafeRunSync()
@@ -58,7 +58,7 @@ object BooleanCancelableFSuite extends SimpleTestSuite {
   }
 
   test("dummy") {
-    val cf = BooleanCancelableF.dummy[IO]
+    val cf = BooleanCancelableF.dummy[SyncIO]
     assert(!cf.isCanceled.unsafeRunSync(), "!cf.isCanceled")
     cf.cancel.unsafeRunSync()
     cf.cancel.unsafeRunSync()

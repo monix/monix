@@ -18,15 +18,15 @@
 package monix.catnap
 package cancelables
 
-import cats.effect.IO
+import cats.effect.SyncIO
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.{CompositeException, DummyException}
 
 object SingleAssignCancelableFSuite extends SimpleTestSuite {
   test("cancel") {
     var effect = 0
-    val s = SingleAssignCancelableF[IO].unsafeRunSync()
-    val b = BooleanCancelableF.unsafeApply(IO { effect += 1 })
+    val s = SingleAssignCancelableF[SyncIO].unsafeRunSync()
+    val b = BooleanCancelableF.unsafeApply(SyncIO { effect += 1 })
 
     s.set(b).unsafeRunSync()
     assert(!s.isCanceled.unsafeRunSync(), "!s.isCanceled")
@@ -42,8 +42,8 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
 
   test("cancel (plus one)") {
     var effect = 0
-    val extra = BooleanCancelableF.unsafeApply(IO { effect += 1 })
-    val b = BooleanCancelableF.unsafeApply(IO { effect += 2 })
+    val extra = BooleanCancelableF.unsafeApply(SyncIO { effect += 1 })
+    val b = BooleanCancelableF.unsafeApply(SyncIO { effect += 2 })
 
     val s = SingleAssignCancelableF.plusOne(extra).unsafeRunSync()
     s.set(b).unsafeRunSync()
@@ -59,12 +59,12 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
   }
 
   test("cancel on single assignment") {
-    val s = SingleAssignCancelableF[IO].unsafeRunSync()
+    val s = SingleAssignCancelableF[SyncIO].unsafeRunSync()
     s.cancel.unsafeRunSync()
     assert(s.isCanceled.unsafeRunSync())
 
     var effect = 0
-    val b = BooleanCancelableF.unsafeApply(IO { effect += 1 })
+    val b = BooleanCancelableF.unsafeApply(SyncIO { effect += 1 })
     s.set(b).unsafeRunSync()
 
     assert(b.isCanceled.unsafeRunSync())
@@ -76,7 +76,7 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
 
   test("cancel on single assignment (plus one)") {
     var effect = 0
-    val extra = BooleanCancelableF.unsafeApply(IO { effect += 1 })
+    val extra = BooleanCancelableF.unsafeApply(SyncIO { effect += 1 })
     val s = SingleAssignCancelableF.plusOne(extra).unsafeRunSync()
 
     s.cancel.unsafeRunSync()
@@ -84,7 +84,7 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
     assert(extra.isCanceled.unsafeRunSync(), "extra.isCanceled")
     assert(effect == 1)
 
-    val b = BooleanCancelableF.unsafeApply(IO { effect += 1 })
+    val b = BooleanCancelableF.unsafeApply(SyncIO { effect += 1 })
     s.set(b).unsafeRunSync()
 
     assert(b.isCanceled.unsafeRunSync())
@@ -95,25 +95,25 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
   }
 
   test("throw exception on multi assignment") {
-    val s = SingleAssignCancelableF[IO].unsafeRunSync()
-    val b1 = CancelableF.empty[IO]
+    val s = SingleAssignCancelableF[SyncIO].unsafeRunSync()
+    val b1 = CancelableF.empty[SyncIO]
     s.set(b1).unsafeRunSync()
 
     intercept[IllegalStateException] {
-      s.set(CancelableF.empty[IO]).unsafeRunSync()
+      s.set(CancelableF.empty[SyncIO]).unsafeRunSync()
     }
     ()
   }
 
   test("throw exception on multi assignment when canceled") {
-    val s = SingleAssignCancelableF[IO].unsafeRunSync()
+    val s = SingleAssignCancelableF[SyncIO].unsafeRunSync()
     s.cancel.unsafeRunSync()
 
-    val b1 = CancelableF.empty[IO]
+    val b1 = CancelableF.empty[SyncIO]
     s.set(b1).unsafeRunSync()
 
     intercept[IllegalStateException] {
-      s.set(CancelableF.empty[IO]).unsafeRunSync()
+      s.set(CancelableF.empty[SyncIO]).unsafeRunSync()
     }
     ()
   }
@@ -122,11 +122,11 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
     var effect = 0
     val dummy1 = DummyException("dummy1")
 
-    val extra = CancelableF.unsafeApply[IO](IO { effect += 1; throw dummy1 })
+    val extra = CancelableF.unsafeApply[SyncIO](SyncIO { effect += 1; throw dummy1 })
     val s = SingleAssignCancelableF.plusOne(extra).unsafeRunSync()
 
     val dummy2 = DummyException("dummy2")
-    val b = CancelableF.unsafeApply[IO](IO { effect += 1; throw dummy2 })
+    val b = CancelableF.unsafeApply[SyncIO](SyncIO { effect += 1; throw dummy2 })
     s.set(b).unsafeRunSync()
 
     try {

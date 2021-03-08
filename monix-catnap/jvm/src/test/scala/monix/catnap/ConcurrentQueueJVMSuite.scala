@@ -21,6 +21,7 @@ import cats.effect.IO
 import monix.execution.Scheduler
 import monix.execution.schedulers.SchedulerService
 import scala.concurrent.duration._
+import TestUtils.ioRuntime
 
 abstract class ConcurrentQueueJVMSuite(parallelism: Int) extends BaseConcurrentQueueSuite[SchedulerService] {
 

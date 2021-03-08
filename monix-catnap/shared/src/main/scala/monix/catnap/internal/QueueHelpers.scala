@@ -18,15 +18,15 @@
 package monix.catnap
 package internal
 
-import cats.effect.{Concurrent, ContextShift}
+import cats.effect.{Async}
 import monix.execution.CancelablePromise
 import monix.execution.atomic.AtomicAny
 import monix.execution.internal.Constants
 import scala.annotation.tailrec
 
-private[catnap] class QueueHelpers[F[_]](implicit F: Concurrent[F], cs: ContextShift[F]) {
+private[catnap] class QueueHelpers[F[_]](implicit F: Async[F]) {
 
-  private[this] val asyncBoundary: F[Unit] = cs.shift
+  private[this] val asyncBoundary: F[Unit] = F.cede
 
   @tailrec
   final def sleepThenRepeat[T, U](
@@ -34,7 +34,7 @@ private[catnap] class QueueHelpers[F[_]](implicit F: Concurrent[F], cs: ContextS
     f: () => T,
     filter: T => Boolean,
     map: T => U,
-    cb: Either[Throwable, U] => Unit)(implicit F: Concurrent[F]): F[Unit] = {
+    cb: Either[Throwable, U] => Unit): F[Unit] = {
 
     // Registering intention to sleep via promise
     state.get() match {
@@ -55,7 +55,7 @@ private[catnap] class QueueHelpers[F[_]](implicit F: Concurrent[F], cs: ContextS
     f: () => T,
     filter: T => Boolean,
     map: T => U,
-    cb: Either[Throwable, U] => Unit)(p: CancelablePromise[Unit])(implicit F: Concurrent[F]): F[Unit] = {
+    cb: Either[Throwable, U] => Unit)(p: CancelablePromise[Unit]): F[Unit] = {
 
     // Async boundary, for fairness reasons; also creates a full
     // memory barrier between the promise registration and what follows
@@ -77,7 +77,7 @@ private[catnap] class QueueHelpers[F[_]](implicit F: Concurrent[F], cs: ContextS
     f: () => T,
     filter: T => Boolean,
     map: T => U,
-    cb: Either[Throwable, U] => Unit)(implicit F: Concurrent[F]): F[Unit] = {
+    cb: Either[Throwable, U] => Unit): F[Unit] = {
 
     // Trying to read
     val value = f()
@@ -91,7 +91,7 @@ private[catnap] class QueueHelpers[F[_]](implicit F: Concurrent[F], cs: ContextS
   }
 
   final def awaitPromise(p: CancelablePromise[Unit]): F[Unit] =
-    F.cancelable { cb =>
+    AsyncUtils.cancelable { cb =>
       val token = p.subscribe(_ => cb(Constants.eitherOfUnit))
       F.delay(token.cancel())
     }

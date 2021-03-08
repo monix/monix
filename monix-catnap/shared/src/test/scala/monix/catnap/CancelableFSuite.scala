@@ -17,14 +17,14 @@
 
 package monix.catnap
 
-import cats.effect.IO
+import cats.effect.{SyncIO}
 import minitest.SimpleTestSuite
 
 object CancelableFSuite extends SimpleTestSuite {
   test("apply") {
     var effect = 0
-    val task = IO { effect += 1 }
-    val ref = CancelableF[IO](task)
+    val task = SyncIO {effect += 1 }
+    val ref = CancelableF[SyncIO](task)
 
     val cf = ref.unsafeRunSync()
     assertEquals(effect, 0)
@@ -42,14 +42,14 @@ object CancelableFSuite extends SimpleTestSuite {
   }
 
   test("empty") {
-    val cf = CancelableF.empty[IO]
+    val cf = CancelableF.empty[SyncIO]
     cf.cancel.unsafeRunSync()
     cf.cancel.unsafeRunSync()
   }
 
   test("wrap is not idempotent") {
     var effect = 0
-    val token = CancelableF.wrap(IO { effect += 1 })
+    val token = CancelableF.wrap(SyncIO { effect += 1 })
     token.cancel.unsafeRunSync()
     token.cancel.unsafeRunSync()
     token.cancel.unsafeRunSync()
@@ -58,7 +58,7 @@ object CancelableFSuite extends SimpleTestSuite {
 
   test("cancel multiple cancelables") {
     var effect = 0
-    val seq = (0 until 100).map(_ => CancelableF.unsafeApply(IO { effect += 1 }))
+    val seq = (0 until 100).map(_ => CancelableF.unsafeApply(SyncIO { effect += 1 }))
     val col = CancelableF.collection(seq: _*)
 
     assertEquals(effect, 0)
@@ -68,7 +68,7 @@ object CancelableFSuite extends SimpleTestSuite {
 
   test("cancel multiple tokens") {
     var effect = 0
-    val seq = (0 until 100).map(_ => IO { effect += 1 })
+    val seq = (0 until 100).map(_ => SyncIO { effect += 1 })
     val cancel = CancelableF.cancelAllTokens(seq: _*)
 
     assertEquals(effect, 0)

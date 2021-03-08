@@ -18,7 +18,7 @@
 package monix.catnap
 
 import cats.Applicative
-import cats.effect.{CancelToken, Sync}
+import cats.effect.Sync
 import cats.syntax.either._
 import monix.catnap.cancelables.BooleanCancelableF
 import monix.execution.annotations.UnsafeBecauseImpure
@@ -105,7 +105,7 @@ object CancelableF {
 
     if (seq.isEmpty) F.unit
     else
-      F.suspend {
+      F.defer {
         new CancelAllFrame[F](seq.map(_.cancel).iterator)(F).loop
       }
   }
@@ -123,7 +123,7 @@ object CancelableF {
 
     if (seq.isEmpty) F.unit
     else
-      F.suspend {
+      F.defer {
         new CancelAllFrame[F](seq.iterator)(F).loop
       }
   }

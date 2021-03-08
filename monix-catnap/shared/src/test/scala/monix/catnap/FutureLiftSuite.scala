@@ -17,7 +17,8 @@
 
 package monix.catnap
 
-import cats.effect.{Async, ContextShift, IO}
+import cats.effect.{Async, IO}
+import TestUtils._
 import minitest.TestSuite
 import monix.catnap.syntax._
 import monix.execution.exceptions.DummyException
@@ -31,8 +32,6 @@ object FutureLiftSuite extends TestSuite[TestScheduler] {
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "There should be no tasks left!")
 
-  implicit def contextShift(implicit ec: TestScheduler): ContextShift[IO] =
-    SchedulerEffect.contextShift[IO](ec)(IO.ioEffect)
 
   test("IO(future).futureLift") { implicit s =>
     var effect = 0
@@ -111,17 +110,17 @@ object FutureLiftSuite extends TestSuite[TestScheduler] {
     })).futureLift
 
     val p = Promise[Int]()
-    val token = io.unsafeRunCancelable {
+    val token = io.unsafeRunCancelableTick() {
       case Left(e) => p.failure(e); ()
       case Right(a) => p.success(a); ()
     }
 
     // Cancelling
-    token.unsafeRunAsyncAndForget(); s.tick()
+    token.unsafeRunAndForget(); s.tick()
     assertEquals(wasCanceled, 1)
   }
 
-  test("FutureLift[F] instance for Concurrent[F] data types") { implicit s =>
+  test("FutureLift[F] instance for Async[F] data types") { implicit s =>
     var wasCanceled = 0
     val source = Promise[Int]()
     val io = FutureLift[IO, CancelableFuture].apply(
@@ -132,47 +131,14 @@ object FutureLiftSuite extends TestSuite[TestScheduler] {
       ))
 
     val p = Promise[Int]()
-    val token = io.unsafeRunCancelable {
+    val token = io.unsafeRunCancelableTick() {
       case Left(e) => p.failure(e); ()
       case Right(a) => p.success(a); ()
     }
 
     // Cancelling
-    token.unsafeRunAsyncAndForget(); s.tick()
+    token.unsafeRunAndForget(); s.tick()
     assertEquals(wasCanceled, 1)
-    assertEquals(p.future.value, None)
-
-    val f2 = io.unsafeToFuture()
-    source.success(1)
-    s.tick()
-
-    assertEquals(f2.value, Some(Success(1)))
-  }
-
-  test("FutureLift[F] instance for Async[F] data types") { implicit s =>
-    import Overrides.asyncIO
-
-    var wasCanceled = 0
-    val source = Promise[Int]()
-
-    def mkInstance[F[_]](implicit F: Async[F]): F[Int] =
-      FutureLift[F, CancelableFuture].apply(
-        F.delay(
-          CancelableFuture[Int](source.future, Cancelable { () =>
-            wasCanceled += 1
-          })
-        ))
-
-    val io = mkInstance[IO]
-    val p = Promise[Int]()
-    val token = io.unsafeRunCancelable {
-      case Left(e) => p.failure(e); ()
-      case Right(a) => p.success(a); ()
-    }
-
-    // Cancelling
-    token.unsafeRunAsyncAndForget(); s.tick()
-    assertEquals(wasCanceled, 0)
     assertEquals(p.future.value, None)
 
     val f2 = io.unsafeToFuture()
