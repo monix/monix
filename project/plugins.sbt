@@ -13,5 +13,5 @@ addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat"            % "0.1.16")
 
 addSbtPlugin("com.dwijnand" % "sbt-dynver" % "4.1.1")
 addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "1.0.0")
-addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.9.5")
+addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.9.6")
 addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.1.2")
