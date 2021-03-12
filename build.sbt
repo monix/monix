@@ -26,7 +26,7 @@ addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 val cats_Version = "2.4.2"
 val catsEffect_Version = "2.3.3"
 val fs2_Version = "2.4.4"
-val jcTools_Version = "3.2.0"
+val jcTools_Version = "3.3.0"
 val reactiveStreams_Version = "1.0.3"
 val minitest_Version = "2.9.3"
 val implicitBox_Version = "0.3.2"
