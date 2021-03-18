@@ -3351,6 +3351,8 @@ abstract class Observable[+A] extends Serializable { self =>
   final def throttleLast(period: FiniteDuration): Observable[A] =
     sample(period)
 
+  final def throttleLatest(period: FiniteDuration, emitLast: Boolean): Observable[A] =
+    new ThrottleLatestObservable[A](self, period, emitLast)
   /** Emit the most recent items emitted by the source within
     * periodic time intervals.
     *
