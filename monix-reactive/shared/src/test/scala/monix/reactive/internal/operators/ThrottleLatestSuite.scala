@@ -17,7 +17,9 @@
 
 package monix.reactive.internal.operators
 
-import monix.reactive.Observable
+import monix.execution.Ack.Continue
+import monix.reactive.{Observable, Observer}
+import monix.reactive.internal.operators.MaxSuite.{assert, assertEquals, test}
 
 import scala.concurrent.duration._
 
@@ -32,11 +34,11 @@ object ThrottleLatestSuite extends BaseOperatorSuite {
     } else {
 
       val o = Observable
-        .intervalAtFixedRate(1.second)
+        .intervalAtFixedRate(2.second)
         .take(sourceCount.toLong)
         .throttleLatest(1.second, true)
 
-      Sample(o, sourceCount, sum(sourceCount), 1.second, 1.second)
+      Sample(o, sourceCount, sum(sourceCount), 2.second, 2.second)
     }
   }
 
@@ -44,10 +46,40 @@ object ThrottleLatestSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
   override def cancelableObservables() = {
-    val o = Observable.intervalAtFixedRate(500.millis, 1.second).throttleFirst(1.second)
+    val o = Observable.intervalAtFixedRate(2.second).throttleLatest(1.second, true)
     Seq(
-      Sample(o, 0, 0, 0.seconds, 0.seconds),
-      Sample(o, 1, 1, 1.seconds, 0.seconds)
+      Sample(o, 1, 0, 0.seconds, 2.seconds),
+      Sample(o, 2, 1, 2.seconds, 2.seconds)
     )
+  }
+
+  test("should emit last element onComplete if emitLast is set to true") { implicit s =>
+    val source: Observable[Long] = Observable.intervalAtFixedRate(1.second).take(2).throttleLatest(5.second, true)
+    var received = 0
+    var wasCompleted = false
+    source.unsafeSubscribeFn(new Observer[Long] {
+      def onNext(elem: Long) = { received += 1; Continue }
+      def onError(ex: Throwable) = ()
+      def onComplete() = { wasCompleted = true }
+    })
+
+    s.tick(1.second)
+    assertEquals(received, 2)
+    assert(wasCompleted)
+  }
+
+  test("should not emit last element onComplete if emitLast is set to false") { implicit s =>
+    val source: Observable[Long] = Observable.intervalAtFixedRate(1.second).take(2).throttleLatest(5.second, false)
+    var received = 0
+    var wasCompleted = false
+    source.unsafeSubscribeFn(new Observer[Long] {
+      def onNext(elem: Long) = { received += 1; Continue }
+      def onError(ex: Throwable) = ()
+      def onComplete() = { wasCompleted = true }
+    })
+
+    s.tick(1.second)
+    assertEquals(received, 1)
+    assert(wasCompleted)
   }
 }

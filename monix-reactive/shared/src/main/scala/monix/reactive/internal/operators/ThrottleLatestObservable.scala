@@ -74,10 +74,6 @@ private[reactive] final class ThrottleLatestObservable[A](source: Observable[A],
                   mainTask.cancel()
                 }
                 Stop
-              case _ => {
-                println("ASYNC")
-                Continue
-              }
             }
             ()
           } else {
@@ -108,7 +104,6 @@ private[reactive] final class ThrottleLatestObservable[A](source: Observable[A],
         if (!isDone) {
           isDone = true
           out.onError(ex)
-
           task.cancel()
         }
       }
@@ -119,6 +114,7 @@ private[reactive] final class ThrottleLatestObservable[A](source: Observable[A],
             out.onNext(lastEvent).syncTryFlatten.syncOnContinue{
               isDone = true
               out.onComplete()
+              task.cancel()
             }
           } else {
             isDone = true
