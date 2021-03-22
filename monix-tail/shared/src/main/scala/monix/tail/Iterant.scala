@@ -2701,12 +2701,12 @@ object Iterant extends IterantInstances {
       try {
         f(state).map {
           case (elem, newState) =>
-            Next(elem, F.suspend(loop(newState)))
+            Next(elem, F.defer(loop(newState)))
         }
       } catch {
         case e if NonFatal(e) => F.pure(Halt(Some(e)))
       }
-    Suspend(F.suspend(seed.flatMap(loop)))
+    Suspend(F.defer(seed.flatMap(loop)))
   }
 
   /**

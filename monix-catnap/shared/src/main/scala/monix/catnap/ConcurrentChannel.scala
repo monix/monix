@@ -290,7 +290,7 @@ final class ConcurrentChannel[F[_], E, A] private (
     *         channel is halted and cannot receive any more events
     */
   def push(a: A): F[Boolean] =
-    F.suspend {
+    F.defer {
       state.get() match {
         case connected @ Connected(_, _) =>
           // broadcasting to many?
@@ -339,7 +339,7 @@ final class ConcurrentChannel[F[_], E, A] private (
     *         if the channel is halted and cannot receive any more events
     */
   def pushMany(seq: Iterable[A]): F[Boolean] =
-    F.suspend {
+    F.defer {
       state.get() match {
         case current @ Connected(_, _) =>
           val arr = current.array
@@ -363,7 +363,7 @@ final class ConcurrentChannel[F[_], E, A] private (
     * will be taken into account, all other `halt` messages are ignored.
     */
   def halt(e: E): F[Unit] =
-    F.suspend[Unit] {
+    F.defer[Unit] {
       val old = state.getAndTransform {
         case Connected(_, _) => Halt(e)
         case halt @ Halt(_) => halt
@@ -470,7 +470,7 @@ final class ConcurrentChannel[F[_], E, A] private (
     *         of consumers are observed as being connected to the channel
     */
   def awaitConsumers(n: Int): F[Boolean] =
-    F.suspend(awaitConsumersLoop(n))
+    F.defer(awaitConsumersLoop(n))
 
   private def awaitConsumersSleep(n: Int, p: CancelablePromise[Unit]): F[Boolean] = {
     val await = helpers.awaitPromise(p)
@@ -740,7 +740,7 @@ object ConcurrentChannel {
       F.delay(notifyConsumers())
 
     def push(a: A): F[Boolean] =
-      F.suspend {
+      F.defer {
         (tryPushToOurQueue(a): @switch) match {
           case Repeat =>
             F.asyncF(cb => helpers.sleepThenRepeat(producersAwait, () => tryPushToOurQueue(a), pushFilter, pushMap, cb))
@@ -787,7 +787,7 @@ object ConcurrentChannel {
         }
       }
 
-      F.suspend(loop(seq.iterator))
+      F.defer(loop(seq.iterator))
     }
   }
 
@@ -847,7 +847,7 @@ object ConcurrentChannel {
             Right(a)
         }
 
-      F.suspend {
+      F.defer {
         task() match {
           case null =>
             F.asyncF(cb =>
@@ -897,7 +897,7 @@ object ConcurrentChannel {
           }
       }
 
-      F.suspend[Either[E, Seq[A]]] {
+      F.defer[Either[E, Seq[A]]] {
         assert(minLength > 0, "minLength > 0")
         assert(minLength <= maxLength, "minLength <= maxLength")
 

@@ -32,7 +32,7 @@ private[tail] object IterantFoldLeftL {
     */
   final def apply[F[_], S, A](source: Iterant[F, A], seed: => S)(op: (S, A) => S)(implicit F: Sync[F]): F[S] = {
 
-    F.suspend {
+    F.defer {
       var catchErrors = true
       try {
         // handle exception in the seed

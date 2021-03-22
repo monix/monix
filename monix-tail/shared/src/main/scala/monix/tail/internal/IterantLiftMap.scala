@@ -51,7 +51,7 @@ private[tail] object IterantLiftMap {
     def visit[S](ref: Scope[F, S, A]): Iterant[G, A] =
       Scope[G, S, A](
         f(ref.acquire),
-        s => G.suspend(f(ref.use(s)).map(this)),
+        s => G.defer(f(ref.use(s)).map(this)),
         (s, exitCase) => f(ref.release(s, exitCase)))
 
     def visit(ref: Last[F, A]): Iterant[G, A] =

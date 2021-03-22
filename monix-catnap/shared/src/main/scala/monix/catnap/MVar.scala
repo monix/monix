@@ -284,7 +284,7 @@ object MVar {
       F.delay(unsafeTryRead())
 
     final def put(a: A): F[Unit] =
-      F.suspend {
+      F.defer {
         if (unsafeTryPut(a))
           F.unit
         else
@@ -292,7 +292,7 @@ object MVar {
       }
 
     final def take: F[A] =
-      F.suspend[A] {
+      F.defer[A] {
         unsafeTryTake() match {
           case Some(a) => F.pure(a)
           case None =>

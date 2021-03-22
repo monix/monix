@@ -89,7 +89,7 @@ private[tail] object IterantOnErrorHandleWith {
       Suspend(continueWith(ref.rest))
 
     def visit(ref: Concat[F, A]): Iterant[F, A] =
-      Concat(ref.lh.map(this), F.suspend {
+      Concat(ref.lh.map(this), F.defer {
         if (self.wasErrorHandled)
           F.pure(Iterant.empty[F, A])
         else
