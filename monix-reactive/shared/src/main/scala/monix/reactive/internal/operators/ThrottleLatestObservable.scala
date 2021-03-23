@@ -27,7 +27,10 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
-private[reactive] final class ThrottleLatestObservable[A](source: Observable[A], duration: FiniteDuration, emitLast: Boolean)
+private[reactive] final class ThrottleLatestObservable[A](
+  source: Observable[A],
+  duration: FiniteDuration,
+  emitLast: Boolean)
   extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
@@ -44,7 +47,7 @@ private[reactive] final class ThrottleLatestObservable[A](source: Observable[A],
       private[this] var lastEvent: A = _
       @volatile private[this] var hasValue = false
       @volatile private[this] var shouldEmitNext = true
-      private [this] var lastAck: Future[Ack] = _
+      private[this] var lastAck: Future[Ack] = _
 
       def scheduleNext(delayMillis: Long): Unit = {
         // No need to synchronize this assignment, since we have a
@@ -53,19 +56,19 @@ private[reactive] final class ThrottleLatestObservable[A](source: Observable[A],
         ()
       }
 
-
-      override def run(): Unit = self.synchronized{
-        if(!isDone) {
-          if(hasValue) {
+      override def run(): Unit = self.synchronized {
+        if (!isDone) {
+          if (hasValue) {
             hasValue = false
             val now = scheduler.clockMonotonic(TimeUnit.SECONDS)
 
             out.onNext(lastEvent).syncFlatMap {
               case Continue =>
                 val elapsed = scheduler.clockMonotonic(TimeUnit.SECONDS) - now
-                val delay = if(durationMilis > elapsed)
-                  durationMilis - elapsed
-                else 0L
+                val delay =
+                  if (durationMilis > elapsed)
+                    durationMilis - elapsed
+                  else 0L
                 scheduleNext(delay)
                 Continue
               case Stop =>
@@ -83,8 +86,8 @@ private[reactive] final class ThrottleLatestObservable[A](source: Observable[A],
       }
 
       override def onNext(elem: A): Future[Ack] = self.synchronized {
-        if(!isDone) {
-          if(shouldEmitNext) {
+        if (!isDone) {
+          if (shouldEmitNext) {
             hasValue = false
             shouldEmitNext = false
             val next = out.onNext(elem)
@@ -100,7 +103,7 @@ private[reactive] final class ThrottleLatestObservable[A](source: Observable[A],
         }
       }
 
-      override def onError(ex: Throwable): Unit =  self.synchronized {
+      override def onError(ex: Throwable): Unit = self.synchronized {
         if (!isDone) {
           isDone = true
           out.onError(ex)
@@ -108,10 +111,10 @@ private[reactive] final class ThrottleLatestObservable[A](source: Observable[A],
         }
       }
 
-      override def onComplete(): Unit =  self.synchronized {
+      override def onComplete(): Unit = self.synchronized {
         if (!isDone) {
-          if(emitLast && hasValue) {
-            out.onNext(lastEvent).syncTryFlatten.syncOnContinue{
+          if (emitLast && hasValue) {
+            out.onNext(lastEvent).syncTryFlatten.syncOnContinue {
               isDone = true
               out.onComplete()
               task.cancel()

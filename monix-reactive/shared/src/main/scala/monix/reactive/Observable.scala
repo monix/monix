@@ -3354,18 +3354,6 @@ abstract class Observable[+A] extends Serializable { self =>
   /** Emit first element emitted by the source and then
     * emit the most recent items emitted by the source within
     * periodic time intervals.
-    *
-    ** 0 200
-    * 1 400
-    * 2 600
-    * 3 800
-    * 4 1000
-    * 5 1200
-    * 6 1400
-    * 7 1600
-    * 8 1800
-    * 9 2000
-    * 10 2200
     * Usage:
     *
     * {{{
@@ -3382,7 +3370,6 @@ abstract class Observable[+A] extends Serializable { self =>
     *        emitted by the source Observable will be emitted
     * @param period duration of windows within which the last item
     *        emitted by the source Observable will be emitted
-    *
     */
   final def throttleLatest(period: FiniteDuration, emitLast: Boolean): Observable[A] =
     new ThrottleLatestObservable[A](self, period, emitLast)
