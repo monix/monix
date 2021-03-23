@@ -3368,8 +3368,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * @param period duration of windows within which the last item
     *        emitted by the source Observable will be emitted
-    * @param period duration of windows within which the last item
-    *        emitted by the source Observable will be emitted
+    * @param emitLast if true last element will be emitted when source completes
+    *                 no matter if interval has passed or not
     */
   final def throttleLatest(period: FiniteDuration, emitLast: Boolean): Observable[A] =
     new ThrottleLatestObservable[A](self, period, emitLast)
