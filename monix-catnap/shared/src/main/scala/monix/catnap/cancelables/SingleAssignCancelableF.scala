@@ -59,11 +59,11 @@ final class SingleAssignCancelableF[F[_]] private (extra: CancelableF[F])(implic
           else
             loop()
       }
-    F.suspend(loop())
+    F.defer(loop())
   }
 
   def set(ref: CancelableF[F]): F[Unit] =
-    F.suspend(unsafeLoop(ref))
+    F.defer(unsafeLoop(ref))
 
   @tailrec
   private def unsafeLoop(ref: CancelableF[F]): F[Unit] = {

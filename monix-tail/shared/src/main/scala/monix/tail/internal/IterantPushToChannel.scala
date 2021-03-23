@@ -30,7 +30,7 @@ private[tail] object IterantPushToChannel {
   def apply[F[_], A](source: Iterant[F, A], channel: ProducerF[F, Option[Throwable], A])(
     implicit F: Sync[F]): F[Unit] = {
 
-    F.suspend(new Loop(channel).apply(source))
+    F.defer(new Loop(channel).apply(source))
   }
 
   private final class Loop[F[_], A](channel: ProducerF[F, Option[Throwable], A])(implicit F: Sync[F])

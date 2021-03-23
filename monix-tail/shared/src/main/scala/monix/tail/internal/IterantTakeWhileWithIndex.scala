@@ -58,7 +58,7 @@ private[tail] object IterantTakeWhileWithIndex {
       Suspend(ref.rest.map(this))
 
     def visit(ref: Concat[F, A]): Iterant[F, A] =
-      Concat(ref.lh.map(this), F.suspend {
+      Concat(ref.lh.map(this), F.defer {
         if (isActive)
           ref.rh.map(this)
         else

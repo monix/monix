@@ -27,7 +27,7 @@ private[tail] object IterantReduce {
   /** Implementation for `Iterant.reduce`. */
   def apply[F[_], A](self: Iterant[F, A], op: (A, A) => A)(implicit F: Sync[F]): F[Option[A]] = {
 
-    F.suspend { new Loop[F, A](op).apply(self) }
+    F.defer { new Loop[F, A](op).apply(self) }
   }
 
   private class Loop[F[_], A](op: (A, A) => A)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, F[Option[A]]] {

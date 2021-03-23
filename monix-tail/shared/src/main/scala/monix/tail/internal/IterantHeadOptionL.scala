@@ -34,7 +34,7 @@ private[tail] object IterantHeadOptionL {
       case Next(a, _) => F.pure(Some(a))
       case Last(a) => F.pure(Some(a))
       case _ =>
-        F.suspend(new Loop[F, A].apply(source))
+        F.defer(new Loop[F, A].apply(source))
     }
   }
 

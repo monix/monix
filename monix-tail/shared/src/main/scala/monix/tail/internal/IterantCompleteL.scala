@@ -30,7 +30,7 @@ private[tail] object IterantCompleteL {
     */
   final def apply[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): F[Unit] = {
 
-    F.suspend(new Loop[F, A]().apply(source))
+    F.defer(new Loop[F, A]().apply(source))
   }
 
   private final class Loop[F[_], A](implicit F: Sync[F]) extends Iterant.Visitor[F, A, F[Unit]] {

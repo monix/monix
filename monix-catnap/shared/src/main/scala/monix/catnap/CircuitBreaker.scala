@@ -249,7 +249,7 @@ final class CircuitBreaker[F[_]] private (
     * task, but with the protection of this circuit breaker.
     */
   def protect[A](task: F[A]): F[A] =
-    F.suspend(unsafeProtect(task))
+    F.defer(unsafeProtect(task))
 
   /**
     * Awaits for this `CircuitBreaker` to be [[CircuitBreaker.Closed closed]].
@@ -270,7 +270,7 @@ final class CircuitBreaker[F[_]] private (
     */
   def awaitClose(implicit F: Concurrent[F] OrElse Async[F]): F[Unit] = {
     val F0 = F.unify
-    F0.suspend {
+    F0.defer {
       stateRef.get() match {
         case ref: Open =>
           FutureLift.scalaToConcurrentOrAsync(F0.pure(ref.awaitClose.future))

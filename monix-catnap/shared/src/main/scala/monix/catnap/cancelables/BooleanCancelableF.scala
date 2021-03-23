@@ -98,7 +98,7 @@ object BooleanCancelableF {
       F.delay(canceled.get())
 
     def cancel: CancelToken[F] =
-      F.suspend {
+      F.defer {
         if (!canceled.getAndSet(true)) {
           val ref = this.ref
           this.ref = null.asInstanceOf[CancelToken[F]]

@@ -283,7 +283,7 @@ object Semaphore {
     val count: F[Long] = F0.delay(unsafeCount())
 
     def acquireN(n: Long): F[Unit] =
-      F0.suspend {
+      F0.defer {
         if (unsafeTryAcquireN(n))
           F0.unit
         else
