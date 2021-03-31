@@ -30,6 +30,7 @@ import org.reactivestreams.Publisher
 
 import scala.collection.immutable.LinearSeq
 import scala.concurrent.duration.FiniteDuration
+import cats.effect.Temporal
 
 /**
   * [[IterantBuilders.Apply]] is a set of builders for `Iterant` returned
@@ -228,7 +229,7 @@ object IterantBuilders {
       * Aliased builder, see documentation for
       * [[[Iterant.intervalAtFixedRate[F[_]](period* Iterant.intervalAtFixedRate]]].
       */
-    def intervalAtFixedRate(period: FiniteDuration)(implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+    def intervalAtFixedRate(period: FiniteDuration)(implicit F: Async[F], timer: Temporal[F]): Iterant[F, Long] =
       Iterant.intervalAtFixedRate(period)
 
     /**
@@ -237,14 +238,14 @@ object IterantBuilders {
       */
     def intervalAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)(
       implicit F: Async[F],
-      timer: Timer[F]): Iterant[F, Long] =
+      timer: Temporal[F]): Iterant[F, Long] =
       Iterant.intervalAtFixedRate(initialDelay, period)
 
     /**
       * Aliased builder, see documentation for
       * [[[Iterant.intervalWithFixedDelay[F[_]](delay* Iterant.intervalAtFixedRate]]].
       */
-    def intervalWithFixedDelay(delay: FiniteDuration)(implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+    def intervalWithFixedDelay(delay: FiniteDuration)(implicit F: Async[F], timer: Temporal[F]): Iterant[F, Long] =
       Iterant.intervalWithFixedDelay(delay)
 
     /**
@@ -253,7 +254,7 @@ object IterantBuilders {
       */
     def intervalWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)(
       implicit F: Async[F],
-      timer: Timer[F]): Iterant[F, Long] =
+      timer: Temporal[F]): Iterant[F, Long] =
       Iterant.intervalWithFixedDelay(initialDelay, delay)
 
     /** Aliased builder, see documentation for [[Iterant.fromReactivePublisher]]. */
@@ -280,8 +281,7 @@ object IterantBuilders {
       bufferCapacity: BufferCapacity = Bounded(recommendedBufferChunkSize),
       maxBatchSize: Int = recommendedBufferChunkSize,
       producerType: ChannelType.ProducerSide = MultiProducer)(
-      implicit F: Concurrent[F],
-      cs: ContextShift[F]): F[(ProducerF[F, Option[Throwable], A], Iterant[F, A])] =
+      implicit F: Concurrent[F]): F[(ProducerF[F, Option[Throwable], A], Iterant[F, A])] =
       Iterant.channel(bufferCapacity, maxBatchSize, producerType)
   }
 }

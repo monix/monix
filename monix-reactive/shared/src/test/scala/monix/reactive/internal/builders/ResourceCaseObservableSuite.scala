@@ -18,7 +18,6 @@
 package monix.reactive.internal.builders
 
 import cats.effect.ExitCase
-import cats.effect.concurrent.Deferred
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Task
@@ -30,6 +29,7 @@ import monix.reactive.{BaseTestSuite, Consumer, Observable}
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
+import cats.effect.Deferred
 
 object ResourceCaseObservableSuite extends BaseTestSuite {
   class Resource(var acquired: Int = 0, var released: Int = 0) {

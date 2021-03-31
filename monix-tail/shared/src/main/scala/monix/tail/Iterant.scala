@@ -53,6 +53,7 @@ import org.reactivestreams.Publisher
 import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import cats.effect.Temporal
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
   * streaming of elements using a pull-based protocol.
@@ -1835,7 +1836,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     * @see [[consumeWithConfig]] for fine tuning the internal buffer of the
     *      created consumer
     */
-  final def consume(implicit F: Concurrent[F], cs: ContextShift[F]): Resource[F, Consumer[F, A]] =
+  final def consume(implicit F: Concurrent[F]): Resource[F, Consumer[F, A]] =
     consumeWithConfig(ConsumerF.Config.default)(F, cs)
 
   /** Version of [[consume]] that allows for fine tuning the underlying
@@ -1865,16 +1866,14 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   @UnsafeProtocol
   final def consumeWithConfig(config: ConsumerF.Config)(
-    implicit F: Concurrent[F],
-    cs: ContextShift[F]
-  ): Resource[F, Consumer[F, A]] = {
+    implicit F: Concurrent[F]): Resource[F, Consumer[F, A]] = {
     IterantConsume(self, config)(F, cs)
   }
 
   /**
     * Converts this `Iterant` to a [[monix.catnap.ChannelF]].
     */
-  final def toChannel(implicit F: Concurrent[F], cs: ContextShift[F]): Channel[F, A] =
+  final def toChannel(implicit F: Concurrent[F]): Channel[F, A] =
     new Channel[F, A] {
       def consume: Resource[F, Consumer[F, A]] =
         self.consume
@@ -2840,8 +2839,7 @@ object Iterant extends IterantInstances {
     bufferCapacity: BufferCapacity = Bounded(recommendedBufferChunkSize),
     maxBatchSize: Int = recommendedBufferChunkSize,
     producerType: ChannelType.ProducerSide = MultiProducer)(
-    implicit F: Concurrent[F],
-    cs: ContextShift[F]): F[(Producer[F, A], Iterant[F, A])] = {
+    implicit F: Concurrent[F]): F[(Producer[F, A], Iterant[F, A])] = {
 
     val channelF = ConcurrentChannel[F].withConfig[Option[Throwable], A](
       producerType = producerType
@@ -2927,7 +2925,7 @@ object Iterant extends IterantInstances {
     * @param timer is the timer implementation used to generate
     *        delays and to fetch the current time
     */
-  def intervalAtFixedRate[F[_]](period: FiniteDuration)(implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+  def intervalAtFixedRate[F[_]](period: FiniteDuration)(implicit F: Async[F], timer: Temporal[F]): Iterant[F, Long] =
     IterantIntervalAtFixedRate(Duration.Zero, period)
 
   /** $intervalAtFixedRateDesc
@@ -2942,7 +2940,7 @@ object Iterant extends IterantInstances {
     */
   def intervalAtFixedRate[F[_]](initialDelay: FiniteDuration, period: FiniteDuration)(
     implicit F: Async[F],
-    timer: Timer[F]): Iterant[F, Long] =
+    timer: Temporal[F]): Iterant[F, Long] =
     IterantIntervalAtFixedRate(initialDelay, period)
 
   /** $intervalWithFixedDelayDesc
@@ -2954,7 +2952,7 @@ object Iterant extends IterantInstances {
     * @param timer is the timer implementation used to generate
     *        delays and to fetch the current time
     */
-  def intervalWithFixedDelay[F[_]](delay: FiniteDuration)(implicit F: Async[F], timer: Timer[F]): Iterant[F, Long] =
+  def intervalWithFixedDelay[F[_]](delay: FiniteDuration)(implicit F: Async[F], timer: Temporal[F]): Iterant[F, Long] =
     IterantIntervalWithFixedDelay(Duration.Zero, delay)
 
   /** $intervalWithFixedDelayDesc
@@ -2966,7 +2964,7 @@ object Iterant extends IterantInstances {
     */
   def intervalWithFixedDelay[F[_]](initialDelay: FiniteDuration, delay: FiniteDuration)(
     implicit F: Async[F],
-    timer: Timer[F]): Iterant[F, Long] =
+    timer: Temporal[F]): Iterant[F, Long] =
     IterantIntervalWithFixedDelay(initialDelay, delay)
 
   /** Concatenates list of Iterants into a single stream

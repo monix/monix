@@ -19,7 +19,6 @@ package monix.reactive.internal.builders
 
 import cats.implicits._
 import cats.effect.ExitCase
-import cats.effect.concurrent.Deferred
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.reactive.observers.Subscriber
@@ -27,6 +26,7 @@ import monix.reactive.{BaseTestSuite, Observable}
 
 import scala.concurrent.duration._
 import scala.util.Success
+import cats.effect.Deferred
 
 object BracketObservableSuite extends BaseTestSuite {
   test("simple bracket") { implicit s =>

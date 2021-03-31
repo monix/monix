@@ -18,7 +18,7 @@
 package monix.reactive
 
 import cats.Eval
-import cats.effect.{ContextShift, IO, SyncIO}
+import cats.effect.{IO, SyncIO}
 import monix.catnap.SchedulerEffect
 import monix.eval.TaskConversionsSuite.{CIO, CustomConcurrentEffect, CustomEffect}
 import monix.eval.{Coeval, Task}
