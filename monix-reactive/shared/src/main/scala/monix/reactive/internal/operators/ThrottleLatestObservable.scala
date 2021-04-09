@@ -45,10 +45,9 @@ private[reactive] final class ThrottleLatestObservable[A](
       private[this] val durationMilis = duration.toMillis
       private[this] var isDone = false
       private[this] var lastEvent: A = _
-      @volatile private[this] var hasValue = false
-      @volatile private[this] var shouldEmitNext = true
-      private[this] var lastAck: Future[Ack] = _
-
+      private[this] var hasValue = false
+      private[this] var shouldEmitNext = true
+      
       def scheduleNext(delayMillis: Long): Unit = {
         // No need to synchronize this assignment, since we have a
         // happens-before relationship between scheduleOnce invocations.
@@ -60,11 +59,11 @@ private[reactive] final class ThrottleLatestObservable[A](
         if (!isDone) {
           if (hasValue) {
             hasValue = false
-            val now = scheduler.clockMonotonic(TimeUnit.SECONDS)
+            val now = scheduler.clockMonotonic(TimeUnit.MILLISECONDS)
 
             out.onNext(lastEvent).syncFlatMap {
               case Continue =>
-                val elapsed = scheduler.clockMonotonic(TimeUnit.SECONDS) - now
+                val elapsed = scheduler.clockMonotonic(TimeUnit.MILLISECONDS) - now
                 val delay =
                   if (durationMilis > elapsed)
                     durationMilis - elapsed
