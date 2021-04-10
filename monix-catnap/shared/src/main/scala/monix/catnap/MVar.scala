@@ -17,13 +17,14 @@
 
 package monix.catnap
 
-import cats.effect.concurrent.{Ref, MVar2 => CatsMVar}
-import cats.effect.{Async, Concurrent, ContextShift}
+import cats.effect.concurrent.{MVar2 => CatsMVar}
+import cats.effect.{Async, Concurrent}
 import monix.catnap.internal.AsyncUtils
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.internal.GenericVar
 import monix.execution.internal.GenericVar.Id
+import cats.effect.Ref
 
 /** A mutable location, that is either empty or contains
   * a value of type `A`.
@@ -207,8 +208,7 @@ object MVar {
     * Builds an [[MVar]] instance with an `initial` value.
     */
   def of[F[_], A](initial: A, ps: PaddingStrategy = NoPadding)(
-    implicit F: Concurrent[F] OrElse Async[F],
-    cs: ContextShift[F]): F[MVar[F, A]] = {
+    implicit F: Concurrent[F] OrElse Async[F]): F[MVar[F, A]] = {
 
     F.fold(
       implicit F => F.delay(new MVar(new ConcurrentImpl(Some(initial), ps))),
@@ -220,7 +220,7 @@ object MVar {
     * Builds an empty [[MVar]] instance.
     */
   def empty[F[_], A](
-    ps: PaddingStrategy = NoPadding)(implicit F: Concurrent[F] OrElse Async[F], cs: ContextShift[F]): F[MVar[F, A]] = {
+    ps: PaddingStrategy = NoPadding)(implicit F: Concurrent[F] OrElse Async[F]): F[MVar[F, A]] = {
 
     F.fold(
       implicit F => F.delay(new MVar(new ConcurrentImpl(None, ps))),
@@ -237,7 +237,7 @@ object MVar {
       *
       * @see documentation for [[MVar.of]]
       */
-    def of[A](a: A, ps: PaddingStrategy = NoPadding)(implicit cs: ContextShift[F]): F[MVar[F, A]] =
+    def of[A](a: A, ps: PaddingStrategy = NoPadding): F[MVar[F, A]] =
       MVar.of(a, ps)(F, cs)
 
     /**
@@ -245,7 +245,7 @@ object MVar {
       *
       * @see documentation for [[MVar.empty]]
       */
-    def empty[A](ps: PaddingStrategy = NoPadding)(implicit cs: ContextShift[F]): F[MVar[F, A]] =
+    def empty[A](ps: PaddingStrategy = NoPadding): F[MVar[F, A]] =
       MVar.empty(ps)(F, cs)
   }
 

@@ -67,7 +67,7 @@ object RepeatEvalFSuite extends TestSuite[TestScheduler] {
     var received = 0
 
     var i = 0
-    val obs = Observable.repeatEvalF(IO.async[Int] { cb =>
+    val obs = Observable.repeatEvalF(IO.async_[Int] { cb =>
       i += 1
       cb(Right(i))
     })

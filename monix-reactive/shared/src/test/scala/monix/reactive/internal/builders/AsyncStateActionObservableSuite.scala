@@ -142,7 +142,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(received, Platform.recommendedBatchSize * 2)
   }
 
-  def intAsyncIO(seed: Long): IO[(Int, Long)] = IO.async(cb => cb(Right(int(seed))))
+  def intAsyncIO(seed: Long): IO[(Int, Long)] = IO.async_(cb => cb(Right(int(seed))))
   def intAsync(seed: Long) = Task.evalAsync(int(seed))
   def intNow(seed: Long) = Task.now(int(seed))
   def intError(ex: Throwable)(seed: Long) = Task.raiseError[(Int, Long)](ex)

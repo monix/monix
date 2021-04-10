@@ -18,7 +18,7 @@
 package monix.tail
 
 import cats.implicits._
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.IO
 import minitest.SimpleTestSuite
 import monix.catnap.ProducerF
 import monix.execution.BufferCapacity.{Bounded, Unbounded}
@@ -26,13 +26,14 @@ import monix.execution.ChannelType.{MultiProducer, SingleProducer}
 import monix.execution.internal.Platform
 import monix.execution.{BufferCapacity, Scheduler}
 import monix.catnap.SchedulerEffect
+import cats.effect.Temporal
 
 object IterantChannelSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = Scheduler.global
 
   implicit def contextShift(implicit s: Scheduler): ContextShift[IO] =
     SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
-  implicit def timer(implicit s: Scheduler): Timer[IO] =
+  implicit def timer(implicit s: Scheduler): Temporal[IO] =
     SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
   def testIO(name: String)(f: => IO[Unit]) =
