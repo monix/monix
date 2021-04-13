@@ -18,9 +18,12 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
+import monix.reactive.subjects.PublishSubject
 import monix.reactive.{Observable, Observer}
+import monix.execution.FutureUtils.extensions._
 
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 object ThrottleLatestSuite extends BaseOperatorSuite {
@@ -86,4 +89,93 @@ object ThrottleLatestSuite extends BaseOperatorSuite {
     assertEquals(elements.toSeq, Seq(0, 9, 18, 27))
     assert(wasCompleted)
   }
+
+  test("specified period should be respected if consumer is responsive") { implicit s =>
+    val sub = PublishSubject[Long]()
+    val obs = sub.throttleLatest(500.millis, true)
+
+    var onNextCount = 0
+    var received = 0
+    var wasCompleted = false
+
+    obs.unsafeSubscribeFn(new Observer[Long] {
+      def onNext(elem: Long) = {
+        onNextCount += 1
+        Future.delayedResult(100.millis) {
+          received += 1
+          Continue
+        }
+      }
+
+      def onError(ex: Throwable) = ()
+      def onComplete() = wasCompleted = true
+    })
+
+    sub.onNext(1)
+    sub.onNext(2)
+
+    s.tick()
+    assertEquals(onNextCount, 1)
+    assertEquals(received, 0)
+
+    s.tick(500.millis)
+    assertEquals(onNextCount, 2)
+    assertEquals(received, 1)
+
+    s.tick(100.millis)
+    assertEquals(onNextCount, 2)
+    assertEquals(received, 2)
+
+    sub.onNext(3)
+    sub.onComplete()
+    s.tick()
+    assert(!wasCompleted)
+
+    s.tick(100.millis)
+    assertEquals(onNextCount, 3)
+    assertEquals(received, 3)
+    assert(wasCompleted)
+  }
+
+  test("specified period should not be respected if consumer is not responsive") { implicit s =>
+    val sub = PublishSubject[Long]()
+    val obs = sub.throttleLatest(500.millis, true)
+
+    var onNextCount = 0
+    var received = 0
+    var wasCompleted = false
+
+    obs.unsafeSubscribeFn(new Observer[Long] {
+      def onNext(elem: Long) = {
+        onNextCount += 1
+        Future.delayedResult(1000.millis) {
+          received = 1
+          Continue
+        }
+      }
+
+      def onError(ex: Throwable) = ()
+      def onComplete() = wasCompleted = true
+    })
+
+    sub.onNext(1)
+
+    s.tick()
+    assertEquals(onNextCount, 1)
+    assertEquals(received, 0)
+
+    s.tick(500.millis)
+    assertEquals(onNextCount, 1)
+    assertEquals(received, 0)
+
+    sub.onComplete()
+    s.tick()
+    assert(!wasCompleted)
+
+    s.tick(500.millisecond)
+    assertEquals(onNextCount, 1)
+    assertEquals(received, 1)
+    assert(wasCompleted)
+  }
+
 }

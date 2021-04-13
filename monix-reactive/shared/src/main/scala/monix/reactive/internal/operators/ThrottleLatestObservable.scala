@@ -47,7 +47,8 @@ private[reactive] final class ThrottleLatestObservable[A](
       private[this] var lastEvent: A = _
       private[this] var hasValue = false
       private[this] var shouldEmitNext = true
-      
+      private[this] var ack: Future[Ack] = _
+
       def scheduleNext(delayMillis: Long): Unit = {
         // No need to synchronize this assignment, since we have a
         // happens-before relationship between scheduleOnce invocations.
@@ -60,8 +61,8 @@ private[reactive] final class ThrottleLatestObservable[A](
           if (hasValue) {
             hasValue = false
             val now = scheduler.clockMonotonic(TimeUnit.MILLISECONDS)
-
-            out.onNext(lastEvent).syncFlatMap {
+            ack = out.onNext(lastEvent)
+            ack.syncFlatMap {
               case Continue =>
                 val elapsed = scheduler.clockMonotonic(TimeUnit.MILLISECONDS) - now
                 val delay =
@@ -89,9 +90,9 @@ private[reactive] final class ThrottleLatestObservable[A](
           if (shouldEmitNext) {
             hasValue = false
             shouldEmitNext = false
-            val next = out.onNext(elem)
+            ack = out.onNext(elem)
             scheduleNext(durationMilis)
-            next
+            ack
           } else {
             lastEvent = elem
             hasValue = true
@@ -112,17 +113,23 @@ private[reactive] final class ThrottleLatestObservable[A](
 
       override def onComplete(): Unit = self.synchronized {
         if (!isDone) {
-          if (emitLast && hasValue) {
-            out.onNext(lastEvent).syncTryFlatten.syncOnContinue {
-              isDone = true
-              out.onComplete()
-              task.cancel()
-            }
-          } else {
+          val lastAck = if(ack == null) Continue else ack
+          lastAck.syncTryFlatten.syncOnContinue{signalOnComplete()}
+        }
+        ()
+      }
+
+      private def signalOnComplete(): Unit = {
+        if (emitLast && hasValue) {
+          out.onNext(lastEvent).syncTryFlatten.syncOnContinue {
             isDone = true
             out.onComplete()
             task.cancel()
           }
+        } else {
+          isDone = true
+          out.onComplete()
+          task.cancel()
         }
         ()
       }
