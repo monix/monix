@@ -23,7 +23,6 @@ import monix.execution.FutureUtils.extensions._
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 import monix.reactive.{BaseTestSuite, Observable, Observer}
-
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 import scala.util.Random
@@ -86,6 +85,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
     val sourceCount = Random.nextInt(300) + 100
     var received = 0
     var wasCompleted = false
+
     createObservable(sourceCount) match {
       case None => ignore()
       case Some(Sample(obs, count, _, waitForFirst, waitForNext)) =>
