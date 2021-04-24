@@ -3351,6 +3351,28 @@ abstract class Observable[+A] extends Serializable { self =>
   final def throttleLast(period: FiniteDuration): Observable[A] =
     sample(period)
 
+  /** Emit first element emitted by the source and then
+    * emit the most recent items emitted by the source within
+    * periodic time intervals.
+    * Usage:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   // emits 0 after 200 ms and then 4,9 in 1 sec intervals and 10 after the observable completes
+    *   Observable.fromIterable(0 to 10)
+    *     // without delay, it would return only 0, 10
+    *     .delayOnNext(200.millis)
+    *     .throttleLatest(1.second, true)
+    * }}}
+    *
+    * @param period duration of windows within which the last item
+    *        emitted by the source Observable will be emitted
+    * @param emitLast if true last element will be emitted when source completes
+    *                 no matter if interval has passed or not
+    */
+  final def throttleLatest(period: FiniteDuration, emitLast: Boolean): Observable[A] =
+    new ThrottleLatestObservable[A](self, period, emitLast)
   /** Emit the most recent items emitted by the source within
     * periodic time intervals.
     *
