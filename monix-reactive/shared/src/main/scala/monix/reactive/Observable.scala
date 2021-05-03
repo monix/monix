@@ -3351,6 +3351,28 @@ abstract class Observable[+A] extends Serializable { self =>
   final def throttleLast(period: FiniteDuration): Observable[A] =
     sample(period)
 
+  /** Emit first element emitted by the source and then
+    * emit the most recent items emitted by the source within
+    * periodic time intervals.
+    * Usage:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   // emits 0 after 200 ms and then 4,9 in 1 sec intervals and 10 after the observable completes
+    *   Observable.fromIterable(0 to 10)
+    *     // without delay, it would return only 0, 10
+    *     .delayOnNext(200.millis)
+    *     .throttleLatest(1.second, true)
+    * }}}
+    *
+    * @param period duration of windows within which the last item
+    *        emitted by the source Observable will be emitted
+    * @param emitLast if true last element will be emitted when source completes
+    *                 no matter if interval has passed or not
+    */
+  final def throttleLatest(period: FiniteDuration, emitLast: Boolean): Observable[A] =
+    new ThrottleLatestObservable[A](self, period, emitLast)
   /** Emit the most recent items emitted by the source within
     * periodic time intervals.
     *
@@ -5615,6 +5637,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     *  }}}
+    *
+    *  @see [[paginate]] for a way to return one more value when generator returns `None`
     */
   def unfold[S, A](seed: => S)(f: S => Option[(A, S)]): Observable[A] =
     new UnfoldObservable(seed, f)
@@ -5628,9 +5652,31 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     *  }}}
+    *
+    *  @see [[paginateEval]] for a way to return one more value when generator returns `None`
     */
   def unfoldEval[S, A](seed: => S)(f: S => Task[Option[(A, S)]]): Observable[A] =
     new UnfoldEvalObservable(seed, f)
+
+  /** Similar to [[unfold]], but allows to take emission one step further.
+    * @example {{{
+    *  Observable.paginate(0)(i => if (i < 10) (i, Some(i + 1)) else (i, None)).toListL
+    *
+    *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    *  }}}
+    */
+  def paginate[S, A](seed: => S)(f: S => (A, Option[S])): Observable[A] =
+    new PaginateObservable(seed, f)
+
+  /** Similar to [[unfoldEval]], but allows to take emission one step further.
+    * @example {{{
+    *  Observable.paginateEval(0)(i => if (i < 10) Task.now((i, Some(i + 1))) else Task.now((i,None))).toListL
+    *
+    *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    *  }}}
+    */
+  def paginateEval[S, A](seed: => S)(f: S => Task[(A, Option[S])]): Observable[A] =
+    new PaginateEvalObservable(seed, f)
 
   /** Version of [[unfoldEval]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]

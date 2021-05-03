@@ -105,7 +105,7 @@ object CancelableF {
 
     if (seq.isEmpty) F.unit
     else
-      F.suspend {
+      F.defer {
         new CancelAllFrame[F](seq.map(_.cancel).iterator)(F).loop
       }
   }
@@ -123,7 +123,7 @@ object CancelableF {
 
     if (seq.isEmpty) F.unit
     else
-      F.suspend {
+      F.defer {
         new CancelAllFrame[F](seq.iterator)(F).loop
       }
   }
