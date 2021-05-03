@@ -34,9 +34,9 @@ object CanBindLocalsSuite extends SimpleTestSuite {
     assert(ev1 != ev2, "ev1 != ev2")
     assert(ev1.asInstanceOf[Any] != ev3.asInstanceOf[Any], "ev1 != ev3")
 
-    assertDoesNotCompile("implicitly[CanBindLocals[MySimpleType]]", "Cannot find an implicit.*")
-    assertDoesNotCompile("implicitly[CanBindLocals[MyType[String]]]", "Cannot find an implicit.*")
-    assertDoesNotCompile("implicitly[CanBindLocals[Int]]", "Cannot find an implicit.*")
+    assertDoesNotCompile("implicitly[CanBindLocals[MySimpleType]]")
+    assertDoesNotCompile("implicitly[CanBindLocals[MyType[String]]]")
+    assertDoesNotCompile("implicitly[CanBindLocals[Int]]")
   }
 
   test("import CanBindLocals.Implicits.synchronousAsDefault") {

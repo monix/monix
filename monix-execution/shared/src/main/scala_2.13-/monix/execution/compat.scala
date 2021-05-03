@@ -35,4 +35,10 @@ object compat {
     @inline def toSeq[A](array: Array[AnyRef]): Seq[A] =
       new scala.collection.mutable.WrappedArray.ofRef(array).toSeq.asInstanceOf[Seq[A]]
   }
+
+  private[monix] object Features {
+    type Flag <: Long with monix.execution.Features.FlagTag
+
+    type Flags <: Long with monix.execution.Features.FlagsTag
+  }
 }

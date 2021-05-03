@@ -17,9 +17,10 @@
 
 package monix.execution.atomic
 
-//import monix.execution.misc._
-//import monix.execution.atomic.PaddingStrategy.NoPadding
-//import scala.reflect.macros.whitebox
+import monix.execution.atomic.PaddingStrategy.NoPadding
+import monix.execution.misc._
+
+import scala.reflect.macros.whitebox
 
 /**
   * Base trait of all atomic references, no matter the type.
@@ -29,7 +30,7 @@ abstract class Atomic[A] extends Serializable {
   def get(): A
 
   /** Get the current value persisted by this Atomic, an alias for `get()`. */
-  final def apply(): A = ???// macro Atomic.Macros.applyMacro[A]
+  final def apply(): A = macro Atomic.Macros.applyMacro[A]
 
   /** Updates the current value.
     *
@@ -41,13 +42,13 @@ abstract class Atomic[A] extends Serializable {
     *
     * @param value will be the new value returned by `get()`
     */
-  final def update(value: A): Unit = ???// macro Atomic.Macros.setMacro[A]
+  final def update(value: A): Unit = macro Atomic.Macros.setMacro[A]
 
   /** Alias for [[set]]. Updates the current value.
     *
     * @param value will be the new value returned by `get()`
     */
-  final def `:=`(value: A): Unit = ???//macro Atomic.Macros.setMacro[A]
+  final def `:=`(value: A): Unit = macro Atomic.Macros.setMacro[A]
 
   /** Does a compare-and-set operation on the current value. For more info, checkout the related
     * [[https://en.wikipedia.org/wiki/Compare-and-swap Compare-and-swap Wikipedia page]].
@@ -81,8 +82,7 @@ abstract class Atomic[A] extends Serializable {
     *           the update + what should this method return when the operation succeeds.
     * @return whatever was specified by your callback, once the operation succeeds
     */
-  final def transformAndExtract[U](cb: (A) => (U, A)): U =
-    ???//macro Atomic.Macros.transformAndExtractMacro[A, U]
+  def transformAndExtract[U](cb: (A) => (U, A)): U = macro Atomic.Macros.transformAndExtractMacro[A, U]
 
   /** Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
     * executed, a callback that transforms the current value. This method will loop until it will
@@ -95,8 +95,7 @@ abstract class Atomic[A] extends Serializable {
     *           new value that should be persisted
     * @return whatever the update is, after the operation succeeds
     */
-  final def transformAndGet(cb: (A) => A): A =
-    ???//macro Atomic.Macros.transformAndGetMacro[A]
+  def transformAndGet(cb: (A) => A): A = macro Atomic.Macros.transformAndGetMacro[A]
 
   /** Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
     * executed, a callback that transforms the current value. This method will loop until it will
@@ -109,8 +108,7 @@ abstract class Atomic[A] extends Serializable {
     *           new value that should be persisted
     * @return the old value, just prior to when the successful update happened
     */
-  final def getAndTransform(cb: (A) => A): A =
-    ???//macro Atomic.Macros.getAndTransformMacro[A]
+  final def getAndTransform(cb: (A) => A): A = macro Atomic.Macros.getAndTransformMacro[A]
 
   /** Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
     * executed, a callback that transforms the current value. This method will loop until it will
@@ -122,8 +120,7 @@ abstract class Atomic[A] extends Serializable {
     * @param cb is a callback that receives the current value as input and returns the `update` which is the
     *           new value that should be persisted
     */
-  final def transform(cb: (A) => A): Unit =
-    ???//macro Atomic.Macros.transformMacro[A]
+  final def transform(cb: (A) => A): Unit = macro Atomic.Macros.transformMacro[A]
 }
 
 object Atomic {
@@ -141,8 +138,7 @@ object Atomic {
     * @param builder is the builder that helps us to build the
     *        best reference possible, based on our `initialValue`
     */
-  def apply[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): R =
-    ???//macro Atomic.Macros.buildAnyMacro[A, R]
+  def apply[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): R = macro Atomic.Macros.buildAnyMacro[A, R]
 
   /** Constructs an `Atomic[A]` reference, applying the provided
     * [[PaddingStrategy]] in order to counter the "false sharing"
@@ -169,8 +165,7 @@ object Atomic {
     *        best reference possible, based on our `initialValue`
     */
   def withPadding[A, R <: Atomic[A]](initialValue: A, padding: PaddingStrategy)(
-    implicit builder: AtomicBuilder[A, R]): R =
-    ???//macro Atomic.Macros.buildAnyWithPaddingMacro[A, R]
+    implicit builder: AtomicBuilder[A, R]): R = macro Atomic.Macros.buildAnyWithPaddingMacro[A, R]
 
   /** Returns the builder that would be chosen to construct Atomic
     * references for the given `initialValue`.
@@ -179,7 +174,7 @@ object Atomic {
     builder
 
   /** Macros implementations for the [[Atomic]] type */
-  /*class Macros(override val c: whitebox.Context) extends HygieneUtilMacros with InlineMacros {
+  class Macros(override val c: whitebox.Context) extends HygieneUtilMacros with InlineMacros {
     import c.universe._
 
     def transformMacro[A: c.WeakTypeTag](cb: c.Expr[A => A]): c.Expr[Unit] = {
@@ -404,5 +399,5 @@ object Atomic {
       val tree = q"""$selfExpr.subtract($value)"""
       inlineAndReset[Unit](tree)
     }
-  }*/
+  }
 }

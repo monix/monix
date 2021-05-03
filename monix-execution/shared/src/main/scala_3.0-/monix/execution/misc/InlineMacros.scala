@@ -17,10 +17,10 @@
 
 package monix.execution.misc
 
-//import scala.reflect.macros.whitebox
+import scala.reflect.macros.whitebox
 
 trait InlineMacros {
-  /*val c: whitebox.Context
+  val c: whitebox.Context
 
   import c.universe._
 
@@ -60,15 +60,13 @@ trait InlineMacros {
 
       override def transform(tree: Tree): Tree = tree match {
         case Apply(Select(Function(params, body), ApplyName), args) =>
-          params.zip(args).foldLeft(body) {
-            case (b, (param, arg)) =>
-              inlineSymbol(param.name, b, arg)
+          params.zip(args).foldLeft(body) { case (b, (param, arg)) =>
+            inlineSymbol(param.name, b, arg)
           }
 
         case Apply(Function(params, body), args) =>
-          params.zip(args).foldLeft(body) {
-            case (b, (param, arg)) =>
-              inlineSymbol(param.name, b, arg)
+          params.zip(args).foldLeft(body) { case (b, (param, arg)) =>
+            inlineSymbol(param.name, b, arg)
           }
 
         case _ =>
@@ -94,16 +92,16 @@ trait InlineMacros {
         super.transform {
           tree match {
             case UnApply(
-                Apply(Select(qualifier, nme.unapply | nme.unapplySeq), List(Ident(nme.SELECTOR_DUMMY))),
-                args) =>
+                  Apply(Select(qualifier, nme.unapply | nme.unapplySeq), List(Ident(nme.SELECTOR_DUMMY))),
+                  args) =>
               Apply(transform(qualifier), transformTrees(args))
             case UnApply(
-                Apply(TypeApply(Select(qualifier, nme.unapply | nme.unapplySeq), _), List(Ident(nme.SELECTOR_DUMMY))),
-                args) =>
+                  Apply(TypeApply(Select(qualifier, nme.unapply | nme.unapplySeq), _), List(Ident(nme.SELECTOR_DUMMY))),
+                  args) =>
               Apply(transform(qualifier), transformTrees(args))
             case t => t
           }
         }
       }
-    }*/
+    }
 }

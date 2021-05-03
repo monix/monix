@@ -16,7 +16,7 @@
  */
 
 package monix.execution.misc
-/*
+
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.DummyException
 import monix.execution.misc.test.{TestBox, TestInlineMacros}
@@ -128,4 +128,4 @@ object InlineMacrosTest extends SimpleTestSuite {
 
     assertEquals(mapped, TestBox(2))
   }
-}*/
+}

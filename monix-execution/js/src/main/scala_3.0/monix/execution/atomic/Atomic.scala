@@ -17,10 +17,6 @@
 
 package monix.execution.atomic
 
-import monix.execution.misc._
-//import scala.reflect.macros.whitebox
-import monix.execution.atomic.PaddingStrategy.NoPadding
-
 /**
   * Base trait of all atomic references, no matter the type.
   */
@@ -29,7 +25,9 @@ abstract class Atomic[A] extends Serializable {
   def get(): A
 
   /** Get the current value persisted by this Atomic, an alias for `get()`. */
-  final def apply(): A = ???// macro Atomic.Macros.applyMacro[A]
+  inline final def apply(): A = {
+    get()
+  }
 
   /** Updates the current value.
     *
@@ -41,13 +39,15 @@ abstract class Atomic[A] extends Serializable {
     *
     * @param value will be the new value returned by `get()`
     */
-  final def update(value: A): Unit = ???//macro Atomic.Macros.setMacro[A]
+  inline final def update(value: A): Unit = {
+    set(value)
+  }
 
   /** Alias for [[set]]. Updates the current value.
     *
     * @param value will be the new value returned by `get()`
     */
-  final def `:=`(value: A): Unit = ???//macro Atomic.Macros.setMacro[A]
+  inline final def `:=`(value: A): Unit = set(value)
 
   /** Does a compare-and-set operation on the current value. For more info, checkout the related
     * [[https://en.wikipedia.org/wiki/Compare-and-swap Compare-and-swap Wikipedia page]].
@@ -68,7 +68,7 @@ abstract class Atomic[A] extends Serializable {
   /** Eventually sets to the given value.
     * Has weaker visibility guarantees than the normal `set()`.
     */
-  final def lazySet(value: A): Unit = ???//macro Atomic.Macros.setMacro[A]
+  def lazySet(update: A): Unit = set(update)
 
   /** Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
     * executed, a callback that transforms the current value. This method will loop until it will
@@ -81,8 +81,13 @@ abstract class Atomic[A] extends Serializable {
     *           the update + what should this method return when the operation succeeds.
     * @return whatever was specified by your callback, once the operation succeeds
     */
-  final def transformAndExtract[U](cb: (A) => (U, A)): U =
-    ???//macro Atomic.Macros.transformAndExtractMacro[A, U]
+  inline def transformAndExtract[U](cb: (A) => (U, A)): U = {
+    val current = get()
+    val (result, update) = cb(current)
+
+    set(update)
+    result
+  }
 
   /** Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
     * executed, a callback that transforms the current value. This method will loop until it will
@@ -95,8 +100,13 @@ abstract class Atomic[A] extends Serializable {
     *           new value that should be persisted
     * @return whatever the update is, after the operation succeeds
     */
-  final def transformAndGet(cb: (A) => A): A =
-    ???//macro Atomic.Macros.transformAndGetMacro[A]
+  inline def transformAndGet(cb: (A) => A): A = {
+    val current = get()
+    val update = cb(current)
+
+    set(update)
+    update
+  }
 
   /** Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
     * executed, a callback that transforms the current value. This method will loop until it will
@@ -109,8 +119,13 @@ abstract class Atomic[A] extends Serializable {
     *           new value that should be persisted
     * @return the old value, just prior to when the successful update happened
     */
-  final def getAndTransform(cb: (A) => A): A =
-    ???//macro Atomic.Macros.getAndTransformMacro[A]
+  inline final def getAndTransform(cb: (A) => A): A = {
+    val current = get()
+    val update = cb(current)
+
+    set(update)
+    current
+  }
 
   /** Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
     * executed, a callback that transforms the current value. This method will loop until it will
@@ -122,8 +137,12 @@ abstract class Atomic[A] extends Serializable {
     * @param cb is a callback that receives the current value as input and returns the `update` which is the
     *           new value that should be persisted
     */
-  final def transform(cb: (A) => A): Unit =
-    ???//macro Atomic.Macros.transformMacro[A]
+  inline final def transform(cb: (A) => A): Unit = {
+    val current = get()
+    val update = cb(current)
+
+    set(cb(update))
+  }
 }
 
 object Atomic {
@@ -141,8 +160,9 @@ object Atomic {
     * @param builder is the builder that helps us to build the
     *        best reference possible, based on our `initialValue`
     */
-  def apply[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): R =
-    ???//macro Atomic.Macros.buildAnyMacro[A, R]
+  inline def apply[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): R = {
+    builder.buildInstance(initialValue, PaddingStrategy.NoPadding, allowPlatformIntrinsics = true)
+  }
 
   /** Constructs an `Atomic[A]` reference, applying the provided
     * [[PaddingStrategy]] in order to counter the "false sharing"
@@ -168,189 +188,14 @@ object Atomic {
     * @param builder is the builder that helps us to build the
     *        best reference possible, based on our `initialValue`
     */
-  def withPadding[A, R <: Atomic[A]](initialValue: A, padding: PaddingStrategy)(
-    implicit builder: AtomicBuilder[A, R]): R =
-    ???//macro Atomic.Macros.buildAnyWithPaddingMacro[A, R]
+  inline def withPadding[A, R <: Atomic[A]](initialValue: A, padding: PaddingStrategy)(
+    implicit builder: AtomicBuilder[A, R]): R = {
+    builder.buildInstance(initialValue, padding, allowPlatformIntrinsics = true)
+  }
 
   /** Returns the builder that would be chosen to construct Atomic
     * references for the given `initialValue`.
     */
   def builderFor[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): AtomicBuilder[A, R] =
     builder
-
-  /** Macros implementations for the [[Atomic]] type */
-  /*class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
-    import c.universe._
-
-    def transformMacro[A: c.WeakTypeTag](cb: c.Expr[A => A]): c.Expr[Unit] = {
-      val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
-      val self = util.name("self")
-
-      /* If our arguments are all clean (stable identifiers or simple functions)
-       * then inline them directly, otherwise bind arguments to a val for safety.
-       */
-      val tree =
-        if (util.isClean(cb))
-          q"""
-          val $self = $selfExpr
-          $self.set($cb($self.get()))
-          """
-        else {
-          val fn = util.name("fn")
-          q"""
-          val $self = $selfExpr
-          val $fn = $cb
-          $self.set($fn($self.get()))
-          """
-        }
-
-      inlineAndReset[Unit](tree)
-    }
-
-    def transformAndGetMacro[A: c.WeakTypeTag](cb: c.Expr[A => A]): c.Expr[A] = {
-      val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
-      val self = util.name("self")
-      val current = util.name("current")
-      val update = util.name("update")
-
-      /* If our arguments are all clean (stable identifiers or simple functions)
-       * then inline them directly, otherwise bind arguments to a val for safety.
-       */
-      val tree =
-        if (util.isClean(cb)) {
-          q"""
-          val $self = $selfExpr
-          val $current = $self.get()
-          val $update = $cb($current)
-          $self.set($update)
-          $update
-          """
-        } else {
-          val fn = util.name("fn")
-          q"""
-          val $self = $selfExpr
-          val $fn = $cb
-          val $current = $self.get()
-          val $update = $fn($current)
-          $self.set($update)
-          $update
-          """
-        }
-
-      inlineAndReset[A](tree)
-    }
-
-    def getAndTransformMacro[A: c.WeakTypeTag](cb: c.Expr[A => A]): c.Expr[A] = {
-      val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
-      val self = util.name("self")
-      val current = util.name("current")
-      val update = util.name("update")
-
-      /* If our arguments are all clean (stable identifiers or simple functions)
-       * then inline them directly, otherwise bind arguments to a val for safety.
-       */
-      val tree =
-        if (util.isClean(cb)) {
-          q"""
-          val $self = $selfExpr
-          val $current = $self.get()
-          val $update = $cb($current)
-          $self.set($update)
-          $current
-          """
-        } else {
-          val fn = util.name("fn")
-          q"""
-          val $self = $selfExpr
-          val $fn = $cb
-          val $current = $self.get()
-          val $update = $fn($current)
-          $self.set($update)
-          $current
-          """
-        }
-
-      inlineAndReset[A](tree)
-    }
-
-    def transformAndExtractMacro[S: c.WeakTypeTag, A: c.WeakTypeTag](cb: c.Expr[S => (A, S)]): c.Expr[A] = {
-
-      val selfExpr = c.Expr[Atomic[S]](c.prefix.tree)
-      val self = util.name("self")
-      val current = util.name("current")
-      val update = util.name("update")
-      val result = util.name("result")
-
-      /* If our arguments are all clean (stable identifiers or simple functions)
-       * then inline them directly, otherwise bind arguments to a val for safety.
-       */
-      val tree =
-        if (util.isClean(cb)) {
-          q"""
-          val $self = $selfExpr
-          val $current = $self.get()
-          val ($result, $update) = $cb($current)
-          $self.set($update)
-          $result
-          """
-        } else {
-          val fn = util.name("fn")
-          q"""
-          val $self = $selfExpr
-          val $fn = $cb
-          val $current = $self.get()
-          val ($result, $update) = $fn($current)
-          $self.set($update)
-          $result
-          """
-        }
-
-      inlineAndReset[A](tree)
-    }
-
-    def buildAnyMacro[A: c.WeakTypeTag, R <: Atomic[A]: c.WeakTypeTag](initialValue: c.Expr[A])(
-      builder: c.Expr[AtomicBuilder[A, R]]): c.Expr[R] = {
-
-      val expr = reify {
-        builder.splice.buildInstance(initialValue.splice, NoPadding, allowPlatformIntrinsics = true)
-      }
-
-      inlineAndReset[R](expr.tree)
-    }
-
-    def buildAnyWithPaddingMacro[A: c.WeakTypeTag, R <: Atomic[A]: c.WeakTypeTag](
-      initialValue: c.Expr[A],
-      padding: c.Expr[PaddingStrategy])(builder: c.Expr[AtomicBuilder[A, R]]): c.Expr[R] = {
-
-      val expr = reify {
-        builder.splice.buildInstance(initialValue.splice, padding.splice, allowPlatformIntrinsics = true)
-      }
-
-      inlineAndReset[R](expr.tree)
-    }
-
-    def applyMacro[A: c.WeakTypeTag](): c.Expr[A] = {
-      val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
-      val tree = q"""$selfExpr.get()"""
-      inlineAndReset[A](tree)
-    }
-
-    def setMacro[A: c.WeakTypeTag](value: c.Expr[A]): c.Expr[Unit] = {
-      val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
-      val tree = q"""$selfExpr.set($value)"""
-      inlineAndReset[Unit](tree)
-    }
-
-    def addMacro[A: c.WeakTypeTag](value: c.Expr[A]): c.Expr[Unit] = {
-      val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
-      val tree = q"""$selfExpr.add($value)"""
-      inlineAndReset[Unit](tree)
-    }
-
-    def subtractMacro[A: c.WeakTypeTag](value: c.Expr[A]): c.Expr[Unit] = {
-      val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
-      val tree = q"""$selfExpr.subtract($value)"""
-      inlineAndReset[Unit](tree)
-    }
-  }*/
 }

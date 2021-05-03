@@ -96,12 +96,11 @@ lazy val betterMonadicForCompilerPlugin =
 lazy val silencerCompilerPlugin =
   "com.github.ghik" % "silencer-plugin" % silencer_Version cross CrossVersion.full
 
-lazy val macroDependencies = Seq(
-  libraryDependencies ++= Seq(
+lazy val macroDependencies =
+  libraryDependencies ++= (if (isDotty.value) Seq() else Seq(
     scalaReflectLib.value % Provided,
     scalaCompilerLib.value % Provided
-  )
-)
+))
 
 lazy val testDependencies = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
@@ -183,6 +182,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
     "-Wunused:explicits",
     "-Ywarn-unused:params",
     "-Wunused:params",
+    "-Xlint:infer-any"
   ),
 
   // Turning off fatal warnings for doc generation
@@ -294,12 +294,11 @@ lazy val crossVersionSourcesSettings: Seq[Setting[_]] =
   Seq(Compile, Test).map { sc =>
     (unmanagedSourceDirectories in sc) ++= {
       (unmanagedSourceDirectories in sc).value.flatMap { dir =>
-        Seq(
-          scalaPartV.value match {
-            case Some((2, 12)) => new File(dir.getPath + "_2.13-")
-            case _             => new File(dir.getPath + "_2.13+")
-          }
-        )
+        scalaPartV.value match {
+          case Some((2, 12)) => Seq(new File(dir.getPath + "_2.13-"), new File(dir.getPath + "_3.0-"))
+          case Some((3, _)) => Seq(new File(dir.getPath + "_3.0"))
+          case _             => Seq(new File(dir.getPath + "_2.13+"), new File(dir.getPath + "_3.0-"))
+        }
       }
     }
   }
@@ -527,13 +526,13 @@ lazy val executionProfile =
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .configure(executionProfile.jvm)
-  //.settings(macroDependencies)
+  .settings(macroDependencies)
   .dependsOn(executionShadedJCTools)
   .settings(libraryDependencies += reactiveStreamsLib)
 
 lazy val executionJS = project.in(file("monix-execution/js"))
   .configure(executionProfile.js)
-  //.settings(macroDependencies)
+  .settings(macroDependencies)
 
 // --------------------------------------------
 // monix-catnap
@@ -685,7 +684,8 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
       "dev.zio" %% "zio-streams" % "1.0.0",
       "co.fs2" %% "fs2-core" % fs2_Version,
       "com.typesafe.akka" %% "akka-stream" % "2.6.9"
-  ))
+    ).map(_.withDottyCompat(scalaVersion.value))
+  )
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .enablePlugins(JmhPlugin)
@@ -699,4 +699,5 @@ lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
       "dev.zio" %% "zio-streams" % "1.0.0",
       "co.fs2" %% "fs2-core" % fs2_Version,
       "com.typesafe.akka" %% "akka-stream" % "2.6.9"
-    ))
+    ).map(_.withDottyCompat(scalaVersion.value))
+  )

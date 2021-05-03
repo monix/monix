@@ -35,7 +35,7 @@ object ChunkedArrayStackSuite extends SimpleTestSuite {
       }
 
       assertEquals(list, (0 until 8).toList)
-      assertEquals(stack.pop().asInstanceOf[AnyRef], null)
+      assertEquals(stack.pop(), null)
       assert(stack.isEmpty, "stack.isEmpty")
 
       times += 1
@@ -57,7 +57,7 @@ object ChunkedArrayStackSuite extends SimpleTestSuite {
       }
 
       assertEquals(list, (0 until 100).toList)
-      assertEquals(stack.pop().asInstanceOf[AnyRef], null)
+      assertEquals(stack.pop(), null)
       assert(stack.isEmpty, "stack.isEmpty")
 
       times += 1
@@ -78,7 +78,7 @@ object ChunkedArrayStackSuite extends SimpleTestSuite {
     }
 
     assertEquals(list, (0 until 100).toList.reverse)
-    assertEquals(stack.pop().asInstanceOf[AnyRef], null)
+    assertEquals(stack.pop(), null)
     assert(stack.isEmpty, "stack.isEmpty")
     assert(!stack2.isEmpty, "!stack2.isEmpty")
   }
@@ -95,7 +95,7 @@ object ChunkedArrayStackSuite extends SimpleTestSuite {
     }
 
     assertEquals(list, expected)
-    assertEquals(stack.pop().asInstanceOf[AnyRef], null)
+    assertEquals(stack.pop(), null)
     assert(stack.isEmpty, "stack.isEmpty")
   }
 

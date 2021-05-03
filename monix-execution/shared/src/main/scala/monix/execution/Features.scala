@@ -55,7 +55,7 @@ final class Features(val flags: Flags) extends AnyVal with Serializable {
 
   /** Tests if a given feature is in the set. */
   @inline def contains(feature: Flag): Boolean =
-    (flags & feature) != 0
+    (flags & feature) != (0L).asInstanceOf[Flag]
 
   override def toString: String =
     s"Features($flags)"
@@ -93,14 +93,14 @@ object Features {
     *
     * You can wrap a `Long` into a `Flag` via [[flag]].
     */
-  type Flag <: Long with FlagTag
+  type Flag = monix.execution.compat.Features.Flag
 
   /** Encodes a set of [[Flag]] values.
     *
     * Internally this is still a `Long`, but has its own type for
     * type safety reasons.
     */
-  type Flags <: Long with FlagsTag
+  type Flags = monix.execution.compat.Features.Flags
 
   /** Reusable, empty [[Features]] reference. */
   val empty = Features()

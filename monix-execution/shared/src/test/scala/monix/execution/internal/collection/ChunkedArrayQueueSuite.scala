@@ -36,7 +36,7 @@ object ChunkedArrayQueueSuite extends SimpleTestSuite {
       }
 
       assertEquals(list, (0 until 8).reverse.toList)
-      assertEquals(queue.dequeue().asInstanceOf[AnyRef], null)
+      assertEquals(queue.dequeue(), null)
       assert(queue.isEmpty, "queue.isEmpty")
 
       times += 1
@@ -58,7 +58,7 @@ object ChunkedArrayQueueSuite extends SimpleTestSuite {
       }
 
       assertEquals(list, (0 until 100).reverse.toList)
-      assertEquals(queue.dequeue().asInstanceOf[AnyRef], null)
+      assertEquals(queue.dequeue(), null)
       assert(queue.isEmpty, "queue.isEmpty")
 
       times += 1
@@ -89,7 +89,7 @@ object ChunkedArrayQueueSuite extends SimpleTestSuite {
     }
 
     assertEquals(list.toList, (0 until 100).toList)
-    assertEquals(queue.dequeue().asInstanceOf[AnyRef], null)
+    assertEquals(queue.dequeue(), null)
     assert(queue.isEmpty, "queue.isEmpty")
     assert(!queue2.isEmpty, "!stack2.isEmpty")
   }
@@ -106,7 +106,7 @@ object ChunkedArrayQueueSuite extends SimpleTestSuite {
     }
 
     assertEquals(list.toList, expected)
-    assertEquals(queue.dequeue().asInstanceOf[AnyRef], null)
+    assertEquals(queue.dequeue(), null)
     assert(queue.isEmpty, "queue.isEmpty")
   }
 
