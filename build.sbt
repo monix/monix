@@ -24,13 +24,13 @@ addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 // Dependencies - Versions
 
 
-val cats_Version = "2.5.0"
-val catsEffect_Version = "2.4.1"
+val cats_Version = "2.6.0"
+val catsEffect_Version = "2.5.0"
 val fs2_Version = "2.4.4"
 val jcTools_Version = "3.3.0"
 val reactiveStreams_Version = "1.0.3"
-val minitest_Version = "2.9.4"
-val implicitBox_Version = "0.3.2"
+val minitest_Version = "2.9.5"
+val implicitBox_Version = "0.3.3"
 val kindProjector_Version = "0.11.3"
 val betterMonadicFor_Version = "0.3.1"
 val silencer_Version = "1.7.1"
