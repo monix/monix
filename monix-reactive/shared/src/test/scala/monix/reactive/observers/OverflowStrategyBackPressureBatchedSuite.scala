@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -134,7 +134,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
     val buffer = BufferedSubscriber.batched[Int](underlying, 1000, MultiProducer)
     def loop(n: Int): Unit =
       if (n > 0)
-        s.executeAsync { () =>
+        s.execute { () =>
           buffer.onNext(n); loop(n - 1)
         } else
         buffer.onComplete()
@@ -172,7 +172,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
     val buffer = BufferedSubscriber.batched[Int](underlying, 512, MultiProducer)
     def loop(n: Int): Unit =
       if (n > 0)
-        s.executeAsync { () =>
+        s.execute { () =>
           buffer.onNext(n); loop(n - 1)
         } else
         buffer.onComplete()

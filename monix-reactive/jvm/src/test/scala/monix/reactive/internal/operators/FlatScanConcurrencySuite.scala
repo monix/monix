@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -76,7 +76,7 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
 
       // Creating race condition
       if (i % 2 == 0) {
-        s.executeAsync(() => c.cancel())
+        s.execute(() => c.cancel())
       } else {
         c.cancel()
       }
@@ -88,7 +88,7 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
     def one(p: Promise[Unit])(acc: Long, x: Long): Observable[Long] =
       Observable.unsafeCreate { sub =>
         val ref = BooleanCancelable { () => p.trySuccess(()); () }
-        sub.scheduler.executeAsync { () =>
+        sub.scheduler.execute { () =>
           if (!ref.isCanceled) {
             Observable.now(x).unsafeSubscribeFn(sub)
             ()
@@ -110,7 +110,7 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
         .subscribe()
 
       // Creating race condition
-      s.executeAsync(() => c.cancel())
+      s.execute(() => c.cancel())
       Await.result(p.future, cancelTimeout)
     }
   }
@@ -129,7 +129,7 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
         .subscribe()
 
       // Creating race condition
-      s.executeAsync(() => c.cancel())
+      s.execute(() => c.cancel())
       Await.result(p.future, cancelTimeout)
     }
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +33,7 @@ private[eval] object TaskToReactivePublisher {
           private[this] var isActive = true
           private[this] val conn = TaskConnection()
           private[this] val context =
-            Task.Context(s, Task.defaultOptions.withSchedulerFeatures, conn)
+            Task.Context(s, Task.defaultOptions.withSchedulerFeatures, conn, new StackTracedContext)
 
           def request(n: Long): Unit = {
             require(n > 0, "n must be strictly positive, according to the Reactive Streams contract, rule 3.9")

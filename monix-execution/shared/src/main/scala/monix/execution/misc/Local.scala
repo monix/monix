@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -191,7 +191,7 @@ object Local extends LocalCompanionDeprecated {
       var it = this
       var r: Option[A] = null
       while (r eq null) {
-        this match {
+        it match {
           case unbound: Unbound =>
             r = unbound.ref.get().get(key).asInstanceOf[Option[A]]
           case bound: Bound if bound.key == key =>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,6 @@ package monix.eval
 import java.util.concurrent.CompletableFuture
 
 import minitest.TestSuite
-import monix.execution.{CancelableFuture, FutureUtils}
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 

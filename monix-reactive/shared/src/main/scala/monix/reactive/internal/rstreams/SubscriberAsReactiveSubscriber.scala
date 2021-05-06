@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.rstreams
 
-import monix.execution.Ack
+import monix.execution.{Ack, Scheduler}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.ChannelType.SingleProducer
 import monix.execution.rstreams.SingleAssignSubscription
@@ -213,7 +213,7 @@ private[reactive] final class SyncSubscriberAsReactiveSubscriber[A](target: Subs
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
 
-  private[this] implicit val s = target.scheduler
+  private[this] implicit val s: Scheduler = target.scheduler
 
   private[this] var subscription = null: RSubscription
   private[this] var expectingCount = 0L

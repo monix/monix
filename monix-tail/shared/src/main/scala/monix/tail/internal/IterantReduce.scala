@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,7 @@ private[tail] object IterantReduce {
   /** Implementation for `Iterant.reduce`. */
   def apply[F[_], A](self: Iterant[F, A], op: (A, A) => A)(implicit F: Sync[F]): F[Option[A]] = {
 
-    F.suspend { new Loop[F, A](op).apply(self) }
+    F.defer { new Loop[F, A](op).apply(self) }
   }
 
   private class Loop[F[_], A](op: (A, A) => A)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, F[Option[A]]] {

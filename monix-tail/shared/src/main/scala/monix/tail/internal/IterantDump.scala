@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -74,10 +74,10 @@ private[tail] object IterantDump {
       out.println(s"$pos: $prefix --> concat")
       pos += 1
 
-      Concat(F.suspend {
+      Concat(F.defer {
         prefix = s"$oldPrefix --> concat-lh ($oldPos)"
         moveNext(ref.lh)
-      }, F.suspend {
+      }, F.defer {
         prefix = oldPrefix
         moveNext(ref.rh)
       })
@@ -96,7 +96,7 @@ private[tail] object IterantDump {
         },
         AndThen(ref.use).andThen(moveNext),
         (s, ec) =>
-          F.suspend {
+          F.defer {
             out.println(s"$pos: $prefix --> release")
             pos += 1
             prefix = oldPrefix

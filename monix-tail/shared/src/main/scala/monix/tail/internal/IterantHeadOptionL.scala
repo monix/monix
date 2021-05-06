@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,7 +34,7 @@ private[tail] object IterantHeadOptionL {
       case Next(a, _) => F.pure(Some(a))
       case Last(a) => F.pure(Some(a))
       case _ =>
-        F.suspend(new Loop[F, A].apply(source))
+        F.defer(new Loop[F, A].apply(source))
     }
   }
 

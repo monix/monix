@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -462,10 +462,9 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
   }
 
   test("should cancel the whole stream when if one fails") { implicit s =>
-    val wasThrown: Throwable = null
     var received = 0
 
-    val failedTask = Task.raiseError(wasThrown).delayExecution(1.second)
+    val failedTask = Task.raiseError(DummyException("dummy")).delayExecution(1.second)
     val otherTask = Task.sleep(2.second).doOnCancel(Task { received += 1 })
 
     Observable(0, 1, 2, 3, 4, 5,

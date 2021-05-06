@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -158,8 +158,8 @@ object ObservableLike extends ObservableLikeImplicits0 {
   /**
     * Converts a Scala `Either` to a [[Observable]].
     */
-  implicit def fromEither[E <: Throwable]: ObservableLike[Either[E, ?]] =
-    new ObservableLike[Either[E, ?]] {
+  implicit def fromEither[E <: Throwable]: ObservableLike[Either[E, *]] =
+    new ObservableLike[Either[E, *]] {
       def apply[A](fa: Either[E, A]): Observable[A] =
         Observable.fromEither(fa)
     }

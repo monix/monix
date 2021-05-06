@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,7 +37,7 @@ private[eval] object TaskMemoize {
         source
       case Task.Eval(Coeval.Suspend(f: LazyVal[A @unchecked])) if !cacheErrors || f.cacheErrors =>
         source
-      case Task.Async(r: Register[A] @unchecked, _, _, _) if !cacheErrors || r.cacheErrors =>
+      case Task.Async(r: Register[A] @unchecked, _, _, _, _) if !cacheErrors || r.cacheErrors =>
         source
       case _ =>
         Task.Async(

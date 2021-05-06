@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -102,7 +102,7 @@ import scala.concurrent.duration._
   *   // Using cats.effect.IO for this sample, but you can use any effect
   *   // type that integrates with Cats-Effect, including monix.eval.Task:
   *   import cats.effect.{Clock, IO}
-  *   implicit val clock = Clock.create[IO]
+  *   implicit val clock: Clock[IO] = Clock.create[IO]
   *
   *   // Using the "unsafe" builder for didactic purposes, but prefer
   *   // the safe "apply" builder:
@@ -249,7 +249,7 @@ final class CircuitBreaker[F[_]] private (
     * task, but with the protection of this circuit breaker.
     */
   def protect[A](task: F[A]): F[A] =
-    F.suspend(unsafeProtect(task))
+    F.defer(unsafeProtect(task))
 
   /**
     * Awaits for this `CircuitBreaker` to be [[CircuitBreaker.Closed closed]].
@@ -270,7 +270,7 @@ final class CircuitBreaker[F[_]] private (
     */
   def awaitClose(implicit F: Concurrent[F] OrElse Async[F]): F[Unit] = {
     val F0 = F.unify
-    F0.suspend {
+    F0.defer {
       stateRef.get() match {
         case ref: Open =>
           FutureLift.scalaToConcurrentOrAsync(F0.pure(ref.awaitClose.future))
@@ -594,7 +594,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
     * {{{
     *   import scala.concurrent.duration._
     *   import cats.effect.{IO, Clock}
-    *   implicit val clock = Clock.create[IO]
+    *   implicit val clock: Clock[IO] = Clock.create[IO]
     *
     *   val cb = CircuitBreaker[IO].of(
     *     maxFailures = 10,

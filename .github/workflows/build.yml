@@ -17,14 +17,14 @@ jobs:
         java: [ 8, 11 ]
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
-        scala: [ 2.12.12, 2.13.3 ]
-    
+        scala: [ 2.12.13, 2.13.3 ]
+
     env:
       CI: true
-      
+
     steps:
       - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v7
+      - uses: olafurpg/setup-scala@v10
         with:
           java-version: "adopt@1.${{ matrix.java }}"
 
@@ -48,15 +48,14 @@ jobs:
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: sbt ci-jvm
-        run: |
-          ./.github/scripts/exec-sbt-command
+        run: ./.github/scripts/exec-sbt-command
         env:
           SCALA_VERSION: ${{ matrix.scala }}
           PLATFORM: ${{ matrix.java }}
           SBT_COMMAND: ci-jvm
 
   js-tests:
-    name: JS / scala ${{ matrix.scala }}, sjs ${{ matrix.scalajs }}, jdk ${{ matrix.java }}
+    name: JS / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
@@ -64,17 +63,15 @@ jobs:
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
         include:
-          - { java: 8, scala: 2.12.12, scalajs: 0.6.33 }
-          - { java: 8, scala: 2.12.12, scalajs: 1.1.1 }
-          - { java: 8, scala: 2.13.3, scalajs: 0.6.33 }
-          - { java: 8, scala: 2.13.3, scalajs: 1.1.1 }
+          - { java: 8, scala: 2.12.13 }
+          - { java: 8, scala: 2.13.3 }
 
     env:
       CI: true
-    
+
     steps:
       - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v7
+      - uses: olafurpg/setup-scala@v10
         with:
           java-version: "adopt@1.${{ matrix.java }}"
 
@@ -98,7 +95,7 @@ jobs:
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Setup NodeJS
-        uses: actions/setup-node@v2.1.0
+        uses: actions/setup-node@v2.1.2
         with:
           node-version: 14
 
@@ -107,23 +104,22 @@ jobs:
           ./.github/scripts/exec-sbt-command
         env:
           SCALA_VERSION: ${{ matrix.scala }}
-          SCALAJS_VERSION: ${{ matrix.scalaJS }}
           PLATFORM: ${{ matrix.java }}
           SBT_COMMAND: ci-js
 
   mima:
-    name: Mima / scala ${{ matrix.scala }}, sjs ${{ matrix.scalajs }}, jdk ${{ matrix.java }}
+    name: Mima / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { java: 8, scala: 2.12.12, scalajs: 1.1.1 }
-          - { java: 8, scala: 2.13.3, scalajs: 1.1.1 }
+          - { java: 8, scala: 2.12.13 }
+          - { java: 8, scala: 2.13.3 }
 
     steps:
       - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v7
+      - uses: olafurpg/setup-scala@v10
         with:
           java-version: "adopt@1.${{ matrix.java }}"
 
@@ -151,21 +147,20 @@ jobs:
           ./.github/scripts/exec-sbt-command
         env:
           SCALA_VERSION: ${{ matrix.scala }}
-          SCALAJS_VERSION: ${{ matrix.scalaJS }}
           SBT_COMMAND: mimaReportBinaryIssues
 
   unidoc:
-    name: Unidoc / scala ${{ matrix.scala }}, sjs ${{ matrix.scalajs }}, jdk ${{ matrix.java }}
+    name: Unidoc / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { java: 8, scala: 2.13.3, scalajs: 1.1.1 }
+          - { java: 8, scala: 2.13.3 }
 
     steps:
       - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v7
+      - uses: olafurpg/setup-scala@v10
         with:
           java-version: "adopt@1.${{ matrix.java }}"
 
@@ -193,16 +188,12 @@ jobs:
           ./.github/scripts/exec-sbt-command
         env:
           SCALA_VERSION: ${{ matrix.scala }}
-          SCALAJS_VERSION: ${{ matrix.scalaJS }}
           SBT_COMMAND: unidoc
 
   publish:
     name: Publish to Sonatype
     if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/series/4.x')
     needs: [ jvm-tests, js-tests, mima, unidoc ]
-    strategy:
-      matrix:
-        scalajs: ["", 0.6.33, 1.1.1]
 
     runs-on: ubuntu-20.04
     steps:
@@ -210,7 +201,7 @@ jobs:
         with:
           fetch-depth: 100
 
-      - uses: olafurpg/setup-scala@v2
+      - uses: olafurpg/setup-scala@v10
         with:
           java-version: "adopt@1.8"
 
@@ -220,7 +211,7 @@ jobs:
         env:
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
 
-      - name: SCALAJS_VERSION=${{ matrix.scalajs }} .github/scripts/release
+      - name: .github/scripts/release
         run: |
           .github/scripts/release
         env:
@@ -228,5 +219,4 @@ jobs:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          SCALAJS_VERSION: ${{ matrix.scalajs }}
           PUBLISH_STABLE_VERSION: false

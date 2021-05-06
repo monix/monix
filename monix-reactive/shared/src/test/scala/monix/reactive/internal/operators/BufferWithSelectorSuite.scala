@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,7 +38,7 @@ object BufferWithSelectorSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount must be strictly positive")
     val o = Observable
       .range(0L, sourceCount.toLong)
-      .bufferTimedWithPressure(waitNext, 10)
+      .bufferTimedWithPressure[Long](waitNext, 10)
       .map(_.sum)
 
     Sample(o, count(sourceCount), sum(sourceCount), waitNext, waitNext)
@@ -50,7 +50,7 @@ object BufferWithSelectorSuite extends BaseOperatorSuite {
     val o = Observable
       .range(0, cnt.toLong)
       .endWithError(ex)
-      .bufferTimedWithPressure(waitNext, 10)
+      .bufferTimedWithPressure[Long](waitNext, 10)
       .map(_.sum)
 
     Sample(o, count(cnt - 1), sum(cnt - 1), waitNext, waitNext)
@@ -59,7 +59,7 @@ object BufferWithSelectorSuite extends BaseOperatorSuite {
   override def cancelableObservables() = {
     val o = Observable
       .range(0, 1000)
-      .bufferTimedWithPressure(waitNext, 10)
+      .bufferTimedWithPressure[Long](waitNext, 10)
       .map(_.sum)
 
     Seq(

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -108,8 +108,8 @@ object CoevalLike {
   /**
     * Converts a Scala `Either` to a [[Coeval]].
     */
-  implicit def fromEither[E <: Throwable]: CoevalLike[Either[E, ?]] =
-    new CoevalLike[Either[E, ?]] {
+  implicit def fromEither[E <: Throwable]: CoevalLike[Either[E, *]] =
+    new CoevalLike[Either[E, *]] {
       def apply[A](fa: Either[E, A]): Coeval[A] =
         Coeval.fromEither(fa)
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.Promise
 
 object TaskOptionsSuite extends SimpleTestSuite {
-  implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+  implicit val opts: Options = Task.defaultOptions.enableLocalContextPropagation
 
   def extractOptions[A](fa: Task[A]): Task[Options] =
     Task.Async { (ctx, cb) =>

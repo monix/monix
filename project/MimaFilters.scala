@@ -15,7 +15,7 @@ object MimaFilters {
     exclude[DirectMissingMethodProblem]("monix.execution.schedulers.TrampolineExecutionContext#JVMOptimalTrampoline.*")
   )
 
-  lazy val changesFor_3_2_3 = Seq(
+  lazy val changesFor_3_3_0 = Seq(
     // Upgraded JCTools to 3.0.0
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue#Java8SPMC.this"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue#Java7.this"),
@@ -51,6 +51,44 @@ object MimaFilters {
     exclude[MissingClassProblem]("monix.execution.internal.forkJoin.package$"),
     exclude[MissingClassProblem]("monix.execution.internal.forkJoin.package$ForkJoinPool$"),
     exclude[MissingClassProblem]("monix.execution.schedulers.ExecuteExtensions"),
+    // Changes in Task model due to Asynchronous Stack Traces
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Context.copy"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Context.this"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Context.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Context.apply"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Map.apply"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Map.this"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Task#Map.copy$default$3"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Map.index"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Task#Map.copy"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#FlatMap.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#FlatMap.this"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#FlatMap.copy"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.copy"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Task#Async.this"),
+    // Signature changes in internal classes
+    exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture#Async*"),
+    exclude[DirectMissingMethodProblem]("monix.execution.CancelableFuture#Pure*"),
+    // Changes in Coeval model due to Better Stack Traces
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#FlatMap.copy"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#FlatMap.this"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#Map.index"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Coeval#Map.copy"),
+    exclude[IncompatibleResultTypeProblem]("monix.eval.Coeval#Map.copy$default$3"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Coeval#Map.this"),
+    exclude[IncompatibleMethTypeProblem]("monix.eval.Coeval#Map.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.Coeval#FlatMap.apply"),
+    // Remove unused fusionMaxStackDepth
+    exclude[DirectMissingMethodProblem]("monix.execution.internal.Platform.fusionMaxStackDepth"),
+    exclude[DirectMissingMethodProblem]("monix.execution.internal.Platform.fusionMaxStackDepth")
+  )
+
+  lazy val changesFor_3_4_0 = Seq(
+    // Remove redundant private interfaces after Scala 2.11 removal
+    exclude[MissingClassProblem]("monix.execution.internal.forkJoin.package"),
+    exclude[MissingClassProblem]("monix.execution.internal.forkJoin.package$"),
+    exclude[MissingClassProblem]("monix.execution.internal.forkJoin.package$ForkJoinPool$"),
     exclude[MissingClassProblem]("monix.execution.misc.compat"),
     exclude[MissingClassProblem]("monix.execution.misc.compat$")
   )

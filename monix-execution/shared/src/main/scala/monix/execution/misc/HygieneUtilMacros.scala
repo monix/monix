@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,8 @@ trait HygieneUtilMacros {
 
   object util {
     /** Generates a new term name. Used for macro-hygiene. */
-    def name(s: String) = c.universe.TermName(c.freshName(s))
+    def name(s: String) = c.universe.TermName(c.freshName(s + "$"))
+
     /** Generates new term names. Used for macro-hygiene. */
     def names(bs: String*) = bs.toList.map(name)
 

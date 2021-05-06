@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,8 +44,8 @@ private[eval] object ForkedRegister {
     */
   @tailrec def detect(task: Task[_], limit: Int = 8): Boolean = {
     if (limit > 0) task match {
-      case Async(_: ForkedRegister[_], _, _, _) => true
-      case FlatMap(other, _) => detect(other, limit - 1)
+      case Async(_: ForkedRegister[_], _, _, _, _) => true
+      case FlatMap(other, _, _) => detect(other, limit - 1)
       case Map(other, _, _) => detect(other, limit - 1)
       case ContextSwitch(other, _, _) => detect(other, limit - 1)
       case _ => false

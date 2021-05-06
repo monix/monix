@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -48,8 +48,8 @@ object Issue908Suite extends TestSuite[SchedulerService] {
   test("broken tasks test (1)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val task = Task.async[String] { cb =>
-        sc.executeAsync(() => cb.onSuccess("1"))
-        sc.executeAsync(() => cb.onSuccess("2"))
+        sc.execute(() => cb.onSuccess("1"))
+        sc.execute(() => cb.onSuccess("2"))
       }
 
       val f = Task.race(task, task).runToFuture
@@ -65,8 +65,8 @@ object Issue908Suite extends TestSuite[SchedulerService] {
   test("broken tasks test (2)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val task = Task.async[String] { cb =>
-        sc.executeAsync(() => cb.onSuccess("1"))
-        sc.executeAsync(() => cb.onSuccess("2"))
+        sc.execute(() => cb.onSuccess("1"))
+        sc.execute(() => cb.onSuccess("2"))
       }
 
       val f = Task.raceMany((0 until CONCURRENT_TASKS).map(_ => task)).runToFuture
@@ -79,8 +79,8 @@ object Issue908Suite extends TestSuite[SchedulerService] {
   test("broken tasks test (3)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val task = Task.async[String] { cb =>
-        sc.executeAsync(() => cb.onSuccess("1"))
-        sc.executeAsync(() => cb.onSuccess("2"))
+        sc.execute(() => cb.onSuccess("1"))
+        sc.execute(() => cb.onSuccess("2"))
       }
 
       val f = task.timeout(1.millis).materialize.runToFuture

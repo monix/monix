@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -82,7 +82,7 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A](
     val newLength = limit - oldOffset
 
     if (newLength <= 0) {
-      BatchCursor.fromAnyArray[B](Array.empty, 0, 0)
+      BatchCursor.fromAnyArray[B](Array.empty[AnyRef], 0, 0)
     } else {
       val copy = new Array[AnyRef](newLength)
       var i = 0

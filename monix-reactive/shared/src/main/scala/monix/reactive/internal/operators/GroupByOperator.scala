@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,7 +51,11 @@ private[reactive] final class GroupByOperator[A, K](
       private def retryOnNext(elem: A): Future[Ack] =
         onNext(elem)
 
-      @tailrec def onNext(elem: A): Future[Ack] =
+      def onNext(elem: A): Future[Ack] =
+        loop(elem)
+
+      @tailrec
+      private def loop(elem: A): Future[Ack] = {
         if (isDone) Stop
         else {
           val cache = cacheRef.get()
@@ -96,10 +100,11 @@ private[reactive] final class GroupByOperator[A, K](
             }
 
           if (result == null)
-            onNext(elem)
+            loop(elem)
           else
             result
         }
+      }
 
       private[this] def foreachObserver(f: Observer[A] => Unit): Unit = {
         val cache = cacheRef.get()

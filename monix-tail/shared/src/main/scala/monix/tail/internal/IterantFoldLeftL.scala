@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +32,7 @@ private[tail] object IterantFoldLeftL {
     */
   final def apply[F[_], S, A](source: Iterant[F, A], seed: => S)(op: (S, A) => S)(implicit F: Sync[F]): F[S] = {
 
-    F.suspend {
+    F.defer {
       var catchErrors = true
       try {
         // handle exception in the seed

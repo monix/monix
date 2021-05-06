@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -89,7 +89,7 @@ private[tail] object IterantOnErrorHandleWith {
       Suspend(continueWith(ref.rest))
 
     def visit(ref: Concat[F, A]): Iterant[F, A] =
-      Concat(ref.lh.map(this), F.suspend {
+      Concat(ref.lh.map(this), F.defer {
         if (self.wasErrorHandled)
           F.pure(Iterant.empty[F, A])
         else

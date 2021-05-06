@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -93,15 +93,6 @@ private[monix] object Platform {
     * threaded.
     */
   final val localContextPropagation: Boolean = false
-
-  /**
-    * Establishes the maximum stack depth for fused `.map` operations
-    * for JavaScript.
-    *
-    * The default for JavaScript is 32, from which we subtract 1
-    * as an optimization.
-    */
-  final val fusionMaxStackDepth = 31
 
   /** Blocks for the result of `fa`.
     *

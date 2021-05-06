@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,9 +44,9 @@ import scala.collection.mutable.ArrayBuffer
   *   import monix.execution.Scheduler.global
   *
   *   // For being able to do IO.start
-  *   implicit val cs = SchedulerEffect.contextShift[IO](global)
+  *   implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](global)(IO.ioEffect)
   *   // We need a `Timer` for this to work
-  *   implicit val timer = SchedulerEffect.timer[IO](global)
+  *   implicit val timer: Timer[IO] = SchedulerEffect.timer[IO](global)
   *
   *   def consumer(queue: ConcurrentQueue[IO, Int], index: Int): IO[Unit] =
   *     queue.poll.flatMap { a =>
@@ -147,7 +147,7 @@ final class ConcurrentQueue[F[_], A] private (
     * @return a task that when evaluated, will complete with a value,
     *         or wait until such a value is ready
     */
-  def offer(a: A): F[Unit] = F.suspend {
+  def offer(a: A): F[Unit] = F.defer {
     if (tryOfferUnsafe(a))
       F.unit
     else
@@ -180,7 +180,7 @@ final class ConcurrentQueue[F[_], A] private (
       }
     }
 
-    F.suspend {
+    F.defer {
       val cursor = seq.iterator
       loop(cursor)
     }
@@ -207,7 +207,7 @@ final class ConcurrentQueue[F[_], A] private (
     *         after the value has been successfully pushed in the queue
     */
   def poll: F[A] = pollRef
-  private[this] val pollRef = F.suspend[A] {
+  private[this] val pollRef = F.defer[A] {
     val happy = tryPollUnsafe()
     //noinspection ForwardReference
     if (happy != null)
@@ -239,7 +239,7 @@ final class ConcurrentQueue[F[_], A] private (
     *         it can also be cancelled, interrupting the wait
     */
   def drain(minLength: Int, maxLength: Int): F[Seq[A]] =
-    F.suspend {
+    F.defer {
       assert(minLength <= maxLength, s"minLength ($minLength) <= maxLength ($maxLength")
       val buffer = ArrayBuffer.empty[A]
       val length = tryDrainUnsafe(buffer, maxLength)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -91,7 +91,7 @@ private[tail] sealed abstract class AndThen[-T, +R] extends (T => R) with Produc
     var continue = true
     while (continue) {
       self match {
-        case Concat(left, inner) =>
+        case Concat(left, inner: AndThen[Any, Any]) =>
           self = left.asInstanceOf[AndThen[Any, Any]]
           right = inner.andThenF(right)
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,9 +20,11 @@ package monix.eval.internal
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.AbstractQueuedSynchronizer
 
-import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, Map, Now, Suspend}
+import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, Map, Now, Suspend, Trace}
 import monix.eval.internal.TaskRunLoop._
 import monix.eval.Task
+import monix.eval.internal.TracingPlatform.{enhancedExceptions, isStackTracing}
+import monix.eval.tracing.TaskEvent
 import monix.execution.{Callback, Scheduler}
 import monix.execution.internal.collection.ChunkedArrayStack
 
@@ -44,9 +46,17 @@ private[eval] object TaskRunSyncUnsafe {
     var hasUnboxed: Boolean = false
     var unboxed: AnyRef = null
 
-    do {
+    // we might not need to initialize full Task.Context
+    var tracingCtx: StackTracedContext = null
+
+    while (true) {
       current match {
-        case FlatMap(fa, bindNext) =>
+        case bind @ FlatMap(fa, bindNext, _) =>
+          if (isStackTracing) {
+            val trace = bind.trace
+            if (tracingCtx eq null) tracingCtx = new StackTracedContext
+            if (trace ne null) tracingCtx.pushEvent(trace.asInstanceOf[TaskEvent])
+          }
           if (bFirst ne null) {
             if (bRest eq null) bRest = ChunkedArrayStack()
             bRest.push(bFirst)
@@ -69,6 +79,11 @@ private[eval] object TaskRunSyncUnsafe {
           }
 
         case bindNext @ Map(fa, _, _) =>
+          if (isStackTracing) {
+            val trace = bindNext.trace
+            if (tracingCtx eq null) tracingCtx = new StackTracedContext
+            if (trace ne null) tracingCtx.pushEvent(trace.asInstanceOf[TaskEvent])
+          }
           if (bFirst ne null) {
             if (bRest eq null) bRest = ChunkedArrayStack()
             bRest.push(bFirst)
@@ -85,6 +100,10 @@ private[eval] object TaskRunSyncUnsafe {
           }
 
         case Error(error) =>
+          if (isStackTracing && enhancedExceptions) {
+            if (tracingCtx eq null) tracingCtx = new StackTracedContext
+            augmentException(error, tracingCtx)
+          }
           findErrorHandler(bFirst, bRest) match {
             case null => throw error
             case bind =>
@@ -95,8 +114,14 @@ private[eval] object TaskRunSyncUnsafe {
               bFirst = null
           }
 
+        case Trace(sourceTask, frame) =>
+          if (tracingCtx eq null) tracingCtx = new StackTracedContext
+          tracingCtx.pushEvent(frame)
+          current = sourceTask
+
         case async =>
-          return blockForResult(async, timeout, scheduler, opts, bFirst, bRest)
+          if (tracingCtx eq null) tracingCtx = new StackTracedContext
+          return blockForResult(async, timeout, scheduler, opts, bFirst, bRest, tracingCtx)
       }
 
       if (hasUnboxed) {
@@ -115,7 +140,7 @@ private[eval] object TaskRunSyncUnsafe {
             bFirst = null
         }
       }
-    } while (true)
+    }
     // $COVERAGE-OFF$
     throw new IllegalStateException("out of loop")
     // $COVERAGE-ON$
@@ -127,19 +152,19 @@ private[eval] object TaskRunSyncUnsafe {
     scheduler: Scheduler,
     opts: Task.Options,
     bFirst: Bind,
-    bRest: CallStack): A = {
+    bRest: CallStack,
+    tracingCtx: StackTracedContext): A = {
 
     val latch = new OneShotLatch
     val cb = new BlockingCallback[Any](latch)
-    val context = Context(scheduler, opts)
+    val context = Context(scheduler, opts, TaskConnection(), tracingCtx)
 
     // Starting actual execution
-    val rcb = TaskRestartCallback(context, cb)
     source match {
       case async: Async[Any] @unchecked =>
-        executeAsyncTask(async, context, cb, rcb, bFirst, bRest, 1)
+        executeAsyncTask(async, context, cb, null, bFirst, bRest, 1)
       case _ =>
-        startFull(source, context, cb, rcb, bFirst, bRest, 1)
+        startFull(source, context, cb, null, bFirst, bRest, 1)
     }
 
     val isFinished = limit match {

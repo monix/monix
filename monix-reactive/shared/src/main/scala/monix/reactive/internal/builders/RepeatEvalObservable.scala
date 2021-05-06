@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,12 +40,12 @@ private[reactive] final class RepeatEvalObservable[+A](eval: => A) extends Obser
   def reschedule(ack: Future[Ack], o: Subscriber[A], c: BooleanCancelable, em: ExecutionModel)(
     implicit s: Scheduler): Unit =
     ack.onComplete {
-      case Success(success) =>
-        if (success == Continue) fastLoop(o, c, em, 0)
+      case Success(Continue) =>
+        fastLoop(o, c, em, 0)
+      case Success(Stop) =>
+        ()
       case Failure(ex) =>
         s.reportFailure(ex)
-      case _ =>
-        () // this was a Stop, do nothing
     }
 
   @tailrec

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -603,7 +603,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * then it also emits the given element (appended to the stream).
     */
   final def append[B >: A](elem: B): Observable[B] =
-    self appendAll Observable.now(elem)
+    self.appendAll(Observable.now(elem))
 
   /** Given the source observable and another `Observable`, emits all of
     * the items from the first of these Observables to emit an item
@@ -759,13 +759,63 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param sizeOf is the function to compute the weight of each
     *        element in the buffer
     */
-  final def bufferTimedWithPressure(
+  final def bufferTimedWithPressure[AA >: A](
     period: FiniteDuration,
     maxSize: Int,
-    sizeOf: A => Int = _ => 1): Observable[Seq[A]] = {
+    sizeOf: AA => Int = (_: AA) => 1): Observable[Seq[AA]] = {
     val sampler = Observable.intervalAtFixedRate(period, period)
     new BufferWithSelectorObservable(self, sampler, maxSize, sizeOf)
   }
+
+  /** Buffers elements while predicate returns true,
+    * after which it emits the buffered events as a single bundle
+    * and creates a new buffer.
+    *
+    * Usage:
+    *
+    * {{{
+    *   import monix.eval.Task
+    *
+    *   Observable(1, 1, 1, 2, 2, 1, 3)
+    *     .bufferWhile(_ == 1)
+    *     .doOnNext(l => Task(println(s"Emitted batch $$l")))
+    *
+    *   // Emitted batch List(1, 1, 1)
+    *   // Emitted batch List(2)
+    *   // Emitted batch List(2, 1)
+    *   // Emitted batch List(3)
+    * }}}
+    *
+    * @see [[bufferWhileInclusive]] for a similar operator that includes
+    *      the value that caused `predicate` to return `false`
+    */
+  final def bufferWhile(p: A => Boolean): Observable[Seq[A]] =
+    self.liftByOperator(new BufferWhileOperator(p, inclusive = false))
+
+  /** Buffers elements while predicate returns true,
+    * after which it emits the buffered events as a single bundle,
+    * including the value that caused `predicate` to return `false`
+    * and creates a new buffer.
+    *
+    * Usage:
+    *
+    * {{{
+    *   import monix.eval.Task
+    *
+    *   Observable(1, 1, 1, 2, 2, 1, 3)
+    *     .bufferWhileInclusive(_ == 1)
+    *     .doOnNext(l => Task(println(s"Emitted batch $$l")))
+    *
+    *   // Emitted batch List(1, 1, 1, 2)
+    *   // Emitted batch List(2)
+    *   // Emitted batch List(1, 3)
+    * }}}
+    *
+    * @see [[bufferWhile]] for a similar operator that does not include
+    *      the value that caused `predicate` to return `false`
+    */
+  final def bufferWhileInclusive(p: A => Boolean): Observable[Seq[A]] =
+    self.liftByOperator(new BufferWhileOperator(p, inclusive = true))
 
   /** $bufferWithSelectorDesc
     *
@@ -1083,7 +1133,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param trigger the observable that must either emit an item or
     *        complete in order for the source to be subscribed.
     */
-  final def delayExecutionWith(trigger: Observable[_]): Observable[A] =
+  final def delayExecutionWith[B](trigger: Observable[B]): Observable[A] =
     new DelayExecutionWithTriggerObservable(self, trigger)
 
   /** Version of [[delayExecutionWith]] that can work with generic `F[_]`
@@ -1096,7 +1146,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *  - `scala.concurrent.Future`
     *  - ...
     */
-  final def delayExecutionWithF[F[_]](trigger: F[_])(implicit F: ObservableLike[F]): Observable[A] =
+  final def delayExecutionWithF[F[_], B](trigger: F[B])(implicit F: ObservableLike[F]): Observable[A] =
     delayExecutionWith(F.apply(trigger))
 
   /** Converts the source Observable that emits `Notification[A]` (the
@@ -1211,8 +1261,7 @@ abstract class Observable[+A] extends Serializable { self =>
   final def doOnEarlyStopF[F[_]](task: F[Unit])(implicit F: TaskLike[F]): Observable[A] =
     doOnEarlyStop(F(task))
 
-  /**
-    * Executes the given callback when the connection is being cancelled,
+  /** Executes the given callback when the connection is being cancelled,
     * via the [[monix.execution.Cancelable Cancelable]] reference returned
     * on subscribing to the created observable.
     *
@@ -1471,11 +1520,12 @@ abstract class Observable[+A] extends Serializable { self =>
     * {{{
     *   import cats.implicits._
     *   import cats.effect._
+    *   import cats.effect.Timer
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
     *   import monix.catnap.SchedulerEffect
     *   // Needed for IO.sleep
-    *   implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
+    *  implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](global)
     *
     *   Observable.range(0, 100)
     *     .delayExecution(1.second)
@@ -1524,11 +1574,12 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * {{{
     *   import cats.effect._
+    *   import cats.effect.Timer
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
     *   import monix.catnap.SchedulerEffect
     *   // Needed for IO.sleep
-    *   implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
+    *  implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](global)
     *
     *   Observable.range(0, 10)
     *     .doOnSubscribeF(IO.sleep(1.second))
@@ -1571,11 +1622,12 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * {{{
     *   import cats.effect._
+    *   import cats.effect.Timer
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
     *   import monix.catnap.SchedulerEffect
     *   // Needed for IO.sleep
-    *   implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
+    *   implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](global)
     *
     *   Observable.range(0, 100)
     *     .doAfterSubscribeF(IO.sleep(1.second))
@@ -1675,7 +1727,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * then it also emits the given elements (appended to the stream).
     */
   final def endWith[B >: A](elems: Seq[B]): Observable[B] =
-    self appendAll Observable.fromIterable(elems)
+    self.appendAll(Observable.fromIterable(elems))
 
   /** Concatenates the source with another observable.
     *
@@ -1693,13 +1745,11 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * result: a1, a2, a3, a4, b1, b2, b3, b4
     * </pre>
-    *
     */
   final def ++[B >: A](other: => Observable[B]): Observable[B] =
     appendAll(Observable.defer(other))
 
-  /**
-    * A strict variant of [[++]].
+  /** A strict variant of [[++]].
     */
   final def appendAll[B >: A](other: Observable[B]): Observable[B] =
     new ConcatObservable[B](self, other)
@@ -2186,11 +2236,12 @@ abstract class Observable[+A] extends Serializable { self =>
     * {{{
     *   import cats.implicits._
     *   import cats.effect.IO
+    *   import cats.effect.Timer
     *   import scala.concurrent.duration._
     *   import monix.execution.Scheduler.Implicits.global
     *   import monix.catnap.SchedulerEffect
     *   // Needed for IO.sleep
-    *   implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
+    *   implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](global)
     *
     *   Observable.range(0, 100).mapEvalF { x =>
     *     IO.sleep(1.second) *> IO(x)
@@ -2347,9 +2398,8 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def merge[B](implicit
     ev: A <:< Observable[B],
-    os: OverflowStrategy[B] = OverflowStrategy.Default): Observable[B] =
+    os: OverflowStrategy[B] = OverflowStrategy.Default[B]): Observable[B] =
     self.mergeMap(x => x)(os)
-
   /** Concurrently merges the observables emitted by the source with
     * the given generator function into a single observable.
     *
@@ -2894,8 +2944,7 @@ abstract class Observable[+A] extends Serializable { self =>
   final def scan[S](seed: => S)(op: (S, A) => S): Observable[S] =
     new ScanObservable[A, S](self, () => seed, op)
 
-  /**
-    * Applies a binary operator to a start value and all elements of
+  /** Applies a binary operator to a start value and all elements of
     * this Observable, going left to right and returns a new
     * Observable that emits on each step the result element of
     * the applied function.
@@ -3120,7 +3169,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * it also emits the events of the source (prepend operation).
     */
   final def startWith[B >: A](elems: Seq[B]): Observable[B] =
-    Observable.fromIterable(elems) appendAll self
+    Observable.fromIterable(elems).appendAll(self)
 
   /** Returns a new Observable that uses the specified `Scheduler` for
     * initiating the subscription.
@@ -3202,7 +3251,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * @param trigger operation that will cancel the stream as soon as it completes.
     */
-  final def takeUntilEvalF[F[_]](trigger: F[_])(implicit taskLike: TaskLike[F]): Observable[A] =
+  final def takeUntilEvalF[F[_], B](trigger: F[B])(implicit taskLike: TaskLike[F]): Observable[A] =
     self.takeUntil(Observable.fromTaskLike(trigger))
 
   /** Takes longest prefix of elements that satisfy the given predicate
@@ -3247,7 +3296,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * @param  n      maximum number of items emitted per given `period`
     */
   final def throttle(period: FiniteDuration, n: Int): Observable[A] =
-    bufferTimedWithPressure(period, n).flatMap(Observable.fromIterable)
+    bufferTimedWithPressure[A](period, n).flatMap(Observable.fromIterable)
 
   /** Returns an Observable that emits only the first item emitted by
     * the source Observable during sequential time windows of a
@@ -3302,6 +3351,28 @@ abstract class Observable[+A] extends Serializable { self =>
   final def throttleLast(period: FiniteDuration): Observable[A] =
     sample(period)
 
+  /** Emit first element emitted by the source and then
+    * emit the most recent items emitted by the source within
+    * periodic time intervals.
+    * Usage:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *
+    *   // emits 0 after 200 ms and then 4,9 in 1 sec intervals and 10 after the observable completes
+    *   Observable.fromIterable(0 to 10)
+    *     // without delay, it would return only 0, 10
+    *     .delayOnNext(200.millis)
+    *     .throttleLatest(1.second, true)
+    * }}}
+    *
+    * @param period duration of windows within which the last item
+    *        emitted by the source Observable will be emitted
+    * @param emitLast if true last element will be emitted when source completes
+    *                 no matter if interval has passed or not
+    */
+  final def throttleLatest(period: FiniteDuration, emitLast: Boolean): Observable[A] =
+    new ThrottleLatestObservable[A](self, period, emitLast)
   /** Emit the most recent items emitted by the source within
     * periodic time intervals.
     *
@@ -3542,6 +3613,54 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def whileBusyDropEventsAndSignal[B >: A](onOverflow: Long => B): Observable[B] =
     self.liftByOperator(new WhileBusyDropEventsAndSignalOperator[B](onOverflow))
+
+  /** Conflates events when a downstream is slower than the upstream.
+    *
+    * Emits: Immediately when an element is received if the downstream is waiting for elements. Otherwise emits when the
+    * downstream stops backpressuring and there is a conflated element available.
+    * Back pressures: Never (conflates instead)
+    *
+    * Usage:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *   import cats.data.Chain
+    *
+    *   // Emits [0], [1, 2], [3, 4]
+    *   Observable.range(0, 5)
+    *     .throttle(1.second, 1)
+    *     .whileBusyAggregateEvents(Chain.apply(_)){ case (chain, ele) => chain.append(ele) }
+    *     .throttle(2.seconds, 1)
+    * }}}
+    *
+    */
+  def whileBusyAggregateEvents[S](seed: A => S)(aggregate: (S, A) => S): Observable[S] = {
+    self.liftByOperator(new WhileBusyAggregateEventsOperator[A, S](seed, aggregate))
+  }
+
+  /** Reduces elements when a downstream is slower than the upstream.
+    *
+    * Emits: Immediately when an element is received if the downstream is waiting for elements. Otherwise emits when the
+    * downstream stops backpressuring and there is a reduced element available.
+    * Back pressures: Never (reduces instead)
+    *
+    * Usage:
+    *
+    * {{{
+    *   import scala.concurrent.duration._
+    *   import cats.data.Chain
+    *
+    *   // Emits 0, 3 (1+2), 7 (3+4)
+    *   Observable.range(0, 5)
+    *     .throttle(1.second, 1)
+    *     .whileBusyReduceEvents(_ + _)
+    *     .throttle(2.seconds, 1)
+    * }}}
+    *
+    */
+  final def whileBusyReduceEvents[B >: A](op: (B, B) => B): Observable[B] = {
+    self.whileBusyAggregateEvents[B](identity)(op)
+  }
 
   /** Combines the elements emitted by the source with the latest element
     * emitted by another observable.
@@ -4862,8 +4981,7 @@ object Observable extends ObservableDeprecatedBuilders {
   def from[F[_], A](fa: F[A])(implicit F: ObservableLike[F]): Observable[A] =
     F.apply(fa)
 
-  /**
-    * Converts any `Iterable` into an [[Observable]].
+  /** Converts any `Iterable` into an [[Observable]].
     */
   def fromIterable[A](iterable: Iterable[A]): Observable[A] =
     new builders.IterableAsObservable[A](iterable)
@@ -4941,8 +5059,66 @@ object Observable extends ObservableDeprecatedBuilders {
   def fromIteratorUnsafe[A](iterator: Iterator[A]): Observable[A] =
     new builders.IteratorAsObservable[A](iterator)
 
-  /**
-    * Transforms any `cats.effect.Resource` into an [[Observable]].
+  /** Wraps a [[scala.Iterator]] into an `Observable` that emits events in `chunkSize` batches.
+    *
+    * This function uses [[monix.eval.Task Task]] in order to suspend
+    * the creation of the `Iterator`, because reading from an `Iterator`
+    * is a destructive process. The `Task` is being used as a "factory",
+    * in pace of [[scala.Iterable]].
+    *
+    * Example:
+    * {{{
+    *   import monix.eval.Task
+    *
+    *   Observable.fromIteratorBuffered(Task(Iterator.from(1)), 2)
+    * }}}
+    *
+    * @see [[fromIterable]]
+    *
+    * @see [[fromIteratorBuffered[A](resource* fromIteratorBuffered(Resource)]] for a version
+    *      that uses `cats.effect.Resource`
+    *
+    * @see [[fromIteratorBufferedUnsafe]] for the unsafe version that can wrap an
+    *      iterator directly
+    */
+  def fromIteratorBuffered[A](task: Task[Iterator[A]], bufferSize: Int): Observable[Seq[A]] =
+    Observable.fromTask(task.map(fromIteratorBufferedUnsafe(_, bufferSize))).flatten
+
+  /** Wraps a [[scala.Iterator]] into an `Observable` in the context of a
+    * [[https://typelevel.org/cats-effect/datatypes/resource.html cats.effect.Resource]],
+    * which allows for specifying a finalizer.
+    *
+    * @see [[fromIterable]]
+    *
+    * @see [[fromIteratorBuffered[A](task* fromIteratorBuffered(task)]] for a version
+    *      that uses [[monix.eval.Task Task]] for suspending side effects
+    *
+    * @see [[fromIteratorBufferedUnsafe]] for the unsafe version that can wrap an
+    *      iterator directly
+    */
+  def fromIteratorBuffered[A](resource: Resource[Task, Iterator[A]], bufferSize: Int): Observable[Seq[A]] =
+    Observable.fromResource(resource).flatMap(fromIteratorBufferedUnsafe(_, bufferSize))
+
+  /** Converts any `Iterator` into an observable that emits events in `bufferSize` batches.
+    *
+    * '''UNSAFE WARNING''': reading from an `Iterator` is a destructive process.
+    * Therefore only a single subscriber is supported, the result being
+    * a single-subscriber observable. If multiple subscribers are attempted,
+    * all subscribers, except for the first one, will be terminated with a
+    * [[monix.execution.exceptions.APIContractViolationException APIContractViolationException]].
+    *
+    * @see [[fromIteratorBuffered[A](task* fromIteratorBuffered(task)]] or
+    *      [[fromIteratorBuffered[A](resource* fromIteratorBuffered(resource)]]
+    *      for safe alternatives
+    *
+    * @param iterator to transform into an observable
+    */
+  @UnsafeProtocol
+  @UnsafeBecauseImpure
+  def fromIteratorBufferedUnsafe[A](iterator: Iterator[A], bufferSize: Int): Observable[Seq[A]] =
+    new builders.BufferedIteratorAsObservable[A](iterator, bufferSize)
+
+  /** Transforms any `cats.effect.Resource` into an [[Observable]].
     *
     * See the
     * [[https://typelevel.org/cats-effect/datatypes/resource.html documentation for Resource]].
@@ -5248,8 +5424,7 @@ object Observable extends ObservableDeprecatedBuilders {
       case Failure(e) => Observable.raiseError(e)
     }
 
-  /**
-    * Builds an `Observable` instance out of a Scala `Either`.
+  /** Builds an `Observable` instance out of a Scala `Either`.
     */
   def fromEither[E <: Throwable, A](a: Either[E, A]): Observable[A] =
     a match {
@@ -5257,8 +5432,7 @@ object Observable extends ObservableDeprecatedBuilders {
       case Left(ex) => Observable.raiseError(ex)
     }
 
-  /**
-    * Builds a [[Observable]] instance out of a Scala `Either`.
+  /** Builds a [[Observable]] instance out of a Scala `Either`.
     */
   def fromEither[E, A](f: E => Throwable)(a: Either[E, A]): Observable[A] =
     a match {
@@ -5292,12 +5466,13 @@ object Observable extends ObservableDeprecatedBuilders {
     *  {{{
     *    import cats.implicits._
     *    import cats.effect.IO
+    *    import cats.effect.Timer
     *    import scala.concurrent.duration._
     *    import monix.execution.Scheduler.global
     *    import monix.catnap.SchedulerEffect
     *
     *    // Needed for IO.sleep
-    *    implicit val timer = SchedulerEffect.timerLiftIO[IO](global)
+    *    implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](global)
     *    val task = IO.sleep(5.seconds) *> IO(println("Hello!"))
     *
     *    Observable.fromTaskLike(task)
@@ -5319,8 +5494,7 @@ object Observable extends ObservableDeprecatedBuilders {
   def fromTask[A](task: Task[A]): Observable[A] =
     new builders.TaskAsObservable(task)
 
-  /**
-    * Returns a `F ~> Coeval` (`FunctionK`) for transforming any
+  /** Returns a `F ~> Coeval` (`FunctionK`) for transforming any
     * supported data-type into [[Observable]].
     */
   def liftFrom[F[_]](implicit F: ObservableLike[F]): F ~> Observable = F
@@ -5433,7 +5607,6 @@ object Observable extends ObservableDeprecatedBuilders {
 
   /** Repeats the evaluation of given effectful value, emitting
     * the results indefinitely.
-    *
     */
   def repeatEvalF[F[_], A](fa: F[A])(implicit F: TaskLike[F]): Observable[A] =
     repeat(()).mapEvalF(_ => fa)(F)
@@ -5464,6 +5637,8 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     *  }}}
+    *
+    *  @see [[paginate]] for a way to return one more value when generator returns `None`
     */
   def unfold[S, A](seed: => S)(f: S => Option[(A, S)]): Observable[A] =
     new UnfoldObservable(seed, f)
@@ -5477,9 +5652,31 @@ object Observable extends ObservableDeprecatedBuilders {
     *
     *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     *  }}}
+    *
+    *  @see [[paginateEval]] for a way to return one more value when generator returns `None`
     */
   def unfoldEval[S, A](seed: => S)(f: S => Task[Option[(A, S)]]): Observable[A] =
     new UnfoldEvalObservable(seed, f)
+
+  /** Similar to [[unfold]], but allows to take emission one step further.
+    * @example {{{
+    *  Observable.paginate(0)(i => if (i < 10) (i, Some(i + 1)) else (i, None)).toListL
+    *
+    *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    *  }}}
+    */
+  def paginate[S, A](seed: => S)(f: S => (A, Option[S])): Observable[A] =
+    new PaginateObservable(seed, f)
+
+  /** Similar to [[unfoldEval]], but allows to take emission one step further.
+    * @example {{{
+    *  Observable.paginateEval(0)(i => if (i < 10) Task.now((i, Some(i + 1))) else Task.now((i,None))).toListL
+    *
+    *  result: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    *  }}}
+    */
+  def paginateEval[S, A](seed: => S)(f: S => Task[(A, Option[S])]): Observable[A] =
+    new PaginateEvalObservable(seed, f)
 
   /** Version of [[unfoldEval]] that can work with generic
     * `F[_]` tasks, anything that's supported via [[monix.eval.TaskLike]]
@@ -6104,7 +6301,7 @@ object Observable extends ObservableDeprecatedBuilders {
     override def pure[A](a: A): Observable[A] =
       Observable.now(a)
     override def combineK[A](x: Observable[A], y: Observable[A]): Observable[A] =
-      x appendAll y
+      x.appendAll(y)
     override def flatMap[A, B](fa: Observable[A])(f: (A) => Observable[B]): Observable[B] =
       fa.flatMap(f)
     override def flatten[A](ffa: Observable[Observable[A]]): Observable[A] =
@@ -6174,8 +6371,7 @@ object Observable extends ObservableDeprecatedBuilders {
       }
     }
 
-  /**
-    * Exposes extension methods for deprecated [[Observable]] methods.
+  /** Exposes extension methods for deprecated [[Observable]] methods.
     */
   implicit final class DeprecatedExtensions[+A](val self: Observable[A])
     extends AnyVal with ObservableDeprecatedMethods[A]

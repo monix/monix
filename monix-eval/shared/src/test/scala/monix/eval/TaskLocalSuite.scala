@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,7 +29,7 @@ import monix.catnap.{ConcurrentChannel, ConsumerF}
 
 object TaskLocalSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
-  implicit val opts = Task.defaultOptions.enableLocalContextPropagation
+  implicit val opts: Task.Options = Task.defaultOptions.enableLocalContextPropagation
 
   testAsync("TaskLocal.apply") {
     val test =

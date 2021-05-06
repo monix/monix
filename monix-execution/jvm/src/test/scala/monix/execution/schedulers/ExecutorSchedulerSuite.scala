@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -217,7 +217,7 @@ object ForkJoinSchedulerSuite extends ExecutorSchedulerSuite {
     val finish = new CountDownLatch(1)
 
     for (_ <- 0 until threadsCount)
-      scheduler.executeAsync { () =>
+      scheduler.execute { () =>
         blocking {
           latch.countDown()
           finish.await(15, TimeUnit.MINUTES)

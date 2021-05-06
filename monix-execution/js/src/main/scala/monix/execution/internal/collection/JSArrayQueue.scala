@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,6 +39,8 @@ private[monix] final class JSArrayQueue[A] private (_size: Int, triggerEx: Int =
     queue.length - offset >= capacity
   override def length: Int =
     queue.length - offset
+  override def size: Int =
+    length
   override def isEmpty: Boolean =
     queue.length - offset == 0
 

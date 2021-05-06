@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.tail
 
-import cats.effect.IO
+import cats.effect.{IO, Timer}
 import monix.eval.Task
 
 import scala.util.Success
@@ -58,7 +58,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)") { s =>
-    implicit val timer = SchedulerEffect.timerLiftIO[IO](s)
+    implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
     val lst = Iterant[IO]
@@ -118,7 +118,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalWithFixedDelay(2.seconds)") { s =>
-    implicit val timer = SchedulerEffect.timerLiftIO[IO](s)
+    implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
     val lst = Iterant[IO]
@@ -169,7 +169,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalAtFixedRate(1.second)") { s =>
-    implicit val timer = SchedulerEffect.timerLiftIO[IO](s)
+    implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
     val lst = Iterant[IO]
@@ -222,7 +222,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)") { s =>
-    implicit val timer = SchedulerEffect.timerLiftIO[IO](s)
+    implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
     val lst = Iterant[IO]
@@ -276,7 +276,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
   }
 
   test("Iterant[IO].intervalAtFixedRate accounts for time it takes task to finish") { s =>
-    implicit val timer = SchedulerEffect.timerLiftIO[IO](s)
+    implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
     val lst = Iterant[IO]

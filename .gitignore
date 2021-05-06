@@ -15,5 +15,6 @@ TAGS
 .tags
 .metals
 .bloop
+.bsp
 metals.sbt
 .vscode

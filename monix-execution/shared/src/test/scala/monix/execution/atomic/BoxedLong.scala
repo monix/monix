@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@ object BoxedLong {
   val MinValue = BoxedLong(Long.MinValue)
   val MaxValue = BoxedLong(Long.MaxValue)
 
-  implicit val numeric = new Numeric[BoxedLong] {
+  implicit val numeric: Numeric[BoxedLong] = new Numeric[BoxedLong] {
     def plus(x: BoxedLong, y: BoxedLong): BoxedLong =
       BoxedLong(x.value + y.value)
     def toDouble(x: BoxedLong): Double =

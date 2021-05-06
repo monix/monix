@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -71,7 +71,7 @@ final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)(
   cs: ContextShift[F])
   extends cats.effect.concurrent.Semaphore[F] {
 
-  private[this] implicit val F0 = F.unify
+  private[this] implicit val F0: Async[F] = F.unify
 
   /** Returns the number of permits currently available. Always non-negative.
     *
@@ -283,7 +283,7 @@ object Semaphore {
     val count: F[Long] = F0.delay(unsafeCount())
 
     def acquireN(n: Long): F[Unit] =
-      F0.suspend {
+      F0.defer {
         if (unsafeTryAcquireN(n))
           F0.unit
         else

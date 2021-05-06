@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -148,5 +148,17 @@ object LocalSuite extends SimpleTestSuite {
     assertEquals(l1.get, 999)
     assertEquals(l2.get, 0)
     assertEquals(l3.get, 1)
+  }
+
+  test("local.value works inside bound context") {
+    val l1, l2 = Local(999)
+    var result: Option[Int] = None
+
+    l1.bind(0) {
+      l2.update(7)
+      result = l2.value
+    }
+
+    assertEquals(result, Some(7))
   }
 }

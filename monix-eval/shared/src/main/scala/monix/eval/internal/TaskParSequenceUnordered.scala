@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -65,7 +65,7 @@ private[eval] object TaskParSequenceUnordered {
           else {
             // Needs to force async execution in case we had no tasks,
             // due to the contract of ForkedStart
-            s.executeAsync(() => finalCallback.onSuccess(list))
+            s.execute(() => finalCallback.onSuccess(list))
           }
         case _ =>
           () // invalid state

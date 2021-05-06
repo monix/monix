@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,7 +49,7 @@ private[tail] object IterantBuffer {
     f: (Array[A], F[Iterant[F, B]]) => Iterant[F, B],
     last: Array[A] => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] = {
 
-    Suspend(F.suspend(new BatchVisitor(count, skip, f, last).apply(self)))
+    Suspend(F.defer(new BatchVisitor(count, skip, f, last).apply(self)))
   }
 
   private class BatchVisitor[F[_], A, B](

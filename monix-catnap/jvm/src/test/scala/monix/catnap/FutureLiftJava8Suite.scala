@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.catnap
 
 import java.util.concurrent.CompletableFuture
-import cats.effect.{Async, Concurrent, IO}
+import cats.effect.{Async, Concurrent, ContextShift, IO}
 import minitest.TestSuite
 import monix.catnap.syntax._
 import monix.execution.exceptions.DummyException
@@ -44,7 +44,7 @@ object FutureLiftJava8Suite extends TestSuite[TestScheduler] {
   }
 
   test("convert from async CompletableFuture; on success; with Concurrent[IO]") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val future = new CompletableFuture[Int]()
     val f = IO(future).futureLift.unsafeToFuture()
@@ -72,7 +72,7 @@ object FutureLiftJava8Suite extends TestSuite[TestScheduler] {
   }
 
   test("convert from async CompletableFuture; on failure; with Concurrent[IO]") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val future = new CompletableFuture[Int]()
     val f = convertConcurrent(IO(future)).unsafeToFuture()
@@ -88,7 +88,7 @@ object FutureLiftJava8Suite extends TestSuite[TestScheduler] {
   }
 
   test("CompletableFuture is cancelable via IO") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val future = new CompletableFuture[Int]()
 

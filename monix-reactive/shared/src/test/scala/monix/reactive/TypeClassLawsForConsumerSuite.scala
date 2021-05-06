@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@ import cats.laws.discipline.{ContravariantTests, ProfunctorTests}
 object TypeClassLawsForConsumerSuite extends BaseLawsTestSuite {
 
   checkAllAsync("Contravariant[Consumer]") { implicit ec =>
-    ContravariantTests[Consumer[?, Int]].contravariant[Int, Int, Int]
+    ContravariantTests[Consumer[*, Int]].contravariant[Int, Int, Int]
   }
 
   checkAllAsync("Profunctor[Consumer]") { implicit ec =>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -156,8 +156,8 @@ object TaskLike extends TaskLikeImplicits0 {
   /**
     * Converts a Scala `Either` to a [[Task]].
     */
-  implicit def fromEither[E <: Throwable]: TaskLike[Either[E, ?]] =
-    new TaskLike[Either[E, ?]] {
+  implicit def fromEither[E <: Throwable]: TaskLike[Either[E, *]] =
+    new TaskLike[Either[E, *]] {
       def apply[A](fa: Either[E, A]): Task[A] =
         Task.fromEither(fa)
     }

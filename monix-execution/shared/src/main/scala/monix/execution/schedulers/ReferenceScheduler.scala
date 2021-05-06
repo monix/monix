@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,9 +28,9 @@ import monix.execution.{ExecutionModel => ExecModel}
 /** Helper for building a [[Scheduler]].
   *
   * You can inherit from this class and provided a correct
-  * [[Scheduler.scheduleOnce(initialDelay* scheduleOnce]]
-  * you'll get [[Scheduler.scheduleWithFixedDelay]] and
-  * [[Scheduler.scheduleAtFixedRate]] for free.
+  * [[Scheduler.scheduleOnce(initialDelay:Long* scheduleOnce]]
+  * you'll get [[Scheduler.scheduleWithFixedDelay(initialDelay:Long*]] and
+  * [[Scheduler.scheduleAtFixedRate(initialDelay:Long*]] for free.
   */
 trait ReferenceScheduler extends Scheduler {
   override def clockRealTime(unit: TimeUnit): Long =

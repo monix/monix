@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -54,7 +54,7 @@ object CoevalBracketSuite extends BaseTestSuite {
     val dummy = new DummyException("dummy")
     var input = Option.empty[(Int, Either[Throwable, Int])]
 
-    val coeval = Coeval(1).bracketE(_ => throw dummy) { (a, i) =>
+    val coeval = Coeval(1).bracketE(_ => throw dummy) { (a, i: Either[Throwable, Int]) =>
       Coeval.eval { input = Some((a, i)) }
     }
 

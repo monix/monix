@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,10 +51,8 @@ private[reactive] final class TakeLeftByTimespanObservable[A](source: Observable
       def onNext(elem: A): Future[Ack] = synchronized {
         if (isActive)
           out.onNext(elem).syncOnStopOrFailure(_ => deactivate())
-        else {
-          onComplete()
+        else
           Stop
-        }
       }
 
       def onError(ex: Throwable): Unit = synchronized {

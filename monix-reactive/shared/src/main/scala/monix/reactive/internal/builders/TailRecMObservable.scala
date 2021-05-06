@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.builders
 
+import monix.execution.Scheduler
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.AtomicBoolean
 import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
@@ -32,7 +33,7 @@ import scala.util.{Failure, Success}
 private[monix] final class TailRecMObservable[A, B](seed: A, f: A => Observable[Either[A, B]]) extends Observable[B] {
 
   def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
-    implicit val s = out.scheduler
+    implicit val s: Scheduler = out.scheduler
     val connection = StackedCancelable()
     val future = loop(seed, out, connection).flatMap(identity)
 
@@ -68,7 +69,7 @@ private[monix] final class TailRecMObservable[A, B](seed: A, f: A => Observable[
 
       val loopSubscriber = new Subscriber[Either[A, B]] {
         override def scheduler = s
-        private[this] implicit val s = out.scheduler
+        private[this] implicit val s: Scheduler = out.scheduler
 
         // We need to protect `conn.pop()` - unfortunately
         // there has to be an order for `push` and `pop` on

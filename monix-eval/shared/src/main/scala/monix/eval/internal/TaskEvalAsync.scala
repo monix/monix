@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,7 +38,7 @@ private[eval] object TaskEvalAsync {
   private final class EvalAsyncRegister[A](a: () => A) extends ForkedRegister[A] {
 
     def apply(ctx: Task.Context, cb: Callback[Throwable, A]): Unit =
-      ctx.scheduler.executeAsync(() => {
+      ctx.scheduler.execute(() => {
         ctx.frameRef.reset()
         var streamError = true
         try {

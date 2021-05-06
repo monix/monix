@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -59,11 +59,11 @@ final class SingleAssignCancelableF[F[_]] private (extra: CancelableF[F])(implic
           else
             loop()
       }
-    F.suspend(loop())
+    F.defer(loop())
   }
 
   def set(ref: CancelableF[F]): F[Unit] =
-    F.suspend(unsafeLoop(ref))
+    F.defer(unsafeLoop(ref))
 
   @tailrec
   private def unsafeLoop(ref: CancelableF[F]): F[Unit] = {

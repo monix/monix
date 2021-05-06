@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -45,7 +45,7 @@ object OverflowStrategy {
     * Using this overflowStrategy implies that with a fast data source, the system's
     * memory can be exhausted and the process might blow up on lack of memory.
     */
-  final case object Unbounded extends Synchronous[Nothing]
+  case object Unbounded extends Synchronous[Nothing]
 
   /** A [[OverflowStrategy]] specifying that on reaching the maximum size,
     * the pipeline should cancel the subscription and send an `onError`

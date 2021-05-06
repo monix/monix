@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -79,7 +79,7 @@ private[reactive] final class LoadBalanceConsumer[-In, R](parallelism: Int, cons
           // Forcing an asynchronous boundary, to avoid any possible
           // initialization issues (in building subscribersQueue) or
           // stack overflows and other problems
-          def cancel(): Unit = scheduler.executeAsync { () =>
+          def cancel(): Unit = scheduler.execute { () =>
             // We are required to synchronize, because we need to
             // make sure that subscribersQueue is fully created before
             // triggering any cancellation!
@@ -214,7 +214,7 @@ private[reactive] final class LoadBalanceConsumer[-In, R](parallelism: Int, cons
       private def signalNext(out: IndexedSubscriber[In], elem: In): Unit = {
         // We are forcing an asynchronous boundary here, since we
         // don't want to block the main thread!
-        scheduler.executeAsync { () =>
+        scheduler.execute { () =>
           try out.out.onNext(elem).syncOnComplete {
             case Success(ack) =>
               ack match {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -417,7 +417,7 @@ object Consumer {
   }
 
   /** `cats.Contravariant` instance for [[Consumer]]. */
-  implicit def catsContravariant[C]: Contravariant[Consumer[?, C]] = new Contravariant[Consumer[?, C]] {
+  implicit def catsContravariant[C]: Contravariant[Consumer[*, C]] = new Contravariant[Consumer[*, C]] {
     override def contramap[A, B](fa: Consumer[A, C])(f: B => A): Consumer[B, C] =
       fa.contramap(f)
   }

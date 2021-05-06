@@ -1,10 +1,10 @@
 name: manual-publish
 
-on: 
+on:
   workflow_dispatch:
     inputs:
       ref_to_publish:
-        description: 'Ref (branch or tag)'     
+        description: 'Ref (branch or tag)'
         required: true
         default: 'refs/heads/series/3.x'
       stable_version:

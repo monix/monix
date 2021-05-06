@@ -62,7 +62,7 @@ a project exemplifying Monix used both on the server and on the client.
 For the stable release (compatible with Cats, and Cats-Effect 2.x):
  
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "3.2.2"
+libraryDependencies += "io.monix" %% "monix" % "3.3.0"
 ```
   
 ### Sub-projects
@@ -101,7 +101,7 @@ See:
 API Documentation:
 
 - [Current](https://monix.io/api/current/) 
-- [3.2](https://monix.io/api/3.2/)
+- [3.3](https://monix.io/api/3.3/)
 - [2.3](https://monix.io/api/2.3/)
 - [1.2](https://monix.io/api/1.2/)
 
@@ -145,7 +145,9 @@ Submit a PR ❤️
 - [Hypefactors](https://www.hypefactors.com)
 - [Iterators](https://www.iteratorshq.com)
 - [Sony Electronics](https://www.sony.com)
+- [Tinkoff](https://tinkoff.ru)
 - [Zalando](https://www.zalando.com)
+- [Zendesk](https://www.zendesk.com)
 
 ## License
 

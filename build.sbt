@@ -7,36 +7,37 @@ import MonixBuildUtils._
 val benchmarkProjects = List(
   "benchmarksPrev",
   "benchmarksNext"
-).map(_ + "/compile")
+).map(_ + "/compile").mkString(" ;")
 
-addCommandAlias("ci",          ";ci-jvm ;ci-js")
+val jvmTests = List(
+  "reactiveTests",
+  "tracingTests"
+).map(_ + "/test").mkString(" ;")
+
 addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;ci-meta")
 addCommandAlias("ci-js",       ";clean ;coreJS/test:compile ;coreJS/test ;coreJS/package")
-addCommandAlias("ci-jvm",      ";clean ;coreJVM/test:compile ;coreJVM/test ;coreJVM/package")
+addCommandAlias("ci-jvm",      s";clean ;coreJVM/test:compile ;coreJVM/test ;coreJVM/package ;tracingTests/test")
 addCommandAlias("ci-meta",     ";mimaReportBinaryIssues ;unidoc")
 addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions
 
-val cats_Version = "2.1.1"
-val catsEffect_Version = "2.1.4"
-val fs2_Version = "2.4.0"
-val jcTools_Version = "3.1.0"
+val cats_Version = "2.5.0"
+val catsEffect_Version = "2.4.1"
+val fs2_Version = "2.4.4"
+val jcTools_Version = "3.3.0"
 val reactiveStreams_Version = "1.0.3"
-val minitest_Version = "2.8.2"
-val scalaTest_Version = "3.0.8"
-val implicitBox_Version = "0.2.0"
-val kindProjector_Version = "0.11.0"
+val minitest_Version = "2.9.4"
+val implicitBox_Version = "0.3.2"
+val kindProjector_Version = "0.11.3"
 val betterMonadicFor_Version = "0.3.1"
-val silencer_Version = "1.7.1"
-val scalaCompat_Version = "2.1.6"
-val customScalaJS_Version =
-  Option(sys.env.getOrElse("SCALAJS_VERSION", null)).filter(_.nonEmpty)
+val silencer_Version = "1.7.3"
+val scalaCompat_Version = "2.4.2"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.2.2"
+val monixSeries = "3.3.0"
 
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Libraries
@@ -83,10 +84,6 @@ lazy val kindProjectorCompilerPlugin =
 lazy val minitestLib =
   Def.setting { "io.monix" %%% "minitest-laws" % minitest_Version }
 
-/** [[https://github.com/scalatest/scalatest]] */
-lazy val scalaTestLib =
-  Def.setting { "org.scalatest" %%% "scalatest" % scalaTest_Version }
-
 /** [[https://github.com/scala/scala-collection-compat]] */
 lazy val scalaCollectionCompatLib =
   Def.setting { "org.scala-lang.modules" %%% "scala-collection-compat" % scalaCompat_Version }
@@ -129,7 +126,7 @@ val crossScalaVersionsFromBuildYaml =
 
 crossScalaVersionsFromBuildYaml in Global := {
   val manifest = (baseDirectory in ThisBuild).value / ".github" / "workflows" / "build.yml"
-  scalaVersionsFromBuildYaml(manifest, customScalaJS_Version)
+  scalaVersionsFromBuildYaml(manifest)
 }
 
 lazy val publishStableMonixVersion =
@@ -176,20 +173,17 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   */
 
   // Disabled from the sbt-tpolecat set
-  scalacOptions in Compile ~= { options: Seq[String] =>
-    options.filterNot(
-      Set(
-        "-Wunused:privates",
-        "-Ywarn-unused:privates",
-        "-Ywarn-unused:implicits",
-        "-Wunused:implicits",
-        "-Ywarn-unused:imports",
-        "-Wunused:explicits",
-        "-Ywarn-unused:params",
-        "-Wunused:params",
-      )
-    )
-  },
+  scalacOptions in Compile --= Seq(
+    "-Wunused:privates",
+    "-Ywarn-unused:privates",
+    "-Wunused:implicits",
+    "-Ywarn-unused:implicits",
+    "-Wunused:imports",
+    "-Ywarn-unused:imports",
+    "-Wunused:explicits",
+    "-Ywarn-unused:params",
+    "-Wunused:params",
+  ),
 
   // Turning off fatal warnings for doc generation
   scalacOptions.in(Compile, doc) ~= filterConsoleScalacOptions,
@@ -215,7 +209,6 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   ),
 
   logBuffered in Test := false,
-  logBuffered in IntegrationTest := false,
 
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
@@ -227,11 +220,11 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   // -- Settings meant for deployment on oss.sonatype.org
   publishTo in ThisBuild := sonatypePublishToBundle.value,
   isSnapshot in ThisBuild := {
-    !isVersionStable.value || !publishStableMonixVersion.value  
+    !isVersionStable.value || !publishStableMonixVersion.value
   },
   dynverSonatypeSnapshots in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
   sonatypeProfileName in ThisBuild := organization.value,
-  sonatypeSessionName := s"[sbt-sonatype] ${name.value}${customScalaJS_Version.fold("-nojs")(v => s"-sjs$v")}-${version.value}",
+  sonatypeSessionName := s"[sbt-sonatype] ${name.value}-${version.value}",
 
   // Only on the Series 4.x branch
   dynverVTagPrefix in ThisBuild := false,
@@ -243,7 +236,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
   homepage := Some(url("https://monix.io")),
   headerLicense := Some(HeaderLicense.Custom(
-    """|Copyright (c) 2014-2020 by The Monix Project Developers.
+    """|Copyright (c) 2014-2021 by The Monix Project Developers.
        |See the project homepage at: https://monix.io
        |
        |Licensed under the Apache License, Version 2.0 (the "License");
@@ -288,18 +281,12 @@ lazy val crossVersionSourcesSettings: Seq[Setting[_]] =
   Seq(Compile, Test).map { sc =>
     (unmanagedSourceDirectories in sc) ++= {
       (unmanagedSourceDirectories in sc).value.flatMap { dir =>
-        Seq(
+        List(
           scalaPartV.value match {
-            case Some((2, y)) if y == 12 => Some(new File(dir.getPath + "_2.12"))
-            case Some((2, y)) if y >= 13 => Some(new File(dir.getPath + "_2.13"))
-            case _ => None
-          },
-          scalaPartV.value match {
-            case Some((2, n)) if n >= 13 => Some(new File(dir.getPath + "_2.13+"))
-            case Some((2, _)) => Some(new File(dir.getPath + "_2.13-"))
-            case _ => None
+            case Some((2, n)) if n >= 13 => new File(dir.getPath + "_2.13+")
+            case _                       => new File(dir.getPath + "_2.13-")
           }
-        ).flatten
+        )
       }
     }
   }
@@ -362,21 +349,15 @@ lazy val sharedJSSettings = Seq(
     val l = (baseDirectory in LocalRootProject).value.toURI.toString
     val g = s"https://raw.githubusercontent.com/monix/monix/${gitHubTreeTagOrHash.value}/"
     s"-P:scalajs:mapSourceURI:$l->$g"
-  },
-  // Needed in order to publish for multiple Scala.js versions:
-  // https://github.com/olafurpg/sbt-ci-release#how-do-i-publish-cross-built-scalajs-projects
-  skip.in(publish) := customScalaJS_Version.isEmpty,
-)
-
-lazy val sharedJVMSettings = Seq(
-  skip.in(publish) := customScalaJS_Version.isDefined
+  }
 )
 
 def mimaSettings(projectName: String) = Seq(
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
   mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
   mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_3,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_3_0,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_4_0
 )
 
 lazy val doctestTestSettings = Seq(
@@ -423,7 +404,6 @@ def jvmModule(
 ): Project => Project =
   pr => {
     pr.configure(monixSubModule(projectName, publishArtifacts = publishArtifacts))
-      .settings(sharedJVMSettings)
       .settings(testDependencies)
       .settings(if (withDocTests) doctestTestSettings else Seq.empty)
       .settings(if (withMimaChecks) mimaSettings(projectName) else Seq.empty)
@@ -639,9 +619,39 @@ lazy val reactiveTests = project.in(file("reactiveTests"))
   .dependsOn(reactiveJVM, tailJVM)
   .settings(
     libraryDependencies ++= Seq(
-      reactiveStreamsTCKLib % Test,
-      scalaTestLib.value % Test,
+      reactiveStreamsTCKLib % Test
     ))
+
+// --------------------------------------------
+// monix-tracing-tests (not published)
+
+lazy val FullTracingTest = config("fulltracing").extend(Test)
+
+lazy val tracingTests = project.in(file("tracingTests"))
+  .configure(monixSubModule(
+    "monix-tracing-tests",
+    publishArtifacts = false
+  ))
+  .dependsOn(evalJVM % "compile->compile; test->test")
+  .configs(FullTracingTest)
+  .settings(testFrameworks := Seq(new TestFramework("minitest.runner.Framework")))
+  .settings(inConfig(FullTracingTest)(Defaults.testSettings): _*)
+  .settings(
+    unmanagedSourceDirectories in FullTracingTest += {
+      baseDirectory.value.getParentFile / "src" / "fulltracing" / "scala"
+    },
+    test in Test := (test in Test).dependsOn(test in FullTracingTest).value,
+    fork in Test := true,
+    fork in FullTracingTest := true,
+    javaOptions in Test ++= Seq(
+      "-Dmonix.eval.tracing=true",
+      "-Dmonix.eval.stackTracingMode=cached"
+    ),
+    javaOptions in FullTracingTest ++= Seq(
+      "-Dmonix.eval.tracing=true",
+      "-Dmonix.eval.stackTracingMode=full"
+    )
+  )
 
 // --------------------------------------------
 // monix-benchmarks-{prev,next} (not published)
@@ -654,9 +664,10 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   ))
   .settings(
     libraryDependencies ++= Seq(
-      "io.monix" %% "monix" % "3.2.2",
-      "dev.zio" %% "zio-streams" % "1.0.0-RC21-2",
-      "co.fs2" %% "fs2-core" % fs2_Version
+      "io.monix" %% "monix" % "3.3.0",
+      "dev.zio" %% "zio-streams" % "1.0.0",
+      "co.fs2" %% "fs2-core" % fs2_Version,
+      "com.typesafe.akka" %% "akka-stream" % "2.6.9"
   ))
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
@@ -668,6 +679,7 @@ lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .dependsOn(reactiveJVM, tailJVM)
   .settings(
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-streams" % "1.0.0-RC21-2",
-      "co.fs2" %% "fs2-core" % fs2_Version
+      "dev.zio" %% "zio-streams" % "1.0.0",
+      "co.fs2" %% "fs2-core" % fs2_Version,
+      "com.typesafe.akka" %% "akka-stream" % "2.6.9"
     ))

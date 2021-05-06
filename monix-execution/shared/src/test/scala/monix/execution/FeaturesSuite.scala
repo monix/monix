@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ import monix.execution.Features.{Flag, Flags}
 import org.scalacheck.Arbitrary
 
 object FeaturesSuite extends SimpleTestSuite with Checkers {
-  implicit val arbFeatures =
+  implicit val arbFeatures: Arbitrary[Features] =
     Arbitrary(implicitly[Arbitrary[Long]].arbitrary.map(l => new Features(l.asInstanceOf[Flags])))
   val allFlags =
     (0 until 64).map(i => (1L << i).asInstanceOf[Flag])

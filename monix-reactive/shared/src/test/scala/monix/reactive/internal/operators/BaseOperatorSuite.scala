@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -148,7 +148,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
           private[this] var ack: Future[Ack] = Continue
 
           def onNext(elem: Long): Future[Ack] = {
-            assert(ack.isCompleted, "Contact breach, last ack is not completed")
+            assert(ack.isCompleted, s"Contact breach at elem $elem of $sourceCount, last ack is not completed")
 
             ack = Future.delayedResult(100.millis) {
               received += 1

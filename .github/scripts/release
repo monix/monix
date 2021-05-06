@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-echo "SCALAJS_VERSION=$SCALAJS_VERSION"
 git fetch --depth=100 origin +refs/tags/*:refs/tags/*
 
 if [ "$PUBLISH_STABLE_VERSION" != "true" ]; then

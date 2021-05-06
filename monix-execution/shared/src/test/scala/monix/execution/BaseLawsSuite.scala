@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,6 +33,8 @@ import org.typelevel.discipline.Laws
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionException, Future}
 import scala.util.{Failure, Success, Try}
+
+import scala.language.implicitConversions
 
 trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstances {
   override lazy val checkConfig: Parameters =
@@ -134,7 +136,7 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances with TestUtils 
       }
     }
 
-  implicit lazy val equalityThrowable = new Eq[Throwable] {
+  implicit lazy val equalityThrowable: Eq[Throwable] = new Eq[Throwable] {
     override def eqv(x: Throwable, y: Throwable): Boolean = {
       val ex1 = extractEx(x)
       val ex2 = extractEx(y)

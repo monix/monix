@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import cats.effect.laws.discipline._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests}
@@ -51,8 +51,8 @@ object TypeClassLawsForTaskAutoCancelableRunSyncUnsafeSuite
 class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
   extends monix.execution.BaseLawsSuite with ArbitraryInstancesBase with TestUtils {
 
-  implicit val sc = Scheduler(global, UncaughtExceptionReporter(_ => ()))
-  implicit val cs = IO.contextShift(sc)
+  implicit val sc: Scheduler = Scheduler(global, UncaughtExceptionReporter(_ => ()))
+  implicit val cs: ContextShift[IO] = IO.contextShift(sc)
   implicit val ap: Applicative[Task.Par] = CatsParallelForTask.applicative
 
   val timeout = {
@@ -62,7 +62,7 @@ class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
       5.seconds
   }
 
-  implicit val params = Parameters(
+  implicit val params: Parameters = Parameters(
     // Disabling non-terminating tests (that test equivalence with Task.never)
     // because they'd behave really badly with an Eq[Task] that depends on
     // blocking threads

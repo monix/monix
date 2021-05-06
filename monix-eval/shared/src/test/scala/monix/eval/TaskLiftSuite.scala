@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,7 @@
  */
 
 package monix.eval
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import monix.catnap.SchedulerEffect
 import monix.execution.exceptions.DummyException
 
@@ -51,8 +51,8 @@ object TaskLiftSuite extends BaseTestSuite {
   }
 
   test("task.to[Effect]") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
-    implicit val F = new CustomEffect()
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
+    implicit val F: CustomEffect = new CustomEffect()
 
     val task = Task(1)
     val io = task.to[CIO]
@@ -63,8 +63,8 @@ object TaskLiftSuite extends BaseTestSuite {
   }
 
   test("task.to[Effect] for errors") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
-    implicit val F = new CustomEffect()
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
+    implicit val F: CustomEffect = new CustomEffect()
 
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy)
@@ -76,8 +76,8 @@ object TaskLiftSuite extends BaseTestSuite {
   }
 
   test("task.to[ConcurrentEffect]") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
-    implicit val F = new CustomConcurrentEffect()
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
+    implicit val F: CustomConcurrentEffect = new CustomConcurrentEffect()
 
     val task = Task(1)
     val io = task.to[CIO]
@@ -88,8 +88,8 @@ object TaskLiftSuite extends BaseTestSuite {
   }
 
   test("task.to[ConcurrentEffect] for errors") { implicit s =>
-    implicit val cs = SchedulerEffect.contextShift[IO](s)
-    implicit val F = new CustomConcurrentEffect()
+    implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
+    implicit val F: CustomConcurrentEffect = new CustomConcurrentEffect()
 
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy)

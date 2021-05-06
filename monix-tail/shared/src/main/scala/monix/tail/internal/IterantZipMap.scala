@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -119,7 +119,7 @@ private[tail] object IterantZipMap {
 
       def visit(lh: Iterant[F, A], rh: Iterant[F, B]): Iterant[F, C] = {
         rhRef = rh
-        apply(lh)
+        this.apply(lh)
       }
 
       def visit(ref: Next[F, A]): Iterant[F, C] =
@@ -177,7 +177,7 @@ private[tail] object IterantZipMap {
 
       def visit(lh: LH, rh: Iterant[F, B]): Iterant[F, C] = {
         lhRef = lh
-        apply(rh)
+        this.apply(rh)
       }
     }
 

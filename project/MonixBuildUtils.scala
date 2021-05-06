@@ -90,54 +90,13 @@ object MonixBuildUtils {
   }
 
   /**
-    * Reads the Scala versions from `.github/workflows/build.yml`, ensuring that
-    * they are compatible with the selected SCALAJS_VERSION.
+    * Reads the Scala versions from `.github/workflows/build.yml`.
     */
-  def scalaVersionsFromBuildYaml(manifest: File, customScalaJSVersion: Option[String]): SortedSet[MonixScalaVersion] = {
+  def scalaVersionsFromBuildYaml(manifest: File): SortedSet[MonixScalaVersion] = {
     Using.fileInputStream(manifest) { fis =>
       val yaml = new org.yaml.snakeyaml.Yaml()
         .loadAs(fis, classOf[java.util.Map[Any, Any]])
         .asScala
-
-      val sjsAssocs = yaml
-        .get("jobs")
-        .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
-        .getOrElse(mutable.Map.empty[Any, Any])
-        .get("js-tests")
-        .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
-        .getOrElse(mutable.Map.empty[Any, Any])
-        .get("strategy")
-        .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
-        .getOrElse(mutable.Map.empty[Any, Any])
-        .get("matrix")
-        .collect { case map: java.util.Map[Any, Any] @unchecked => map.asScala }
-        .getOrElse(mutable.Map.empty[Any, Any])
-        .get("include")
-        .collect { case list: java.util.List[Any] @unchecked => list.asScala }
-        .getOrElse(Iterable.empty[Any])
-        .collect { case javaMap: java.util.Map[Any, Any]@unchecked =>
-          val map = javaMap.asScala
-          val scalaV = map.get("scala").collect { case s: String => s }
-          val sjsV = map.get("scalajs").collect { case s: String => s }
-          for (v1 <- sjsV; v2 <- scalaV) yield (v1, v2)
-        }
-        .flatMap(x => x)
-        .toSeq
-
-      val allSjsVersions = SortedSet(sjsAssocs.map(v => MonixScalaVersion(v._1)):_*)
-      assert(allSjsVersions.nonEmpty, "Configuration Issue: Scala.js versions couldn't be extracted from build.yml")
-      val sjsVersion = customScalaJSVersion.getOrElse(allSjsVersions.head.value)
-
-      // Super ugly, but whatever get gets the job done
-      val isVersionValid: String => Boolean = {
-        val map = sjsAssocs.foldLeft(Map.empty[String, Map[String, Boolean]]) {
-          case (acc, (v1, v2)) =>
-            acc.updated(v1, acc.getOrElse(v1, Map.empty).updated(v2, true))
-        }
-        scalaVersion => {
-          map.get(sjsVersion).flatMap(_.get(scalaVersion)).getOrElse(false)
-        }
-      }
 
       val scalaVersions = yaml
         .get("jobs")
@@ -155,7 +114,7 @@ object MonixBuildUtils {
         .get("scala")
         .collect { case list: java.util.List[Any] @unchecked => list.asScala }
         .getOrElse(Iterable.empty[Any])
-        .collect { case v: String if isVersionValid(v) => MonixScalaVersion(v) }
+        .collect { case v: String => MonixScalaVersion(v) }
         .toSeq
 
       assert(scalaVersions.nonEmpty, "build.yml is corrupt, suitable scala_version_* keys missing")

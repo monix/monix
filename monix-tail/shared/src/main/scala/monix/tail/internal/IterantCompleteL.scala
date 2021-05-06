@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ private[tail] object IterantCompleteL {
     */
   final def apply[F[_], A](source: Iterant[F, A])(implicit F: Sync[F]): F[Unit] = {
 
-    F.suspend(new Loop[F, A]().apply(source))
+    F.defer(new Loop[F, A]().apply(source))
   }
 
   private final class Loop[F[_], A](implicit F: Sync[F]) extends Iterant.Visitor[F, A, F[Unit]] {

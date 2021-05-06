@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,7 +56,7 @@ object TaskBracketSuite extends BaseTestSuite {
     val dummy = new DummyException("dummy")
     var input = Option.empty[(Int, Either[Option[Throwable], Int])]
 
-    val task = Task.evalAsync(1).bracketE(_ => throw dummy) { (a, i) =>
+    val task = Task.evalAsync(1).bracketE(_ => throw dummy) { (a, i: Either[Option[Throwable], Int]) =>
       Task.eval { input = Some((a, i)) }
     }
 

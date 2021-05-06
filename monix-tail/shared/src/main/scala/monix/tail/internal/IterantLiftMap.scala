@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,7 +51,7 @@ private[tail] object IterantLiftMap {
     def visit[S](ref: Scope[F, S, A]): Iterant[G, A] =
       Scope[G, S, A](
         f(ref.acquire),
-        s => G.suspend(f(ref.use(s)).map(this)),
+        s => G.defer(f(ref.use(s)).map(this)),
         (s, exitCase) => f(ref.release(s, exitCase)))
 
     def visit(ref: Last[F, A]): Iterant[G, A] =

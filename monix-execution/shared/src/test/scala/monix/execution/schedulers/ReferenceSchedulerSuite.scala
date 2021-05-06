@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -105,7 +105,7 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     val ws = s.withExecutionModel(AlwaysAsyncExecution)
 
     var effect = 0
-    ws.executeAsync { () =>
+    ws.execute { () =>
       effect += 1
     }
 
@@ -138,7 +138,7 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     val ws = s.withExecutionModel(AlwaysAsyncExecution)
 
     val dummy = new RuntimeException("dummy")
-    ws.executeAsync { () =>
+    ws.execute { () =>
       throw dummy
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -388,7 +388,7 @@ final class AsyncQueue[A] private[monix] (
 
     // Async boundary, for fairness reasons; also creates a full
     // memory barrier between the promise registration and what follows
-    scheduler.executeAsync { () =>
+    scheduler.execute { () =>
       // Trying to read one more time
       val value = f()
       if (filter(value)) {

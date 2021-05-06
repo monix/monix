@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -45,11 +45,11 @@ object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
     var effect = 0
     val p = Promise[Int]()
 
-    s.executeAsync { () =>
+    s.execute { () =>
       effect += 1
-      s.executeAsync { () =>
+      s.execute { () =>
         effect += 2
-        s.executeAsync { () =>
+        s.execute { () =>
           effect += 3
           p.success(effect)
           ()

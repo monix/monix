@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -122,7 +122,7 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
     val latchWorkersFinished = new CountDownLatch(WORKERS)
 
     for (_ <- 0 until WORKERS) {
-      sc.executeAsync { () =>
+      sc.execute { () =>
         latchWorkersStart.countDown()
         try {
           f

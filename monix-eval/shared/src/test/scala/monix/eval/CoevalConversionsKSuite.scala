@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,7 @@ object CoevalConversionsKSuite extends SimpleTestSuite {
   }
 
   test("Coeval.liftFrom[F] as param to mapK") {
-    val res = Resource.liftF(SyncIO(1 + 1)).mapK(Coeval.liftFrom[SyncIO])
+    val res = Resource.eval(SyncIO(1 + 1)).mapK(Coeval.liftFrom[SyncIO])
     assertEquals(res.use(Coeval.pure).value(), 2)
   }
 
@@ -37,7 +37,7 @@ object CoevalConversionsKSuite extends SimpleTestSuite {
   }
 
   test("Coeval.liftTo[SyncIO] as a param to mapK") {
-    val res = Resource.liftF(Coeval(1 + 1)).mapK(Coeval.liftTo[SyncIO])
+    val res = Resource.eval(Coeval(1 + 1)).mapK(Coeval.liftTo[SyncIO])
     assertEquals(res.use(SyncIO.pure).unsafeRunSync(), 2)
   }
 
@@ -47,7 +47,7 @@ object CoevalConversionsKSuite extends SimpleTestSuite {
   }
 
   test("Coeval.liftToSync[SyncIO] as a param to mapK") {
-    val res = Resource.liftF(Coeval(1 + 1)).mapK(Coeval.liftToSync[SyncIO])
+    val res = Resource.eval(Coeval(1 + 1)).mapK(Coeval.liftToSync[SyncIO])
     assertEquals(res.use(SyncIO.pure).unsafeRunSync(), 2)
   }
 }

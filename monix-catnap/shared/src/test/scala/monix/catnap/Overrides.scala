@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +33,7 @@ object Overrides {
 
   class CustomSyncIO extends Sync[IO] {
     def suspend[A](thunk: => IO[A]): IO[A] =
-      IO.ioEffect.suspend(thunk)
+      IO.ioEffect.defer(thunk)
     def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
       IO.ioEffect.bracketCase(acquire)(use)(release)
     def raiseError[A](e: Throwable): IO[A] =

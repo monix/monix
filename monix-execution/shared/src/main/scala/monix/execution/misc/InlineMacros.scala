@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,6 +47,7 @@ trait InlineMacros {
         case i @ Ident(_) if i.name == symbol =>
           value
         case tt: TypeTree if tt.original != null =>
+          //super.transform(TypeTree().setOriginal(transform(tt.original)))
           super.transform(c.universe.internal.setOriginal(TypeTree(), transform(tt.original)))
         case _ =>
           super.transform(tree)

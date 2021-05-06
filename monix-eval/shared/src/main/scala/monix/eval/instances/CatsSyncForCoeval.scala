@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2020 by The Monix Project Developers.
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,6 @@ import cats.effect.{ExitCase, Sync, SyncEffect}
 import monix.eval.Coeval
 
 import scala.util.Try
-
 
 /** Cats type class instances for [[monix.eval.Coeval Coeval]].
   *
