@@ -6,7 +6,7 @@ on:
       ref_to_publish:
         description: 'Ref (branch or tag)'
         required: true
-        default: 'refs/heads/series/3.x'
+        default: 'refs/heads/series/4.x'
       stable_version:
         description: 'Stable version? (true=staging, false=snapshot)'
         required: true
@@ -15,9 +15,6 @@ on:
 jobs:
   publish:
     name: Publish to Sonatype (Request)
-    strategy:
-      matrix:
-        scalajs: ["", 0.6.33, 1.1.1]
 
     runs-on: ubuntu-20.04
     steps:
@@ -26,7 +23,7 @@ jobs:
           fetch-depth: 100
           ref: ${{ github.event.inputs.ref_to_publish }}
 
-      - uses: olafurpg/setup-scala@v2
+      - uses: olafurpg/setup-scala@v10
         with:
           java-version: "adopt@1.8"
 
@@ -36,9 +33,8 @@ jobs:
         env:
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
 
-      - name: SCALAJS_VERSION=${{ matrix.scalajs }} sbt ci-release
+      - name: sbt ci-release
         run: |
-          echo "SCALAJS_VERSION=$SCALAJS_VERSION"
           git fetch --depth=100 origin +refs/tags/*:refs/tags/*
           if [ "$PUBLISH_STABLE_VERSION" = "true" ]; then
             sbt ci-release
@@ -50,5 +46,4 @@ jobs:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          SCALAJS_VERSION: ${{ matrix.scalajs }}
           PUBLISH_STABLE_VERSION: ${{ github.event.inputs.stable_version }}
