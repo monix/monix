@@ -6,8 +6,6 @@ Asynchronous, Reactive Programming for Scala and [Scala.js](http://www.scala-js.
 
 [![Build](https://github.com/monix/monix/workflows/build/badge.svg?branch=series/4.x)](https://github.com/monix/monix/actions?query=branch%3Aseries%2F4.x+workflow%3Abuild) [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monix/monix)
 
-**IN-DEVELOPMENT, UNSTABLE BRANCH!**
-
 - [Overview](#overview)
 - [Usage](#usage)
   - [Library dependency (sbt)](#library-dependency-sbt)
