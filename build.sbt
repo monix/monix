@@ -200,7 +200,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
     if (isDotty.value)
       Seq.empty
     else
-      Seq("-P:silencer:pathFilters=.*[/]src_managed[/].*", "-Xsource:3")
+      Seq("-P:silencer:pathFilters=.*[/]src_managed[/].*")
   },
 
   scalacOptions --= {
