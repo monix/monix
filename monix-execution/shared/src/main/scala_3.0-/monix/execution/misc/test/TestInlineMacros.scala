@@ -22,19 +22,19 @@ import scala.reflect.macros.whitebox
 
 private[execution] object TestInlineMacros {
   def testInlineSingleArg(): Either[String, Unit] =
-  macro Macros.testInlineSingleArg
+    macro Macros.testInlineSingleArg
 
   def testInlineMultipleArgs(): Either[String, Unit] =
-  macro Macros.testInlineMultipleArgs
+    macro Macros.testInlineMultipleArgs
 
   def testInlineSingleArgUnderscore(): Either[String, Unit] =
-  macro Macros.testInlineSingleArgUnderscore
+    macro Macros.testInlineSingleArgUnderscore
 
   def testInlineMultipleArgsUnderscore(): Either[String, Unit] =
-  macro Macros.testInlineMultipleArgsUnderscore
+    macro Macros.testInlineMultipleArgsUnderscore
 
   def testInlinePatternMatch(): Either[String, Unit] =
-  macro Macros.testInlinePatternMatch
+    macro Macros.testInlinePatternMatch
 
   class Macros(override val c: whitebox.Context) extends InlineMacros {
     import c.universe._
