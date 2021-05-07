@@ -77,10 +77,9 @@ abstract class Atomic[A] extends Serializable {
     *           the update + what should this method return when the operation succeeds.
     * @return whatever was specified by your callback, once the operation succeeds
     */
-  inline final def transformAndExtract[U](cb: (A) => (U, A)): U = {
+  inline final def transformAndExtract[U](inline cb: (A) => (U, A)): U = {
     val current = get()
     val (result, update) = cb(current)
-
     set(update)
     result
   }
@@ -115,7 +114,7 @@ abstract class Atomic[A] extends Serializable {
     *           new value that should be persisted
     * @return the old value, just prior to when the successful update happened
     */
-  inline final def getAndTransform(cb: (A) => A): A = {
+  inline final def getAndTransform(inline cb: (A) => A): A = {
     val current = get()
     val update = cb(current)
 
@@ -133,12 +132,8 @@ abstract class Atomic[A] extends Serializable {
     * @param cb is a callback that receives the current value as input and returns the `update` which is the
     *           new value that should be persisted
     */
-  inline final def transform(cb: (A) => A): Unit = {
-    val current = get()
-    val update = cb(current)
-
-    set(cb(update))
-  }
+  inline final def transform(inline cb: (A) => A): Unit =
+    set(cb(get()))
 }
 
 object Atomic {
