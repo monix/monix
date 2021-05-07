@@ -146,6 +146,14 @@ lazy val pgpSettings = {
   )
 }
 
+lazy val isDotty = 
+  Def.setting {
+    scalaPartV.value match {
+      case Some((3, _)) => true
+      case _ => false
+    }
+  }
+
 lazy val sharedSettings = pgpSettings ++ Seq(
   organization := "io.monix",
   // Value extracted from .github/workflows/build.yml
@@ -190,9 +198,9 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   // Silence everything in auto-generated files
   scalacOptions ++= {
     if (isDotty.value)
-      Seq("-language:Scala2", "-source:3.0-migration")
+      Seq.empty
     else
-      Seq("-P:silencer:pathFilters=.*[/]src_managed[/].*")
+      Seq("-P:silencer:pathFilters=.*[/]src_managed[/].*", "-Xsource:3")
   },
 
   scalacOptions --= {
