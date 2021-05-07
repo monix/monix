@@ -109,6 +109,9 @@ object FilterSuite extends BaseOperatorSuite {
         assert(wasCompleted)
         p.success(Continue)
         s.tick(waitForNext)
+
+      case _ =>
+        fail()
     }
   }
 

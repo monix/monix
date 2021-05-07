@@ -41,7 +41,7 @@ object AndThenSuite extends BaseTestSuite {
 
   test("andThen is stack safe") { _ =>
     val count = if (Platform.isJVM) 500000 else 1000
-    val fs = (0 until count).map(_ => { i: Int => i + 1 })
+    val fs = (0 until count).map(_ => { (i: Int) => i + 1 })
     val result = fs.foldLeft(AndThen((x: Int) => x))(_.andThen(_))(42)
 
     assertEquals(result, count + 42)
@@ -49,7 +49,7 @@ object AndThenSuite extends BaseTestSuite {
 
   test("compose is stack safe") { _ =>
     val count = if (Platform.isJVM) 500000 else 1000
-    val fs = (0 until count).map(_ => { i: Int => i + 1 })
+    val fs = (0 until count).map(_ => { (i: Int) => i + 1 })
     val result = fs.foldLeft(AndThen((x: Int) => x))(_.compose(_))(42)
 
     assertEquals(result, count + 42)

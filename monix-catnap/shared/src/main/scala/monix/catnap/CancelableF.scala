@@ -132,8 +132,7 @@ object CancelableF {
   trait Empty[F[_]] extends CancelableF[F] with IsDummy[F]
 
   /** Marker for cancelables that are dummies that can be ignored. */
-  trait IsDummy[F[_]] { self: CancelableF[F] =>
-  }
+  trait IsDummy[F[_]] { self: CancelableF[F] => }
 
   // Optimization for `cancelAll`
   private final class CancelAllFrame[F[_]](cursor: Iterator[CancelToken[F]])(implicit F: Sync[F])

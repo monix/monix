@@ -134,9 +134,7 @@ object CoevalErrorSuite extends BaseTestSuite {
   }
 
   test("Coeval#onErrorHandle should mirror source on success") { implicit s =>
-    val f = Coeval(1).onErrorHandle { _: Throwable =>
-      99
-    }
+    val f = Coeval(1).onErrorHandle { _ => 99 }
     assertEquals(f.runTry(), Success(1))
   }
 

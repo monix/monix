@@ -125,8 +125,7 @@ object Cancelable {
   trait Empty extends Cancelable with IsDummy
 
   /** Marker for cancelables that are dummies that can be ignored. */
-  trait IsDummy { self: Cancelable =>
-  }
+  trait IsDummy { self: Cancelable => }
 
   private final class CancelableTask(cb: () => Unit) extends Cancelable {
 

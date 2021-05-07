@@ -23,7 +23,6 @@ addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions
 
-
 val cats_Version = "2.6.0"
 val catsEffect_Version = "2.5.0"
 val fs2_Version = "2.4.4"
@@ -34,7 +33,7 @@ val implicitBox_Version = "0.3.3"
 val kindProjector_Version = "0.11.3"
 val betterMonadicFor_Version = "0.3.1"
 val silencer_Version = "1.7.1"
-val scalaCompat_Version = "2.4.2"
+val scalaCompat_Version = "2.4.3"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -87,7 +86,7 @@ lazy val minitestLib =
 
 /** [[https://github.com/scala/scala-collection-compat]] */
 lazy val scalaCollectionCompatLib =
-  Def.setting { ("org.scala-lang.modules" %%% "scala-collection-compat" % scalaCompat_Version).withDottyCompat(scalaVersion.value) }
+  Def.setting { ("org.scala-lang.modules" %%% "scala-collection-compat" % scalaCompat_Version) }
 
 /** [[https://github.com/oleg-py/better-monadic-for]] */
 lazy val betterMonadicForCompilerPlugin =
@@ -393,7 +392,7 @@ def baseSettingsAndPlugins(publishArtifacts: Boolean): Project ⇒ Project =
       case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
     }
     withCoverage
-      .enablePlugins(AutomateHeaderPlugin)
+//      .enablePlugins(AutomateHeaderPlugin)
       .settings(sharedSettings)
       .settings(if (publishArtifacts) Seq.empty else doNotPublishArtifactSettings)
       .settings(filterOutMultipleDependenciesFromGeneratedPomXml(
@@ -407,7 +406,7 @@ def monixSubModule(
   publishArtifacts: Boolean,
 ): Project => Project = pr => {
   pr.configure(baseSettingsAndPlugins(publishArtifacts = publishArtifacts))
-    .enablePlugins(ReproducibleBuildsPlugin)
+//    .enablePlugins(ReproducibleBuildsPlugin)
     .settings(sharedSourcesSettings)
     .settings(crossVersionSourcesSettings)
     .settings(name := projectName)
@@ -460,11 +459,14 @@ def crossModule(
 
 lazy val monix = project.in(file("."))
   .configure(baseSettingsAndPlugins(publishArtifacts = false))
-  .enablePlugins(ScalaUnidocPlugin)
+//  .enablePlugins(ScalaUnidocPlugin)
   .aggregate(coreJVM, coreJS)
-  .settings(unidocSettings)
+//  .settings(unidocSettings)
   .settings(
     Global / onChangedBuildSource := ReloadOnSourceChanges,
+//    Global / excludeLintKeys ++= Set(
+//      gitHubTreeTagOrHash
+//    ),
     // https://github.com/lightbend/mima/pull/289
     mimaFailOnNoPrevious in ThisBuild := false
   )
@@ -673,32 +675,32 @@ lazy val tracingTests = project.in(file("tracingTests"))
 // --------------------------------------------
 // monix-benchmarks-{prev,next} (not published)
 
-lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
-  .enablePlugins(JmhPlugin)
-  .configure(monixSubModule(
-    "monix-benchmarks-prev",
-    publishArtifacts = false
-  ))
-  .settings(
-    libraryDependencies ++= Seq(
-      "io.monix" %% "monix" % "3.3.0",
-      "dev.zio" %% "zio-streams" % "1.0.0",
-      "co.fs2" %% "fs2-core" % fs2_Version,
-      "com.typesafe.akka" %% "akka-stream" % "2.6.9"
-    ).map(_.withDottyCompat(scalaVersion.value))
-  )
+// lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
+//   .enablePlugins(JmhPlugin)
+//   .configure(monixSubModule(
+//     "monix-benchmarks-prev",
+//     publishArtifacts = false
+//   ))
+//   .settings(
+//     libraryDependencies ++= Seq(
+//       "io.monix" %% "monix" % "3.3.0",
+//       "dev.zio" %% "zio-streams" % "1.0.0",
+//       "co.fs2" %% "fs2-core" % fs2_Version,
+//       "com.typesafe.akka" %% "akka-stream" % "2.6.9"
+//     ).map(_.withDottyCompat(scalaVersion.value))
+//   )
 
-lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
-  .enablePlugins(JmhPlugin)
-  .configure(monixSubModule(
-    projectName = "monix-benchmarks-next",
-    publishArtifacts = false
-  ))
-  .dependsOn(reactiveJVM, tailJVM)
-  .settings(
-    libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-streams" % "1.0.0",
-      "co.fs2" %% "fs2-core" % fs2_Version,
-      "com.typesafe.akka" %% "akka-stream" % "2.6.9"
-    ).map(_.withDottyCompat(scalaVersion.value))
-  )
+// lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
+//   .enablePlugins(JmhPlugin)
+//   .configure(monixSubModule(
+//     projectName = "monix-benchmarks-next",
+//     publishArtifacts = false
+//   ))
+//   .dependsOn(reactiveJVM, tailJVM)
+//   .settings(
+//     libraryDependencies ++= Seq(
+//       "dev.zio" %% "zio-streams" % "1.0.0",
+//       "co.fs2" %% "fs2-core" % fs2_Version,
+//       "com.typesafe.akka" %% "akka-stream" % "2.6.9"
+//     ).map(_.withDottyCompat(scalaVersion.value))
+//   )

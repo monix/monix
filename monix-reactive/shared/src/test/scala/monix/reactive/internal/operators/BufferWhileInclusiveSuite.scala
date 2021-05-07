@@ -162,6 +162,9 @@ object BufferWhileInclusiveSuite extends BaseOperatorSuite {
         assert(onNextReceived)
         p.success(Continue)
         s.tick(waitForNext)
+
+      case _ =>
+        fail()
     }
   }
 

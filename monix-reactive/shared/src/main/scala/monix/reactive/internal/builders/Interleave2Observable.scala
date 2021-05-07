@@ -80,23 +80,22 @@ private[reactive] final class Interleave2Observable[+A](obsA1: Observable[A], ob
     composite += obsA1.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler = out.scheduler
 
-      def onNext(elem: A): Future[Ack] = lock.synchronized {
-        @inline def sendSignal(a: A): Future[Ack] = lock.synchronized {
-          if (isDone) Stop
-          else {
-            downstreamAck = out.onNext(a)
-            pauseA1 = Promise[Ack]()
-            pauseA2.completeWith(downstreamAck)
-            downstreamAck
-          }
+      private def sendSignal(a: A): Future[Ack] = lock.synchronized {
+        if (isDone) Stop
+        else {
+          downstreamAck = out.onNext(a)
+          pauseA1 = Promise[Ack]()
+          pauseA2.completeWith(downstreamAck)
+          downstreamAck
         }
+      }
 
+      def onNext(elem: A): Future[Ack] = lock.synchronized {
         // Pausing A1 until obsA2 allows us to send
         lastAck1 = pauseA1.future.syncTryFlatten.syncFlatMap {
           case Continue => sendSignal(elem)
           case Stop => Stop
         }
-
         lastAck1
       }
 
@@ -116,17 +115,17 @@ private[reactive] final class Interleave2Observable[+A](obsA1: Observable[A], ob
     composite += obsA2.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler = out.scheduler
 
-      def onNext(elem: A): Future[Ack] = lock.synchronized {
-        @inline def sendSignal(a: A): Future[Ack] = lock.synchronized {
-          if (isDone) Stop
-          else {
-            downstreamAck = out.onNext(a)
-            pauseA2 = Promise[Ack]()
-            pauseA1.completeWith(downstreamAck)
-            downstreamAck
-          }
+      private def sendSignal(a: A): Future[Ack] = lock.synchronized {
+        if (isDone) Stop
+        else {
+          downstreamAck = out.onNext(a)
+          pauseA2 = Promise[Ack]()
+          pauseA1.completeWith(downstreamAck)
+          downstreamAck
         }
+      }
 
+      def onNext(elem: A): Future[Ack] = lock.synchronized {
         // Pausing A2 until obsA1 allows us to send
         lastAck2 = pauseA2.future.syncTryFlatten.syncFlatMap {
           case Continue => sendSignal(elem)

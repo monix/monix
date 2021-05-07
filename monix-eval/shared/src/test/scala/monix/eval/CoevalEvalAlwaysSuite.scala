@@ -57,7 +57,7 @@ object CoevalEvalAlwaysSuite extends BaseTestSuite {
   }
 
   test("Coeval.eval.map should work") { implicit s =>
-    check1 { a: Int =>
+    check1 { (a: Int) =>
       Coeval.eval(a).map(_ + 1) <-> Coeval.eval(a + 1)
     }
   }
@@ -109,7 +109,7 @@ object CoevalEvalAlwaysSuite extends BaseTestSuite {
   }
 
   test("Coeval.eval is equivalent with Coeval.evalOnce on first run") { implicit s =>
-    check1 { a: Int =>
+    check1 { (a: Int) =>
       val t1 = {
         var effect = 100
         Coeval.eval { effect += 100; effect + a }

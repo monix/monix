@@ -25,9 +25,7 @@ abstract class Atomic[A] extends Serializable {
   def get(): A
 
   /** Get the current value persisted by this Atomic, an alias for `get()`. */
-  inline final def apply(): A = {
-    get()
-  }
+  final def apply(): A = get()
 
   /** Updates the current value.
     *
@@ -39,15 +37,13 @@ abstract class Atomic[A] extends Serializable {
     *
     * @param value will be the new value returned by `get()`
     */
-  inline final def update(value: A): Unit = {
-    set(value)
-  }
+  final def update(value: A): Unit = set(value)
 
   /** Alias for [[set]]. Updates the current value.
     *
     * @param value will be the new value returned by `get()`
     */
-  inline final def `:=`(value: A): Unit = set(value)
+  final def `:=`(value: A): Unit = set(value)
 
   /** Does a compare-and-set operation on the current value. For more info, checkout the related
     * [[https://en.wikipedia.org/wiki/Compare-and-swap Compare-and-swap Wikipedia page]].
@@ -81,7 +77,7 @@ abstract class Atomic[A] extends Serializable {
     *           the update + what should this method return when the operation succeeds.
     * @return whatever was specified by your callback, once the operation succeeds
     */
-  inline def transformAndExtract[U](cb: (A) => (U, A)): U = {
+  inline final def transformAndExtract[U](cb: (A) => (U, A)): U = {
     val current = get()
     val (result, update) = cb(current)
 
@@ -100,7 +96,7 @@ abstract class Atomic[A] extends Serializable {
     *           new value that should be persisted
     * @return whatever the update is, after the operation succeeds
     */
-  inline def transformAndGet(cb: (A) => A): A = {
+  inline final def transformAndGet(inline cb: (A) => A): A = {
     val current = get()
     val update = cb(current)
 
@@ -160,9 +156,8 @@ object Atomic {
     * @param builder is the builder that helps us to build the
     *        best reference possible, based on our `initialValue`
     */
-  inline def apply[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): R = {
+  def apply[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): R =
     builder.buildInstance(initialValue, PaddingStrategy.NoPadding, allowPlatformIntrinsics = true)
-  }
 
   /** Constructs an `Atomic[A]` reference, applying the provided
     * [[PaddingStrategy]] in order to counter the "false sharing"
@@ -188,10 +183,9 @@ object Atomic {
     * @param builder is the builder that helps us to build the
     *        best reference possible, based on our `initialValue`
     */
-  inline def withPadding[A, R <: Atomic[A]](initialValue: A, padding: PaddingStrategy)(
-    implicit builder: AtomicBuilder[A, R]): R = {
+  def withPadding[A, R <: Atomic[A]](initialValue: A, padding: PaddingStrategy)(
+    implicit builder: AtomicBuilder[A, R]): R =
     builder.buildInstance(initialValue, padding, allowPlatformIntrinsics = true)
-  }
 
   /** Returns the builder that would be chosen to construct Atomic
     * references for the given `initialValue`.

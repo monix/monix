@@ -32,29 +32,29 @@ final class Features(val flags: Flags) extends AnyVal with Serializable {
     * that the new value will contain the flags that are
     * contained by both.
     */
-  @inline def intersect(other: Features): Features =
+  def intersect(other: Features): Features =
     new Features((flags & other.flags).asInstanceOf[Flags])
 
   /** Computes the union between the source and another
     * feature set, such that the new value contains the
     * features of both.
     */
-  @inline def union(other: Features): Features =
+  def union(other: Features): Features =
     new Features((flags | other.flags).asInstanceOf[Flags])
 
   /** Computes the difference between the source and
     * another feature set, such that the new value contains
     * the features of the source that are not in the other set.
     */
-  @inline def diff(other: Features): Features =
+  def diff(other: Features): Features =
     new Features((flags & (~other.flags)).asInstanceOf[Flags])
 
   /** Adds a feature to the set. */
-  @inline def +(feature: Flag): Features =
+  def +(feature: Flag): Features =
     new Features((flags | feature).asInstanceOf[Flags])
 
   /** Tests if a given feature is in the set. */
-  @inline def contains(feature: Flag): Boolean =
+  def contains(feature: Flag): Boolean =
     (flags & feature) != (0L).asInstanceOf[Flag]
 
   override def toString: String =
@@ -118,6 +118,6 @@ object Features {
   }
 
   /** Wraps a `Long` value into a [[Flag]]. */
-  @inline def flag(value: Long): Flag =
+  def flag(value: Long): Flag =
     value.asInstanceOf[Flag]
 }

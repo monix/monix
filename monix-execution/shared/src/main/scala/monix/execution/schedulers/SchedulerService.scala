@@ -118,7 +118,6 @@ trait SchedulerService extends Scheduler {
 
 object SchedulerService {
   /** Extensions for the [[SchedulerService]] interface. */
-  @deprecated("Extension methods are now implemented on `SchedulerService` directly", "3.4.0")
   implicit class Extensions(val self: SchedulerService) extends AnyVal {
     @deprecated("Extension methods are now implemented on `SchedulerService` directly", "3.4.0")
     def awaitTermination(timeout: FiniteDuration, awaitOn: ExecutionContext): Future[Boolean] =

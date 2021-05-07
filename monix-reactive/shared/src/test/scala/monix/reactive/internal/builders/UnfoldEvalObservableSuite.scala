@@ -35,7 +35,7 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var received = 0
 
-    Observable.unfoldEval(0)(i => if (i < 20) Task.now(Some((i, i + 1))) else throw dummy).subscribe { _: Int =>
+    Observable.unfoldEval(0)(i => if (i < 20) Task.now(Some((i, i + 1))) else throw dummy).subscribe { (_: Int) =>
       received += 1
       Continue
     }
@@ -87,7 +87,7 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var received = 0
 
-    Observable.unfoldEvalF(0)(i => if (i < 20) IO(Option((i, i + 1))) else throw dummy).subscribe { _: Int =>
+    Observable.unfoldEvalF(0)(i => if (i < 20) IO(Option((i, i + 1))) else throw dummy).subscribe { (_: Int) =>
       received += 1
       Continue
     }
