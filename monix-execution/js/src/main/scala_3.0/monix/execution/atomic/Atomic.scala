@@ -25,7 +25,7 @@ abstract class Atomic[A] extends Serializable {
   def get(): A
 
   /** Get the current value persisted by this Atomic, an alias for `get()`. */
-  final def apply(): A = get()
+  inline final def apply(): A = get()
 
   /** Updates the current value.
     *
@@ -37,13 +37,13 @@ abstract class Atomic[A] extends Serializable {
     *
     * @param value will be the new value returned by `get()`
     */
-  final def update(value: A): Unit = set(value)
+  inline final def update(value: A): Unit = set(value)
 
   /** Alias for [[set]]. Updates the current value.
     *
     * @param value will be the new value returned by `get()`
     */
-  final def `:=`(value: A): Unit = set(value)
+  inline final def `:=`(value: A): Unit = set(value)
 
   /** Does a compare-and-set operation on the current value. For more info, checkout the related
     * [[https://en.wikipedia.org/wiki/Compare-and-swap Compare-and-swap Wikipedia page]].
@@ -151,7 +151,7 @@ object Atomic {
     * @param builder is the builder that helps us to build the
     *        best reference possible, based on our `initialValue`
     */
-  def apply[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): R =
+  inline def apply[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): R =
     builder.buildInstance(initialValue, PaddingStrategy.NoPadding, allowPlatformIntrinsics = true)
 
   /** Constructs an `Atomic[A]` reference, applying the provided
@@ -178,7 +178,7 @@ object Atomic {
     * @param builder is the builder that helps us to build the
     *        best reference possible, based on our `initialValue`
     */
-  def withPadding[A, R <: Atomic[A]](initialValue: A, padding: PaddingStrategy)(
+  inline def withPadding[A, R <: Atomic[A]](initialValue: A, padding: PaddingStrategy)(
     implicit builder: AtomicBuilder[A, R]): R =
     builder.buildInstance(initialValue, padding, allowPlatformIntrinsics = true)
 
