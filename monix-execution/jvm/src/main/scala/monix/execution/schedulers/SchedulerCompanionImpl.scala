@@ -365,7 +365,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
     val factory = ThreadFactoryBuilder(name, reporter, daemonic)
-    val executor = new ScheduledThreadPoolExecutor(1, factory) with AdaptedThreadPoolExecutorMixin {
+    val executor = new AdaptedThreadPoolExecutor(1, factory) {
       override def reportFailure(t: Throwable): Unit =
         reporter.reportFailure(t)
     }
@@ -394,7 +394,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     executionModel: ExecModel = ExecModel.Default): SchedulerService = {
 
     val factory = ThreadFactoryBuilder(name, reporter, daemonic)
-    val executor = new ScheduledThreadPoolExecutor(poolSize, factory) with AdaptedThreadPoolExecutorMixin {
+    val executor = new AdaptedThreadPoolExecutor(poolSize, factory) {
       override def reportFailure(t: Throwable): Unit =
         reporter.reportFailure(t)
     }

@@ -35,7 +35,7 @@ object PaginateEvalObservableSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     var received = 0
 
-    Observable.paginateEval(0)(i => if (i < 20) Task.now((i, Some(i + 1))) else throw dummy).subscribe { _: Int =>
+    Observable.paginateEval(0)(i => if (i < 20) Task.now((i, Some(i + 1))) else throw dummy).subscribe { (_: Int) =>
       received += 1
       Continue
     }
@@ -47,7 +47,7 @@ object PaginateEvalObservableSuite extends BaseTestSuite {
   test("paginateEval should execute 11 times and then return None") { implicit s =>
     var received = 0
 
-    Observable.paginateEval(0)(i => if (i < 10) Task.now((i, Some(i + 1))) else Task.now((i, None))).subscribe { _: Int =>
+    Observable.paginateEval(0)(i => if (i < 10) Task.now((i, Some(i + 1))) else Task.now((i, None))).subscribe { (_: Int) =>
       received += 1
       Continue
     }

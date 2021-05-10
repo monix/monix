@@ -114,6 +114,9 @@ object ConcatOneSuite extends BaseOperatorSuite {
 
         assertEquals(received, count)
         assertEquals(total, sum)
+
+      case _ =>
+        fail()
     }
   }
 

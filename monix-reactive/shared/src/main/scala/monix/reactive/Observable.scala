@@ -2400,6 +2400,7 @@ abstract class Observable[+A] extends Serializable { self =>
     ev: A <:< Observable[B],
     os: OverflowStrategy[B] = OverflowStrategy.Default[B]): Observable[B] =
     self.mergeMap(x => x)(os)
+
   /** Concurrently merges the observables emitted by the source with
     * the given generator function into a single observable.
     *
@@ -2785,6 +2786,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *  import monix.reactive._
     *  import monix.eval.Task
     *  import scala.concurrent.duration._
+    *  implicit val os: OverflowStrategy[Nothing] = OverflowStrategy.Default
     *
     *  val obs = Observable(1, 2, 3)
     *    .doOnNext(i => Task(println(s"Produced $$i")).delayExecution(1.second))
@@ -2840,6 +2842,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *  import monix.reactive._
     *  import monix.eval.Task
     *  import scala.concurrent.duration._
+    *  implicit val os: OverflowStrategy[Nothing] = OverflowStrategy.Default
     *
     *  val obs = Observable(1, 2, 3)
     *    .doOnNext(i => Task(println(s"Produced $$i")).delayExecution(1.second))
@@ -2847,7 +2850,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *  def consume(name: String, obs: Observable[Int]): Observable[Unit] =
     *    obs.mapEval(i => Task(println(s"$$name: got $$i")))
     *
-    *  obs.pipeThroughSelector(Pipe.replay[Int], { hot: Observable[Int] =>
+    *  obs.pipeThroughSelector(Pipe.replay[Int], { (hot: Observable[Int]) =>
     *    Observable(
     *      consume("Consumer 1", hot),
     *      consume("Consumer 2", hot).delayExecution(2.second)

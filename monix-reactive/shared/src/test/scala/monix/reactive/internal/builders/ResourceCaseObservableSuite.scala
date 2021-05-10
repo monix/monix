@@ -42,7 +42,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
   }
 
   test("Observable.resource.flatMap(use) yields all elements `use` provides") { implicit s =>
-    check1 { source: Observable[Int] =>
+    check1 { (source: Observable[Int]) =>
       val bracketed = Observable.resource(Task.unit)(_ => Task.unit).flatMap(_ => source)
       source <-> bracketed
     }

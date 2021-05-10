@@ -30,7 +30,6 @@ package object eval {
   /**
     * DEPRECATED — switch to Scala 2.12+ and [[monix.eval.Task.from Task.from]].
     */
-  @deprecated("Switch to Scala 2.12+ and Task.from", "3.0.0")
   implicit class TaskCompanionUtils(val source: Task.type) extends AnyVal {
     /**
       * DEPRECATED — switch to Scala 2.12+ and [[monix.eval.Task.from Task.from]].

@@ -81,22 +81,19 @@ private[reactive] final class Interleave2Observable[+A](obsA1: Observable[A], ob
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A): Future[Ack] = lock.synchronized {
-        @inline def sendSignal(a: A): Future[Ack] = lock.synchronized {
-          if (isDone) Stop
-          else {
-            downstreamAck = out.onNext(a)
+        def sendSignal(elem: A): Future[Ack] = lock.synchronized {
+          if (isDone) Stop else {
+            downstreamAck = out.onNext(elem)
             pauseA1 = Promise[Ack]()
             pauseA2.completeWith(downstreamAck)
             downstreamAck
           }
         }
-
         // Pausing A1 until obsA2 allows us to send
         lastAck1 = pauseA1.future.syncTryFlatten.syncFlatMap {
           case Continue => sendSignal(elem)
           case Stop => Stop
         }
-
         lastAck1
       }
 
@@ -117,16 +114,15 @@ private[reactive] final class Interleave2Observable[+A](obsA1: Observable[A], ob
       implicit val scheduler = out.scheduler
 
       def onNext(elem: A): Future[Ack] = lock.synchronized {
-        @inline def sendSignal(a: A): Future[Ack] = lock.synchronized {
+        def sendSignal(elem: A): Future[Ack] = lock.synchronized {
           if (isDone) Stop
           else {
-            downstreamAck = out.onNext(a)
+            downstreamAck = out.onNext(elem)
             pauseA2 = Promise[Ack]()
             pauseA1.completeWith(downstreamAck)
             downstreamAck
           }
         }
-
         // Pausing A2 until obsA1 allows us to send
         lastAck2 = pauseA2.future.syncTryFlatten.syncFlatMap {
           case Continue => sendSignal(elem)

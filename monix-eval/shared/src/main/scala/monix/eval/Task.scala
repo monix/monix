@@ -1210,7 +1210,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     * As this method is strict, it can lead to an infinite loop / stack overflow for self-referring tasks.
     * @see [[>>]] for the version with a non-strict parameter
     */
-  @inline final def *>[B](tb: Task[B]): Task[B] =
+  final def *>[B](tb: Task[B]): Task[B] =
     this.flatMap(_ => tb)
 
   /** Runs this task first and then, when successful, the given task.
@@ -1225,7 +1225,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *
     * As this method is strict, it can lead to an infinite loop / stack overflow for self-referring tasks.
     */
-  @inline final def <*[B](tb: Task[B]): Task[A] =
+  final def <*[B](tb: Task[B]): Task[A] =
     this.flatMap(a => tb.map(_ => a))
 
   /** Introduces an asynchronous boundary at the current stage in the

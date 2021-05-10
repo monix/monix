@@ -35,13 +35,13 @@ object IterantUnconsSuite extends BaseTestSuite {
   }
 
   test("uncons ignoring Option is equivalent to tail") { _ =>
-    check1 { stream: Iterant[Coeval, Int] =>
+    check1 { (stream: Iterant[Coeval, Int]) =>
       stream.tail <-> stream.uncons.flatMap { case (_, rest) => rest }
     }
   }
 
   test("uncons ignoring tail is equivalent to headOptionL") { _ =>
-    check1 { stream: Iterant[Coeval, Int] =>
+    check1 { (stream: Iterant[Coeval, Int]) =>
       Iterant[Coeval].liftF(stream.headOptionL) <-> stream.uncons.map { case (hd, _) => hd }
     }
   }
@@ -57,7 +57,7 @@ object IterantUnconsSuite extends BaseTestSuite {
       go(iterant, Monoid[A].empty).headOptionL.map(_.getOrElse(Monoid[A].empty))
     }
 
-    check1 { stream: Iterant[Coeval, Int] =>
+    check1 { (stream: Iterant[Coeval, Int]) =>
       stream.foldL <-> unconsFold(stream)
     }
   }

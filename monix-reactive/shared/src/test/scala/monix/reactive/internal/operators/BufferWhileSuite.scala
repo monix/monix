@@ -164,11 +164,14 @@ object BufferWhileSuite extends BaseOperatorSuite {
         assert(onNextReceived)
         p.success(Continue)
         s.tick(waitForNext)
+
+      case _ =>
+        fail()
     }
   }
 
   test("bufferWhile(_ % count != 0) <-> bufferTumbling(count)") { implicit s =>
-    check1 { n: Long =>
+    check1 { (n: Long) =>
       val count = Math.floorMod(n, 10) + 1
       val numbers = Observable.range(0L, count * 30L)
 

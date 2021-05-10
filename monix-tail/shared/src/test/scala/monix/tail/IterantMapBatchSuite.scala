@@ -137,7 +137,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
   }
 
   test("Iterant[Task].mapBatch suspends side effects") { implicit s =>
-    check1 { stream: Iterant[Task, Int] =>
+    check1 { (stream: Iterant[Task, Int]) =>
       stream.mapBatch(Batch.apply(_)) <-> stream.mapBatch(Batch.apply(_))
     }
   }

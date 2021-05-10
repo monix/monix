@@ -251,7 +251,7 @@ object CancelablePromise {
       cb match {
         case f: (Try[A] => Unit) @unchecked =>
           f(result)
-        case p: Promise[A] =>
+        case p: Promise[A] @unchecked =>
           p.complete(result)
           ()
       }

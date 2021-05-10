@@ -87,6 +87,8 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
         p.success(Continue)
         s.tick(waitForNext)
         assertEquals(wasCompleted, 1)
+      case _ =>
+        fail()
     }
   }
 

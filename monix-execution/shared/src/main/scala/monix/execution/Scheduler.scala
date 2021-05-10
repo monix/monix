@@ -409,7 +409,6 @@ object Scheduler extends SchedulerCompanionImpl {
   val TRACING = Features.flag(2)
 
   /** Utilities complementing the `Scheduler` interface. */
-  @deprecated("Extension methods are now implemented on `Scheduler` directly", "3.4.0")
   implicit final class Extensions(val source: Scheduler) extends AnyVal with schedulers.ExecuteExtensions {
 
     @deprecated("Extension methods are now implemented on `Scheduler` directly", "3.4.0")

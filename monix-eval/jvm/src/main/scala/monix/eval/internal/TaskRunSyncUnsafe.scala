@@ -62,7 +62,7 @@ private[eval] object TaskRunSyncUnsafe {
             bRest.push(bFirst)
           }
           /*_*/
-          bFirst = bindNext /*_*/
+          bFirst = bindNext.asInstanceOf[Bind] /*_*/
           current = fa
 
         case Now(value) =>
@@ -88,7 +88,7 @@ private[eval] object TaskRunSyncUnsafe {
             if (bRest eq null) bRest = ChunkedArrayStack()
             bRest.push(bFirst)
           }
-          bFirst = bindNext
+          bFirst = bindNext.asInstanceOf[Bind]
           current = fa
 
         case Suspend(thunk) =>

@@ -23,7 +23,7 @@ import monix.reactive.{BaseTestSuite, Observer}
 
 object ContramapObserverSuite extends BaseTestSuite {
   test("Observer.contramap equivalence with plain Observer") { implicit s =>
-    check1 { xs: List[Int] =>
+    check1 { (xs: List[Int]) =>
       var sum = 0
       val plainObserver: Observer[Int] = new Observer[Int] {
         def onError(ex: Throwable): Unit = ()

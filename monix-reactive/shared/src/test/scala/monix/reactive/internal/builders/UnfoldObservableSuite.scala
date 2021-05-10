@@ -32,7 +32,7 @@ object UnfoldObservableSuite extends BaseTestSuite {
     val dummy = new RuntimeException("dummy")
     var received = 0
 
-    Observable.unfold(0)(i => if (i < 20) Some((i, i + 1)) else throw dummy).subscribe { _: Int =>
+    Observable.unfold(0)(i => if (i < 20) Some((i, i + 1)) else throw dummy).subscribe { (_: Int) =>
       received += 1
       Continue
     }
@@ -44,7 +44,7 @@ object UnfoldObservableSuite extends BaseTestSuite {
   test("should execute 10 times then return None") { implicit s =>
     var received = 0
 
-    Observable.unfold(0)(i => if (i < 10) Some((i, i + 1)) else None).subscribe { _: Int =>
+    Observable.unfold(0)(i => if (i < 10) Some((i, i + 1)) else None).subscribe { (_: Int) =>
       received += 1
       Continue
     }

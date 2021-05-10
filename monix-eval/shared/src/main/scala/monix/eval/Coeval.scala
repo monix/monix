@@ -207,7 +207,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *   // Result value will be "second"
     * }}}
     */
-  @inline final def *>[B](that: Coeval[B]): Coeval[B] =
+  final def *>[B](that: Coeval[B]): Coeval[B] =
     this.flatMap(_ => that)
 
   /** Runs this coeval first and then, when successful, the given coeval.
@@ -220,7 +220,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     *   // Result value will be "first"
     * }}}
     */
-  @inline final def <*[B](that: Coeval[B]): Coeval[A] =
+  final def <*[B](that: Coeval[B]): Coeval[A] =
     this.flatMap(a => that.map(_ => a))
 
   /** Evaluates the underlying computation and returns the result.

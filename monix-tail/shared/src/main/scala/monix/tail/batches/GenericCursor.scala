@@ -88,10 +88,12 @@ abstract class GenericCursor[+A] extends BatchCursor[A] { self =>
       private[this] var hasItem: Boolean = false
 
       def hasNext(): Boolean = hasItem || {
-        do {
+        var continue = true
+        while (continue) {
           if (!self.hasNext()) return false
           item = self.next()
-        } while (!p(item))
+          continue = !p(item)
+        }
         hasItem = true
         true
       }
@@ -115,10 +117,12 @@ abstract class GenericCursor[+A] extends BatchCursor[A] { self =>
       private[this] var hasItem: Boolean = false
 
       def hasNext(): Boolean = hasItem || {
-        do {
+        var continue = true
+        while (continue) {
           if (!self.hasNext()) return false
           item = self.next()
-        } while (!pf.isDefinedAt(item))
+          continue = !pf.isDefinedAt(item)
+        }
         hasItem = true
         true
       }

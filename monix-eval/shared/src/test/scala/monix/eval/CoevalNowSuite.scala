@@ -52,7 +52,7 @@ object CoevalNowSuite extends BaseTestSuite {
 
   test("Coeval.now.map should work") { implicit s =>
     Coeval.now(1).map(_ + 1).value()
-    check1 { a: Int =>
+    check1 { (a: Int) =>
       Coeval.now(a).map(_ + 1) <-> Coeval.now(a + 1)
     }
   }
