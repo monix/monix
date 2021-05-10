@@ -86,11 +86,11 @@ private[reactive] final class DoOnTerminateOperator[A](
             }
             streamErrors = false
             task.map { _ =>
-              triggerSignal(ex)
+              triggerSignal()
             }
           } else {
             streamErrors = false
-            triggerSignal(ex)
+            triggerSignal()
             onTerminate(ex)
           } catch {
             case err if NonFatal(err) =>
