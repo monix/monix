@@ -134,7 +134,7 @@ object Local extends LocalCompanionDeprecated {
     * state of `Local.Context` and restore the current state when complete.
     */
   private[monix] def bindCurrentIf[R](b: Boolean)(f: => R): R =
-  macro Macros.localLetCurrentIf
+    macro Macros.localLetCurrentIf
 
   /** Macros implementations for [[bind]] and [[bindClear]]. */
   private class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
@@ -250,11 +250,11 @@ object Local extends LocalCompanionDeprecated {
   private[execution] final class Unbound(val ref: AtomicAny[Map[Key, Any]]) extends Context
 
   private[execution] final class Bound(
-                                        val key: Key,
-                                        @volatile var value: Any,
-                                        @volatile var hasValue: Boolean,
-                                        val rest: Context
-                                      ) extends Context
+    val key: Key,
+    @volatile var value: Any,
+    @volatile var hasValue: Boolean,
+    val rest: Context
+  ) extends Context
 }
 
 

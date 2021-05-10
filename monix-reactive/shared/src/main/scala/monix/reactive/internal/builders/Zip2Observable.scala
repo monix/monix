@@ -102,13 +102,13 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
       }
     }
 
-    def rawOnComplete(): Unit =
-      if (!isDone) {
-        isDone = true
-        out.onComplete()
-      }
+    def signalOnComplete(hasElem: Boolean): Unit = {
+      def rawOnComplete(): Unit =
+        if (!isDone) {
+          isDone = true
+          out.onComplete()
+        }
 
-    def signalOnComplete(hasElem: Boolean): Unit =
       lock.synchronized {
         // Other source could already set completeWithNext
         // so it won't emit any elements
@@ -131,6 +131,7 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
           completeWithNext = true
         }
       }
+    }
 
     val composite = CompositeCancelable()
 

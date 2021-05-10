@@ -132,10 +132,8 @@ object Local extends LocalCompanionDeprecated {
   /** If `b` evaluates to `true`, execute a block of code using a current
     * state of `Local.Context` and restore the current state when complete.
     */
-  private[monix] def bindCurrentIf[R](b: Boolean)(f: => R)(implicit cb: CanBindLocals[R] = CanBindLocals.synchronous[R]): R =
-    if (!b) f  else {
-      Local.isolate(f)
-    }
+  private[monix] inline def bindCurrentIf[R](b: Boolean)(inline f: => R)(implicit cb: CanBindLocals[R] = CanBindLocals.synchronous[R]): R =
+    if (!b) f  else Local.isolate(f)
 
   /** Represents the current state of all [[Local locals]] for a given
     * execution context.
@@ -227,11 +225,11 @@ object Local extends LocalCompanionDeprecated {
   private[execution] final class Unbound(val ref: AtomicAny[Map[Key, Any]]) extends Context
 
   private[execution] final class Bound(
-                                        val key: Key,
-                                        @volatile var value: Any,
-                                        @volatile var hasValue: Boolean,
-                                        val rest: Context
-                                      ) extends Context
+    val key: Key,
+    @volatile var value: Any,
+    @volatile var hasValue: Boolean,
+    val rest: Context
+  ) extends Context
 }
 
 
