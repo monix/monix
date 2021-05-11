@@ -32,7 +32,7 @@ object PaginateObservableSuite extends BaseTestSuite {
     val dummy = new RuntimeException("dummy")
     var received = 0
 
-    Observable.paginate(0)(i => if (i < 20) (i, Some(i + 1)) else throw dummy).subscribe { _: Int =>
+    Observable.paginate(0)(i => if (i < 20) (i, Some(i + 1)) else throw dummy).subscribe { (_: Int) =>
       received += 1
       Continue
     }
@@ -44,7 +44,7 @@ object PaginateObservableSuite extends BaseTestSuite {
   test("paginate should execute 11 times then return None") { implicit s =>
     var received = 0
 
-    Observable.paginate(0)(i => if (i < 10) (i, Some(i + 1)) else (i, None)).subscribe { _: Int =>
+    Observable.paginate(0)(i => if (i < 10) (i, Some(i + 1)) else (i, None)).subscribe { (_: Int) =>
       received += 1
       Continue
     }

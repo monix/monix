@@ -20,12 +20,14 @@ package monix.reactive.subjects
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{Observable, Observer, OverflowStrategy}
 
 import scala.concurrent.Future
 import scala.util.Success
 
 object PublishSubjectSuite extends BaseSubjectSuite {
+  implicit val os: OverflowStrategy[Nothing] = OverflowStrategy.Default
+
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
     val s = PublishSubject[Long]()
     Sample(s, 0)

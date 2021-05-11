@@ -26,6 +26,7 @@ import monix.execution.exceptions.DummyException
 import monix.execution.{ExecutionModel, Scheduler}
 import monix.execution.misc.Local
 import monix.execution.schedulers.TracingScheduler
+import monix.execution.cancelableFutureCatsInstances
 
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.concurrent.duration._

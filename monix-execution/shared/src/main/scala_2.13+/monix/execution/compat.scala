@@ -24,7 +24,6 @@ object compat {
   type BuildFrom[-From, -A, +C] = ScalaBuildFrom[From, A, C]
 
   private[monix] object internal {
-
     type IterableOnce[+X] = scala.collection.IterableOnce[X]
     def toIterator[X](i: IterableOnce[X]): Iterator[X] = i.iterator
     def hasDefiniteSize[X](i: IterableOnce[X]): Boolean = i.knownSize >= 0
@@ -32,7 +31,13 @@ object compat {
     def newBuilder[From, A, C](bf: BuildFrom[From, A, C], from: From): mutable.Builder[A, C] =
       bf.newBuilder(from)
 
-    @inline def toSeq[A](array: Array[AnyRef]): Seq[A] =
+    def toSeq[A](array: Array[AnyRef]): Seq[A] =
       new scala.collection.immutable.ArraySeq.ofRef(array).asInstanceOf[Seq[A]]
+  }
+
+  private[monix] object Features {
+    type Flag <: Long with monix.execution.Features.FlagTag
+
+    type Flags <: Long with monix.execution.Features.FlagsTag
   }
 }

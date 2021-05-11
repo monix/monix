@@ -43,14 +43,14 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
   }
 
   test("fromReactivePublisher(bufferSize = 1) emits values in correct order") { implicit s =>
-    check1 { range: Range =>
+    check1 { (range: Range) =>
       val publisher = new RangePublisher(range, None)
       Iterant[IO].fromReactivePublisher(publisher, 1) <-> Iterant[IO].fromSeq(range)
     }
   }
 
   test("fromReactivePublisher(bufferSize = 1) can end in error") { implicit s =>
-    check1 { range: Range =>
+    check1 { (range: Range) =>
       val dummy = DummyException("dummy")
       val publisher = new RangePublisher(range, Some(dummy))
       Iterant[IO].fromReactivePublisher(publisher, 1).attempt <->
@@ -59,14 +59,14 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
   }
 
   test("fromReactivePublisher(bufferSize = default) emits values in correct order") { implicit s =>
-    check1 { range: Range =>
+    check1 { (range: Range) =>
       val publisher = new RangePublisher(range, None)
       Iterant[IO].fromReactivePublisher(publisher) <-> Iterant[IO].fromSeq(range)
     }
   }
 
   test("fromReactivePublisher(bufferSize = default) can end in error") { implicit s =>
-    check1 { range: Range =>
+    check1 { (range: Range) =>
       val dummy = DummyException("dummy")
       val publisher = new RangePublisher(range, Some(dummy))
       Iterant[IO].fromReactivePublisher(publisher).attempt <->
@@ -75,7 +75,7 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
   }
 
   test("fromReactivePublisher(bufferSize = default) with slow consumer") { implicit s =>
-    check1 { range: Range =>
+    check1 { (range: Range) =>
       val publisher = new RangePublisher(range, None)
       val lh = Iterant[Task].fromReactivePublisher(publisher).mapEval(x => Task(x).delayExecution(10.millis))
       lh <-> Iterant[Task].fromSeq(range)
@@ -105,7 +105,7 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
   }
 
   test("fromReactivePublisher(it.toReactivePublisher) is identity") { implicit s =>
-    check1 { it: Iterant[IO, Int] =>
+    check1 { (it: Iterant[IO, Int]) =>
       Iterant[IO].fromReactivePublisher(it.toReactivePublisher) <-> it
     }
   }

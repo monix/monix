@@ -90,6 +90,8 @@ object MimaFilters {
     exclude[MissingClassProblem]("monix.execution.internal.forkJoin.package$"),
     exclude[MissingClassProblem]("monix.execution.internal.forkJoin.package$ForkJoinPool$"),
     exclude[MissingClassProblem]("monix.execution.misc.compat"),
-    exclude[MissingClassProblem]("monix.execution.misc.compat$")
+    exclude[MissingClassProblem]("monix.execution.misc.compat$"),
+    // Scala 3 / Dotty support
+    exclude[MissingClassProblem]("monix.execution.schedulers.AdaptedThreadPoolExecutorMixin"),
   )
 }

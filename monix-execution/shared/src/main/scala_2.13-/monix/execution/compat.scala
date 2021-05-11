@@ -31,7 +31,13 @@ object compat {
     def newBuilder[From, A, C](bf: BuildFrom[From, A, C], from: From): mutable.Builder[A, C] =
       bf.apply(from)
 
-    @inline def toSeq[A](array: Array[AnyRef]): Seq[A] =
+    def toSeq[A](array: Array[AnyRef]): Seq[A] =
       new scala.collection.mutable.WrappedArray.ofRef(array).toSeq.asInstanceOf[Seq[A]]
+  }
+
+  private[monix] object Features {
+    type Flag <: Long with monix.execution.Features.FlagTag
+
+    type Flags <: Long with monix.execution.Features.FlagsTag
   }
 }

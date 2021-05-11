@@ -107,11 +107,14 @@ object ConcatMapIterableSuite extends BaseOperatorSuite {
         p(1).success(Continue)
         s.tick(waitForNext)
         assert(wasCompleted)
+
+      case _ =>
+        fail()
     }
   }
 
   test("Observable.concatMapIterable is equivalent with Observable.flatMap + Observable.fromIterable") { implicit s =>
-    check1 { list: List[List[Int]] =>
+    check1 { (list: List[List[Int]]) =>
       val obs = Observable.fromIterable(list)
       val resultViaMapConcat = obs.concatMapIterable(identity).reduce(_ + _).lastL
       val resultViaFlatMap = obs.flatMap(Observable.fromIterable).reduce(_ + _).lastL

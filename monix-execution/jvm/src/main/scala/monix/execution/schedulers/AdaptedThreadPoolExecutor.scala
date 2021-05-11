@@ -22,11 +22,12 @@ import java.util.concurrent._
 /** A mixin for adapting for the Java `ThreadPoolExecutor` implementation
   * to report errors using the default thread exception handler.
   */
-private[schedulers] trait AdaptedThreadPoolExecutorMixin { self: ThreadPoolExecutor =>
+private[schedulers] abstract class AdaptedThreadPoolExecutor(corePoolSize: Int, factory: ThreadFactory)
+  extends ScheduledThreadPoolExecutor(corePoolSize, factory) {
   def reportFailure(t: Throwable): Unit
 
   override def afterExecute(r: Runnable, t: Throwable): Unit = {
-    self.afterExecute(r, t)
+    super.afterExecute(r, t)
     var exception: Throwable = t
 
     if ((exception eq null) && r.isInstanceOf[Future[_]]) {

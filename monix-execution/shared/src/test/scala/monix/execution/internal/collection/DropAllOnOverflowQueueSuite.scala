@@ -60,7 +60,7 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropAllOnOverflowQueue[Int](7)
 
     assertEquals(q.capacity, 7)
-    assert(q.poll().asInstanceOf[AnyRef] == null)
+    assertEquals(q.poll(), null)
 
     assertEquals(q.offer(10), 0)
     assertEquals(q.offer(20), 0)
@@ -69,7 +69,7 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q.poll(), 10)
     assertEquals(q.poll(), 20)
     assertEquals(q.poll(), 30)
-    assert(q.poll().asInstanceOf[AnyRef] == null)
+    assertEquals(q.poll(), null)
 
     assertEquals(q.offerMany(40, 50, 60, 70, 80, 90, 100), 0)
 
@@ -86,7 +86,7 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropAllOnOverflowQueue[Int](7)
 
     assertEquals(q.capacity, 7)
-    assert(q.poll().asInstanceOf[AnyRef] == null)
+    assertEquals(q.poll(), null)
 
     assertEquals(q.offer(0), 0)
     assertEquals(q.poll(), 0)
@@ -107,7 +107,7 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q.drainToArray(array), 7)
     assertEquals(array.toList, (22 until 29).toList)
 
-    assert(q.poll().asInstanceOf[AnyRef] == null)
+    assertEquals(q.poll(), null)
   }
 
   test("size should be correct on happy path") {

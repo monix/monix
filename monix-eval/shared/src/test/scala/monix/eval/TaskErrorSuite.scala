@@ -174,9 +174,7 @@ object TaskErrorSuite extends BaseTestSuite {
   }
 
   test("Task#onErrorHandle should mirror source on success") { implicit s =>
-    val task = Task.evalAsync(1).onErrorHandle { _: Throwable =>
-      99
-    }
+    val task = Task.evalAsync(1).onErrorHandle { _ => 99 }
     val f = task.runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(1)))

@@ -154,39 +154,37 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
 
     // FutureUtils will use a polyfill for Scala 2.11 and will
     // use the real `transformWith` on Scala 2.12
-    val f2 = FutureUtils.transformWith(
-      underlying, { (result: Try[A]) =>
-        if (isolatedCtx ne null) Local.setContext(isolatedCtx)
-        val nextRef: Future[S] =
-          try f(result)
-          catch { case e if NonFatal(e) => Future.failed(e) }
+    val f2 = FutureUtils.transformWith(underlying, { (result: Try[A]) =>
+      if (isolatedCtx ne null) Local.setContext(isolatedCtx)
+      val nextRef: Future[S] =
+        try f(result)
+        catch { case e if NonFatal(e) => Future.failed(e) }
 
-        // Checking to see if we are dealing with a "flatMap"
-        // future, in which case we need to chain the cancelable
-        // reference in order to not create a memory leak
-        nextRef match {
-          case ref: CancelableFuture[_] if ref ne Never =>
-            val cf = ref.asInstanceOf[CancelableFuture[S]]
-            // If the resulting Future is completed, there's no reason
-            // to chain cancelable tokens
-            if (!cf.isCompleted)
-              cf.cancelable match {
-                case cRef2: ChainedCancelable =>
-                  // Chaining ensures we don't leak
-                  cRef2.forwardTo(cRef)
-                case cRef2 =>
-                  if (!cRef2.isInstanceOf[IsDummy]) cRef := cRef2
-              }
+      // Checking to see if we are dealing with a "flatMap"
+      // future, in which case we need to chain the cancelable
+      // reference in order to not create a memory leak
+      nextRef match {
+        case ref: CancelableFuture[_] if ref ne Never =>
+          val cf = ref.asInstanceOf[CancelableFuture[S]]
+          // If the resulting Future is completed, there's no reason
+          // to chain cancelable tokens
+          if (!cf.isCompleted)
+            cf.cancelable match {
+              case cRef2: ChainedCancelable =>
+                // Chaining ensures we don't leak
+                cRef2.forwardTo(cRef)
+              case cRef2 =>
+                if (!cRef2.isInstanceOf[IsDummy]) cRef := cRef2
+            }
 
-            // Returning underlying b/c otherwise we leak memory in
-            // infinite loops
-            cf.underlying
+          // Returning underlying b/c otherwise we leak memory in
+          // infinite loops
+          cf.underlying
 
-          case _ =>
-            nextRef
-        }
+        case _ =>
+          nextRef
       }
-    )
+    })
     CancelableFuture.applyWithLocal(f2, cRef, isolatedCtx)
   }
 }

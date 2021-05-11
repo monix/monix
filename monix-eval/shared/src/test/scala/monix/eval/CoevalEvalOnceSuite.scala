@@ -57,7 +57,7 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
   }
 
   test("Coeval.evalOnce.map should work") { implicit s =>
-    check1 { a: Int =>
+    check1 { (a: Int) =>
       Coeval.evalOnce(a).map(_ + 1) <-> Coeval.evalOnce(a + 1)
     }
   }

@@ -72,10 +72,11 @@ private[reactive] final class DoOnTerminateOperator[A](
       }
 
       private def onFinish(ex: Option[Throwable]): Task[Unit] = {
-        @inline def triggerSignal(): Unit = ex match {
-          case None => out.onComplete()
-          case Some(ref) => out.onError(ref)
-        }
+        def triggerSignal(): Unit =
+          ex match {
+            case None => out.onComplete()
+            case Some(ref) => out.onError(ref)
+          }
 
         if (active.getAndSet(false)) {
           var streamErrors = true

@@ -31,6 +31,7 @@ private[execution] final case class TestBox[A](value: A) {
   * of [[InlineMacros]].
   */
 private[execution] object TestBox {
+
   class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
     import c.universe._
 

@@ -31,7 +31,6 @@ package object execution {
     * DEPRECATED — switch to Scala 2.12+ and
     * [[monix.execution.CancelableFuture.fromJavaCompletable CancelableFuture.fromJavaCompletable]].
     */
-  @deprecated("Switch to Scala 2.12+ and CancelableFuture.fromJavaCompletable", "3.0.0")
   implicit class JavaCompletableFutureUtils[A](val source: CompletableFuture[A]) extends AnyVal {
     /**
       * DEPRECATED — switch to Scala 2.12+ and
@@ -65,7 +64,6 @@ package object execution {
     * DEPRECATED — switch to Scala 2.12+ and
     * [[monix.execution.FutureUtils.toJavaCompletable FutureUtils.toJavaCompletable]].
     */
-  @deprecated("Switch to Scala 2.12+ and FutureUtils.toJavaCompletable", "3.0.0")
   implicit class ScalaFutureUtils[A](val source: Future[A]) extends AnyVal {
     /**
       * DEPRECATED — switch to Scala 2.12+ and

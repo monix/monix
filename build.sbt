@@ -15,25 +15,25 @@ val jvmTests = List(
 ).map(_ + "/test").mkString(" ;")
 
 addCommandAlias("ci-all",      ";ci-jvm ;ci-js ;ci-meta")
-addCommandAlias("ci-js",       ";clean ;coreJS/test:compile ;coreJS/test ;coreJS/package")
-addCommandAlias("ci-jvm",      s";clean ;coreJVM/test:compile ;coreJVM/test ;coreJVM/package ;tracingTests/test")
+addCommandAlias("ci-js",       ";clean ;coreJS/Test/compile ;coreJS/test ;coreJS/package")
+addCommandAlias("ci-jvm",      ";clean ;coreJVM/Test/compile ;coreJVM/test ;coreJVM/package ;tracingTests/test")
 addCommandAlias("ci-meta",     ";mimaReportBinaryIssues ;unidoc")
 addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions
 
-val cats_Version = "2.5.0"
-val catsEffect_Version = "2.4.1"
+val cats_Version = "2.6.0"
+val catsEffect_Version = "2.5.0"
 val fs2_Version = "2.4.4"
 val jcTools_Version = "3.3.0"
 val reactiveStreams_Version = "1.0.3"
-val minitest_Version = "2.9.4"
-val implicitBox_Version = "0.3.2"
+val minitest_Version = "2.9.5"
+val implicitBox_Version = "0.3.3"
 val kindProjector_Version = "0.11.3"
 val betterMonadicFor_Version = "0.3.1"
-val silencer_Version = "1.7.3"
-val scalaCompat_Version = "2.4.2"
+val silencer_Version = "1.7.1"
+val scalaCompat_Version = "2.4.3"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -86,7 +86,7 @@ lazy val minitestLib =
 
 /** [[https://github.com/scala/scala-collection-compat]] */
 lazy val scalaCollectionCompatLib =
-  Def.setting { "org.scala-lang.modules" %%% "scala-collection-compat" % scalaCompat_Version }
+  Def.setting { ("org.scala-lang.modules" %%% "scala-collection-compat" % scalaCompat_Version) }
 
 /** [[https://github.com/oleg-py/better-monadic-for]] */
 lazy val betterMonadicForCompilerPlugin =
@@ -96,12 +96,11 @@ lazy val betterMonadicForCompilerPlugin =
 lazy val silencerCompilerPlugin =
   "com.github.ghik" % "silencer-plugin" % silencer_Version cross CrossVersion.full
 
-lazy val macroDependencies = Seq(
-  libraryDependencies ++= Seq(
+lazy val macroDependencies =
+  libraryDependencies ++= (if (isDotty.value) Seq() else Seq(
     scalaReflectLib.value % Provided,
     scalaCompilerLib.value % Provided
-  )
-)
+))
 
 lazy val testDependencies = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
@@ -124,8 +123,8 @@ val crossScalaVersionsFromBuildYaml =
     "Scala versions set in .github/workflows/build.yml as scala_version_XXX"
   )
 
-crossScalaVersionsFromBuildYaml in Global := {
-  val manifest = (baseDirectory in ThisBuild).value / ".github" / "workflows" / "build.yml"
+Global / crossScalaVersionsFromBuildYaml := {
+  val manifest = (ThisBuild / baseDirectory).value / ".github" / "workflows" / "build.yml"
   scalaVersionsFromBuildYaml(manifest)
 }
 
@@ -147,6 +146,14 @@ lazy val pgpSettings = {
   )
 }
 
+lazy val isDotty =
+  Def.setting {
+    scalaPartV.value match {
+      case Some((3, _)) => true
+      case _ => false
+    }
+  }
+
 lazy val sharedSettings = pgpSettings ++ Seq(
   organization := "io.monix",
   // Value extracted from .github/workflows/build.yml
@@ -164,7 +171,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
 
   /*
   // Enable this to debug warnings...
-  scalacOptions in Compile ++= {
+  Compile / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, 13)) => Seq("-Wconf:any:warning-verbose")
       case _ => Seq.empty
@@ -173,7 +180,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   */
 
   // Disabled from the sbt-tpolecat set
-  scalacOptions in Compile --= Seq(
+  Compile / scalacOptions --= Seq(
     "-Wunused:privates",
     "-Ywarn-unused:privates",
     "-Wunused:implicits",
@@ -183,23 +190,44 @@ lazy val sharedSettings = pgpSettings ++ Seq(
     "-Wunused:explicits",
     "-Ywarn-unused:params",
     "-Wunused:params",
+    "-Xlint:infer-any"
   ),
 
   // Turning off fatal warnings for doc generation
-  scalacOptions.in(Compile, doc) ~= filterConsoleScalacOptions,
+  Compile / doc / scalacOptions ~= filterConsoleScalacOptions,
   // Silence everything in auto-generated files
-  scalacOptions += "-P:silencer:pathFilters=.*[/]src_managed[/].*",
+  scalacOptions ++= {
+    if (isDotty.value)
+      Seq.empty
+    else
+      Seq("-P:silencer:pathFilters=.*[/]src_managed[/].*")
+  },
+
+  scalacOptions --= {
+    if (isDotty.value)
+      Seq("-Xfatal-warnings")
+    else
+      Seq()
+  },
+
   // Syntax improvements, linting, etc.
-  addCompilerPlugin(kindProjectorCompilerPlugin),
-  addCompilerPlugin(betterMonadicForCompilerPlugin),
-  addCompilerPlugin(silencerCompilerPlugin),
+  libraryDependencies ++= {
+    if (isDotty.value)
+      Seq()
+    else
+      Seq(
+        compilerPlugin(kindProjectorCompilerPlugin),
+        compilerPlugin(betterMonadicForCompilerPlugin),
+        compilerPlugin(silencerCompilerPlugin)
+      )
+  },
 
   libraryDependencies ++= Seq(
     scalaCollectionCompatLib.value % "provided;optional",
   ),
   // ScalaDoc settings
   autoAPIMappings := true,
-  scalacOptions in ThisBuild ++= Seq(
+  scalacOptions ++= Seq(
     // Note, this is used by the doc-source-url feature to determine the
     // relative path of a given source file. If it's not a prefix of a the
     // absolute path of the source file, the absolute path of that file
@@ -208,7 +236,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
     "-sourcepath", file(".").getAbsolutePath.replaceAll("[.]$", "")
   ),
 
-  logBuffered in Test := false,
+  Test / logBuffered := false,
 
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
@@ -218,19 +246,19 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   dynverVTagPrefix in ThisBuild := false,
 
   // -- Settings meant for deployment on oss.sonatype.org
-  publishTo in ThisBuild := sonatypePublishToBundle.value,
-  isSnapshot in ThisBuild := {
+  ThisBuild / publishTo := sonatypePublishToBundle.value,
+  ThisBuild / isSnapshot := {
     !isVersionStable.value || !publishStableMonixVersion.value
   },
-  dynverSonatypeSnapshots in ThisBuild := !(isVersionStable.value && publishStableMonixVersion.value),
-  sonatypeProfileName in ThisBuild := organization.value,
+  ThisBuild / dynverSonatypeSnapshots := !(isVersionStable.value && publishStableMonixVersion.value),
+  ThisBuild / sonatypeProfileName := organization.value,
   sonatypeSessionName := s"[sbt-sonatype] ${name.value}-${version.value}",
 
   // Only on the Series 4.x branch
   dynverVTagPrefix in ThisBuild := false,
 
   publishMavenStyle := true,
-  publishArtifact in Test := false,
+  Test / publishArtifact := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies
 
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
@@ -268,10 +296,10 @@ lazy val sharedSettings = pgpSettings ++ Seq(
 )
 
 lazy val sharedSourcesSettings = Seq(
-  unmanagedSourceDirectories in Compile += {
+  Compile / unmanagedSourceDirectories += {
     baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
   },
-  unmanagedSourceDirectories in Test += {
+  Test / unmanagedSourceDirectories += {
     baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
   }
 )
@@ -279,35 +307,34 @@ lazy val sharedSourcesSettings = Seq(
 def scalaPartV = Def setting (CrossVersion partialVersion scalaVersion.value)
 lazy val crossVersionSourcesSettings: Seq[Setting[_]] =
   Seq(Compile, Test).map { sc =>
-    (unmanagedSourceDirectories in sc) ++= {
-      (unmanagedSourceDirectories in sc).value.flatMap { dir =>
-        List(
-          scalaPartV.value match {
-            case Some((2, n)) if n >= 13 => new File(dir.getPath + "_2.13+")
-            case _                       => new File(dir.getPath + "_2.13-")
-          }
-        )
+    (sc / unmanagedSourceDirectories) ++= {
+      (sc / unmanagedSourceDirectories).value.flatMap { dir =>
+        scalaPartV.value match {
+          case Some((2, 12)) => Seq(new File(dir.getPath + "_2.13-"), new File(dir.getPath + "_3.0-"))
+          case Some((3, _))  => Seq(new File(dir.getPath + "_3.0"))
+          case _             => Seq(new File(dir.getPath + "_2.13+"), new File(dir.getPath + "_3.0-"))
+        }
       }
     }
   }
 
 lazy val doNotPublishArtifactSettings = Seq(
   publishArtifact := false,
-  publishArtifact in (Compile, packageDoc) := false,
-  publishArtifact in (Compile, packageSrc) := false,
-  publishArtifact in (Compile, packageBin) := false
+  Compile / packageDoc / publishArtifact := false,
+  Compile / packageDoc / publishArtifact := false,
+  Compile / packageDoc / publishArtifact := false
 )
 
 lazy val assemblyShadeSettings = Seq(
-  assemblyOption in assembly :=  (assemblyOption in assembly).value.copy(
+  assembly / assemblyOption :=  (assembly / assemblyOption).value.copy(
     includeScala = false,
     includeBin = false
   ),
   // for some weird reason the "assembly" task runs tests by default
-  test in assembly := {},
+  assembly / test := {},
   // prevent cyclic task dependencies, see https://github.com/sbt/sbt-assembly/issues/365
   // otherwise, there's a cyclic dependency between packageBin and assembly
-  fullClasspath in assembly := (managedClasspath in Runtime).value,
+  assembly / fullClasspath := (Runtime / managedClasspath).value,
   // in dependent projects, use assembled and shaded jar
   exportJars := true,
   // do not include scala dependency in pom
@@ -315,40 +342,44 @@ lazy val assemblyShadeSettings = Seq(
   // prevent original dependency to be added to pom as runtime dep
   makePomConfiguration := makePomConfiguration.value.withConfigurations(Vector.empty),
   // package by running assembly
-  packageBin in Compile := ReproducibleBuildsPlugin.postProcessJar((assembly in Compile).value),
+  Compile / packageBin := ReproducibleBuildsPlugin.postProcessJar((Compile / assembly).value),
 )
 
 lazy val unidocSettings = Seq(
-  unidocProjectFilter in (ScalaUnidoc, unidoc) :=
+  ScalaUnidoc / unidoc / unidocProjectFilter :=
     inProjects(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM),
 
   // Exclude monix.*.internal from ScalaDoc
-  sources in (ScalaUnidoc, unidoc) ~= (_ filterNot { file =>
+  ScalaUnidoc / unidoc / sources ~= (_ filterNot { file =>
     // Exclude all internal Java files from documentation
     file.getCanonicalPath matches "^.*monix.+?internal.*?\\.java$"
   }),
 
-  scalacOptions in (ScalaUnidoc, unidoc) +=
+  ScalaUnidoc / unidoc / scalacOptions +=
     "-Xfatal-warnings",
-  scalacOptions in (ScalaUnidoc, unidoc) --=
+  ScalaUnidoc / unidoc / scalacOptions --=
     Seq("-Ywarn-unused-import", "-Ywarn-unused:imports"),
-  scalacOptions in (ScalaUnidoc, unidoc) ++=
+  ScalaUnidoc / unidoc / scalacOptions ++=
     Opts.doc.title(s"Monix"),
-  scalacOptions in (ScalaUnidoc, unidoc) ++=
+  ScalaUnidoc / unidoc / scalacOptions ++=
     Opts.doc.sourceUrl(s"https://github.com/monix/monix/tree/${gitHubTreeTagOrHash.value}€{FILE_PATH}.scala"),
-  scalacOptions in (ScalaUnidoc, unidoc) ++=
+  ScalaUnidoc / unidoc / scalacOptions ++=
     Seq("-doc-root-content", file("rootdoc.txt").getAbsolutePath),
-  scalacOptions in (ScalaUnidoc, unidoc) ++=
+  ScalaUnidoc / unidoc / scalacOptions ++=
     Opts.doc.version(s"${version.value}")
 )
 
 lazy val sharedJSSettings = Seq(
   coverageExcludedFiles := ".*",
   // Use globally accessible (rather than local) source paths in JS source maps
-  scalacOptions += {
-    val l = (baseDirectory in LocalRootProject).value.toURI.toString
-    val g = s"https://raw.githubusercontent.com/monix/monix/${gitHubTreeTagOrHash.value}/"
-    s"-P:scalajs:mapSourceURI:$l->$g"
+  scalacOptions ++= {
+    if (isDotty.value)
+      Seq()
+    else {
+      val l = (LocalRootProject / baseDirectory).value.toURI.toString
+      val g = s"https://raw.githubusercontent.com/monix/monix/${gitHubTreeTagOrHash.value}/"
+      Seq(s"-P:scalajs:mapSourceURI:$l->$g")
+    }
   }
 )
 
@@ -448,8 +479,12 @@ lazy val monix = project.in(file("."))
   .settings(unidocSettings)
   .settings(
     Global / onChangedBuildSource := ReloadOnSourceChanges,
+    Global / excludeLintKeys ++= Set(
+      Compile / gitHubTreeTagOrHash,
+      Compile / coverageExcludedFiles,
+    ),
     // https://github.com/lightbend/mima/pull/289
-    mimaFailOnNoPrevious in ThisBuild := false
+    ThisBuild / mimaFailOnNoPrevious := false
   )
 
 // --------------------------------------------
@@ -489,7 +524,7 @@ lazy val executionShadedJCTools = project.in(file("monix-execution/shaded/jctool
     description := "Monix Execution Shaded JCTools is a shaded version of JCTools library. See: https://github.com/JCTools/JCTools",
     libraryDependencies += jcToolsLib % "optional;provided",
     // https://github.com/sbt/sbt-assembly#shading
-    assemblyShadeRules in assembly := Seq(
+    assembly / assemblyShadeRules := Seq(
       ShadeRule.rename("org.jctools.**" -> "monix.execution.internal.jctools.@1")
         .inLibrary("org.jctools" % "jctools-core" % jcTools_Version % "optional;provided")
         .inAll
@@ -637,17 +672,17 @@ lazy val tracingTests = project.in(file("tracingTests"))
   .settings(testFrameworks := Seq(new TestFramework("minitest.runner.Framework")))
   .settings(inConfig(FullTracingTest)(Defaults.testSettings): _*)
   .settings(
-    unmanagedSourceDirectories in FullTracingTest += {
+    FullTracingTest / unmanagedSourceDirectories += {
       baseDirectory.value.getParentFile / "src" / "fulltracing" / "scala"
     },
-    test in Test := (test in Test).dependsOn(test in FullTracingTest).value,
-    fork in Test := true,
-    fork in FullTracingTest := true,
-    javaOptions in Test ++= Seq(
+    Test / test := (Test / test).dependsOn(FullTracingTest / test).value,
+    Test / fork := true,
+    FullTracingTest / fork := true,
+    Test / javaOptions ++= Seq(
       "-Dmonix.eval.tracing=true",
       "-Dmonix.eval.stackTracingMode=cached"
     ),
-    javaOptions in FullTracingTest ++= Seq(
+    FullTracingTest / javaOptions ++= Seq(
       "-Dmonix.eval.tracing=true",
       "-Dmonix.eval.stackTracingMode=full"
     )
@@ -656,6 +691,14 @@ lazy val tracingTests = project.in(file("tracingTests"))
 // --------------------------------------------
 // monix-benchmarks-{prev,next} (not published)
 
+lazy val benchmarksScalaVersions =
+  Def.setting {
+    crossScalaVersionsFromBuildYaml.value
+      .toIndexedSeq
+      .filter(v => !v.value.startsWith("3."))
+      .map(_.value)
+  }
+
 lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
   .enablePlugins(JmhPlugin)
   .configure(monixSubModule(
@@ -663,12 +706,16 @@ lazy val benchmarksPrev = project.in(file("benchmarks/vprev"))
     publishArtifacts = false
   ))
   .settings(
+    // Disable Scala 3 (Dotty)
+    scalaVersion := benchmarksScalaVersions.value.head,
+    crossScalaVersions := benchmarksScalaVersions.value,
     libraryDependencies ++= Seq(
       "io.monix" %% "monix" % "3.3.0",
       "dev.zio" %% "zio-streams" % "1.0.0",
       "co.fs2" %% "fs2-core" % fs2_Version,
       "com.typesafe.akka" %% "akka-stream" % "2.6.9"
-  ))
+    )
+  )
 
 lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   .enablePlugins(JmhPlugin)
@@ -678,8 +725,12 @@ lazy val benchmarksNext = project.in(file("benchmarks/vnext"))
   ))
   .dependsOn(reactiveJVM, tailJVM)
   .settings(
+    // Disable Scala 3 (Dotty)
+    scalaVersion := benchmarksScalaVersions.value.head,
+    crossScalaVersions := benchmarksScalaVersions.value,
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio-streams" % "1.0.0",
       "co.fs2" %% "fs2-core" % fs2_Version,
       "com.typesafe.akka" %% "akka-stream" % "2.6.9"
-    ))
+    )
+  )

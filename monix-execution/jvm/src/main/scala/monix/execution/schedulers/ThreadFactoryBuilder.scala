@@ -28,15 +28,12 @@ private[schedulers] object ThreadFactoryBuilder {
     * @param daemonic specifies whether the created threads should be daemonic
     *                 (non-daemonic threads are blocking the JVM process on exit).
     */
-  def apply(name: String, reporter: UncaughtExceptionReporter, daemonic: Boolean): ThreadFactory = {
-    new ThreadFactory {
-      def newThread(r: Runnable) = {
-        val thread = new Thread(r)
-        thread.setName(name + "-" + thread.getId)
-        thread.setDaemon(daemonic)
-        thread.setUncaughtExceptionHandler(reporter.asJava)
-        thread
-      }
+  def apply(name: String, reporter: UncaughtExceptionReporter, daemonic: Boolean): ThreadFactory =
+    (r: Runnable) => {
+      val thread = new Thread(r)
+      thread.setName(name + "-" + thread.getId)
+      thread.setDaemon(daemonic)
+      thread.setUncaughtExceptionHandler(reporter.asJava)
+      thread
     }
-  }
 }

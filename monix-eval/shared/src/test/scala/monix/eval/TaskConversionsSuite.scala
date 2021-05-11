@@ -418,7 +418,7 @@ object TaskConversionsSuite extends BaseTestSuite {
   }
 
   test("Task.fromReactivePublisher <-> task") { implicit s =>
-    check1 { task: Task[Int] =>
+    check1 { (task: Task[Int]) =>
       Task.fromReactivePublisher(task.toReactivePublisher) <-> task.map(Some(_))
     }
   }

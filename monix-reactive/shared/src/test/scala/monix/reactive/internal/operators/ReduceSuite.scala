@@ -61,7 +61,7 @@ object ReduceSuite extends BaseOperatorSuite {
   }
 
   test("Observable.reduce is equivalent with List.reduce") { implicit s =>
-    check1 { list: List[Int] =>
+    check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.reduce(_ + _).lastL
 

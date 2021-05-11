@@ -100,7 +100,8 @@ private[tail] object IterantDistinctUntilChanged {
         var count = cursor.recommendedBatchSize
 
         // We already know hasNext == true
-        do {
+        var continue = true
+        while (continue) {
           val a = cursor.next()
           val k = f(a)
           count -= 1
@@ -109,7 +110,9 @@ private[tail] object IterantDistinctUntilChanged {
             current = k
             buffer += a
           }
-        } while (count > 0 && cursor.hasNext())
+
+          continue = count > 0 && cursor.hasNext()
+        }
 
         val next =
           if (cursor.hasNext())

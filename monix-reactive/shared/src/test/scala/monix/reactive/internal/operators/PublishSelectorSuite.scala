@@ -19,11 +19,12 @@ package monix.reactive.internal.operators
 
 import cats.effect.IO
 import monix.execution.atomic.Atomic
-import monix.reactive.{BaseTestSuite, Observable}
-
+import monix.reactive.{BaseTestSuite, Observable, OverflowStrategy}
 import scala.util.Success
 
 object PublishSelectorSuite extends BaseTestSuite {
+  implicit val os: OverflowStrategy[Nothing] = OverflowStrategy.Default
+
   test("publishSelector sanity test") { implicit s =>
     val isStarted = Atomic(0)
     val f = Observable

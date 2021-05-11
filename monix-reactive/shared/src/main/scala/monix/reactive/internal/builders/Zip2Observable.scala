@@ -103,7 +103,7 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
     }
 
     def signalOnComplete(hasElem: Boolean): Unit = {
-      @inline def rawOnComplete(): Unit =
+      def rawOnComplete(): Unit =
         if (!isDone) {
           isDone = true
           out.onComplete()

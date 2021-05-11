@@ -24,7 +24,7 @@ import monix.reactive.BaseTestSuite
 
 object ContramapSubscriberSuite extends BaseTestSuite {
   test("Subscriber.contramap equivalence with plain Subscriber") { implicit s =>
-    check1 { xs: List[Int] =>
+    check1 { (xs: List[Int]) =>
       var sum = 0
       val plainSubscriber: Subscriber[Int] = new Subscriber[Int] {
         def onError(ex: Throwable): Unit = ()
