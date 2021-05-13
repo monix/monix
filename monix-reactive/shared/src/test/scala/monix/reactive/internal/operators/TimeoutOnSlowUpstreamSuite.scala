@@ -28,7 +28,7 @@ import scala.concurrent.duration._
 object TimeoutOnSlowUpstreamSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val source = Observable.now(sourceCount.toLong).delayOnComplete(1.hour)
-    val o = source.timeoutOnSlowUpstream(1.second).onErrorHandleWith {
+    val o = source.timeoutOnSlowUpstream(1.second).onErrorRecoverWith {
       case UpstreamTimeoutException(_) =>
         Observable.now(20L)
     }

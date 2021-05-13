@@ -36,8 +36,9 @@ object MergeDelayErrorOneSuite extends BaseOperatorSuite {
     val recovered = o.onErrorHandleWith {
       case composite: CompositeException =>
         val sum = composite.errors.collect { case ex: SomeException => ex.value }.sum
-
         Observable.now(sum)
+      case other =>
+        Observable.raiseError(other)
     }
 
     Sample(recovered, count(sourceCount), sum(sourceCount), waitFirst, waitNext)

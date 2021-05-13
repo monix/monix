@@ -26,6 +26,7 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.execution.exceptions.{CompositeException, DummyException}
 import monix.execution.internal.Platform
+import monix.execution.internal.exceptions.matchError
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
@@ -159,6 +160,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
       wasThrown match {
         case CompositeException(list) =>
           assertEquals(list, List(ex1, ex2))
+        case other =>
+          matchError(other)
       }
     }
     assertEquals(s.state.lastReportedError, null)
@@ -189,6 +192,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
       wasThrown match {
         case CompositeException(list) =>
           assertEquals(list, List(ex1, ex2))
+        case other =>
+          matchError(other)
       }
     }
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
@@ -423,6 +428,8 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
       wasThrown match {
         case CompositeException(list) =>
           assertEquals(list, List(ex1, ex2))
+        case other =>
+          matchError(other)
       }
     }
     assertEquals(s.state.lastReportedError, null)

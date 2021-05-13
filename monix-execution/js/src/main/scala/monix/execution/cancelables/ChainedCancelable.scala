@@ -19,6 +19,9 @@ package monix.execution.cancelables
 
 import monix.execution.Cancelable
 import monix.execution.Cancelable.IsDummy
+import monix.execution.internal.exceptions.matchError
+
+import scala.annotation.tailrec
 
 /** Represents a [[monix.execution.Cancelable]] whose underlying
   * cancelable reference can be swapped for another. It can
@@ -92,8 +95,7 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
   //  - Cancelled: if it was cancelled
   //  - _: WeakReference[ChainedCancelable]: in case it was chained
   //  - _: Cancelable: in case it has an underlying reference
-
-  override def cancel(): Unit = {
+  @tailrec override def cancel(): Unit = {
     val prevRef = stateRef
     stateRef = Canceled
 
@@ -102,6 +104,8 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
       case ref: Cancelable => ref.cancel()
       case WeakRef(cc) =>
         if (cc != null) cc.cancel()
+      case other =>
+        matchError(other)
     }
   }
 
@@ -179,6 +183,8 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
         case prev: Cancelable =>
           newRoot := prev
           ()
+        case other =>
+          matchError(other)
       }
     }
   }
