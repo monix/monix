@@ -99,14 +99,14 @@ object InlineMacrosTest extends SimpleTestSuite {
 
   test("Inline matched partial function") {
     val box = TestBox(1)
-    val mapped = box.map { case 1 => 2 }
+    val mapped = box.collect { case 1 => 2 }
     assertEquals(mapped, TestBox(2))
   }
 
   test("Inline unmatched partial function") {
     val box = TestBox(2)
     intercept[MatchError] {
-      box.map { case 1 => 2 }
+      box.collect { case 1 => 2 }
       ()
     }
     ()

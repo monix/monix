@@ -95,7 +95,7 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
   //  - Cancelled: if it was cancelled
   //  - _: WeakReference[ChainedCancelable]: in case it was chained
   //  - _: Cancelable: in case it has an underlying reference
-  @tailrec override def cancel(): Unit = {
+  override def cancel(): Unit = {
     val prevRef = stateRef
     stateRef = Canceled
 
