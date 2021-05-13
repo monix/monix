@@ -58,15 +58,9 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
   val boundedConfigForConcurrentSum: Bounded
 
   val iterationsCount = {
-    if (Platform.isJVM) {
-      // Discriminate CI
-      if (isCI)
-        1000
-      else
-        10000
-    } else {
-      100 // JavaScript
-    }
+    if (isCI) 50
+    else if (Platform.isJVM) 10000
+    else 100
   }
 
   val repeatForFastTests = {

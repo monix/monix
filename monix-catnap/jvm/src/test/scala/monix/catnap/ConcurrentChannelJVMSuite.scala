@@ -24,6 +24,9 @@ import monix.execution.schedulers.SchedulerService
 import scala.concurrent.duration._
 
 abstract class ConcurrentChannelJVMSuite(parallelism: Int) extends BaseConcurrentChannelSuite[SchedulerService] {
+  val taskTimeout =
+    if (isCI) 3.minutes
+    else 60.seconds
 
   def setup(): SchedulerService =
     Scheduler.computation(
@@ -42,7 +45,7 @@ abstract class ConcurrentChannelJVMSuite(parallelism: Int) extends BaseConcurren
       else IO.unit
 
     testAsync(name) { implicit ec =>
-      repeatTest(f(ec).timeout(60.second), times).unsafeToFuture()
+      repeatTest(f(ec).timeout(taskTimeout), times).unsafeToFuture()
     }
   }
 

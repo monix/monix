@@ -1,5 +1,6 @@
 import sbt.Keys.version
-import sbt.Def
+import sbt.{Def, Global, Tags}
+
 import scala.collection.immutable.SortedSet
 import MonixBuildUtils._
 
@@ -123,18 +124,8 @@ val crossScalaVersionsFromBuildYaml =
     "Scala versions set in .github/workflows/build.yml as scala_version_XXX"
   )
 
-Global / crossScalaVersionsFromBuildYaml := {
-  val manifest = (ThisBuild / baseDirectory).value / ".github" / "workflows" / "build.yml"
-  scalaVersionsFromBuildYaml(manifest)
-}
-
 lazy val publishStableMonixVersion =
   settingKey[Boolean]("If it should publish stable versions to Sonatype staging repository, instead of a snapshot")
-
-publishStableMonixVersion in Global := {
-  sys.env.get("PUBLISH_STABLE_VERSION")
-    .exists(v => v == "true" || v == "1" || v == "yes")
-}
 
 lazy val pgpSettings = {
   val withHex = sys.env.get("PGP_KEY_HEX").filter(_.nonEmpty) match {
@@ -236,7 +227,12 @@ lazy val sharedSettings = pgpSettings ++ Seq(
     "-sourcepath", file(".").getAbsolutePath.replaceAll("[.]$", "")
   ),
 
+  // Without this setting, the outcome of a test-suite will be printed all at
+  // once, instead of line by line, as tests are being completed
   Test / logBuffered := false,
+  //
+  // Tries disabling parallel execution in tests (in the same project / task)
+  Test / parallelExecution := false,
 
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
@@ -478,6 +474,24 @@ lazy val monix = project.in(file("."))
   .aggregate(coreJVM, coreJS)
   .settings(unidocSettings)
   .settings(
+    //
+    // Reads Scala versions from build.yml
+    Global / crossScalaVersionsFromBuildYaml := {
+      val manifest = (ThisBuild / baseDirectory).value / ".github" / "workflows" / "build.yml"
+      scalaVersionsFromBuildYaml(manifest)
+    },
+    //
+    // Tries restricting concurrency when running tests
+    // https://www.scala-sbt.org/1.x/docs/Parallel-Execution.html
+    Global / concurrentRestrictions += Tags.limit(Tags.Test, 1),
+    //
+    // Used in CI when publishing artifacts to Sonatype
+    Global / publishStableMonixVersion := {
+      sys.env.get("PUBLISH_STABLE_VERSION")
+        .exists(v => v == "true" || v == "1" || v == "yes")
+    },
+    //
+    // Settings for build.sbt management
     Global / onChangedBuildSource := ReloadOnSourceChanges,
     Global / excludeLintKeys ++= Set(
       Compile / gitHubTreeTagOrHash,
