@@ -21,6 +21,7 @@ import java.lang.ref.WeakReference
 import monix.execution.Cancelable
 import monix.execution.Cancelable.IsDummy
 import monix.execution.atomic.{AtomicAny, PaddingStrategy}
+import monix.execution.internal.exceptions.matchError
 
 /** Represents a [[monix.execution.Cancelable]] whose underlying
   * cancelable reference can be swapped for another. It can
@@ -109,6 +110,10 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
       case wr: WeakReference[_] =>
         val cc = wr.get.asInstanceOf[CC]
         if (cc != null) cc.cancel()
+      case other =>
+        // $COVERAGE-OFF$
+        matchError(other)
+        // $COVERAGE-ON$
     }
   }
 
@@ -202,6 +207,10 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
           if (cc != null) cc.asInstanceOf[CC].update(newRoot)
         case prev: Cancelable =>
           newRoot.update(prev)
+        case other =>
+          // $COVERAGE-OFF$
+          matchError(other)
+          // $COVERAGE-ON$
       }
     }
   }

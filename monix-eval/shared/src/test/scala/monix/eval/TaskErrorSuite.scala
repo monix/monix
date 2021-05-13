@@ -182,9 +182,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task#onErrorHandle should recover") { implicit s =>
     val ex = DummyException("dummy")
-    val task = Task[Int](if (1 == 1) throw ex else 1).onErrorHandle {
-      case _: DummyException => 99
-    }
+    val task = Task[Int](if (1 == 1) throw ex else 1).onErrorHandle { _ => 99 }
 
     val f = task.runToFuture
     s.tick()

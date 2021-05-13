@@ -24,6 +24,7 @@ import monix.execution.Ack.Stop
 import monix.execution.Scheduler
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.atomic.{Atomic, AtomicAny}
+import monix.execution.internal.exceptions.matchError
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
@@ -113,6 +114,10 @@ private[eval] object TaskMapBoth {
                 // This task has triggered multiple onSuccess calls
                 // violating the protocol. Should never happen.
                 onError(new IllegalStateException(s.toString))
+              case other =>
+                // $COVERAGE-OFF$
+                matchError(other)
+                // $COVERAGE-ON$
             }
 
           def onError(ex: Throwable): Unit =
@@ -137,6 +142,10 @@ private[eval] object TaskMapBoth {
                 // This task has triggered multiple onSuccess calls
                 // violating the protocol. Should never happen.
                 onError(new IllegalStateException(s.toString))
+              case other =>
+                // $COVERAGE-OFF$
+                matchError(other)
+                // $COVERAGE-ON$
             }
 
           def onError(ex: Throwable): Unit =

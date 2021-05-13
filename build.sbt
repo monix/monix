@@ -32,7 +32,7 @@ val minitest_Version = "2.9.5"
 val implicitBox_Version = "0.3.3"
 val kindProjector_Version = "0.11.3"
 val betterMonadicFor_Version = "0.3.1"
-val silencer_Version = "1.7.1"
+val silencer_Version = "1.7.3"
 val scalaCompat_Version = "2.4.3"
 
 // The Monix version with which we must keep binary compatibility.
@@ -243,7 +243,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
 
   // Series/4.x is unpublished.
   // Delete this after the first release ...
-  dynverVTagPrefix in ThisBuild := false,
+  ThisBuild / dynverVTagPrefix := false,
 
   // -- Settings meant for deployment on oss.sonatype.org
   ThisBuild / publishTo := sonatypePublishToBundle.value,
@@ -255,7 +255,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   sonatypeSessionName := s"[sbt-sonatype] ${name.value}-${version.value}",
 
   // Only on the Series 4.x branch
-  dynverVTagPrefix in ThisBuild := false,
+  ThisBuild / dynverVTagPrefix := false,
 
   publishMavenStyle := true,
   Test / publishArtifact := false,

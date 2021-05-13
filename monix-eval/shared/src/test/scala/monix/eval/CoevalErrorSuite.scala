@@ -140,7 +140,7 @@ object CoevalErrorSuite extends BaseTestSuite {
 
   test("Coeval#onErrorHandle should recover") { implicit s =>
     val ex = DummyException("dummy")
-    val f = Coeval[Int](if (1 == 1) throw ex else 1).onErrorHandle { case _: DummyException => 99 }
+    val f = Coeval[Int](if (1 == 1) throw ex else 1).onErrorHandle { _ => 99 }
 
     assertEquals(f.runTry(), Success(99))
   }
