@@ -30,7 +30,10 @@ object OnErrorRetryIfSuite extends BaseOperatorSuite {
     val o = Observable
       .range(0L, sourceCount.toLong)
       .endWithError(ex)
-      .onErrorRestartIf { case DummyException("expected") => retriesCount.incrementAndGet() <= 3 }
+      .onErrorRestartIf {
+        case DummyException("expected") => retriesCount.incrementAndGet() <= 3
+        case _ => false
+      }
       .onErrorHandle(_ => 10L)
 
     val count = sourceCount * 4 + 1

@@ -23,6 +23,7 @@ import monix.execution.Callback
 import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
+import monix.execution.internal.exceptions.matchError
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.{Failure, Success, Try}
@@ -163,7 +164,12 @@ private[eval] object TaskMemoize {
           // Race condition happened
           // $COVERAGE-OFF$
           cb(ref)
-        // $COVERAGE-ON$
+          // $COVERAGE-ON$
+
+        case other =>
+          // $COVERAGE-OFF$
+          matchError(other)
+          // $COVERAGE-ON$
       }
     }
   }

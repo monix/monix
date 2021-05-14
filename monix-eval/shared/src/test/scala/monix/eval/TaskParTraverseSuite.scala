@@ -110,7 +110,7 @@ object TaskParTraverseSuite extends BaseTestSuite {
   test("Task.parTraverse should wrap exceptions in the function") { implicit s =>
     val ex = DummyException("dummy")
 
-    @nowarn("msg=dead code")
+    @nowarn
     val task1 = Task.parTraverse(Seq(0)) { i =>
       if (1 + 1 == 2) throw ex
       Task.now(i)

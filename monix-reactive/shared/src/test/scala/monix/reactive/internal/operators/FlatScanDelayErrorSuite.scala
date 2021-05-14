@@ -43,8 +43,9 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
     val recovered = o.onErrorHandleWith {
       case composite: CompositeException =>
         val sum = composite.errors.collect { case ex: SomeException => ex.value }.sum
-
         Observable.now(sum)
+      case other =>
+        Observable.raiseError(other)
     }
 
     val sum = (0 until sourceCount).map(x => (1 to x).sum + 1L).sum * 3 +
