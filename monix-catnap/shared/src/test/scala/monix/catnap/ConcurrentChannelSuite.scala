@@ -66,6 +66,7 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
   val repeatForFastTests = {
     if (Platform.isJVM) 1000 else 100
   }
+  
   val repeatForSlowTests = {
     if (Platform.isJVM) 50 else 1
   }
