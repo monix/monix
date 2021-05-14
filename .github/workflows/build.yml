@@ -17,7 +17,7 @@ jobs:
         java: [ 8, 11 ]
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
-        scala: [ 2.12.13, 2.13.3, 3.0.0-RC3 ]
+        scala: [ 2.12.13, 2.13.5, 3.0.0 ]
 
     env:
       CI: true
@@ -64,8 +64,8 @@ jobs:
         # crossScalaVersions is determined from it
         include:
           - { java: 8, scala: 2.12.13 }
-          - { java: 8, scala: 2.13.3 }
-          - { java: 8, scala: 3.0.0-RC3 }
+          - { java: 8, scala: 2.13.5 }
+          - { java: 8, scala: 3.0.0 }
 
     env:
       CI: true
@@ -116,7 +116,8 @@ jobs:
       matrix:
         include:
           - { java: 8, scala: 2.12.13 }
-          - { java: 8, scala: 2.13.3 }
+          - { java: 8, scala: 2.13.5 }
+          - { java: 8, scala: 3.0.0 }
 
     steps:
       - uses: actions/checkout@v2
@@ -157,7 +158,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { java: 8, scala: 2.13.3 }
+          - { java: 8, scala: 2.13.5 }
+          # TODO: enable this after it works!
+          # - { java: 8, scala: 3.0.0 }
 
     steps:
       - uses: actions/checkout@v2
@@ -191,10 +194,19 @@ jobs:
           SCALA_VERSION: ${{ matrix.scala }}
           SBT_COMMAND: unidoc
 
+  all_tests:
+    name: All Tests
+    needs: [ jvm-tests, js-tests, mima, unidoc ]
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Ack
+        run: |
+          echo "All done."
+
   publish:
     name: Publish to Sonatype
     if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/series/4.x')
-    needs: [ jvm-tests, js-tests, mima, unidoc ]
+    needs: [ all_tests ]
 
     runs-on: ubuntu-20.04
     steps:

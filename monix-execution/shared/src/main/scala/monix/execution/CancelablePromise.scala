@@ -19,6 +19,7 @@ package monix.execution
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.internal.Platform
+import monix.execution.internal.exceptions.matchError
 import monix.execution.atomic.{AtomicAny, PaddingStrategy}
 
 import scala.annotation.tailrec
@@ -208,6 +209,10 @@ object CancelablePromise {
             if (!state.compareAndSet(queue, update)) unsafeSubscribe(p)
             else new IdCancelable(id)
           CancelableFuture(p.future, cancelable)
+        case other =>
+          // $COVERAGE-OFF$
+          matchError(other)
+          // $COVERAGE-ON$
       }
 
     @tailrec
@@ -254,6 +259,10 @@ object CancelablePromise {
         case p: Promise[A] @unchecked =>
           p.complete(result)
           ()
+        case other =>
+          // $COVERAGE-OFF$
+          matchError(other)
+          // $COVERAGE-ON$
       }
 
     @tailrec def unsafeSubscribe(cb: AnyRef): Cancelable =
@@ -266,6 +275,11 @@ object CancelablePromise {
           val (id, update) = queue.enqueue(cb)
           if (!state.compareAndSet(queue, update)) unsafeSubscribe(cb)
           else new IdCancelable(id)
+
+        case other =>
+          // $COVERAGE-OFF$
+          matchError(other)
+          // $COVERAGE-ON$
       }
 
     private final class IdCancelable(id: Long) extends Cancelable {
