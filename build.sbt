@@ -38,7 +38,7 @@ val scalaCompat_Version = "2.4.4"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.3.0"
+val monixSeries = "3.4.0"
 
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Libraries
