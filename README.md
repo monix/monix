@@ -100,7 +100,7 @@ See:
 API Documentation:
 
 - [Current](https://monix.io/api/current/) 
-- [3.3](https://monix.io/api/3.3/)
+- [3.4](https://monix.io/api/3.4/)
 - [2.3](https://monix.io/api/2.3/)
 - [1.2](https://monix.io/api/1.2/)
 
