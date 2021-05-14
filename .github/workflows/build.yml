@@ -117,6 +117,7 @@ jobs:
         include:
           - { java: 8, scala: 2.12.13 }
           - { java: 8, scala: 2.13.5 }
+          - { java: 8, scala: 3.0.0 }
 
     steps:
       - uses: actions/checkout@v2
@@ -158,6 +159,8 @@ jobs:
       matrix:
         include:
           - { java: 8, scala: 2.13.5 }
+          # TODO: enable this after it works!
+          # - { java: 8, scala: 3.0.0 }
 
     steps:
       - uses: actions/checkout@v2
