@@ -198,6 +198,7 @@ jobs:
     name: All Tests
     needs: [ jvm-tests, js-tests, mima, unidoc ]
     runs-on: ubuntu-20.04
+    steps: []
 
   publish:
     name: Publish to Sonatype
