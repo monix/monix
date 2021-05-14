@@ -21,8 +21,6 @@ import monix.execution.Cancelable
 import monix.execution.Cancelable.IsDummy
 import monix.execution.internal.exceptions.matchError
 
-import scala.annotation.tailrec
-
 /** Represents a [[monix.execution.Cancelable]] whose underlying
   * cancelable reference can be swapped for another. It can
   * be "chained" to another `ChainedCancelable`, forwarding all
@@ -105,7 +103,9 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
       case WeakRef(cc) =>
         if (cc != null) cc.cancel()
       case other =>
+        // $COVERAGE-OFF$
         matchError(other)
+        // $COVERAGE-ON$
     }
   }
 
@@ -184,7 +184,9 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
           newRoot := prev
           ()
         case other =>
+          // $COVERAGE-OFF$
           matchError(other)
+          // $COVERAGE-ON$
       }
     }
   }
