@@ -65,7 +65,7 @@ jobs:
         include:
           - { java: 8, scala: 2.12.13 }
           - { java: 8, scala: 2.13.5 }
-          - { java: 8, scala: 3.0.0-RC3 }
+          - { java: 8, scala: 3.0.0 }
 
     env:
       CI: true
