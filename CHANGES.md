@@ -1,3 +1,35 @@
+## Version 3.4.0 (May 14, 2021)
+
+The release is binary and source compatible with 3.x series, and was cross-built for the following Scala and ScalaJS versions:
+
+- Scala `2.12`, `2.13` and `3.0`
+- Scala.js `1.5.1`
+
+WARN: we're dropping compatibility with Scala `2.11` and ScalaJS `0.6.x`. If you still need those you'll have to stay on version `3.3.0`.
+
+Changes in this release:
+
+- Dropped support for Scala `2.11` and Scala.js `0.6.x`
+- Dependency updates:
+  - Cats `2.6.1`
+  - Cats-Effect `2.5.1`
+  - JCTools `3.3.0`
+- Adds support for Scala 3 (#1326, #1327, #1328, #1329, #1344, #1323)
+- Adds `Observable.whileBusyAggregateEvents` (#1320)
+- Fix tracing in `Coeval` and `Task` via a more accurate filter (#1353)
+- Adds `Observable.throttleLatest` (#1396)
+- Implement pagination for `Observable` (#1381)
+
+This release was made possible by the work and feedback of:
+
+- Alexandru Nedelcu (@alexandru)
+- Dominik Wosiński (@Wosin)
+- Lars Hupel (@larsrh)
+- Luke Stephenson (@lukestephenson)
+- Oleg Pyzhcov (@oleg-py)
+- Pau Alarcón (@paualarco)
+- Piotr Gawryś (@Avasil)
+
 ## Version 3.3.0 (Nov 7, 2020)
 
 The release is binary and source compatible with 3.x.x line.

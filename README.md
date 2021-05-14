@@ -61,7 +61,7 @@ a project exemplifying Monix used both on the server and on the client.
 For the stable release (compatible with Cats, and Cats-Effect 2.x):
  
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "3.3.0"
+libraryDependencies += "io.monix" %% "monix" % "3.4.0"
 ```
   
 ### Sub-projects
