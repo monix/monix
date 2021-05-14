@@ -1,5 +1,6 @@
 import sbt.Keys.version
-import sbt.Def
+import sbt.{Def, Global, Tags}
+
 import scala.collection.immutable.SortedSet
 import MonixBuildUtils._
 
@@ -30,14 +31,14 @@ val jcTools_Version = "3.3.0"
 val reactiveStreams_Version = "1.0.3"
 val minitest_Version = "2.9.6"
 val implicitBox_Version = "0.3.4"
-val kindProjector_Version = "0.11.3"
+val kindProjector_Version = "0.12.0"
 val betterMonadicFor_Version = "0.3.1"
 val silencer_Version = "1.7.3"
 val scalaCompat_Version = "2.4.4"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
-val monixSeries = "3.3.0"
+val monixSeries = "3.4.0"
 
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Libraries
@@ -123,18 +124,8 @@ val crossScalaVersionsFromBuildYaml =
     "Scala versions set in .github/workflows/build.yml as scala_version_XXX"
   )
 
-Global / crossScalaVersionsFromBuildYaml := {
-  val manifest = (ThisBuild / baseDirectory).value / ".github" / "workflows" / "build.yml"
-  scalaVersionsFromBuildYaml(manifest)
-}
-
 lazy val publishStableMonixVersion =
   settingKey[Boolean]("If it should publish stable versions to Sonatype staging repository, instead of a snapshot")
-
-publishStableMonixVersion in Global := {
-  sys.env.get("PUBLISH_STABLE_VERSION")
-    .exists(v => v == "true" || v == "1" || v == "yes")
-}
 
 lazy val pgpSettings = {
   val withHex = sys.env.get("PGP_KEY_HEX").filter(_.nonEmpty) match {
@@ -146,7 +137,7 @@ lazy val pgpSettings = {
   )
 }
 
-lazy val isDotty = 
+lazy val isDotty =
   Def.setting {
     scalaPartV.value match {
       case Some((3, _)) => true
@@ -236,7 +227,12 @@ lazy val sharedSettings = pgpSettings ++ Seq(
     "-sourcepath", file(".").getAbsolutePath.replaceAll("[.]$", "")
   ),
 
+  // Without this setting, the outcome of a test-suite will be printed all at
+  // once, instead of line by line, as tests are being completed
   Test / logBuffered := false,
+  //
+  // Tries disabling parallel execution in tests (in the same project / task)
+  Test / parallelExecution := false,
 
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
@@ -471,6 +467,24 @@ lazy val monix = project.in(file("."))
   .aggregate(coreJVM, coreJS)
   .settings(unidocSettings)
   .settings(
+    //
+    // Reads Scala versions from build.yml
+    Global / crossScalaVersionsFromBuildYaml := {
+      val manifest = (ThisBuild / baseDirectory).value / ".github" / "workflows" / "build.yml"
+      scalaVersionsFromBuildYaml(manifest)
+    },
+    //
+    // Tries restricting concurrency when running tests
+    // https://www.scala-sbt.org/1.x/docs/Parallel-Execution.html
+    Global / concurrentRestrictions += Tags.limit(Tags.Test, 1),
+    //
+    // Used in CI when publishing artifacts to Sonatype
+    Global / publishStableMonixVersion := {
+      sys.env.get("PUBLISH_STABLE_VERSION")
+        .exists(v => v == "true" || v == "1" || v == "yes")
+    },
+    //
+    // Settings for build.sbt management
     Global / onChangedBuildSource := ReloadOnSourceChanges,
     Global / excludeLintKeys ++= Set(
       Compile / gitHubTreeTagOrHash,
@@ -684,7 +698,7 @@ lazy val tracingTests = project.in(file("tracingTests"))
 // --------------------------------------------
 // monix-benchmarks-{prev,next} (not published)
 
-lazy val benchmarksScalaVersions = 
+lazy val benchmarksScalaVersions =
   Def.setting {
     crossScalaVersionsFromBuildYaml.value
       .toIndexedSeq

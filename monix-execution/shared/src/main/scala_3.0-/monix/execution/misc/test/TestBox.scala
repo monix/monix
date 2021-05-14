@@ -25,6 +25,7 @@ import scala.reflect.macros.whitebox
   */
 private[execution] final case class TestBox[A](value: A) {
   def map[B](f: A => B): TestBox[B] = macro TestBox.Macros.mapMacroImpl[A, B]
+  def collect[B](f: PartialFunction[A, B]): TestBox[B] = macro TestBox.Macros.mapMacroImpl[A, B]
 }
 
 /** Represents a boxed value, to be used in the testing

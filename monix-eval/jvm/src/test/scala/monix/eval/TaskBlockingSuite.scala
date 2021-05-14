@@ -26,7 +26,7 @@ import scala.concurrent.duration._
 object TaskBlockingSuite extends SimpleTestSuite {
   test("blocking on future should work") {
     val source1 = Task.evalAsync(100)
-    val source2 = Task.evalAsync(200).onErrorHandleWith { case e: Exception => Task.raiseError(e) }
+    val source2 = Task.evalAsync(200).onErrorHandleWith { case e => Task.raiseError(e) }
 
     val derived = source1.map { x =>
       val r = Await.result(source2.runToFuture, 10.seconds)
