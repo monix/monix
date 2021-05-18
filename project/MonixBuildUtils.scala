@@ -92,7 +92,7 @@ object MonixBuildUtils {
   /**
     * Reads the Scala versions from `.github/workflows/build.yml`.
     */
-  def scalaVersionsFromBuildYaml(manifest: File): SortedSet[MonixScalaVersion] = {
+  def readScalaVersionsFromBuildYaml(manifest: File): SortedSet[MonixScalaVersion] = {
     Using.fileInputStream(manifest) { fis =>
       val yaml = new org.yaml.snakeyaml.Yaml()
         .loadAs(fis, classOf[java.util.Map[Any, Any]])

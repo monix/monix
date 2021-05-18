@@ -124,6 +124,18 @@ val crossScalaVersionsFromBuildYaml =
     "Scala versions set in .github/workflows/build.yml as scala_version_XXX"
   )
 
+val scalaVersionFromBuildYaml =
+  Def.setting {
+    val versions = crossScalaVersionsFromBuildYaml
+      .value
+      .toIndexedSeq
+    versions
+      .filter(v => !v.value.startsWith("3."))
+      .map(_.value)
+      .headOption
+      .getOrElse(versions.head.value)
+  }
+
 lazy val publishStableMonixVersion =
   settingKey[Boolean]("If it should publish stable versions to Sonatype staging repository, instead of a snapshot")
 
@@ -148,7 +160,7 @@ lazy val isDotty =
 lazy val sharedSettings = pgpSettings ++ Seq(
   organization := "io.monix",
   // Value extracted from .github/workflows/build.yml
-  scalaVersion := crossScalaVersionsFromBuildYaml.value.head.value,
+  scalaVersion := scalaVersionFromBuildYaml.value,
   // Value extracted from .github/workflows/build.yml
   crossScalaVersions := crossScalaVersionsFromBuildYaml.value.toIndexedSeq.map(_.value),
 
@@ -478,7 +490,7 @@ lazy val monix = project.in(file("."))
     // Reads Scala versions from build.yml
     Global / crossScalaVersionsFromBuildYaml := {
       val manifest = (ThisBuild / baseDirectory).value / ".github" / "workflows" / "build.yml"
-      scalaVersionsFromBuildYaml(manifest)
+      readScalaVersionsFromBuildYaml(manifest)
     },
     //
     // Tries restricting concurrency when running tests
@@ -516,12 +528,12 @@ lazy val coreProfile =
 lazy val coreJVM = project.in(file("monix/jvm"))
   .configure(coreProfile.jvm)
   .dependsOn(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
-  .aggregate(executionShadedJCTools, executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+  .aggregate(executionShadedJCTools, executionJVM, catnapJVM, evalJVM, eval2JVM, tailJVM, reactiveJVM, javaJVM)
 
 lazy val coreJS = project.in(file("monix/js"))
   .configure(coreProfile.js)
   .dependsOn(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
-  .aggregate(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
+  .aggregate(executionJS, catnapJS, evalJS, eval2JS, tailJS, reactiveJS)
 
 // --------------------------------------------
 // monix-internal-jctools (shaded lib)
@@ -587,7 +599,7 @@ lazy val catnapJS = project.in(file("monix-catnap/js"))
   .dependsOn(executionJS % "compile->compile; test->test")
 
 // --------------------------------------------
-// monix-catnap
+// monix-eval
 
 lazy val evalProfile =
   crossModule(
@@ -605,6 +617,27 @@ lazy val evalJS = project.in(file("monix-eval/js"))
   .configure(evalProfile.js)
   .dependsOn(executionJS % "compile->compile; test->test")
   .dependsOn(catnapJS)
+
+// --------------------------------------------
+// monix-eval2
+
+lazy val eval2Profile =
+  crossModule(
+    projectName = "monix-eval2",
+    crossSettings = Seq(
+      description := "Sub-module of Monix, exposing Task and Coeval, for suspending side-effects. See: https://monix.io",
+      libraryDependencies ++= Seq(
+        "org.typelevel" %%% "cats-effect" % "3.1.1"
+      )
+    ))
+
+lazy val eval2JVM = project.in(file("monix-eval2/jvm"))
+  .configure(eval2Profile.jvm)
+  .dependsOn(executionJVM % "compile->compile; test->test")
+
+lazy val eval2JS = project.in(file("monix-eval2/js"))
+  .configure(eval2Profile.js)
+  .dependsOn(executionJS % "compile->compile; test->test")
 
 // --------------------------------------------
 // monix-tail
