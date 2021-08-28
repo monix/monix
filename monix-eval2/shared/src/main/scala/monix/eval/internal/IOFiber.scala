@@ -32,12 +32,14 @@ private[eval] final class IOFiber[A] private[eval] (
   initBFirst: Bind = null,
   initBRest: CallStack = null,
 )(implicit
-  sc: Scheduler
+  scheduler: Scheduler
 ) extends Fiber[IO, Throwable, A] with IO.Visitor[Any, Control] with Runnable {
 
+  // TODO: add unboxed optimization
   private[this] var currentRef: Current = source
   private[this] var bindFirstRef: Bind = initBFirst
   private[this] var bindRestRef: CallStack = initBRest
+  private[this] var _restartCallback: IORestartCallback = _
 
   override def visit(ref: IO.Pure[Any]): Control = {
     processUnboxedValue(ref.a.asInstanceOf[AnyRef])
@@ -69,6 +71,23 @@ private[eval] final class IOFiber[A] private[eval] (
         bindFirstRef = null
         Continue
     }
+  }
+
+  override def visit(ref: IO.AsyncSimple[Any]): Control = {
+    restartCallback().start(ref)
+    Break
+  }
+
+  override def visit[S](ref: IO.AsyncCont[S, Any]): Control = {
+    val cb1 = new IOCallbackIndirection[Throwable, S]
+    val fs = IO.AsyncSimple((_, cb2) => cb1.register(cb2))
+    currentRef = ref.cont(scheduler, cb1, fs)
+    Continue
+  }
+
+  def continueWithRef(ref: Current): Unit = {
+    currentRef = ref
+    run()
   }
 
   override def run(): Unit = {
@@ -109,6 +128,12 @@ private[eval] final class IOFiber[A] private[eval] (
         bindFirstRef = null
         Continue
     }
+
+  private def restartCallback(): IORestartCallback = {
+    if (_restartCallback == null)
+      _restartCallback = new IORestartCallback(this, scheduler)
+    _restartCallback
+  }
 }
 
 object IOFiber {

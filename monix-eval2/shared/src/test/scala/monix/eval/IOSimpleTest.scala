@@ -20,6 +20,8 @@ package monix.eval
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler.Implicits.global
 
+import java.util.concurrent.TimeUnit
+
 object IOSimpleTest extends SimpleTestSuite {
   def testEffect(name: String)(f: => IO[Unit]): Unit =
     testAsync(name)(f.unsafeRunToFuture())
@@ -29,8 +31,27 @@ object IOSimpleTest extends SimpleTestSuite {
       x1 <- IO.pure(1)
       x2 <- IO.pure(2)
       x3 <- IO.pure(3)
+      x4 <- IO.async0[Int] { (sc, cb) =>
+        sc.execute(() => cb.onSuccess(4))
+      }
+      x5 <- IO.delay(5)
+      x6 <- IO.cont0[Int, Int] { (sc, cb, get) =>
+        IO.delay {
+          sc.scheduleOnce(1, TimeUnit.SECONDS, () => cb.onSuccess(3 + 3))
+        }.flatMap { _ =>
+          get
+        }
+      }
+      x7 <- IO.delay(7)
+      x8 <- IO.cont0[Int, Int] { (sc, cb, get) =>
+        cb.onSuccess(8)
+        get
+      }
     } yield {
-      assertEquals(x1 + x2 + x3, 6)
+      assertEquals(
+        x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8,
+        (1 to 8).sum
+      )
     }
   }
 }

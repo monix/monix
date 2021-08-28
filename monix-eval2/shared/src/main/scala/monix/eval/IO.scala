@@ -68,7 +68,24 @@ object IO {
   def defer[A](thunk: => IO[A]): IO[A] =
     delay(thunk).flatMap(identity)
 
-  def raiseError[A](e: Throwable): IO[A] = RaiseError(e)
+  def raiseError[A](e: Throwable): IO[A] =
+    RaiseError(e)
+
+  def async[A](register: Callback[Throwable, A] => Unit): IO[A] =
+    AsyncSimple(
+      (sc, cb) => register(Callback.safe(cb)(sc))
+    )
+
+  def async0[A](register: (Scheduler, Callback[Throwable, A]) => Unit): IO[A] =
+    AsyncSimple(
+      (sc, cb) => register(sc, Callback.safe(cb)(sc))
+    )
+
+  def cont[S, A](cont: (Callback[Throwable, S], IO[S]) => IO[A]): IO[A] =
+    IO.AsyncCont[S, A]((_, cb, get) => cont(cb, get))
+
+  def cont0[S, A](cont: (Scheduler, Callback[Throwable, S], IO[S]) => IO[A]): IO[A] =
+    IO.AsyncCont(cont)
 
   private[eval] final case class Pure[+A](a: A) extends IO[A] {
     def tag: Byte = 0
@@ -85,9 +102,35 @@ object IO {
     def accept[BB >: B, R](visitor: Visitor[BB, R]): R = visitor.visit(this)
   }
 
+  private[eval] final case class AsyncSimple[+A](
+    start: (Scheduler, Callback[Throwable, A]) => Unit,
+    // TODO: check the need for these defaults
+    boundaryBefore: AsyncSimple.BoundaryPolicy = AsyncSimple.AsyncShifted,
+    boundaryAfter: AsyncSimple.BoundaryPolicy = AsyncSimple.AsyncTrampolined,
+  ) extends IO[A] {
+    def tag: Byte = 3
+    def accept[AA >: A, R](visitor: Visitor[AA, R]): R = visitor.visit(this)
+  }
+
+  private[eval] object AsyncSimple {
+    type BoundaryPolicy = Byte
+    final val AsyncTrampolined: BoundaryPolicy = 0.toByte
+    final val AsyncShifted: BoundaryPolicy = 1.toByte
+    final val Synchronous: BoundaryPolicy = 2.toByte
+  }
+
+  private[eval] final case class AsyncCont[A, +B](
+    cont: (Scheduler, Callback[Throwable, A], IO[A]) => IO[B]
+  ) extends IO[B] {
+    def tag: Byte = 4
+    def accept[BB >: B, R](visitor: Visitor[BB, R]): R = visitor.visit(this)
+  }
+
   private[eval] trait Visitor[A, +R] {
     def visit(ref: Pure[A]): R
     def visit(ref: RaiseError): R
     def visit[S](ref: FlatMap[S, A]): R
+    def visit[S](ref: AsyncCont[S, A]): R
+    def visit(ref: AsyncSimple[A]): R
   }
 }
