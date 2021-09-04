@@ -4,6 +4,8 @@
 
 Asynchronous, Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
 
+[![monix Scala version support](https://index.scala-lang.org/monix/monix/monix/latest-by-scala-version.svg)](https://index.scala-lang.org/monix/monix/monix)
+
 [![Build](https://github.com/monix/monix/workflows/build/badge.svg?branch=series/4.x)](https://github.com/monix/monix/actions?query=branch%3Aseries%2F4.x+workflow%3Abuild) [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monix/monix)
 [![Discord](https://img.shields.io/discord/632277896739946517.svg?label=&logo=discord&logoColor=ffffff&color=404244&labelColor=6A7EC2)](https://discord.gg/wsVZSEx4Nw)
 
