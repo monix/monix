@@ -145,6 +145,7 @@ Submit a PR ❤️
 - [Eloquentix](http://eloquentix.com/)
 - [Hypefactors](https://www.hypefactors.com)
 - [Iterators](https://www.iteratorshq.com)
+- [Netflix](https://netflix.com)
 - [Sony Electronics](https://www.sony.com)
 - [Tinkoff](https://tinkoff.ru)
 - [Zalando](https://www.zalando.com)
