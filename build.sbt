@@ -536,7 +536,7 @@ lazy val executionShadedJCTools = project.in(file("monix-execution/shaded/jctool
   .settings(assemblyShadeSettings)
   .settings(
     description := "Monix Execution Shaded JCTools is a shaded version of JCTools library. See: https://github.com/JCTools/JCTools",
-    libraryDependencies += jcToolsLib % "optional;provided",
+    libraryDependencies := Seq(jcToolsLib % "optional;provided"),
     // https://github.com/sbt/sbt-assembly#shading
     assembly / assemblyShadeRules := Seq(
       ShadeRule.rename("org.jctools.**" -> "monix.execution.internal.jctools.@1")
