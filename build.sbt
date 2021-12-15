@@ -29,6 +29,7 @@ val catsEffect_Version = "2.5.1"
 val fs2_Version = "2.4.4"
 val jcTools_Version = "3.3.0"
 val reactiveStreams_Version = "1.0.3"
+val macrotaskExecutor_Version = "1.0.0"
 val minitest_Version = "2.9.6"
 val implicitBox_Version = "0.3.4"
 val kindProjector_Version = "0.12.0"
@@ -76,6 +77,10 @@ lazy val reactiveStreamsLib =
   "org.reactivestreams" % "reactive-streams" % reactiveStreams_Version
 lazy val reactiveStreamsTCKLib =
   "org.reactivestreams" % "reactive-streams-tck" % reactiveStreams_Version
+
+/** [[https://github.com/scala-js/scala-js-macrotask-executor]] */
+lazy val macrotaskExecutorLib =
+  Def.setting { "org.scala-js" %%% "scala-js-macrotask-executor" % macrotaskExecutor_Version }
 
 /** [[https://github.com/typelevel/kind-projector]]  */
 lazy val kindProjectorCompilerPlugin =
@@ -559,6 +564,7 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
 lazy val executionJS = project.in(file("monix-execution/js"))
   .configure(executionProfile.js)
   .settings(macroDependencies)
+  .settings(libraryDependencies += macrotaskExecutorLib.value)
 
 // --------------------------------------------
 // monix-catnap
