@@ -1866,6 +1866,15 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   final def foreach(f: A => Unit)(implicit s: Scheduler): Unit =
     runToFuture.foreach(f)
 
+  /** Triggers the evaluation of the error, executing the given
+    * function for the generated element.
+    */
+  final def foreachError(f: Throwable => Unit): Task[A] =
+    this.onErrorHandleWith(e => {
+      f(e)
+      Task.raiseError(e)
+    })
+
   /** Returns a new `Task` that repeatedly executes the source as long
     * as it continues to succeed. It never produces a terminal value.
     *

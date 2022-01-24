@@ -686,6 +686,15 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   final def foreach(f: A => Unit): Unit =
     foreachL(f).value()
 
+  /** Triggers the evaluation of the error, executing the given
+    * function for the generated element.
+    */
+  final def foreachError(f: Throwable => Unit): Coeval[A] =
+    this.onErrorHandleWith(e => {
+      f(e)
+      Coeval.raiseError(e)
+    })
+
   /** Returns a new `Coeval` that applies the mapping function to
     * the element emitted by the source.
     *
