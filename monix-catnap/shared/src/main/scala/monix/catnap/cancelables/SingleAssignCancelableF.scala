@@ -17,8 +17,9 @@
 
 package monix.catnap.cancelables
 
-import cats.effect.{CancelToken, Sync}
+import cats.effect.Sync
 import monix.catnap.CancelableF
+import monix.catnap.CancelableF.CancelToken
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.atomic.Atomic
 import scala.annotation.tailrec

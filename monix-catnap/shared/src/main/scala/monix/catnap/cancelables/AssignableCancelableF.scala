@@ -19,7 +19,6 @@ package monix.catnap
 package cancelables
 
 import cats.Applicative
-import cats.effect.CancelToken
 import monix.catnap.CancelableF
 import monix.catnap.CancelableF.Empty
 
@@ -66,7 +65,7 @@ object AssignableCancelableF {
     new Bool[F] with Empty[F] {
       def set(ref: CancelableF[F]): F[Unit] = ref.cancel
       def isCanceled: F[Boolean] = F.pure(true)
-      def cancel: CancelToken[F] = F.unit
+      def cancel: CancelableF.CancelToken[F] = F.unit
     }
 
   /**
@@ -79,6 +78,6 @@ object AssignableCancelableF {
     new Multi[F] {
       def set(ref: CancelableF[F]): F[Unit] = F.unit
       def isCanceled: F[Boolean] = F.pure(false)
-      def cancel: CancelToken[F] = F.unit
+      def cancel: CancelableF.CancelToken[F] = F.unit
     }
 }

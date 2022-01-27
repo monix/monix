@@ -17,7 +17,7 @@
 
 package monix.catnap
 
-import cats.effect.{Async, Clock, Concurrent, ExitCase, Sync}
+import cats.effect.{Async, Clock, Concurrent, Sync}
 import cats.implicits._
 import monix.execution.CancelablePromise
 import monix.execution.annotations.UnsafeBecauseImpure
@@ -27,6 +27,7 @@ import monix.execution.exceptions.ExecutionRejectedException
 import monix.execution.internal.Constants
 import scala.annotation.tailrec
 import scala.concurrent.duration._
+import cats.effect.kernel.Outcome
 
 /** The `CircuitBreaker` is used to provide stability and prevent
   * cascading failures in distributed systems.
@@ -268,17 +269,14 @@ final class CircuitBreaker[F[_]] private (
     *        be cancelable, to properly dispose of the registered
     *        listener in case of cancellation.
     */
-  def awaitClose(implicit F: Concurrent[F] OrElse Async[F]): F[Unit] = {
-    val F0 = F.unify
-    F0.defer {
-      stateRef.get() match {
-        case ref: Open =>
-          FutureLift.scalaToConcurrentOrAsync(F0.pure(ref.awaitClose.future))
-        case ref: HalfOpen =>
-          FutureLift.scalaToConcurrentOrAsync(F0.pure(ref.awaitClose.future))
-        case _ =>
-          F0.unit
-      }
+  def awaitClose(implicit F: Async[F]): F[Unit] = {
+    stateRef.get() match {
+      case ref: Open =>
+        FutureLift.scalaToConcurrentOrAsync(F.pure(ref.awaitClose.future))
+      case ref: HalfOpen =>
+        FutureLift.scalaToConcurrentOrAsync(F.pure(ref.awaitClose.future))
+      case _ =>
+        F.unit
     }
   }
 
@@ -319,7 +317,7 @@ final class CircuitBreaker[F[_]] private (
                   F.raiseError(error)
               } else {
                 // N.B. this could be canceled, however we don't care
-                clock.monotonic(MILLISECONDS).flatMap { now =>
+                clock.monotonic.map(_.toMillis).flatMap { now =>
                   // We've gone over the permitted failures threshold,
                   // so we need to open the circuit breaker
                   val update = Open(now, resetTimeout, CancelablePromise())
@@ -360,20 +358,20 @@ final class CircuitBreaker[F[_]] private (
     lastStartedAt: Timestamp): F[A] =
     F.bracketCase(onHalfOpen)(_ => task) { (_, exit) =>
       exit match {
-        case ExitCase.Canceled =>
+        case Outcome.Canceled() =>
           // We need to return to Open state
           // otherwise we get stuck in Half-Open (see https://github.com/monix/monix/issues/1080 )
           stateRef.set(Open(lastStartedAt, resetTimeout, await))
           onOpen
 
-        case ExitCase.Completed =>
+        case Outcome.Succeeded(_) =>
           // While in HalfOpen only a reset attempt is allowed to update
           // the state, so setting this directly is safe
           stateRef.set(Closed(0))
           await.complete(Constants.successOfUnit)
           onClosed
 
-        case ExitCase.Error(_) =>
+        case Outcome.Errored(_) =>
           // Failed reset, which means we go back in the Open state with new expiry
           val nextTimeout = {
             val value = (resetTimeout.toMillis * exponentialBackoffFactor).millis
@@ -383,7 +381,7 @@ final class CircuitBreaker[F[_]] private (
               value
           }
 
-          clock.monotonic(MILLISECONDS).flatMap { ts =>
+          clock.monotonic.map(_.toMillis).flatMap { ts =>
             stateRef.set(Open(ts, nextTimeout, await))
             onOpen
           }
@@ -397,7 +395,7 @@ final class CircuitBreaker[F[_]] private (
         task.attempt.flatMap(bind)
 
       case current: Open =>
-        clock.monotonic(MILLISECONDS).flatMap { now =>
+        clock.monotonic.map(_.toMillis).flatMap { now =>
           val expiresAt = current.expiresAt
           val timeout = current.resetTimeout
           val await = current.awaitClose

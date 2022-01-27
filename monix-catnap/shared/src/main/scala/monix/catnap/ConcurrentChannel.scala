@@ -18,7 +18,7 @@
 package monix.catnap
 
 import cats.implicits._
-import cats.effect.{Concurrent, ContextShift, Resource}
+import cats.effect.{Concurrent, Resource}
 import monix.catnap.internal.QueueHelpers
 import monix.execution.BufferCapacity.{Bounded, Unbounded}
 import monix.execution.ChannelType.{MultiConsumer, MultiProducer}
@@ -31,6 +31,7 @@ import monix.execution.{CancelablePromise, ChannelType}
 
 import scala.annotation.{switch, tailrec}
 import scala.collection.mutable.ArrayBuffer
+import cats.effect.Async
 
 /**
   * `ConcurrentChannel` can be used to model complex producer-consumer communication channels.
@@ -245,7 +246,7 @@ final class ConcurrentChannel[F[_], E, A] private (
   state: AtomicAny[ConcurrentChannel.State[F, E, A]],
   defaultConsumerConfig: ConsumerF.Config,
   producerType: ChannelType.ProducerSide
-)(implicit F: Concurrent[F], cs: ContextShift[F])
+)(implicit F: Async[F])
   extends ProducerF[F, E, A] with ChannelF[F, E, A] {
 
   import ConcurrentChannel._
@@ -532,7 +533,7 @@ object ConcurrentChannel {
     * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type]]
     * technique.
     */
-  def apply[F[_]](implicit F: Concurrent[F]): ApplyBuilders[F] =
+  def apply[F[_]](implicit F: Async[F]): ApplyBuilders[F] =
     new ApplyBuilders[F](F)
 
   /**
@@ -545,7 +546,7 @@ object ConcurrentChannel {
     * @param cs $csParam
     * @param F $concurrentParam
     */
-  def of[F[_], E, A](implicit F: Concurrent[F], cs: ContextShift[F]): F[ConcurrentChannel[F, E, A]] =
+  def of[F[_], E, A](implicit F: Async[F]): F[ConcurrentChannel[F, E, A]] =
     withConfig()
 
   /**
@@ -565,7 +566,7 @@ object ConcurrentChannel {
   def withConfig[F[_], E, A](
     defaultConsumerConfig: ConsumerF.Config = ConsumerF.Config.default,
     producerType: ChannelType.ProducerSide = MultiProducer
-  )(implicit F: Concurrent[F], cs: ContextShift[F]): F[ConcurrentChannel[F, E, A]] = {
+  )(implicit F: Async[F]): F[ConcurrentChannel[F, E, A]] = {
     F.delay(unsafe(defaultConsumerConfig, producerType))
   }
 
@@ -590,19 +591,19 @@ object ConcurrentChannel {
   def unsafe[F[_], E, A](
     defaultConsumerConfig: ConsumerF.Config = ConsumerF.Config.default,
     producerType: ChannelType.ProducerSide = MultiProducer
-  )(implicit F: Concurrent[F], cs: ContextShift[F]): ConcurrentChannel[F, E, A] = {
-    new ConcurrentChannel[F, E, A](AtomicAny(State.empty), defaultConsumerConfig, producerType)(F, cs)
+  )(implicit F: Async[F]): ConcurrentChannel[F, E, A] = {
+    new ConcurrentChannel[F, E, A](AtomicAny(State.empty), defaultConsumerConfig, producerType)(F)
   }
 
   /**
     * Returned by the [[apply]] builder.
     */
-  final class ApplyBuilders[F[_]](val F: Concurrent[F]) extends AnyVal {
+  final class ApplyBuilders[F[_]](val F: Async[F]) extends AnyVal {
     /**
       * @see documentation for [[ConcurrentChannel.of]]
       */
-    def of[E, A](implicit cs: ContextShift[F]): F[ConcurrentChannel[F, E, A]] =
-      ConcurrentChannel.of(F, cs)
+    def of[E, A]: F[ConcurrentChannel[F, E, A]] =
+      ConcurrentChannel.of(F)
 
     /**
       * @see documentation for [[ConcurrentChannel.withConfig]]
@@ -610,8 +611,8 @@ object ConcurrentChannel {
     def withConfig[E, A](
       defaultConsumerConfig: ConsumerF.Config = ConsumerF.Config.default,
       producerType: ChannelType.ProducerSide = MultiProducer
-    )(implicit cs: ContextShift[F]): F[ConcurrentChannel[F, E, A]] = {
-      ConcurrentChannel.withConfig(defaultConsumerConfig, producerType)(F, cs)
+    ): F[ConcurrentChannel[F, E, A]] = {
+      ConcurrentChannel.withConfig(defaultConsumerConfig, producerType)(F)
     }
 
     /**
@@ -620,8 +621,8 @@ object ConcurrentChannel {
     def unsafe[E, A](
       defaultConsumerConfig: ConsumerF.Config = ConsumerF.Config.default,
       producerType: ChannelType.ProducerSide = MultiProducer
-    )(implicit cs: ContextShift[F]): ConcurrentChannel[F, E, A] = {
-      ConcurrentChannel.unsafe(defaultConsumerConfig, producerType)(F, cs)
+    ): ConcurrentChannel[F, E, A] = {
+      ConcurrentChannel.unsafe(defaultConsumerConfig, producerType)(F)
     }
   }
 
@@ -663,7 +664,7 @@ object ConcurrentChannel {
     helpers: Helpers[F],
     refs: Array[ChanProducer[F, E, A]],
     f: ChanProducer[F, E, A] => F[Boolean]
-  )(implicit F: Concurrent[F]): F[Boolean] = {
+  )(implicit F: Async[F]): F[Boolean] = {
 
     triggerBroadcastR(refs, f, helpers.boolTest, helpers.continueF, helpers.stopF)
   }
@@ -672,7 +673,7 @@ object ConcurrentChannel {
     helpers: Helpers[F],
     refs: Array[ChanProducer[F, E, A]],
     f: ChanProducer[F, E, A] => F[Unit]
-  )(implicit F: Concurrent[F]): F[Unit] = {
+  )(implicit F: Async[F]): F[Unit] = {
 
     triggerBroadcastR(refs, f, helpers.unitTest, F.unit, F.unit)
   }
@@ -683,7 +684,7 @@ object ConcurrentChannel {
     canContinue: R => Boolean,
     continueF: F[R],
     stopF: F[R]
-  )(implicit F: Concurrent[F]): F[R] = {
+  )(implicit F: Async[F]): F[R] = {
 
     def loop(cursor: Iterator[ChanProducer[F, E, A]], bind: R => F[R]): F[R] = {
       val task = f(cursor.next())
@@ -717,7 +718,7 @@ object ConcurrentChannel {
     consumersAwait: AtomicAny[CancelablePromise[Unit]],
     isFinished: () => Option[E],
     helpers: Helpers[F]
-  )(implicit F: Concurrent[F], cs: ContextShift[F]) {
+  )(implicit F: Async[F]) {
 
     @tailrec
     private[this] def notifyConsumers(): Unit = {
@@ -743,7 +744,7 @@ object ConcurrentChannel {
       F.defer {
         (tryPushToOurQueue(a): @switch) match {
           case Repeat =>
-            F.asyncF(cb => helpers.sleepThenRepeat(producersAwait, () => tryPushToOurQueue(a), pushFilter, pushMap, cb))
+            F.async(cb => helpers.sleepThenRepeat(producersAwait, () => tryPushToOurQueue(a), pushFilter, pushMap, cb).as(none))
           case Continue =>
             helpers.continueF
           case Stop =>
@@ -776,8 +777,8 @@ object ConcurrentChannel {
         // Do we need to await on consumers?
         if (!hasCapacity) {
           assert(producersAwait ne null, "producersAwait ne null (Bug!)")
-          val offerWait = F.asyncF[Ack](cb =>
-            helpers.sleepThenRepeat(producersAwait, () => tryPushToOurQueue(elem), pushFilter, pushManyMap, cb))
+          val offerWait = F.async[Ack](cb =>
+            helpers.sleepThenRepeat(producersAwait, () => tryPushToOurQueue(elem), pushFilter, pushManyMap, cb).as(none))
           offerWait.flatMap {
             case Continue => loop(cursor)
             case Stop => helpers.stopF
@@ -796,7 +797,7 @@ object ConcurrentChannel {
     producersAwait: AtomicAny[CancelablePromise[Unit]],
     consumersAwait: AtomicAny[CancelablePromise[Unit]],
     isFinished: () => Option[E],
-    helpers: Helpers[F])(implicit F: Concurrent[F], cs: ContextShift[F])
+    helpers: Helpers[F])(implicit F: Async[F])
     extends ConsumerF[F, E, A] {
 
     @tailrec
@@ -850,14 +851,14 @@ object ConcurrentChannel {
       F.defer {
         task() match {
           case null =>
-            F.asyncF(cb =>
+            F.async(cb =>
               helpers.sleepThenRepeat(
                 consumersAwait,
                 task,
                 pullFilter,
                 pullMap.asInstanceOf[Either[E, A] => Either[E, A]],
                 cb
-              ))
+              ).as(none))
           case value =>
             F.pure(value)
         }
@@ -914,20 +915,20 @@ object ConcurrentChannel {
             case Some(e) =>
               F.pure(end(buffer, maxLength, e))
             case _ =>
-              F.asyncF(cb =>
+              F.async(cb =>
                 helpers.sleepThenRepeat(
                   consumersAwait,
                   () => task(buffer, minLength, maxLength),
                   pullFilter,
                   pullMap.asInstanceOf[Either[E, Seq[A]] => Either[E, Seq[A]]],
                   cb
-                ))
+                ).as(none))
           }
       }
     }
   }
 
-  private final class Helpers[F[_]](implicit F: Concurrent[F], cs: ContextShift[F]) extends QueueHelpers[F] {
+  private final class Helpers[F[_]](implicit F: Async[F]) extends QueueHelpers[F] {
     val continueF = F.pure(true)
     val stopF = F.pure(false)
     val boolTest = (b: Boolean) => b

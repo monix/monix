@@ -18,10 +18,11 @@
 package monix.catnap.internal
 
 import cats.implicits._
-import cats.effect.{Async, ExitCase}
+import cats.effect.Async
 import monix.catnap.FutureLift
 import monix.execution.Callback
 import scala.concurrent.Promise
+import cats.effect.kernel.Outcome
 
 private[monix] object AsyncUtils {
   /**
@@ -29,7 +30,7 @@ private[monix] object AsyncUtils {
     * in terms of `bracket`.
     */
   def cancelable[F[_], A](k: (Either[Throwable, A] => Unit) => F[Unit])(implicit F: Async[F]): F[A] =
-    F.asyncF { cb =>
+    F.async { cb =>
       val p = Promise[A]()
       val awaitPut = Callback.fromPromise(p)
       val future = p.future
@@ -37,8 +38,8 @@ private[monix] object AsyncUtils {
       val cancel = k(awaitPut)
 
       F.guaranteeCase(futureF) {
-        case ExitCase.Canceled => cancel
+        case Outcome.Canceled() => cancel
         case _ => F.unit
-      }
+      }.as(none)
     }
 }
