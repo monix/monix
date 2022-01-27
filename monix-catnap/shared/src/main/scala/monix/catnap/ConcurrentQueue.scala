@@ -17,7 +17,7 @@
 
 package monix.catnap
 
-import cats.effect.{Concurrent, ContextShift}
+import cats.effect.Concurrent
 import cats.implicits._
 import monix.catnap.internal.QueueHelpers
 import monix.execution.BufferCapacity.{Bounded, Unbounded}
@@ -30,6 +30,7 @@ import monix.execution.internal.collection.{LowLevelConcurrentQueue => LowLevelQ
 import monix.execution.{BufferCapacity, CancelablePromise, ChannelType}
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
+import cats.effect.Async
 
 /**
   * A high-performance, back-pressured, generic concurrent queue implementation.
@@ -124,7 +125,7 @@ import scala.collection.mutable.ArrayBuffer
 final class ConcurrentQueue[F[_], A] private (
   capacity: BufferCapacity,
   channelType: ChannelType
-)(implicit F: Concurrent[F], cs: ContextShift[F])
+)(implicit F: Async[F])
   extends Serializable {
 
   /** Try pushing a value to the queue.
@@ -213,14 +214,14 @@ final class ConcurrentQueue[F[_], A] private (
     if (happy != null)
       F.pure(happy)
     else
-      F.asyncF { cb =>
+      F.async { cb =>
         helpers.sleepThenRepeat(
           consumersAwaiting,
           pollQueue,
           pollTest,
           pollMap,
           cb
-        )
+        ).as(none)
       }
   }
 
@@ -249,14 +250,14 @@ final class ConcurrentQueue[F[_], A] private (
         F.pure(toSeq(buffer))
       } else {
         // Going async
-        F.asyncF { cb =>
+        F.async { cb =>
           helpers.sleepThenRepeat[Int, Seq[A]](
             consumersAwaiting,
             () => tryDrainUnsafe(buffer, maxLength - buffer.length),
             _ => buffer.length >= minLength,
             _ => toSeq(buffer),
             cb
-          )
+          ).as(none)
         }
       }
     }
@@ -345,14 +346,14 @@ final class ConcurrentQueue[F[_], A] private (
     }
 
   private def offerWait(a: A): F[Unit] =
-    F.asyncF { cb =>
+    F.async { cb =>
       helpers.sleepThenRepeat(
         producersAwaiting,
         () => tryOfferUnsafe(a),
         offerTest,
         offerMap,
         cb
-      )
+      ).as(none)
     }
 
   private[this] val queue: LowLevelQueue[A] =
@@ -404,7 +405,7 @@ object ConcurrentQueue {
     *
     * @param F $concurrentParam
     */
-  def apply[F[_]](implicit F: Concurrent[F]): ApplyBuilders[F] =
+  def apply[F[_]](implicit F: Async[F]): ApplyBuilders[F] =
     new ApplyBuilders[F](F)
 
   /**
@@ -421,7 +422,7 @@ object ConcurrentQueue {
     * @param cs $csParam
     * @param F $concurrentParam
     */
-  def bounded[F[_], A](capacity: Int)(implicit F: Concurrent[F], cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
+  def bounded[F[_], A](capacity: Int)(implicit F: Async[F]): F[ConcurrentQueue[F, A]] =
     withConfig(Bounded(capacity), MPMC)
 
   /**
@@ -440,7 +441,7 @@ object ConcurrentQueue {
     * @param F $concurrentParam
     */
   def unbounded[F[_], A](
-    chunkSizeHint: Option[Int] = None)(implicit F: Concurrent[F], cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
+    chunkSizeHint: Option[Int] = None)(implicit F: Async[F]): F[ConcurrentQueue[F, A]] =
     withConfig(Unbounded(chunkSizeHint), MPMC)
 
   /**
@@ -458,8 +459,7 @@ object ConcurrentQueue {
     */
   @UnsafeProtocol
   def withConfig[F[_], A](capacity: BufferCapacity, channelType: ChannelType)(
-    implicit F: Concurrent[F],
-    cs: ContextShift[F]): F[ConcurrentQueue[F, A]] = {
+    implicit F: Async[F]): F[ConcurrentQueue[F, A]] = {
 
     F.delay(unsafe(capacity, channelType))
   }
@@ -485,40 +485,37 @@ object ConcurrentQueue {
   @UnsafeProtocol
   @UnsafeBecauseImpure
   def unsafe[F[_], A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(
-    implicit F: Concurrent[F],
-    cs: ContextShift[F]): ConcurrentQueue[F, A] = {
+    implicit F: Async[F]): ConcurrentQueue[F, A] = {
 
-    new ConcurrentQueue[F, A](capacity, channelType)(F, cs)
+    new ConcurrentQueue[F, A](capacity, channelType)(F)
   }
 
   /**
     * Returned by the [[apply]] builder.
     */
-  final class ApplyBuilders[F[_]](val F: Concurrent[F]) extends AnyVal {
+  final class ApplyBuilders[F[_]](val F: Async[F]) extends AnyVal {
     /**
       * @see documentation for [[ConcurrentQueue.bounded]]
       */
-    def bounded[A](capacity: Int)(implicit cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
-      ConcurrentQueue.bounded(capacity)(F, cs)
+    def bounded[A](capacity: Int): F[ConcurrentQueue[F, A]] =
+      ConcurrentQueue.bounded(capacity)(F)
 
     /**
       * @see documentation for [[ConcurrentQueue.unbounded]]
       */
-    def unbounded[A](chunkSizeHint: Option[Int])(implicit cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
-      ConcurrentQueue.unbounded(chunkSizeHint)(F, cs)
+    def unbounded[A](chunkSizeHint: Option[Int]): F[ConcurrentQueue[F, A]] =
+      ConcurrentQueue.unbounded(chunkSizeHint)(F)
 
     /**
       * @see documentation for [[ConcurrentQueue.withConfig]]
       */
-    def withConfig[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(
-      implicit cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
-      ConcurrentQueue.withConfig(capacity, channelType)(F, cs)
+    def withConfig[A](capacity: BufferCapacity, channelType: ChannelType = MPMC): F[ConcurrentQueue[F, A]] =
+      ConcurrentQueue.withConfig(capacity, channelType)(F)
 
     /**
       * @see documentation for [[ConcurrentQueue.unsafe]]
       */
-    def unsafe[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(
-      implicit cs: ContextShift[F]): ConcurrentQueue[F, A] =
-      ConcurrentQueue.unsafe(capacity, channelType)(F, cs)
+    def unsafe[A](capacity: BufferCapacity, channelType: ChannelType = MPMC): ConcurrentQueue[F, A] =
+      ConcurrentQueue.unsafe(capacity, channelType)(F)
   }
 }

@@ -24,6 +24,8 @@ import monix.execution.internal.AttemptCallback.RunnableTick
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{FiniteDuration, TimeUnit}
+import cats.Applicative
+import java.util.concurrent.TimeUnit.MILLISECONDS
 
 object SchedulerEffect {
 
@@ -33,10 +35,9 @@ object SchedulerEffect {
     */
   def clock[F[_]](source: Scheduler)(implicit F: Sync[F]): Clock[F] =
     new Clock[F] {
-      override def realTime(unit: TimeUnit): F[Long] =
-        F.delay(source.clockRealTime(unit))
-      override def monotonic(unit: TimeUnit): F[Long] =
-        F.delay(source.clockMonotonic(unit))
+      def applicative: Applicative[F] = F.applicative
+      def monotonic: F[FiniteDuration] = F.delay(source.clockMonotonic(MILLISECONDS)).map(FiniteDuration(_, MILLISECONDS))
+      def realTime: F[FiniteDuration] = F.delay(source.clockRealTime(MILLISECONDS)).map(FiniteDuration(_, MILLISECONDS))
     }
 
   /**
@@ -60,16 +61,17 @@ object SchedulerEffect {
     *   }
     * }}}
     */
-  def timer[F[_]](source: Scheduler)(implicit F: Concurrent[F]): Timer[F] =
-    new Timer[F] {
-      override def sleep(d: FiniteDuration): F[Unit] =
-        F.cancelable { cb =>
-          val token = source.scheduleOnce(d.length, d.unit, new RunnableTick(cb))
-          F.delay(token.cancel())
-        }
-      override val clock: Clock[F] =
-        SchedulerEffect.clock(source)
-    }
+    // FIXME: Does it make sense? temporary perhaps?
+  // def timer[F[_]](source: Scheduler)(implicit F: Concurrent[F]): Timer[F] =
+  //   new Timer[F] {
+  //     override def sleep(d: FiniteDuration): F[Unit] =
+  //       F.cancelable { cb =>
+  //         val token = source.scheduleOnce(d.length, d.unit, new RunnableTick(cb))
+  //         F.delay(token.cancel())
+  //       }
+  //     override val clock: Clock[F] =
+  //       SchedulerEffect.clock(source)
+  //   }
 
   /**
     * Derives a `cats.effect.Timer` from [[monix.execution.Scheduler Scheduler]] for any
@@ -90,47 +92,20 @@ object SchedulerEffect {
     *   }
     * }}}
     */
-  def timerLiftIO[F[_]](source: Scheduler)(implicit F: LiftIO[F]): Timer[F] =
-    new Timer[F] {
-      override def sleep(d: FiniteDuration): F[Unit] =
-        F.liftIO(IO.cancelable { cb =>
-          val token = source.scheduleOnce(d.length, d.unit, new RunnableTick(cb))
-          IO(token.cancel())
-        })
-      override val clock: Clock[F] =
-        new Clock[F] {
-          def realTime(unit: TimeUnit): F[Long] =
-            F.liftIO(IO(source.clockRealTime(unit)))
-          def monotonic(unit: TimeUnit): F[Long] =
-            F.liftIO(IO(source.clockMonotonic(unit)))
-        }
-    }
+  // def timerLiftIO[F[_]](source: Scheduler)(implicit F: LiftIO[F]): Timer[F] =
+  //   new Timer[F] {
+  //     override def sleep(d: FiniteDuration): F[Unit] =
+  //       F.liftIO(IO.cancelable { cb =>
+  //         val token = source.scheduleOnce(d.length, d.unit, new RunnableTick(cb))
+  //         IO(token.cancel())
+  //       })
+  //     override val clock: Clock[F] =
+  //       new Clock[F] {
+  //         def realTime(unit: TimeUnit): F[Long] =
+  //           F.liftIO(IO(source.clockRealTime(unit)))
+  //         def monotonic(unit: TimeUnit): F[Long] =
+  //           F.liftIO(IO(source.clockMonotonic(unit)))
+  //       }
+  //   }
 
-  /**
-    * Derives a `cats.effect.ContextShift` from [[monix.execution.Scheduler Scheduler]] for any
-    * data type that has a `cats.effect.Effect` implementation.
-    *
-    * {{{
-    *   import monix.execution.Scheduler
-    *   import java.util.concurrent.Executors
-    *   import scala.concurrent.ExecutionContext
-    *   import cats.effect._
-    *
-    *   val contextShift: ContextShift[IO] = SchedulerEffect.contextShift[IO](Scheduler.global)
-    *   val executor = Executors.newCachedThreadPool()
-    *   val ec = ExecutionContext.fromExecutor(executor)
-    *
-    *   contextShift.evalOn(ec)(IO(println("I'm on different thread pool!")))
-    *     .flatMap { _ =>
-    *       IO(println("I came back to default"))
-    *     }
-    * }}}
-    */
-  def contextShift[F[_]](source: Scheduler)(implicit F: Async[F]): ContextShift[F] =
-    new ContextShift[F] {
-      override def shift: F[Unit] =
-        Async.shift(source)
-      override def evalOn[A](ec: ExecutionContext)(fa: F[A]): F[A] =
-        Async.shift(ec).flatMap(_ => fa.flatMap(a => shift.map(_ => a)))
-    }
 }

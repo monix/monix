@@ -17,7 +17,9 @@
 
 package monix.catnap
 
-import cats.effect.{Async, CancelToken, Concurrent, ContextShift}
+import cats.~>
+import cats.effect.{Async, Concurrent}
+import cats.implicits._
 import monix.catnap.internal.AsyncUtils
 import monix.execution.Callback
 import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
@@ -26,6 +28,9 @@ import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.internal.GenericSemaphore
 import monix.execution.internal.GenericSemaphore.Listener
 import scala.concurrent.Promise
+import cats.effect.kernel.Resource
+import cats.effect.kernel.MonadCancel
+import cats.effect.std.syntax.supervisor
 
 /** The `Semaphore` is an asynchronous semaphore implementation that
   * limits the parallelism on task execution.
@@ -67,11 +72,19 @@ import scala.concurrent.Promise
   * from FS2.
   */
 final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)(
-  implicit F: Concurrent[F] OrElse Async[F],
-  cs: ContextShift[F])
-  extends cats.effect.concurrent.Semaphore[F] {
+  implicit F: Async[F])
+  extends cats.effect.std.Semaphore[F] {
 
-  private[this] implicit val F0: Async[F] = F.unify
+  /**
+   * Returns a [[cats.effect.kernel.Resource]] that acquires a permit, holds it for the lifetime
+   * of the resource, then releases the permit.
+   */
+  def permit: Resource[F, Unit] = ???
+
+  /**
+   * Modify the context `F` using natural transformation `f`.
+   */
+  def mapK[G[_]](f: F ~> G)(implicit G: MonadCancel[G, _]): Semaphore[G] = ???
 
   /** Returns the number of permits currently available. Always non-negative.
     *
@@ -188,8 +201,8 @@ final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)(
     *        released to the pool afterwards
     */
   def withPermitN[A](n: Long)(fa: F[A]): F[A] =
-    F0.bracket(underlying.acquireAsyncN(n)) {
-      case (acquire, _) => F0.flatMap(acquire)(_ => fa)
+    F.bracket(underlying.acquireAsyncN(n)) {
+      case (acquire, _) => F.flatMap(acquire)(_ => fa)
     } {
       case (_, release) => release
     }
@@ -232,10 +245,9 @@ object Semaphore {
     *        async boundaries after successful `acquire` operations, for safety
     */
   def apply[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(
-    implicit F: Concurrent[F] OrElse Async[F],
-    cs: ContextShift[F]): F[Semaphore[F]] = {
+    implicit F: Async[F]): F[Semaphore[F]] = {
 
-    F.unify.delay(new Semaphore[F](provisioned, ps))
+    F.delay(new Semaphore[F](provisioned, ps))
   }
 
   /** Builds a [[Semaphore]] instance.
@@ -257,8 +269,7 @@ object Semaphore {
     */
   @UnsafeBecauseImpure
   def unsafe[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(
-    implicit F: Concurrent[F] OrElse Async[F],
-    cs: ContextShift[F]): Semaphore[F] =
+    implicit F: Async[F]): Semaphore[F] =
     new Semaphore[F](provisioned, ps)
 
   implicit final class DeprecatedExtensions[F[_]](val source: Semaphore[F]) extends AnyVal {
@@ -274,58 +285,57 @@ object Semaphore {
   }
 
   private final class Impl[F[_]](provisioned: Long, ps: PaddingStrategy)(
-    implicit F: Concurrent[F] OrElse Async[F],
-    F0: Async[F],
-    cs: ContextShift[F])
+    implicit F: Async[F])
     extends GenericSemaphore[F[Unit]](provisioned, ps) {
 
-    val available: F[Long] = F0.delay(unsafeAvailable())
-    val count: F[Long] = F0.delay(unsafeCount())
+    val available: F[Long] = F.delay(unsafeAvailable())
+    val count: F[Long] = F.delay(unsafeCount())
 
     def acquireN(n: Long): F[Unit] =
-      F0.defer {
+      F.defer {
         if (unsafeTryAcquireN(n))
-          F0.unit
+          F.unit
         else
-          F0.flatMap(make[Unit](unsafeAcquireN(n, _)))(bindFork)
+          F.flatMap(make[Unit](unsafeAcquireN(n, _)))(bindFork)
       }
 
-    def acquireAsyncN(n: Long): F[(F[Unit], CancelToken[F])] =
-      F0.delay {
+    def acquireAsyncN(n: Long): F[(F[Unit], CancelableF.CancelToken[F])] =
+      F.delay {
         // Happy path
         if (unsafeTryAcquireN(n)) {
           // This cannot be canceled in the context of `bracket`
-          (F0.unit, releaseN(n))
+          (F.unit, releaseN(n))
         } else {
           val p = Promise[Unit]()
           val cancelToken = unsafeAsyncAcquireN(n, Callback.fromPromise(p))
-          val acquire = FutureLift.scalaToAsync(F0.pure(p.future))
+          val acquire = FutureLift.scalaToAsync(F.pure(p.future))
           // Extra async boundary needed for fairness
-          (F0.flatMap(acquire)(bindFork), cancelToken)
+          (F.flatMap(acquire)(bindFork), cancelToken)
         }
       }
 
     def tryAcquireN(n: Long): F[Boolean] =
-      F0.delay(unsafeTryAcquireN(n))
+      F.delay(unsafeTryAcquireN(n))
 
     def releaseN(n: Long): F[Unit] =
-      F0.delay(unsafeReleaseN(n))
+      F.delay(unsafeReleaseN(n))
 
     def awaitAvailable(n: Long): F[Unit] =
-      F0.flatMap(make[Unit](unsafeAwaitAvailable(n, _)))(bindFork)
+      F.flatMap(make[Unit](unsafeAwaitAvailable(n, _)))(bindFork)
 
     protected def emptyCancelable: F[Unit] =
-      F0.unit
+      F.unit
     protected def makeCancelable(f: (Listener[Unit]) => Unit, p: Listener[Unit]): F[Unit] =
-      F0.delay(f(p))
+      F.delay(f(p))
 
     private def make[A](k: (Either[Throwable, A] => Unit) => F[Unit]): F[A] =
-      F.fold(
-        F => F.cancelable(k),
-        F => AsyncUtils.cancelable(k)(F)
-      )
+      F.async(k.andThen(_.as(none)))
+      // F.fold(
+      //   F => F.cancelable(k),
+      //   F => AsyncUtils.cancelable(k)(F)
+      // )
 
-    private[this] val bindFork: (Unit => F[Unit]) =
-      _ => cs.shift
+    private[this] val bindFork: (Unit => F[Unit]) = ???
+    //   _ => cs.shift
   }
 }

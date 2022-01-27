@@ -18,7 +18,7 @@
 package monix.catnap
 
 import cats.Applicative
-import cats.effect.{CancelToken, Sync}
+import cats.effect.Sync
 import cats.syntax.either._
 import monix.catnap.cancelables.BooleanCancelableF
 import monix.execution.annotations.UnsafeBecauseImpure
@@ -38,10 +38,12 @@ import scala.collection.mutable.ListBuffer
   * over `F[_]`.
   */
 trait CancelableF[F[_]] {
-  def cancel: CancelToken[F]
+  def cancel: CancelableF.CancelToken[F]
 }
 
 object CancelableF {
+
+  type CancelToken[F[_]] = F[Unit]
 
   // ensure import cats.syntax.either._ is used
   private val dummy = ().asRight
