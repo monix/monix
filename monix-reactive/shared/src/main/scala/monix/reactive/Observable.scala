@@ -3275,6 +3275,24 @@ abstract class Observable[+A] extends Serializable { self =>
   final def takeWhileNotCanceled(c: BooleanCancelable): Observable[A] =
     self.liftByOperator(new TakeWhileNotCanceledOperator(c))
 
+  /** Groups consecutive elements as long as the includeInGroup holds.
+    * The inner observable is completed when the current element is not included in the group.
+    * All observables have to be consumed to continue the stream.
+    * @param p (previous, current) a function to decide if the current element is part of the group
+    */
+  final def consecutiveTakeWhile(p: (A, A) => Boolean): Observable[Observable[A]] =
+    self.liftByOperator(new ConsecutiveGroupBy[A](p))
+
+  /** Groups the consecutive elements as long as the key of the previous element is the same as the current.
+    * The inner observable is completed when the current element is not included in the group.
+    * All observables have to be consumed to continue the stream.
+    * @param keySelector a function that extracts the key for each item
+    */
+  final def consecutiveGroupBy[K](keySelector: A => K): Observable[(K, Observable[A])] =
+    self
+      .liftByOperator(new ConsecutiveGroupBy[A]((previous, current) => keySelector(previous) == keySelector(current)))
+      .mapEval(o => o.firstL.map(elem => keySelector(elem) -> o))
+
   /** Returns an Observable that emits maximum `n` items per given `period`.
     *
     * Unlike [[Observable!.throttleLast]] and [[Observable!.throttleFirst]]
@@ -3635,7 +3653,6 @@ abstract class Observable[+A] extends Serializable { self =>
     *     .whileBusyAggregateEvents(Chain.apply(_)){ case (chain, ele) => chain.append(ele) }
     *     .throttle(2.seconds, 1)
     * }}}
-    *
     */
   def whileBusyAggregateEvents[S](seed: A => S)(aggregate: (S, A) => S): Observable[S] = {
     self.liftByOperator(new WhileBusyAggregateEventsOperator[A, S](seed, aggregate))
@@ -3659,7 +3676,6 @@ abstract class Observable[+A] extends Serializable { self =>
     *     .whileBusyReduceEvents(_ + _)
     *     .throttle(2.seconds, 1)
     * }}}
-    *
     */
   final def whileBusyReduceEvents[B >: A](op: (B, B) => B): Observable[B] = {
     self.whileBusyAggregateEvents[B](identity)(op)
