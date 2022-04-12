@@ -15,7 +15,23 @@
  * limitations under the License.
  */
 
-package monix.eval.internal
+package monix.eval.internal;
+/*
+ * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * See the project homepage at: https://monix.io
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 import monix.eval.Task.{Context, Error, Now}
 import monix.eval.internal.TaskRunLoop.startFull
@@ -24,15 +40,18 @@ import monix.eval.{Coeval, Task}
 import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.internal.exceptions.matchError
+
+import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
+import scala.concurrent.duration.{Duration, FiniteDuration, MILLISECONDS}
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.{Failure, Success, Try}
 
 private[eval] object TaskMemoize {
-  /**
-    * Implementation for `.memoize` and `.memoizeOnSuccess`.
+
+  /** Implementation for `.cache`.
     */
-  def apply[A](source: Task[A], cacheErrors: Boolean): Task[A] =
+  def apply[A](source: Task[A], cacheErrors: Boolean, duration: Duration): Task[A] =
     source match {
       case Now(_) | Error(_) =>
         source
@@ -42,14 +61,15 @@ private[eval] object TaskMemoize {
         source
       case _ =>
         Task.Async(
-          new Register(source, cacheErrors),
+          new Register(source, cacheErrors, duration),
           trampolineBefore = false,
           trampolineAfter = true,
-          restoreLocals = true)
+          restoreLocals = true
+        )
     }
 
   /** Registration function, used in `Task.Async`. */
-  private final class Register[A](source: Task[A], val cacheErrors: Boolean)
+  private final class Register[A](source: Task[A], val cacheErrors: Boolean, duration: Duration)
     extends ((Task.Context, Callback[Throwable, A]) => Unit) { self =>
 
     // N.B. keeps state!
@@ -71,7 +91,7 @@ private[eval] object TaskMemoize {
       // Should we cache everything, error results as well,
       // or only successful results?
       if (self.cacheErrors || value.isSuccess) {
-        state.getAndSet(value) match {
+        state.getAndSet((s.clockRealTime(TimeUnit.MILLISECONDS), value)) match {
           case p: Promise[A] @unchecked =>
             if (!p.tryComplete(value)) {
               // $COVERAGE-OFF$
@@ -119,8 +139,13 @@ private[eval] object TaskMemoize {
     /** While the task is pending completion, registers a new listener
       * that will receive the result once the task is complete.
       */
-    private def registerListener(p: Promise[A], context: Context, cb: Callback[Throwable, A])(
-      implicit ec: ExecutionContext): Unit = {
+    private def registerListener(
+      p: Promise[A],
+      context: Context,
+      cb: Callback[Throwable, A]
+    )(implicit
+      ec: ExecutionContext
+    ): Unit = {
 
       p.future.onComplete { r =>
         // Listener is cancelable: we simply ensure that the result isn't streamed
@@ -131,8 +156,7 @@ private[eval] object TaskMemoize {
       }
     }
 
-    /**
-      * Starts execution, eventually caching the value on completion.
+    /** Starts execution, eventually caching the value on completion.
       */
     @tailrec private def start(context: Context, cb: Callback[Throwable, A]): Unit = {
       implicit val sc: Scheduler = context.scheduler
@@ -159,17 +183,23 @@ private[eval] object TaskMemoize {
 
         case ref: Promise[A] @unchecked =>
           self.registerListener(ref, context, cb)
-
-        case ref: Try[A] @unchecked =>
+        // use the object for compareAndSet otherwise we go into an inf loop
+        case result @ (cacheTime: Long, ref: Try[A]) =>
           // Race condition happened
           // $COVERAGE-OFF$
-          cb(ref)
-          // $COVERAGE-ON$
+          if (!duration.isFinite || sc.clockRealTime(MILLISECONDS) - cacheTime < duration.toMillis) {
+            cb(ref)
+          } else {
+            // clear the value atomically, avoiding race condition
+            self.state.compareAndSet(result, null)
+            start(context, cb)
+          }
 
+        // $COVERAGE-ON$
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
     }
   }
