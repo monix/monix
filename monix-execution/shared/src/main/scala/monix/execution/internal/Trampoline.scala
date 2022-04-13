@@ -75,13 +75,17 @@ private[execution] class Trampoline {
     if (next ne null) immediateLoop(next, ec)
   }
 
-  protected final def trampolineContext(ec: ExecutionContext): BlockContext =
+  protected final def trampolineContext(parentContext: BlockContext, ec: ExecutionContext): BlockContext =
     new BlockContext {
       def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
         // In case of blocking, execute all scheduled local tasks on
         // a separate thread, otherwise we could end up with a dead-lock
         forkTheRest(ec)
-        thunk
+        if (parentContext ne null) {
+          parentContext.blockOn(thunk)
+        } else {
+          thunk
+        }
       }
     }
 }
