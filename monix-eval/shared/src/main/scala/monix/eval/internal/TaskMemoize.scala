@@ -70,11 +70,13 @@ private[eval] object TaskMemoize {
 
   /** Registration function, used in `Task.Async`. */
   private final class Register[A](source: Task[A], val cacheErrors: Boolean, duration: Duration)
-    extends ((Task.Context, Callback[Throwable, A]) => Unit) { self =>
+      extends ((Task.Context, Callback[Throwable, A]) => Unit) { self =>
 
     // N.B. keeps state!
     private[this] var thunk = source
     private[this] val state = Atomic(null: AnyRef)
+    //for infinite duration the cache expiration check is skipped.
+    private[this] val durationMillis = if (duration.isFinite) duration.toMillis else 0
 
     def apply(ctx: Context, cb: Callback[Throwable, A]): Unit =
       state.get() match {
@@ -91,7 +93,7 @@ private[eval] object TaskMemoize {
       // Should we cache everything, error results as well,
       // or only successful results?
       if (self.cacheErrors || value.isSuccess) {
-        state.getAndSet((s.clockRealTime(TimeUnit.MILLISECONDS), value)) match {
+        state.getAndSet((s.clockRealTime(TimeUnit.MILLISECONDS) + durationMillis, value)) match {
           case p: Promise[A] @unchecked =>
             if (!p.tryComplete(value)) {
               // $COVERAGE-OFF$
@@ -103,7 +105,9 @@ private[eval] object TaskMemoize {
             () // do nothing
         }
         // GC purposes
-        self.thunk = null
+        if (!duration.isFinite) {
+          self.thunk = null
+        }
       } else {
         // Error happened and we are not caching errors!
         state.get() match {
@@ -130,22 +134,26 @@ private[eval] object TaskMemoize {
     /** Builds a callback that gets used to cache the result. */
     private def complete(implicit s: Scheduler): Callback[Throwable, A] =
       new Callback[Throwable, A] {
-        def onSuccess(value: A): Unit =
+        def onSuccess(value: A): Unit = {
           self.cacheValue(Success(value))
-        def onError(ex: Throwable): Unit =
+        }
+
+        def onError(ex: Throwable): Unit = {
           self.cacheValue(Failure(ex))
+        }
       }
 
     /** While the task is pending completion, registers a new listener
       * that will receive the result once the task is complete.
       */
     private def registerListener(
-      p: Promise[A],
-      context: Context,
-      cb: Callback[Throwable, A]
-    )(implicit
-      ec: ExecutionContext
-    ): Unit = {
+        p: Promise[A],
+        context: Context,
+        cb: Callback[Throwable, A]
+      )(
+        implicit
+        ec: ExecutionContext
+      ): Unit = {
 
       p.future.onComplete { r =>
         // Listener is cancelable: we simply ensure that the result isn't streamed
@@ -171,7 +179,6 @@ private[eval] object TaskMemoize {
           } else {
             // Registering listener callback for when listener is ready
             self.registerListener(update, context, cb)
-
             // Running main task in `uncancelable` model
             val ctx2 = context
               .withOptions(context.options.disableAutoCancelableRunLoops)
@@ -183,11 +190,11 @@ private[eval] object TaskMemoize {
 
         case ref: Promise[A] @unchecked =>
           self.registerListener(ref, context, cb)
-        // use the object for compareAndSet otherwise we go into an inf loop
-        case result @ (cacheTime: Long, ref: Try[A]) =>
+
+        case result @ (expirationTime: Long, ref: Try[A]) =>
           // Race condition happened
           // $COVERAGE-OFF$
-          if (!duration.isFinite || sc.clockRealTime(MILLISECONDS) - cacheTime < duration.toMillis) {
+          if (duration.isFinite && sc.clockRealTime(MILLISECONDS) < expirationTime) {
             cb(ref)
           } else {
             // clear the value atomically, avoiding race condition

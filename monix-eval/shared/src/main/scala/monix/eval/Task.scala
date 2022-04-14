@@ -1176,29 +1176,39 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   final def memoizeOnSuccess: Task[A] =
     TaskMemoize(this, cacheErrors = false, Duration.Inf)
 
-  /** cache the successful result of the source task for a given duration
-    * and reuses it on subsequent invocations of `runAsync`.
-    * Thrown exceptions are not cached.
+  /** Cache the result of the source task and reuses it on
+    * subsequent invocations of `runAsync` untill the duration has expired.
     *
-    * The resulting task will be idempotent, but only if the
-    * result is successful.
+    * The resulting task will be idempotent, meaning that
+    * evaluating the resulting task multiple times will have the
+    * same effect as evaluating it once.
     *
     * $memoizeCancel
     *
     * Example:
     * {{{
-    * ???
+    *   import scala.concurrent.CancellationException
+    *   import scala.concurrent.duration._
+    *
+    *   val source = Task(1).delayExecution(5.seconds)
+    *
+    *   // Option 1: trigger error on cancellation
+    *   val err = new CancellationException
+    *   val cached1 = source.onCancelRaiseError(err).cache(1.second)
+    *
+    *   // Option 2: make it uninterruptible
+    *   val cached2 = source.uncancelable.memoize.cache(1.second)
     * }}}
     *
     * When using [[onCancelRaiseError]] like in the example above, the
-    * behavior of `memoizeOnSuccess` is to retry the source on subsequent
-    * invocations. Use [[memoize]] if that's not the desired behavior.
+    * behavior of `memoize` is to cache the error. If you want the ability
+    * to retry errors until a successful value happens, see [[memoizeOnSuccess]].
     *
     * $memoizeUnsafe
     *
-    * @see [[memoize]] for a version that caches both successful
-    *     results and failures
-    *
+    * @see [[memoizeOnSuccess]] for a version that only caches
+    *     successful results
+    * @param duration the duration for which to cache the value
     * @return a `Task` that can be used to wait for the memoized value
     */
   @UnsafeBecauseImpure

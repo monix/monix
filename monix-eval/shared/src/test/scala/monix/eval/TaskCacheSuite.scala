@@ -52,10 +52,12 @@ object TaskCacheSuite extends BaseTestSuite {
     s.tick()
     val f2 = task.runToFuture
     assertEquals(f2.value, Some(Success(1)))
-    s.tick(10.seconds)
-    s.tickOne()
+    s.tick(10.seconds + 1.milli)
     val f3 = task.runToFuture
-    assertEquals(f3.value, Some(Success(2)))
+    assertEquals(f3.value, None)
+    s.tick()
+    val f4 = task.runToFuture
+    assertEquals(f4.value, Some(Success(2)))
   }
 
   test("Task.cache(10.second) should work synchronously for next subscribers") { implicit s =>
