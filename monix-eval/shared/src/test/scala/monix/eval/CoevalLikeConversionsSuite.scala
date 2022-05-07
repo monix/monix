@@ -65,7 +65,7 @@ object CoevalLikeConversionsSuite extends SimpleTestSuite {
   test("Coeval.from(SyncIO) for errors") {
     var effect = false
     val dummy = DummyException("dummy")
-    val source = SyncIO.suspend[Int] { effect = true; SyncIO.raiseError(dummy) }
+    val source = SyncIO.defer[Int] { effect = true; SyncIO.raiseError(dummy) }
     val conv = Coeval.from(source)
 
     assert(!effect)
