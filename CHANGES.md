@@ -1,3 +1,25 @@
+## Version 3.4.1 (May 7, 2022)
+
+This is a minor bug-fixing release for the 3.x series.
+
+Updated dependencies (#1554):
+
+- Scala compiler updated to 2.12.15, 2.13.8 and 3.1.2;
+- Typelevel Cats updated to 2.7.0;
+- Typelevel Cats-Effect updated to 2.5.4;
+- Updated compiler and sbt plugins to latest versions;
+
+Fixes:
+
+- `Trampoline.trampolineContext` no longer ignores its parent BlockContext (#1544) 
+- Only include JCTools in `executionShadedJCTools` (#1514)
+
+This release was made possible by the work and feedback of:
+
+- Alexandru Nedelcu (@alexandru)
+- Gabriele Petronella (@gabro)
+- Roman Janusz (@ghik)
+
 ## Version 3.4.0 (May 14, 2021)
 
 The release is binary and source compatible with 3.x series, and was cross-built for the following Scala and ScalaJS versions:
