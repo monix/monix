@@ -128,7 +128,7 @@ object SingleAssignCancelable {
     * {{{
     *   val c = {
     *     val extra = Cancelable(() => println("extra canceled")
-    *     SingleAssignmentCancelable.withExtra(extra)
+    *     SingleAssignmentCancelable.plusOne(extra)
     *   }
     *
     *   c := Cancelable(() => println("main canceled"))
