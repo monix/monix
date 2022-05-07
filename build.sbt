@@ -4,7 +4,6 @@ import sbt.{Def, Global, Tags}
 import scala.collection.immutable.SortedSet
 import MonixBuildUtils._
 
-
 val benchmarkProjects = List(
   "benchmarksPrev",
   "benchmarksNext"
@@ -24,17 +23,17 @@ addCommandAlias("ci-release",  ";+publishSigned ;sonatypeBundleRelease")
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions
 
-val cats_Version = "2.6.1"
-val catsEffect_Version = "2.5.1"
-val fs2_Version = "2.4.4"
+val cats_Version = "2.7.0"
+val catsEffect_Version = "2.5.4"
+val fs2_Version = "2.5.11"
 val jcTools_Version = "3.3.0"
 val reactiveStreams_Version = "1.0.3"
 val minitest_Version = "2.9.6"
 val implicitBox_Version = "0.3.4"
-val kindProjector_Version = "0.12.0"
+val kindProjector_Version = "0.13.2"
 val betterMonadicFor_Version = "0.3.1"
-val silencer_Version = "1.7.3"
-val scalaCompat_Version = "2.4.4"
+val silencer_Version = "1.7.8"
+val scalaCompat_Version = "2.7.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -185,7 +184,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   ),
 
   // Turning off fatal warnings for doc generation
-  Compile / doc / scalacOptions ~= filterConsoleScalacOptions,
+  Compile / doc / tpolecatExcludeOptions ++= ScalacOptions.defaultConsoleExclude,
   // Silence everything in auto-generated files
   scalacOptions ++= {
     if (isDotty.value)
@@ -315,10 +314,9 @@ lazy val doNotPublishArtifactSettings = Seq(
 )
 
 lazy val assemblyShadeSettings = Seq(
-  assembly / assemblyOption :=  (assembly / assemblyOption).value.copy(
-    includeScala = false,
-    includeBin = false
-  ),
+  assembly / assemblyOption := (assembly / assemblyOption).value
+    .withIncludeScala(false)
+    .withIncludeBin(false),
   // for some weird reason the "assembly" task runs tests by default
   assembly / test := {},
   // prevent cyclic task dependencies, see https://github.com/sbt/sbt-assembly/issues/365
@@ -360,14 +358,18 @@ lazy val unidocSettings = Seq(
 
 lazy val sharedJSSettings = Seq(
   coverageExcludedFiles := ".*",
-  // Use globally accessible (rather than local) source paths in JS source maps
   scalacOptions ++= {
     if (isDotty.value)
       Seq()
     else {
       val l = (LocalRootProject / baseDirectory).value.toURI.toString
       val g = s"https://raw.githubusercontent.com/monix/monix/${gitHubTreeTagOrHash.value}/"
-      Seq(s"-P:scalajs:mapSourceURI:$l->$g")
+      Seq(
+        // Use globally accessible (rather than local) source paths in JS source maps
+        s"-P:scalajs:mapSourceURI:$l->$g",
+        // Silence ExecutionContext.global warning
+        "-P:scalajs:nowarnGlobalExecutionContext",
+      )
     }
   }
 )
