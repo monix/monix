@@ -1,23 +1,16 @@
 #!/usr/bin/env bash
 
-if [ -z "$PGP_SECRET" ]; then
-    echo "ERROR: PGP_SECRET is not set!" >&2
-    exit 1
+cd "$(dirname $0)/../../" || exit 1
+if ! [ -f "./.github/env/pgp-secret" ]; then
+    echo "ERROR: malformed project directory!" >&2
+    exit 2
 fi
 
 sudo apt-get update && sudo apt-get -y install gnupg2
-
-echo "Creating directory ~/.gnupg"
 mkdir ~/.gnupg && chmod 700 ~/.gnupg
-
-echo "Updating ~/.gnupg/gpg.conf"
 echo use-agent >> ~/.gnupg/gpg.conf
 echo pinentry-mode loopback >> ~/.gnupg/gpg.conf
 echo allow-loopback-pinentry >> ~/.gnupg/gpg-agent.conf
 chmod 600 ~/.gnupg/*
-
-echo "Reloading agent (via gpg-connect-agent)"
 echo RELOADAGENT | gpg-connect-agent
-
-echo "Importing PGP_SECRET"
-echo $PGP_SECRET | base64 --decode | gpg --import --no-tty --batch --yes
+cat "./.github/env/pgp-secret" | base64 --decode | gpg --import --no-tty --batch --yes
