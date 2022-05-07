@@ -4,7 +4,6 @@ import sbt.{Def, Global, Tags}
 import scala.collection.immutable.SortedSet
 import MonixBuildUtils._
 
-
 val benchmarkProjects = List(
   "benchmarksPrev",
   "benchmarksNext"
@@ -185,7 +184,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   ),
 
   // Turning off fatal warnings for doc generation
-  Compile / doc / scalacOptions ~= filterConsoleScalacOptions,
+  Compile / doc / tpolecatExcludeOptions ++= ScalacOptions.defaultConsoleExclude,
   // Silence everything in auto-generated files
   scalacOptions ++= {
     if (isDotty.value)
@@ -315,10 +314,9 @@ lazy val doNotPublishArtifactSettings = Seq(
 )
 
 lazy val assemblyShadeSettings = Seq(
-  assembly / assemblyOption :=  (assembly / assemblyOption).value.copy(
-    includeScala = false,
-    includeBin = false
-  ),
+  assembly / assemblyOption := (assembly / assemblyOption).value
+    .withIncludeScala(false)
+    .withIncludeBin(false),
   // for some weird reason the "assembly" task runs tests by default
   assembly / test := {},
   // prevent cyclic task dependencies, see https://github.com/sbt/sbt-assembly/issues/365
