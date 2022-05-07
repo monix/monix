@@ -160,7 +160,7 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
       val count = if (Platform.isJVM) 10000 else 50
       val allReleased = Promise[Unit]()
 
-      val task = semaphore.withPermit(IO.suspend {
+      val task = semaphore.withPermit(IO.defer {
         allReleased.completeWith(semaphore.awaitAvailable(available).unsafeToFuture())
 
         val futures = for (i <- 0 until count) yield {
