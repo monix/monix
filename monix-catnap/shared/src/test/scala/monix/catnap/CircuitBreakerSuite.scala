@@ -97,7 +97,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
       .unsafeRunSync()
 
     def loop(n: Int, acc: Int): IO[Int] =
-      IO.shift *> IO.suspend {
+      IO.shift *> IO.defer {
         if (n > 0)
           circuitBreaker.protect(loop(n - 1, acc + 1))
         else
@@ -138,7 +138,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
       .unsafeRunSync()
 
     def loop(n: Int, acc: Int): IO[Int] =
-      IO.suspend {
+      IO.defer {
         if (n > 0)
           circuitBreaker.protect(loop(n - 1, acc + 1))
         else
