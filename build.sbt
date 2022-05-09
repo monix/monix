@@ -548,6 +548,25 @@ lazy val executionShadedJCTools = project.in(file("monix-execution/shaded/jctool
   )
 
 // --------------------------------------------
+// monix-execution-atomic
+
+lazy val executionAtomicProfile =
+  crossModule(
+    projectName = "monix-execution-atomic",
+    withDocTests = false,
+    crossSettings = Seq(
+      description := "Sub-module of Monix, exposing low-level atomic references. See: https://monix.io",
+    ))
+
+lazy val executionAtomicJVM = project.in(file("monix-execution/atomic/jvm"))
+  .configure(executionAtomicProfile.jvm)
+  .settings(macroDependencies)
+
+lazy val executionAtomicJS = project.in(file("monix-execution/atomic/js"))
+  .configure(executionProfile.js)
+  .settings(macroDependencies)
+
+// --------------------------------------------
 // monix-execution
 
 lazy val executionProfile =
@@ -563,11 +582,15 @@ lazy val executionJVM = project.in(file("monix-execution/jvm"))
   .configure(executionProfile.jvm)
   .settings(macroDependencies)
   .dependsOn(executionShadedJCTools)
+  .aggregate(executionAtomicJVM)
+  .dependsOn(executionAtomicJVM)
   .settings(libraryDependencies += reactiveStreamsLib)
 
 lazy val executionJS = project.in(file("monix-execution/js"))
   .configure(executionProfile.js)
   .settings(macroDependencies)
+  .aggregate(executionAtomicJS)
+  .dependsOn(executionAtomicJS)
 
 // --------------------------------------------
 // monix-catnap
