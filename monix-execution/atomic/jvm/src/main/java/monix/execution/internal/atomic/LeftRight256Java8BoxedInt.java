@@ -17,9 +17,7 @@
 
 package monix.execution.internal.atomic;
 
-import monix.execution.internal.InternalApi;
 import sun.misc.Unsafe;
-
 import java.lang.reflect.Field;
 
 /**
@@ -31,7 +29,6 @@ import java.lang.reflect.Field;
  * because Java does not provide the capability of marking classes as
  * "internal" to a package and all its sub-packages.
  */
-@InternalApi
 final class LeftRight256Java8BoxedInt extends LeftRight256Java8BoxedIntImpl {
   public volatile long r01, r02, r03, r04, r05, r06, r07, r08 = 7;
   public volatile long r09, r10, r11, r12, r13, r14, r15, r16 = 8;
@@ -57,7 +54,6 @@ final class LeftRight256Java8BoxedInt extends LeftRight256Java8BoxedIntImpl {
  * because Java does not provide the capability of marking classes as
  * "internal" to a package and all its sub-packages.
  */
-@InternalApi
 abstract class LeftRight256Java8BoxedIntImpl extends LeftPadding120 implements BoxedInt {
   public volatile int value;
   private static final long OFFSET;

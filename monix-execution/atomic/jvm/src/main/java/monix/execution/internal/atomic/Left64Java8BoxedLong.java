@@ -18,9 +18,7 @@
 package monix.execution.internal.atomic;
 
 
-import monix.execution.internal.InternalApi;
 import sun.misc.Unsafe;
-
 import java.lang.reflect.Field;
 
 /**
@@ -32,7 +30,6 @@ import java.lang.reflect.Field;
  * because Java does not provide the capability of marking classes as
  * "internal" to a package and all its sub-packages.
  */
-@InternalApi
 final class Left64Java8BoxedLong extends LeftPadding56 implements BoxedLong {
   public volatile long value;
   private static final long OFFSET;

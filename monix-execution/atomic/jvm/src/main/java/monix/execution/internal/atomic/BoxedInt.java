@@ -17,8 +17,6 @@
 
 package monix.execution.internal.atomic;
 
-import monix.execution.internal.InternalApi;
-
 /**
  * INTERNAL API — used in the implementation of
  * `monix.execution.atomic.Atomic`.
@@ -28,7 +26,7 @@ import monix.execution.internal.InternalApi;
  * because Java does not provide the capability of marking classes as
  * "internal" to a package and all its sub-packages.
  */
-@InternalApi public interface BoxedInt {
+public interface BoxedInt {
     int volatileGet();
     void volatileSet(int update);
     void lazySet(int update);

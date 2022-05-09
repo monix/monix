@@ -17,9 +17,7 @@
 
 package monix.execution.internal.atomic;
 
-import monix.execution.internal.InternalApi;
 import sun.misc.Unsafe;
-
 import java.lang.reflect.Field;
 
 /**
@@ -31,7 +29,6 @@ import java.lang.reflect.Field;
  * because Java does not provide the capability of marking classes as
  * "internal" to a package and all its sub-packages.
  */
-@InternalApi
 abstract class Right64Java8BoxedLongImpl implements BoxedLong {
   public volatile long value;
   private static final long OFFSET;
@@ -84,7 +81,6 @@ abstract class Right64Java8BoxedLongImpl implements BoxedLong {
  * because Java does not provide the capability of marking classes as
  * "internal" to a package and all its sub-packages.
  */
-@InternalApi
 final class Right64Java8BoxedLong extends Right64Java8BoxedLongImpl {
   public volatile long p1, p2, p3, p4, p5, p6, p7 = 7;
   public long sum() { return p1 + p2 + p3 + p4 + p5 + p6 + p7; }

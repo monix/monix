@@ -17,8 +17,6 @@
 
 package monix.execution.internal.atomic;
 
-import monix.execution.internal.InternalApi;
-
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 /**
@@ -30,7 +28,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * because Java does not provide the capability of marking classes as
  * "internal" to a package and all its sub-packages.
  */
-@InternalApi
 final class Left128JavaXBoxedObject extends LeftPadding120 implements BoxedObject {
   public volatile Object value;
 

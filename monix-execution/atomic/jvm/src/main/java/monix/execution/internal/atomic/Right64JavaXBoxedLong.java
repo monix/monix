@@ -17,8 +17,6 @@
 
 package monix.execution.internal.atomic;
 
-import monix.execution.internal.InternalApi;
-
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
@@ -30,7 +28,6 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  * because Java does not provide the capability of marking classes as
  * "internal" to a package and all its sub-packages.
  */
-@InternalApi
 final class Right64JavaXBoxedLong extends Right64JavaXBoxedLongImpl {
   public volatile long p1, p2, p3, p4, p5, p6, p7 = 7;
   public long sum() { return p1 + p2 + p3 + p4 + p5 + p6 + p7; }
@@ -49,7 +46,6 @@ final class Right64JavaXBoxedLong extends Right64JavaXBoxedLongImpl {
  * because Java does not provide the capability of marking classes as
  * "internal" to a package and all its sub-packages.
  */
-@InternalApi
 abstract class Right64JavaXBoxedLongImpl implements BoxedLong {
   public volatile long value;
 

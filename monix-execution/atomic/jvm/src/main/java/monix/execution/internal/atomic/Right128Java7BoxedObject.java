@@ -17,9 +17,7 @@
 
 package monix.execution.internal.atomic;
 
-import monix.execution.internal.InternalApi;
 import sun.misc.Unsafe;
-
 import java.lang.reflect.Field;
 
 /**
@@ -31,7 +29,6 @@ import java.lang.reflect.Field;
  * because Java does not provide the capability of marking classes as
  * "internal" to a package and all its sub-packages.
  */
-@InternalApi
 final class Right128Java7BoxedObject extends Right128Java7BoxedObjectImpl {
   public volatile long p1, p2, p3, p4, p5, p6, p7, p8 = 7;
   public volatile long p9, p10, p11, p12, p13, p14, p15 = 7;
@@ -54,7 +51,6 @@ final class Right128Java7BoxedObject extends Right128Java7BoxedObjectImpl {
  * because Java does not provide the capability of marking classes as
  * "internal" to a package and all its sub-packages.
  */
-@InternalApi
 abstract class Right128Java7BoxedObjectImpl implements BoxedObject {
   public volatile Object value;
   private static final long OFFSET;
