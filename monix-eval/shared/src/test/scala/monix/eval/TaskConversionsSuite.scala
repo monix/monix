@@ -433,7 +433,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     override def asyncF[A](k: ((Either[Throwable, A]) => Unit) => CIO[Unit]): CIO[A] =
       CIO(IO.asyncF(cb => k(cb).io))
     override def suspend[A](thunk: => CIO[A]): CIO[A] =
-      CIO(IO.suspend(thunk.io))
+      CIO(IO.defer(thunk.io))
     override def flatMap[A, B](fa: CIO[A])(f: (A) => CIO[B]): CIO[B] =
       CIO(fa.io.flatMap(a => f(a).io))
     override def tailRecM[A, B](a: A)(f: (A) => CIO[Either[A, B]]): CIO[B] =

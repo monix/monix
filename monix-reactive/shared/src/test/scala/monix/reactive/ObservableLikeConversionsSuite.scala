@@ -179,7 +179,7 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
   test("Observable.from(SyncIO) for errors") { implicit s =>
     var effect = false
     val dummy = DummyException("dummy")
-    val source = SyncIO.suspend[Int] { effect = true; SyncIO.raiseError(dummy) }
+    val source = SyncIO.defer[Int] { effect = true; SyncIO.raiseError(dummy) }
     val conv = Observable.from(source)
     assert(!effect)
 

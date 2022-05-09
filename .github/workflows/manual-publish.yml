@@ -30,8 +30,6 @@ jobs:
       - name: Install GnuPG2
         run: |
           ./.github/scripts/setup-pgp
-        env:
-          PGP_SECRET: ${{ secrets.PGP_SECRET }}
 
       - name: sbt ci-release
         run: |
