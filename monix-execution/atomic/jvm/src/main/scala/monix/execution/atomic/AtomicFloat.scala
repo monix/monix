@@ -20,7 +20,7 @@ package monix.execution.atomic
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import scala.annotation.tailrec
 import java.lang.Float.{floatToIntBits, intBitsToFloat}
-import monix.execution.internal.atomic.{BoxedInt, Factory}
+import monix.execution.atomic.internal.{BoxedInt, Factory}
 
 /** Atomic references wrapping `Float` values.
   *

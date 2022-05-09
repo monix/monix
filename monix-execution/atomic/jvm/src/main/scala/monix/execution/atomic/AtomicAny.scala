@@ -18,7 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.internal.atomic.{BoxedObject, Factory}
+import monix.execution.atomic.internal.{BoxedObject, Factory}
 
 /** Atomic references wrapping `AnyRef` values.
   *

@@ -18,7 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.internal.atomic.{BoxedLong, Factory}
+import monix.execution.atomic.internal.{BoxedLong, Factory}
 
 /** Atomic references wrapping `Long` values.
   *
