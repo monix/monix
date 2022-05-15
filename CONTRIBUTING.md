@@ -2,7 +2,7 @@
 
 The Monix project welcomes contributions from anybody wishing to participate.
 All code or documentation that is provided must be licensed with Apache 2.0
-(see LICENSE.txt).
+(see `COPYING`).
 
 ## Code of Conduct
 

@@ -277,7 +277,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
   homepage := Some(url("https://monix.io")),
   headerLicense := Some(HeaderLicense.Custom("""
-    |Copyright (c) 2014-2021 by The Monix Project Developers.
+    |Copyright (c) 2014-2022 Monix Contributors.
     |See the project homepage at: https://monix.io
     |
     |Licensed under the Apache License, Version 2.0 (the "License");
