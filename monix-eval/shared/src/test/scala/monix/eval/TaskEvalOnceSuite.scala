@@ -20,7 +20,7 @@ package monix.eval
 import cats.laws._
 import cats.laws.discipline._
 import monix.execution.exceptions.DummyException
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskEvalOnceSuite extends BaseTestSuite {
   test("Task.evalOnce should work synchronously") { implicit s =>

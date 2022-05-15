@@ -17,12 +17,12 @@
 
 package monix.eval
 
-import monix.execution.{Cancelable, CancelableFuture}
+import monix.execution.{ Cancelable, CancelableFuture }
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskFromFutureSuite extends BaseTestSuite {
   test("Task.fromFuture should be faster for completed futures, success") { implicit s =>

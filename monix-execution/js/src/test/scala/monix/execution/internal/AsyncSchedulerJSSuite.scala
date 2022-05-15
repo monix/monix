@@ -20,8 +20,8 @@ package monix.execution.internal
 import minitest.TestSuite
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.schedulers.{AsyncScheduler, StandardContext}
-import monix.execution.{ExecutionModel, Scheduler, TestUtils, UncaughtExceptionReporter}
+import monix.execution.schedulers.{ AsyncScheduler, StandardContext }
+import monix.execution.{ ExecutionModel, Scheduler, TestUtils, UncaughtExceptionReporter }
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._
@@ -30,7 +30,7 @@ object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
   val lastReported = Atomic(null: Throwable)
   val reporter = new StandardContext(new UncaughtExceptionReporter {
     def reportFailure(ex: Throwable): Unit =
-      lastReported set ex
+      lastReported.set(ex)
   })
 
   def setup(): Scheduler = {

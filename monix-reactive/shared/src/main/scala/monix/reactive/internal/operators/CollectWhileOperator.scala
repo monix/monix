@@ -22,7 +22,7 @@ import monix.execution.Ack.Stop
 
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
-import monix.reactive.internal.operators.CollectOperator.{checkFallback, isDefined}
+import monix.reactive.internal.operators.CollectOperator.{ checkFallback, isDefined }
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future

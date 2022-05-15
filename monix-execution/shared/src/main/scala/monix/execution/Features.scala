@@ -17,7 +17,7 @@
 
 package monix.execution
 
-import monix.execution.Features.{Flag, Flags}
+import monix.execution.Features.{ Flag, Flags }
 
 /** `Features` describes a set of features described via
   * bitwise operators applied to ints, but made type safe.

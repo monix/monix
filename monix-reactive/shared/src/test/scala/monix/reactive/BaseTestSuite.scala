@@ -19,16 +19,16 @@ package monix.reactive
 
 import cats.Eq
 import cats.Monoid
-import minitest.{SimpleTestSuite, TestSuite}
+import minitest.{ SimpleTestSuite, TestSuite }
 import minitest.laws.Checkers
 import monix.eval.Task
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.Notification.{OnComplete, OnError, OnNext}
+import monix.reactive.Notification.{ OnComplete, OnError, OnNext }
 import monix.reactive.observables.CombineObservable
 import monix.reactive.subjects._
 import org.scalacheck.Test.Parameters
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
+import org.scalacheck.{ Arbitrary, Cogen, Gen, Prop }
 import org.typelevel.discipline.Laws
 
 import scala.concurrent.duration._
@@ -141,7 +141,7 @@ trait ArbitraryInstancesBase extends monix.eval.ArbitraryInstancesBase {
     }
 
   implicit def arbitraryCombineObservable[A: Arbitrary]: Arbitrary[CombineObservable.Type[A]] = {
-    import CombineObservable.{apply => wrap}
+    import CombineObservable.{ apply => wrap }
     Arbitrary {
       implicitly[Arbitrary[List[A]]].arbitrary
         .map(list => wrap(Observable.fromIterable(list)))

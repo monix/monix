@@ -22,9 +22,9 @@ import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.tail.Iterant
-import monix.tail.Iterant.{Last, Next, NextBatch, Scope}
+import monix.tail.Iterant.{ Last, Next, NextBatch, Scope }
 import monix.tail.batches.Batch
-import org.reactivestreams.{Publisher, Subscriber, Subscription}
+import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 
@@ -33,7 +33,8 @@ private[tail] object IterantFromReactivePublisher {
     * Implementation for `Iterant.fromReactivePublisher`.
     */
   def apply[F[_], A](pub: Publisher[A], requestCount: Int, eagerBuffer: Boolean)(
-    implicit F: Async[F]): Iterant[F, A] = {
+    implicit F: Async[F]
+  ): Iterant[F, A] = {
 
     if (requestCount < 1) {
       Iterant.raiseError(new IllegalArgumentException("requestSize must be greater than 1"))
@@ -148,7 +149,7 @@ private[tail] object IterantFromReactivePublisher {
             finish(fa)
           }
 
-        case current : Take[F, A] @unchecked =>
+        case current: Take[F, A] @unchecked =>
           if (state.compareAndSet(current, Stop(fa)))
             current.cb(Right(fa))
           else

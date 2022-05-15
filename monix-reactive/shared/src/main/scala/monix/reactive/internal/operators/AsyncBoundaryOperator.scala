@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import monix.execution.ChannelType.SingleProducer
 import monix.reactive.Observable.Operator
 import monix.reactive.OverflowStrategy
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
 
 private[reactive] final class AsyncBoundaryOperator[A](overflowStrategy: OverflowStrategy[A]) extends Operator[A, A] {
 

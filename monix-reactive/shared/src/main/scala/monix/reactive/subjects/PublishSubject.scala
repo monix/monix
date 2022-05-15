@@ -17,11 +17,11 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.internal.util.PromiseCounter
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.PublishSubject.State
@@ -209,7 +209,8 @@ object PublishSubject {
   private[subjects] final case class State[A](
     subscribers: Set[Subscriber[A]] = Set.empty[Subscriber[A]],
     cache: Array[Subscriber[A]] = null,
-    errorThrown: Throwable = null) {
+    errorThrown: Throwable = null
+  ) {
 
     def refresh: State[A] =
       copy(cache = subscribers.toArray)

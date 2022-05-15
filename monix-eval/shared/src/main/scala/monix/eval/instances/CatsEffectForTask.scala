@@ -18,7 +18,7 @@
 package monix.eval
 package instances
 
-import cats.effect.{Fiber => _, _}
+import cats.effect.{ Fiber => _, _ }
 import monix.eval.internal.TaskEffect
 import monix.execution.Scheduler
 
@@ -59,7 +59,8 @@ class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options) extends CatsB
   override def bracket[A, B](acquire: Task[A])(use: A => Task[B])(release: A => Task[Unit]): Task[B] =
     F.bracket(acquire)(use)(release)
   override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(
-    release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
+    release: (A, ExitCase[Throwable]) => Task[Unit]
+  ): Task[B] =
     F.bracketCase(acquire)(use)(release)
 }
 

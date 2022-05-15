@@ -21,7 +21,7 @@ import java.util.concurrent.RejectedExecutionException
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler
 import monix.execution.Scheduler.Implicits.global
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration._
 
 object TaskRejectedExecutionSuite extends SimpleTestSuite {

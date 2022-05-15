@@ -28,7 +28,8 @@ private[tail] object IterantPushToChannel {
     * Implementation for [[Iterant.pushToChannel]].
     */
   def apply[F[_], A](source: Iterant[F, A], channel: ProducerF[F, Option[Throwable], A])(
-    implicit F: Sync[F]): F[Unit] = {
+    implicit F: Sync[F]
+  ): F[Unit] = {
 
     F.defer(new Loop(channel).apply(source))
   }
@@ -36,7 +37,7 @@ private[tail] object IterantPushToChannel {
   private final class Loop[F[_], A](channel: ProducerF[F, Option[Throwable], A])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[Unit]] { loop =>
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // For dealing with push results
     private[this] val trueRef = F.pure(true)
     private[this] var rest: F[Iterant[F, A]] = _
@@ -50,7 +51,7 @@ private[tail] object IterantPushToChannel {
       F.flatMap(task)(bindNext)
     }
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
     private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
@@ -73,7 +74,7 @@ private[tail] object IterantPushToChannel {
           case null => F.unit
           case xs => F.flatMap(xs)(loop)
         }
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Iterant.Next[F, A]): F[Unit] =
       process(channel.push(ref.item), ref.rest)

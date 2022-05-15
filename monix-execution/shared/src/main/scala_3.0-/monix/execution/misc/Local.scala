@@ -257,7 +257,6 @@ object Local extends LocalCompanionDeprecated {
   ) extends Context
 }
 
-
 /** A `Local` is a [[ThreadLocal]] whose scope is flexible. The state
   * of all Locals may be saved or restored onto the current thread by
   * the user. This is useful for threading Locals through execution

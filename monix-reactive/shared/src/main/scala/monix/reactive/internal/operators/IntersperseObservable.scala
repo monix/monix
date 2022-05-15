@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -28,8 +28,8 @@ private[reactive] final class IntersperseObservable[+A](
   source: Observable[A],
   start: Option[A],
   separator: A,
-  end: Option[A])
-  extends Observable[A] { self =>
+  end: Option[A]
+) extends Observable[A] { self =>
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val upstream = source.unsafeSubscribeFn(new Subscriber[A] {

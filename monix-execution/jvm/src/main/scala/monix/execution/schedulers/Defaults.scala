@@ -17,7 +17,7 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{ScheduledExecutorService, ScheduledThreadPoolExecutor}
+import java.util.concurrent.{ ScheduledExecutorService, ScheduledThreadPoolExecutor }
 
 import monix.execution.UncaughtExceptionReporter
 
@@ -28,7 +28,8 @@ private[schedulers] object Defaults {
   lazy val scheduledExecutor: ScheduledExecutorService = {
     val tp = new ScheduledThreadPoolExecutor(
       1,
-      ThreadFactoryBuilder("monix-scheduler", UncaughtExceptionReporter.default, daemonic = true))
+      ThreadFactoryBuilder("monix-scheduler", UncaughtExceptionReporter.default, daemonic = true)
+    )
     tp.setRemoveOnCancelPolicy(true)
     tp
   }

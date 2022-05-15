@@ -20,7 +20,7 @@ package monix.eval
 import monix.execution.exceptions.DummyException
 
 import concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskTraverseSuite extends BaseTestSuite {
   test("Task.traverse should not execute in parallel") { implicit s =>

@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.eval.Task
 import monix.execution.internal.Platform
-import monix.reactive.{BaseTestSuite, Observable}
+import monix.reactive.{ BaseTestSuite, Observable }
 
 import concurrent.duration._
 import scala.util.Success

@@ -22,7 +22,7 @@ import minitest.SimpleTestSuite
 import cats.effect.IO
 import cats.implicits._
 import monix.execution.atomic.Atomic
-import scala.concurrent.{CancellationException, ExecutionContext}
+import scala.concurrent.{ CancellationException, ExecutionContext }
 import scala.concurrent.duration._
 
 object CatsEffectIssue380Suite extends SimpleTestSuite {

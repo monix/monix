@@ -22,7 +22,7 @@ import cats.laws.discipline._
 import monix.eval.Coeval
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object IterantFoldWhileLeftSuite extends BaseTestSuite {
   def exists(fa: Iterant[Coeval, Int], p: Int => Boolean): Coeval[Boolean] =
@@ -408,12 +408,15 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
       (_, _) => Coeval(triggered.set(true))
     )
 
-    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
-      if (!triggered.getAndSet(true))
-        Iterant[Coeval].raiseError[Int](fail)
-      else
-        Iterant[Coeval].empty[Int]
-    })
+    val stream = Iterant[Coeval].concatS(
+      Coeval(lh),
+      Coeval {
+        if (!triggered.getAndSet(true))
+          Iterant[Coeval].raiseError[Int](fail)
+        else
+          Iterant[Coeval].empty[Int]
+      }
+    )
 
     assertEquals(stream.foldWhileLeftL(List.empty[Int])((acc, i) => Left(i :: acc)).value(), List(1))
   }
@@ -449,16 +452,20 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
       (_, _) => Coeval(triggered.set(true))
     )
 
-    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
-      if (!triggered.getAndSet(true))
-        Iterant[Coeval].raiseError[Int](fail)
-      else
-        Iterant[Coeval].empty[Int]
-    })
+    val stream = Iterant[Coeval].concatS(
+      Coeval(lh),
+      Coeval {
+        if (!triggered.getAndSet(true))
+          Iterant[Coeval].raiseError[Int](fail)
+        else
+          Iterant[Coeval].empty[Int]
+      }
+    )
 
     assertEquals(
       stream.foldWhileLeftEvalL(Coeval(List.empty[Int]))((acc, i) => Coeval(Left(i :: acc))).value(),
-      List(1))
+      List(1)
+    )
   }
 
   test("foldWhileLeftEvalL handles Scope's release after use is finished") { implicit s =>
@@ -481,6 +488,7 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
 
     assertEquals(
       (0 +: stream :+ 2).foldWhileLeftEvalL(Coeval(List.empty[Int]))((acc, i) => Coeval(Left(i :: acc))).value(),
-      List(2, 1, 0))
+      List(2, 1, 0)
+    )
   }
 }

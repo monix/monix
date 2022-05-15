@@ -18,7 +18,7 @@
 package monix.execution.internal
 
 import monix.execution.schedulers.CanBlock
-import scala.concurrent.{Await, Awaitable}
+import scala.concurrent.{ Await, Awaitable }
 import scala.concurrent.duration.Duration
 import scala.util.Try
 

@@ -19,7 +19,7 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 
 object IterantRetryIfEmptySuite extends BaseTestSuite {
   test("Iterant.pure(1).retryIfEmpty mirrors source") { _ =>
@@ -57,7 +57,8 @@ object IterantRetryIfEmptySuite extends BaseTestSuite {
         Coeval {
           assertEquals(acquired, 1)
           acquired -= 1
-        })
+        }
+      )
       .flatMap(_ => Iterant[Coeval].empty[Int])
 
     val r = (empty ++ resource).retryIfEmpty(Some(2)).toListL.value()

@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.cancelables.OrderedCancelable
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future

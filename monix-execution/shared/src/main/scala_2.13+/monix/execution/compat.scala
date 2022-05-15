@@ -17,7 +17,7 @@
 
 package monix.execution
 
-import scala.collection.{BuildFrom => ScalaBuildFrom}
+import scala.collection.{ BuildFrom => ScalaBuildFrom }
 import scala.collection.mutable
 
 object compat {

@@ -21,7 +21,7 @@ private[monix] object exceptions {
   /** 
     * To use in `case _ =>` branches that are absurd, but needed
     * due to the compiler complaining.
-    */  
+    */
   def matchError[A](received: A): Nothing =
     throw new scala.MatchError(received)
 }

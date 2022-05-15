@@ -22,8 +22,8 @@ import cats.laws.discipline._
 import cats.effect.IO
 import monix.eval.Task
 import monix.execution.exceptions.DummyException
-import monix.reactive.{BaseTestSuite, Consumer, Observable}
-import scala.util.{Failure, Success}
+import monix.reactive.{ BaseTestSuite, Consumer, Observable }
+import scala.util.{ Failure, Success }
 
 object FoldLeftTaskConsumerSuite extends BaseTestSuite {
   test("should sum a long stream") { implicit s =>
@@ -32,7 +32,8 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
     val f = obs
       .consumeWith(
         Consumer
-          .foldLeftTask(0L)((s, a) => Task.evalAsync(s + a)))
+          .foldLeftTask(0L)((s, a) => Task.evalAsync(s + a))
+      )
       .runToFuture
 
     s.tick()
@@ -45,7 +46,8 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
     val f = obs
       .consumeWith(
         Consumer
-          .foldLeftTask(0L)((s, a) => Task.evalAsync(s + a)))
+          .foldLeftTask(0L)((s, a) => Task.evalAsync(s + a))
+      )
       .runToFuture
 
     s.tick()
@@ -89,7 +91,8 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
       .consumeWith(Consumer.foldLeftTask(0L)((_, _) =>
         Task.never.doOnCancel(Task {
           cancelled = true
-        })))
+        })
+      ))
       .runToFuture
 
     s.tick()

@@ -18,9 +18,9 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
-import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{ Cancelable, Features, Scheduler, UncaughtExceptionReporter }
 // Prevents conflict with the deprecated symbol
-import monix.execution.{ExecutionModel => ExecModel}
+import monix.execution.{ ExecutionModel => ExecModel }
 
 /** A [[monix.execution.Scheduler Scheduler]] implementation
   * that executes runnables immediately, on the current thread,

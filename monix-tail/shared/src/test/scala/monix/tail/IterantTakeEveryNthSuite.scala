@@ -20,7 +20,7 @@ package monix.tail
 import cats.effect.Sync
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform

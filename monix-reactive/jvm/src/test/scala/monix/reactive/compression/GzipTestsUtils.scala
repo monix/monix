@@ -17,9 +17,9 @@
 
 package monix.reactive.compression
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream }
 import java.nio.charset.StandardCharsets
-import java.util.zip.{CRC32, GZIPInputStream, GZIPOutputStream}
+import java.util.zip.{ CRC32, GZIPInputStream, GZIPOutputStream }
 
 import monix.reactive.Observable
 

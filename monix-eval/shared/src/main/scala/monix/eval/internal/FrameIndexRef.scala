@@ -19,7 +19,7 @@ package monix.eval
 package internal
 
 import monix.execution.ExecutionModel
-import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
+import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, BatchedExecution, SynchronousExecution }
 import monix.execution.misc.ThreadLocal
 
 /** Internal API — A reference that boxes a `FrameIndex` possibly

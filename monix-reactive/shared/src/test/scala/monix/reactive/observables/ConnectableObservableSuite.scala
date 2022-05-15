@@ -21,7 +21,7 @@ import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.subjects.ConcurrentSubject
-import monix.reactive.{Consumer, Observable}
+import monix.reactive.{ Consumer, Observable }
 
 import scala.util.Success
 

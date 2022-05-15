@@ -17,9 +17,9 @@
 
 package monix.reactive.observers
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.BooleanCancelable
-import monix.reactive.{BaseTestSuite, Observer}
+import monix.reactive.{ BaseTestSuite, Observer }
 import scala.concurrent.Future
 import scala.util.Success
 

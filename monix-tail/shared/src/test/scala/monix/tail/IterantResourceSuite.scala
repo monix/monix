@@ -21,7 +21,7 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.tail.batches.{ Batch, BatchCursor }
 
 object IterantResourceSuite extends BaseTestSuite {
   class Resource(var acquired: Int = 0, var released: Int = 0) {
@@ -49,7 +49,8 @@ object IterantResourceSuite extends BaseTestSuite {
           .of(1, 2, 3)
           .guarantee(Coeval {
             earlyStopDone = true
-          }))
+          })
+      )
 
     bracketed.take(1).completedL.value()
     assert(earlyStopDone)

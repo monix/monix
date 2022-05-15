@@ -19,9 +19,9 @@ package monix.reactive.internal.operators
 
 import monix.eval.Task
 import monix.execution.Cancelable
-import monix.reactive.{BaseConcurrencySuite, Observable}
+import monix.reactive.{ BaseConcurrencySuite, Observable }
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.{ Await, Future, Promise }
 
 object MapTaskConcurrencySuite extends BaseConcurrencySuite {
   val cancelTimeout = 30.seconds

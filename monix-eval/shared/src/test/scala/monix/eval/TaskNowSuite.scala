@@ -22,7 +22,7 @@ import cats.laws.discipline._
 import monix.execution.Callback
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 object TaskNowSuite extends BaseTestSuite {
   test("Task.now should work synchronously") { implicit s =>

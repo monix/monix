@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import java.io.{OutputStream, PrintStream}
+import java.io.{ OutputStream, PrintStream }
 
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException

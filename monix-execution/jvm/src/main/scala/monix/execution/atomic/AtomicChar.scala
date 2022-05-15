@@ -18,7 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.internal.atomic.{BoxedInt, Factory}
+import monix.execution.internal.atomic.{ BoxedInt, Factory }
 
 /** Atomic references wrapping `Char` values.
   *
@@ -28,10 +28,10 @@ import monix.execution.internal.atomic.{BoxedInt, Factory}
 final class AtomicChar private (private[this] val ref: BoxedInt) extends AtomicNumber[Char] {
   private[this] val mask = 255 + 255 * 256
 
-  def get(): Char = 
+  def get(): Char =
     (ref.volatileGet() & mask).asInstanceOf[Char]
 
-  def set(update: Char): Unit = 
+  def set(update: Char): Unit =
     ref.volatileSet(update.asInstanceOf[Int])
 
   def lazySet(update: Char): Unit =
@@ -128,7 +128,8 @@ object AtomicChar {
         boxStrategyToPaddingStrategy(padding),
         true, // allowUnsafe
         allowPlatformIntrinsics
-      ))
+      )
+    )
   }
 
   /** $createDesc
@@ -153,6 +154,7 @@ object AtomicChar {
         boxStrategyToPaddingStrategy(padding),
         false, // allowUnsafe
         false // allowJava8Intrinsics
-      ))
+      )
+    )
   }
 }

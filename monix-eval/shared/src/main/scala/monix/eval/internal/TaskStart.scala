@@ -18,8 +18,8 @@
 package monix.eval
 package internal
 
-import monix.eval.Task.{Async, Context}
-import monix.execution.{Callback, CancelablePromise}
+import monix.eval.Task.{ Async, Context }
+import monix.execution.{ Callback, CancelablePromise }
 
 private[eval] object TaskStart {
   /**

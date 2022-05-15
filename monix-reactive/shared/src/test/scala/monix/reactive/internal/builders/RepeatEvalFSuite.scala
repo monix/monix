@@ -23,7 +23,7 @@ import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 import monix.execution.FutureUtils.extensions._
 import monix.execution.exceptions.DummyException
 

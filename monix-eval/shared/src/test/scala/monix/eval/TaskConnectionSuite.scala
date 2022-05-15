@@ -20,7 +20,7 @@ package monix.eval
 import monix.eval.internal.TaskConnection
 import monix.execution.Cancelable
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
 
 object TaskConnectionSuite extends BaseTestSuite {
@@ -29,7 +29,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     val initial = Task { effect += 1 }
 
     val c = TaskConnection()
-    c push initial
+    c.push(initial)
 
     assert(!c.isCanceled, "!c.isCanceled")
     c.cancel.runAsyncAndForget
@@ -47,7 +47,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     c.cancel.runAsyncAndForget; s.tick()
     assert(c.isCanceled, "c.isCanceled")
 
-    c push initial
+    c.push(initial)
     s.tick()
     assertEquals(effect, 1)
   }
@@ -62,7 +62,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     c.cancel.runAsyncAndForget; s.tick()
     assert(c.isCanceled, "c.isCanceled")
 
-    c push initial
+    c.push(initial)
     s.tick()
     assertEquals(effect, 1)
   }
@@ -74,7 +74,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     c.cancel.runAsyncAndForget; s.tick()
     assert(c.isCanceled, "c.isCanceled")
 
-    c push initial
+    c.push(initial)
     s.tick()
     assert(initial.isCanceled, "initial.isCanceled")
   }

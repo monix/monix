@@ -19,7 +19,7 @@ package monix.eval
 
 import cats.effect.laws.discipline.SyncEffectTests
 import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.{CoflatMapTests, SemigroupKTests}
+import cats.laws.discipline.{ CoflatMapTests, SemigroupKTests }
 
 object TypeClassLawsForCoevalSuite extends BaseLawsSuite {
   checkAll("SyncEffect[Coeval]", SyncEffectTests[Coeval].syncEffect[Int, Int, Int])

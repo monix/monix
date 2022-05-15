@@ -20,9 +20,9 @@ package monix.eval
 import monix.execution.CancelableFuture
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import scala.concurrent.{Promise, TimeoutException}
+import scala.concurrent.{ Promise, TimeoutException }
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 import monix.execution.atomic.Atomic
 
 object TaskRaceSuite extends BaseTestSuite {
@@ -40,7 +40,8 @@ object TaskRaceSuite extends BaseTestSuite {
   test("Task.raceMany should onError from other") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.raceMany(
-      Seq(Task.evalAsync(1).delayExecution(10.seconds), Task.evalAsync(throw ex).delayExecution(1.second)))
+      Seq(Task.evalAsync(1).delayExecution(10.seconds), Task.evalAsync(throw ex).delayExecution(1.second))
+    )
     val f = task.runToFuture
 
     s.tick()
@@ -64,7 +65,8 @@ object TaskRaceSuite extends BaseTestSuite {
   test("Task.raceMany should onError from the source") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.raceMany(
-      Seq(Task.evalAsync(throw ex).delayExecution(1.seconds), Task.evalAsync(99).delayExecution(10.second)))
+      Seq(Task.evalAsync(throw ex).delayExecution(1.seconds), Task.evalAsync(99).delayExecution(10.second))
+    )
     val f = task.runToFuture
 
     s.tick()
@@ -475,7 +477,8 @@ object TaskRaceSuite extends BaseTestSuite {
       Task.racePair(acc, t).map {
         case Left((a, _)) => a
         case Right((_, b)) => b
-      })
+      }
+    )
 
     sum.runToFuture
     s.tick()
@@ -490,7 +493,8 @@ object TaskRaceSuite extends BaseTestSuite {
       Task.racePair(acc, t).map {
         case Left((a, _)) => a
         case Right((_, b)) => b
-      })
+      }
+    )
 
     sum.runToFuture
     s.tick()
@@ -505,7 +509,8 @@ object TaskRaceSuite extends BaseTestSuite {
       Task.racePair(acc, t).flatMap {
         case Left((a, fb)) => fb.cancel.map(_ => a)
         case Right((fa, b)) => fa.cancel.map(_ => b)
-      })
+      }
+    )
 
     val f = Task
       .racePair(Task.fromFuture(p.future), all)
@@ -631,7 +636,8 @@ object TaskRaceSuite extends BaseTestSuite {
       Task.race(acc, t).map {
         case Left(a) => a
         case Right(b) => b
-      })
+      }
+    )
 
     sum.runToFuture
     s.tick()
@@ -646,7 +652,8 @@ object TaskRaceSuite extends BaseTestSuite {
       Task.race(acc, t).map {
         case Left(a) => a
         case Right(b) => b
-      })
+      }
+    )
 
     sum.runToFuture
     s.tick()
@@ -661,7 +668,8 @@ object TaskRaceSuite extends BaseTestSuite {
       Task.race(acc, t).map {
         case Left(a) => a
         case Right(b) => b
-      })
+      }
+    )
 
     val f = Task.race(Task.fromFuture(p.future), all).map { case Left(a) => a; case Right(b) => b }.runToFuture
 

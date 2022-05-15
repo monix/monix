@@ -20,9 +20,9 @@ package monix.tail
 import cats.laws._
 import cats.laws.discipline._
 import cats.effect.IO
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.exceptions.DummyException
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object IterantBasicSuite extends BaseTestSuite {
   test("arbitraryListToTaskStream works") { implicit s =>

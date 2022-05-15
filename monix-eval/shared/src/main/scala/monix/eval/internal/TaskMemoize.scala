@@ -17,16 +17,16 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Context, Error, Now}
+import monix.eval.Task.{ Context, Error, Now }
 import monix.eval.internal.TaskRunLoop.startFull
 import monix.execution.Callback
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.internal.exceptions.matchError
 import scala.annotation.tailrec
-import scala.concurrent.{ExecutionContext, Promise}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ ExecutionContext, Promise }
+import scala.util.{ Failure, Success, Try }
 
 private[eval] object TaskMemoize {
   /**
@@ -45,7 +45,8 @@ private[eval] object TaskMemoize {
           new Register(source, cacheErrors),
           trampolineBefore = false,
           trampolineAfter = true,
-          restoreLocals = true)
+          restoreLocals = true
+        )
     }
 
   /** Registration function, used in `Task.Async`. */
@@ -120,7 +121,8 @@ private[eval] object TaskMemoize {
       * that will receive the result once the task is complete.
       */
     private def registerListener(p: Promise[A], context: Context, cb: Callback[Throwable, A])(
-      implicit ec: ExecutionContext): Unit = {
+      implicit ec: ExecutionContext
+    ): Unit = {
 
       p.future.onComplete { r =>
         // Listener is cancelable: we simply ensure that the result isn't streamed
@@ -164,12 +166,12 @@ private[eval] object TaskMemoize {
           // Race condition happened
           // $COVERAGE-OFF$
           cb(ref)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
 
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
     }
   }

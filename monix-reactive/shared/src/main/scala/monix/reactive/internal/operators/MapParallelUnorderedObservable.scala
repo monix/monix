@@ -17,17 +17,17 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.{Ack, AsyncSemaphore, Callback, Cancelable}
+import monix.execution.{ Ack, AsyncSemaphore, Callback, Cancelable }
 import monix.eval.Task
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.MultiProducer
-import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
-import monix.reactive.{Observable, OverflowStrategy}
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import monix.execution.cancelables.{ CompositeCancelable, SingleAssignCancelable }
+import monix.reactive.{ Observable, OverflowStrategy }
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
 
 import scala.concurrent.Future
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /** Implementation for a `mapTask`-like operator that can execute
   * multiple tasks in parallel. Similar with
@@ -45,8 +45,8 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
   source: Observable[A],
   parallelism: Int,
   f: A => Task[B],
-  overflowStrategy: OverflowStrategy[B])
-  extends Observable[B] {
+  overflowStrategy: OverflowStrategy[B]
+) extends Observable[B] {
 
   def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
     if (parallelism <= 0) {

@@ -22,10 +22,10 @@ import cats.syntax.either._
 import cats.syntax.eq._
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
-import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.eval.{ Coeval, Task }
+import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.tail.batches.{ Batch, BatchCursor }
 
 object IterantOnErrorSuite extends BaseTestSuite {
   test("fa.attempt <-> fa.map(Right) for successful streams") { implicit s =>
@@ -54,7 +54,8 @@ object IterantOnErrorSuite extends BaseTestSuite {
         _.fold(
           e => Iterant[Coeval].raiseError[Int](e),
           a => Iterant[Coeval].pure(a)
-        ))
+        )
+      )
 
       r <-> fa
     }
@@ -128,11 +129,14 @@ object IterantOnErrorSuite extends BaseTestSuite {
     var effect = 0
 
     val errorInTail = Iterant[Coeval]
-      .nextS(1, Coeval {
-        Iterant[Coeval]
-          .nextS(2, Coeval { (throw DummyException("Dummy")): Iterant[Coeval, Int] })
-          .guarantee(Coeval { effect += 2 })
-      })
+      .nextS(
+        1,
+        Coeval {
+          Iterant[Coeval]
+            .nextS(2, Coeval { (throw DummyException("Dummy")): Iterant[Coeval, Int] })
+            .guarantee(Coeval { effect += 2 })
+        }
+      )
       .guarantee(Coeval { effect += 1 })
 
     errorInTail.onErrorHandleWith(_ => Iterant[Coeval].empty[Int]).completedL.value()
@@ -153,11 +157,14 @@ object IterantOnErrorSuite extends BaseTestSuite {
     var effect = 0
 
     val errorInTail = Iterant[Coeval]
-      .nextS(1, Coeval {
-        Iterant[Coeval]
-          .nextS(2, Coeval { (throw DummyException("Dummy")): Iterant[Coeval, Int] })
-          .guarantee(Coeval { effect += 2 })
-      })
+      .nextS(
+        1,
+        Coeval {
+          Iterant[Coeval]
+            .nextS(2, Coeval { (throw DummyException("Dummy")): Iterant[Coeval, Int] })
+            .guarantee(Coeval { effect += 2 })
+        }
+      )
       .guarantee(Coeval { effect += 1 })
 
     errorInTail.attempt.completedL.value()
@@ -224,7 +231,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     assertEquals(result, Some(Left(dummy)))
   }
 
-  //noinspection ScalaUnreachableCode
+  // noinspection ScalaUnreachableCode
   def semiBrokenIterator(ex: Throwable): Iterator[Int] = {
     def end: Iterator[Int] = new Iterator[Int] {
       override def hasNext: Boolean = true
@@ -246,7 +253,8 @@ object IterantOnErrorSuite extends BaseTestSuite {
         Right(1),
         Right(2),
         Left(dummy)
-      ))
+      )
+    )
   }
 
   test("Resource.attempt with broken acquire") { _ =>

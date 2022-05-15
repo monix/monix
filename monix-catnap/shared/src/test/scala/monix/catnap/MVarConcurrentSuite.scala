@@ -17,8 +17,8 @@
 
 package monix.catnap
 
-import cats.effect.concurrent.{Deferred, Ref}
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.concurrent.{ Deferred, Ref }
+import cats.effect.{ ContextShift, IO, Timer }
 import cats.implicits._
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler
@@ -35,11 +35,11 @@ object MVarConcurrentSuite extends BaseMVarSuite {
 
   testAsync("swap is cancelable on take") {
     val task = for {
-      mVar <- empty[Int]
+      mVar     <- empty[Int]
       finished <- Deferred.uncancelable[IO, Int]
-      fiber <- mVar.swap(20).flatMap(finished.complete).start
-      _ <- fiber.cancel
-      _ <- mVar.put(10)
+      fiber    <- mVar.swap(20).flatMap(finished.complete).start
+      _        <- fiber.cancel
+      _        <- mVar.put(10)
       fallback = IO.sleep(100.millis) *> mVar.take
       v <- IO.race(finished.get, fallback)
     } yield v
@@ -51,11 +51,11 @@ object MVarConcurrentSuite extends BaseMVarSuite {
 
   testAsync("modify is cancelable on take") {
     val task = for {
-      mVar <- empty[Int]
+      mVar     <- empty[Int]
       finished <- Deferred.uncancelable[IO, String]
-      fiber <- mVar.modify(n => IO.pure((n * 2, n.show))).flatMap(finished.complete).start
-      _ <- fiber.cancel
-      _ <- mVar.put(10)
+      fiber    <- mVar.modify(n => IO.pure((n * 2, n.show))).flatMap(finished.complete).start
+      _        <- fiber.cancel
+      _        <- mVar.put(10)
       fallback = IO.sleep(100.millis) *> mVar.take
       v <- IO.race(finished.get, fallback)
     } yield v
@@ -67,12 +67,12 @@ object MVarConcurrentSuite extends BaseMVarSuite {
 
   testAsync("modify is cancelable on f") {
     val task = for {
-      mVar <- empty[Int]
+      mVar     <- empty[Int]
       finished <- Deferred.uncancelable[IO, String]
-      fiber <- mVar.modify(n => IO.never *> IO.pure((n * 2, n.show))).flatMap(finished.complete).start
-      _ <- mVar.put(10)
-      _ <- IO.sleep(10.millis)
-      _ <- fiber.cancel
+      fiber    <- mVar.modify(n => IO.never *> IO.pure((n * 2, n.show))).flatMap(finished.complete).start
+      _        <- mVar.put(10)
+      _        <- IO.sleep(10.millis)
+      _        <- fiber.cancel
       fallback = IO.sleep(100.millis) *> mVar.take
       v <- IO.race(finished.get, fallback)
     } yield v
@@ -92,13 +92,13 @@ object MVarAsyncSuite extends BaseMVarSuite {
 
   testAsync("put; take; modify; put") {
     val task = for {
-      mVar <- empty[Int]
-      _ <- mVar.put(10)
-      _ <- mVar.take
+      mVar  <- empty[Int]
+      _     <- mVar.put(10)
+      _     <- mVar.take
       fiber <- mVar.modify(n => IO.pure((n * 2, n.toString))).start
-      _ <- mVar.put(20)
-      s <- fiber.join
-      v <- mVar.take
+      _     <- mVar.put(20)
+      s     <- fiber.join
+      v     <- mVar.take
     } yield (s, v)
 
     for (r <- task.unsafeToFuture()) yield {
@@ -109,10 +109,10 @@ object MVarAsyncSuite extends BaseMVarSuite {
   testAsync("modify replaces the original value of the mvar on error") {
     val error = new Exception("Boom!")
     val task = for {
-      mVar <- empty[Int]
-      _ <- mVar.put(10)
+      mVar     <- empty[Int]
+      _        <- mVar.put(10)
       finished <- Deferred.uncancelable[IO, String]
-      e <- mVar.modify(_ => IO.raiseError(error)).attempt
+      e        <- mVar.modify(_ => IO.raiseError(error)).attempt
       fallback = IO.sleep(100.millis) *> mVar.take
       v <- IO.race(finished.get, fallback)
     } yield (e, v)

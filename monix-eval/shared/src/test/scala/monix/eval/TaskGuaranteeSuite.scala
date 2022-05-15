@@ -19,9 +19,9 @@ package monix.eval
 
 import cats.implicits._
 import monix.execution.atomic.Atomic
-import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 import scala.concurrent.duration._
 
 object TaskGuaranteeSuite extends BaseTestSuite {
@@ -117,7 +117,8 @@ object TaskGuaranteeSuite extends BaseTestSuite {
         Task.Async[Unit]((ctx, cb) => {
           println(ctx.connection)
           cb.onSuccess(())
-        }))
+        })
+      )
       .flatMap(_ => Task.sleep(10.seconds))
 
     val f = task.runToFuture

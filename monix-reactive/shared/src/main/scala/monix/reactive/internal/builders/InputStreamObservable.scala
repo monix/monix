@@ -20,7 +20,7 @@ package monix.reactive.internal.builders
 import java.io.InputStream
 import java.util
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution._
 import monix.reactive.Observable
@@ -30,9 +30,9 @@ import monix.execution.exceptions.APIContractViolationException
 import monix.execution.internal.Platform
 
 import scala.annotation.tailrec
-import scala.concurrent.{blocking, Future}
+import scala.concurrent.{ blocking, Future }
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: Int) extends Observable[Array[Byte]] {
 
@@ -61,7 +61,8 @@ private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: 
     b: Array[Byte],
     out: Subscriber[Array[Byte]],
     c: BooleanCancelable,
-    em: ExecutionModel)(implicit s: Scheduler): Unit = {
+    em: ExecutionModel
+  )(implicit s: Scheduler): Unit = {
 
     ack.onComplete {
       case Success(next) =>
@@ -82,7 +83,8 @@ private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: 
     out: Subscriber[Array[Byte]],
     c: BooleanCancelable,
     em: ExecutionModel,
-    syncIndex: Int)(implicit s: Scheduler): Unit = {
+    syncIndex: Int
+  )(implicit s: Scheduler): Unit = {
 
     // Dealing with mutable status in order to keep the
     // loop tail-recursive :-(

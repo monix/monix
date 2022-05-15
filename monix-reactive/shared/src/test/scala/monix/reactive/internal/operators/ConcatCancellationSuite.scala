@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.eval.Task
-import monix.reactive.{BaseTestSuite, Observable}
+import monix.reactive.{ BaseTestSuite, Observable }
 import scala.concurrent.duration._
 
 /** Tests for cancelling `concat` / `concatMap` and `mapTask`. */

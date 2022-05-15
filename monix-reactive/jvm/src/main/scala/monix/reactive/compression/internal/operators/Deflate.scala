@@ -18,7 +18,7 @@
 package monix.reactive.compression.internal.operators
 
 import java.util.zip.Deflater
-import java.{util => ju}
+import java.{ util => ju }
 
 import monix.reactive.compression.FlushMode
 

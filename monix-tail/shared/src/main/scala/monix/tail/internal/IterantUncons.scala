@@ -18,7 +18,7 @@
 package monix.tail.internal
 import cats.effect.Sync
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, NextCursor, Suspend}
+import monix.tail.Iterant.{ Concat, NextCursor, Suspend }
 import cats.implicits._
 
 private[tail] object IterantUncons {

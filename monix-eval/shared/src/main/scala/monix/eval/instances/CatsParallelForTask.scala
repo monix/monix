@@ -17,7 +17,7 @@
 
 package monix.eval.instances
 
-import cats.{Applicative, CommutativeApplicative, Monad, Parallel, ~>}
+import cats.{ ~>, Applicative, CommutativeApplicative, Monad, Parallel }
 import monix.eval.Task
 
 /** `cats.Parallel` type class instance for [[monix.eval.Task Task]].
@@ -49,7 +49,7 @@ object CatsParallelForTask extends CatsParallelForTask {
   private[eval] object NondetApplicative extends CommutativeApplicative[Task.Par] {
 
     import Task.Par.unwrap
-    import Task.Par.{apply => par}
+    import Task.Par.{ apply => par }
 
     override def ap[A, B](ff: Task.Par[A => B])(fa: Task.Par[A]): Task.Par[B] =
       par(Task.mapBoth(unwrap(ff), unwrap(fa))(_(_)))

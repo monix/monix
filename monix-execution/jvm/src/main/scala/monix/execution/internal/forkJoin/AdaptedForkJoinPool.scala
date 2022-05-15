@@ -19,14 +19,14 @@ package monix.execution.internal.forkJoin
 
 import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent.ForkJoinPool.ForkJoinWorkerThreadFactory
-import java.util.concurrent.{ForkJoinPool, ForkJoinTask, ForkJoinWorkerThread}
+import java.util.concurrent.{ ForkJoinPool, ForkJoinTask, ForkJoinWorkerThread }
 
 private[monix] final class AdaptedForkJoinPool(
   parallelism: Int,
   factory: ForkJoinWorkerThreadFactory,
   handler: UncaughtExceptionHandler,
-  asyncMode: Boolean)
-  extends ForkJoinPool(parallelism, factory, handler, asyncMode) {
+  asyncMode: Boolean
+) extends ForkJoinPool(parallelism, factory, handler, asyncMode) {
 
   override def execute(runnable: Runnable): Unit = {
     val fjt: ForkJoinTask[_] = runnable match {

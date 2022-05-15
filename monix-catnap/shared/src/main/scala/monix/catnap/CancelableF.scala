@@ -18,7 +18,7 @@
 package monix.catnap
 
 import cats.Applicative
-import cats.effect.{CancelToken, Sync}
+import cats.effect.{ CancelToken, Sync }
 import cats.syntax.either._
 import monix.catnap.cancelables.BooleanCancelableF
 import monix.execution.annotations.UnsafeBecauseImpure

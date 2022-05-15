@@ -18,7 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.internal.atomic.{BoxedObject, Factory}
+import monix.execution.internal.atomic.{ BoxedObject, Factory }
 import scala.annotation.tailrec
 
 /** Atomic references wrapping any values implementing
@@ -180,14 +180,16 @@ object AtomicNumberAny {
   def create[A <: AnyRef: Numeric](
     initialValue: A,
     padding: PaddingStrategy,
-    allowPlatformIntrinsics: Boolean): AtomicNumberAny[A] = {
+    allowPlatformIntrinsics: Boolean
+  ): AtomicNumberAny[A] = {
     new AtomicNumberAny[A](
       Factory.newBoxedObject(
         initialValue,
         boxStrategyToPaddingStrategy(padding),
         true, // allowUnsafe
         allowPlatformIntrinsics
-      ))
+      )
+    )
   }
 
   /** $createDesc
@@ -212,5 +214,6 @@ object AtomicNumberAny {
         boxStrategyToPaddingStrategy(padding),
         false, // allowUnsafe
         false // allowPlatformIntrinsics
-      ))
+      )
+    )
 }

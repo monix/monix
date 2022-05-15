@@ -17,17 +17,17 @@
 
 package monix.reactive.observers
 
-import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.{ CountDownLatch, TimeUnit }
 
 import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.SchedulerService
-import monix.execution.{Ack, Scheduler}
+import monix.execution.{ Ack, Scheduler }
 import monix.reactive.OverflowStrategy.Unbounded
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 
 import scala.concurrent.duration._
-import scala.concurrent.{blocking, Await, Future, Promise}
+import scala.concurrent.{ blocking, Await, Future, Promise }
 import scala.util.Random
 
 object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerService] {

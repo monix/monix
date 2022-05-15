@@ -17,8 +17,8 @@
 
 package monix.execution.internal.collection.queues
 
-import monix.execution.{BufferCapacity, ChannelType}
-import monix.execution.internal.collection.{JSArrayQueue, LowLevelConcurrentQueue}
+import monix.execution.{ BufferCapacity, ChannelType }
+import monix.execution.internal.collection.{ JSArrayQueue, LowLevelConcurrentQueue }
 
 private[internal] trait LowLevelConcurrentQueueBuilders {
   /**

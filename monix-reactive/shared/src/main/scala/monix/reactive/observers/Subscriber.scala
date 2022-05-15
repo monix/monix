@@ -18,12 +18,12 @@
 package monix.reactive.observers
 
 import java.io.PrintStream
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observer
 import monix.reactive.internal.rstreams._
-import org.reactivestreams.{Subscriber => RSubscriber}
+import org.reactivestreams.{ Subscriber => RSubscriber }
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
@@ -108,7 +108,8 @@ object Subscriber {
     * Monix Rx implementation.
     */
   def fromReactiveSubscriber[A](subscriber: RSubscriber[A], subscription: Cancelable)(
-    implicit s: Scheduler): Subscriber[A] =
+    implicit s: Scheduler
+  ): Subscriber[A] =
     ReactiveSubscriberAsMonixSubscriber(subscriber, subscription)
 
   /** Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`

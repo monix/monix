@@ -17,11 +17,11 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.internal.util.PromiseCounter
-import monix.reactive.observers.{ConnectableSubscriber, Subscriber}
+import monix.reactive.observers.{ ConnectableSubscriber, Subscriber }
 import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
 
@@ -225,7 +225,8 @@ object ReplaySubject {
     subscribers: Set[ConnectableSubscriber[A]] = Set.empty[ConnectableSubscriber[A]],
     length: Int = 0,
     isDone: Boolean = false,
-    errorThrown: Throwable = null) {
+    errorThrown: Throwable = null
+  ) {
 
     def appendElem(elem: A): State[A] = {
       if (capacity == 0)

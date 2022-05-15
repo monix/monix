@@ -23,7 +23,7 @@ import monix.execution.Scheduler
 import monix.execution.internal.AttemptCallback.RunnableTick
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{FiniteDuration, TimeUnit}
+import scala.concurrent.duration.{ FiniteDuration, TimeUnit }
 
 object SchedulerEffect {
 

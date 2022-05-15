@@ -17,7 +17,7 @@
 
 package monix.eval.instances
 
-import cats.{CoflatMap, Eval, MonadError, SemigroupK}
+import cats.{ CoflatMap, Eval, MonadError, SemigroupK }
 import monix.eval.Task
 import scala.util.Try
 

@@ -17,7 +17,7 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{Scheduler, SchedulerCompanion, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import monix.execution.{ ExecutionModel => ExecModel, Scheduler, SchedulerCompanion, UncaughtExceptionReporter }
 import scala.concurrent.ExecutionContext
 
 private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {

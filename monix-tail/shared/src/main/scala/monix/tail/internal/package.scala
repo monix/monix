@@ -19,7 +19,7 @@ package monix.tail
 
 import cats.syntax.all._
 import cats.effect.Sync
-import monix.tail.Iterant.{Concat, Scope}
+import monix.tail.Iterant.{ Concat, Scope }
 
 package object internal {
   /**

@@ -19,7 +19,7 @@ package monix.eval.internal
 
 import monix.eval.Task
 import monix.execution.rstreams.Subscription
-import monix.execution.{Callback, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{ Callback, Scheduler, UncaughtExceptionReporter }
 import org.reactivestreams.Subscriber
 
 private[eval] object TaskToReactivePublisher {

@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import monix.execution.atomic.{AtomicAny, PaddingStrategy}
+import monix.execution.atomic.{ AtomicAny, PaddingStrategy }
 import scala.annotation.tailrec
 
 /** Represents a [[monix.execution.Cancelable]] whose underlying cancelable

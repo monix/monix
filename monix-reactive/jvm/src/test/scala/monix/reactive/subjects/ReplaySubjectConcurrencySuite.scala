@@ -17,12 +17,12 @@
 
 package monix.reactive.subjects
 
-import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.{ CountDownLatch, TimeUnit }
 import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
 import monix.execution.internal.RunnableAction
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 
 object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()

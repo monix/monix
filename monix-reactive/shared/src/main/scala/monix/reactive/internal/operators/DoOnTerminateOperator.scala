@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
 import monix.reactive.internal.util.Instances._
@@ -31,8 +31,8 @@ import scala.util.Success
 
 private[reactive] final class DoOnTerminateOperator[A](
   onTerminate: Option[Throwable] => Task[Unit],
-  happensBefore: Boolean)
-  extends Operator[A, A] {
+  happensBefore: Boolean
+) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
@@ -81,18 +81,19 @@ private[reactive] final class DoOnTerminateOperator[A](
         if (active.getAndSet(false)) {
           var streamErrors = true
           try if (happensBefore) {
-            val task = onTerminate(ex).onErrorHandle { ex =>
-              scheduler.reportFailure(ex)
-            }
-            streamErrors = false
-            task.map { _ =>
+              val task = onTerminate(ex).onErrorHandle { ex =>
+                scheduler.reportFailure(ex)
+              }
+              streamErrors = false
+              task.map { _ =>
+                triggerSignal()
+              }
+            } else {
+              streamErrors = false
               triggerSignal()
+              onTerminate(ex)
             }
-          } else {
-            streamErrors = false
-            triggerSignal()
-            onTerminate(ex)
-          } catch {
+          catch {
             case err if NonFatal(err) =>
               if (streamErrors) {
                 out.onError(err)

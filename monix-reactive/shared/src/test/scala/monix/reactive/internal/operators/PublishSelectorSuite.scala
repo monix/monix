@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import cats.effect.IO
 import monix.execution.atomic.Atomic
-import monix.reactive.{BaseTestSuite, Observable, OverflowStrategy}
+import monix.reactive.{ BaseTestSuite, Observable, OverflowStrategy }
 import scala.util.Success
 
 object PublishSelectorSuite extends BaseTestSuite {

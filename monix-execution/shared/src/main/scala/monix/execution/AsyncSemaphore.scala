@@ -17,14 +17,14 @@
 
 package monix.execution
 
-import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
+import monix.execution.annotations.{ UnsafeBecauseImpure, UnsafeProtocol }
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.internal.GenericSemaphore.Listener
 import monix.execution.internal.GenericSemaphore
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{ ExecutionContext, Future, Promise }
 import scala.util.control.NonFatal
 
 /** The `AsyncSemaphore` is an asynchronous semaphore implementation that

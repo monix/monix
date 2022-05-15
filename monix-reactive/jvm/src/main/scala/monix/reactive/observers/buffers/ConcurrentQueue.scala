@@ -23,7 +23,7 @@ import monix.execution.internal.atomic.UnsafeAccess
 import monix.execution.internal.math.nextPowerOf2
 import monix.execution.internal.jctools.queues._
 import monix.execution.internal.jctools.queues.MessagePassingQueue.Consumer
-import monix.execution.internal.jctools.queues.atomic.{MpscAtomicArrayQueue, MpscLinkedAtomicQueue}
+import monix.execution.internal.jctools.queues.atomic.{ MpscAtomicArrayQueue, MpscLinkedAtomicQueue }
 import scala.collection.mutable
 
 /** A simple internal interface providing the needed commonality between
