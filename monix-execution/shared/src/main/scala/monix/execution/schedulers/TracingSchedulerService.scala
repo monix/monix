@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +17,9 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{ExecutionModel, UncaughtExceptionReporter}
+import monix.execution.{ ExecutionModel, UncaughtExceptionReporter }
 import scala.concurrent.duration.TimeUnit
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 /** The `TracingScheduler` is a [[monix.execution.Scheduler Scheduler]]
   * implementation that wraps another

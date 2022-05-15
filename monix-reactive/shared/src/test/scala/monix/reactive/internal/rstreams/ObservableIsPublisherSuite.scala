@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ import monix.execution.rstreams.SingleAssignSubscription
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.subjects.PublishSubject
-import org.reactivestreams.{Subscriber, Subscription}
+import org.reactivestreams.{ Subscriber, Subscription }
 
 import scala.util.Success
 

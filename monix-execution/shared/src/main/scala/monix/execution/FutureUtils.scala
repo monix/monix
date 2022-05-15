@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,8 +20,8 @@ package monix.execution
 import java.util.concurrent.TimeoutException
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.util.{Success, Try}
+import scala.concurrent.{ ExecutionContext, Future, Promise }
+import scala.util.{ Success, Try }
 
 /** Utilities for Scala's standard `concurrent.Future`. */
 object FutureUtils extends internal.FutureUtilsForPlatform {
@@ -38,10 +38,13 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
   def timeout[A](source: Future[A], atMost: FiniteDuration)(implicit s: Scheduler): Future[A] = {
     val err = new TimeoutException
     val promise = Promise[A]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit,
+    val task = s.scheduleOnce(
+      atMost.length,
+      atMost.unit,
       () => {
         promise.tryFailure(err); ()
-      })
+      }
+    )
 
     source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks
@@ -66,13 +69,17 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
     *         source or with the fallback in case the timeout is reached
     */
   def timeoutTo[A](source: Future[A], atMost: FiniteDuration, fallback: => Future[A])(
-    implicit s: Scheduler): Future[A] = {
+    implicit s: Scheduler
+  ): Future[A] = {
 
     val promise = Promise[Option[Try[A]]]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit,
+    val task = s.scheduleOnce(
+      atMost.length,
+      atMost.unit,
       () => {
         promise.trySuccess(None); ()
-      })
+      }
+    )
 
     source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks

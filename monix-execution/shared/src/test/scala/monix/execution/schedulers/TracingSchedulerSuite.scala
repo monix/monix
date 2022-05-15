@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,11 +23,11 @@ import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.misc.Local
 import monix.execution.FutureUtils.extensions._
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{ Cancelable, Scheduler }
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.exceptions.DummyException
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.concurrent.duration._
 import scala.util.Success
 
@@ -128,14 +128,20 @@ object TracingSchedulerSuite extends SimpleTestSuite {
       val p = Promise[Int]()
       val sub = SingleAssignCancelable()
 
-      sub := schedule(traced, 1, 1, TimeUnit.SECONDS, () => {
-        sum += local1.get + local2.get
-        count += 1
-        if (count >= 3) {
-          p.success(sum)
-          sub.cancel()
+      sub := schedule(
+        traced,
+        1,
+        1,
+        TimeUnit.SECONDS,
+        () => {
+          sum += local1.get + local2.get
+          count += 1
+          if (count >= 3) {
+            p.success(sum)
+            sub.cancel()
+          }
         }
-      })
+      )
 
       p.future
     }

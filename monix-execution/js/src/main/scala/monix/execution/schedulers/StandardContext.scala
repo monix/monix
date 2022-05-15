@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,11 +28,13 @@ private[execution] class StandardContext(reporter: UncaughtExceptionReporter) ex
 
   override def execute(r: Runnable): Unit = {
     executeRef(() =>
-      try { 
-        r.run() 
-      } catch { case e: Throwable => 
-        reporter.reportFailure(e)
-      })
+      try {
+        r.run()
+      } catch {
+        case e: Throwable =>
+          reporter.reportFailure(e)
+      }
+    )
     ()
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -179,7 +179,8 @@ object Atomic {
     *        best reference possible, based on our `initialValue`
     */
   inline def withPadding[A, R <: Atomic[A]](initialValue: A, padding: PaddingStrategy)(
-    implicit builder: AtomicBuilder[A, R]): R =
+    implicit builder: AtomicBuilder[A, R]
+  ): R =
     builder.buildInstance(initialValue, padding, allowPlatformIntrinsics = true)
 
   /** Returns the builder that would be chosen to construct Atomic

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,13 +18,13 @@
 package monix.eval.internal
 
 import monix.eval.Task
-import monix.eval.Task.{Async, Context, Error, Eval, FlatMap, Map, Now, Suspend, Trace}
+import monix.eval.Task.{ Async, Context, Error, Eval, FlatMap, Map, Now, Suspend, Trace }
 import monix.eval.internal.TaskRunLoop._
 import monix.eval.tracing.TaskEvent
-import monix.eval.internal.TracingPlatform.{enhancedExceptions, isStackTracing}
+import monix.eval.internal.TracingPlatform.{ enhancedExceptions, isStackTracing }
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.misc.Local
-import monix.execution.{Callback, CancelableFuture, Scheduler}
+import monix.execution.{ Callback, CancelableFuture, Scheduler }
 
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
@@ -170,7 +170,18 @@ private[eval] object TaskRunToFutureWithLocal {
       } else {
         if (tracingCtx eq null) tracingCtx = new StackTracedContext
         // Force async boundary
-        return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceFork = true, prev, isolated, tracingCtx = tracingCtx)
+        return goAsync4Future(
+          current,
+          scheduler,
+          opts,
+          bFirst,
+          bRest,
+          frameIndex,
+          forceFork = true,
+          prev,
+          isolated,
+          tracingCtx = tracingCtx
+        )
       }
     }
     // $COVERAGE-OFF$
@@ -189,7 +200,8 @@ private[eval] object TaskRunToFutureWithLocal {
     forceFork: Boolean,
     previousCtx: Local.Context,
     isolatedCtx: Local.Context,
-    tracingCtx: StackTracedContext): CancelableFuture[A] = {
+    tracingCtx: StackTracedContext
+  ): CancelableFuture[A] = {
 
     Local.setContext(isolatedCtx)
 

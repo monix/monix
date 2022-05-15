@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +18,8 @@
 package monix.reactive.internal.consumers
 
 import monix.execution.Callback
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.{Ack, Scheduler}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.{ Ack, Scheduler }
 import monix.execution.cancelables.AssignableCancelable
 import scala.util.control.NonFatal
 import monix.reactive.Consumer

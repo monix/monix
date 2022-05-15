@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@ import monix.execution.Scheduler
 import monix.execution.internal.AttemptCallback.RunnableTick
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{FiniteDuration, TimeUnit}
+import scala.concurrent.duration.{ FiniteDuration, TimeUnit }
 
 object SchedulerEffect {
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,14 +19,14 @@ package monix.eval
 
 import cats.Eq
 import cats.effect.laws.discipline.Parameters
-import cats.effect.laws.discipline.arbitrary.{catsEffectLawsArbitraryForIO, catsEffectLawsCogenForIO}
-import cats.effect.{Async, IO}
+import cats.effect.laws.discipline.arbitrary.{ catsEffectLawsArbitraryForIO, catsEffectLawsCogenForIO }
+import cats.effect.{ Async, IO }
 import monix.execution.atomic.Atomic
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import org.scalacheck.Arbitrary.{arbitrary => getArbitrary}
-import org.scalacheck.{Arbitrary, Cogen, Gen}
-import scala.util.{Either, Success, Try}
+import org.scalacheck.Arbitrary.{ arbitrary => getArbitrary }
+import org.scalacheck.{ Arbitrary, Cogen, Gen }
+import scala.util.{ Either, Success, Try }
 
 /**
   * Base trait to inherit in all `monix-eval` tests that use ScalaCheck.
@@ -47,7 +47,8 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
     implicit
     A: Eq[A],
     sc: TestScheduler,
-    opts: Task.Options = Task.defaultOptions): Eq[Task[A]] = {
+    opts: Task.Options = Task.defaultOptions
+  ): Eq[Task[A]] = {
 
     new Eq[Task[A]] {
       def eqv(lh: Task[A], rh: Task[A]): Boolean =
@@ -59,7 +60,8 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
     implicit
     A: Eq[A],
     ec: TestScheduler,
-    opts: Task.Options = Task.defaultOptions): Eq[Task.Par[A]] = {
+    opts: Task.Options = Task.defaultOptions
+  ): Eq[Task.Par[A]] = {
 
     new Eq[Task.Par[A]] {
       import Task.Par.unwrap
@@ -85,7 +87,8 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
           Coeval.evalOnce(a),
           Coeval.eval(a),
           Coeval.unit.map(_ => a),
-          Coeval.unit.flatMap(_ => Coeval.now(a)))
+          Coeval.unit.flatMap(_ => Coeval.now(a))
+        )
       } yield coeval
     }
 
@@ -173,7 +176,8 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
         1 -> getMapOne,
         1 -> getMapTwo,
         2 -> genFlatMap
-      ))
+      )
+    )
   }
 
   implicit def arbitraryTaskPar[A: Arbitrary: Cogen]: Arbitrary[Task.Par[A]] =

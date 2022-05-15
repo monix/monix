@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,19 +17,19 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.execution.cancelables.SingleAssignCancelable
 import scala.util.control.NonFatal
 import monix.reactive.observers.Subscriber
-import monix.reactive.{Observable, Pipe}
+import monix.reactive.{ Observable, Pipe }
 
 import scala.concurrent.Future
 
 private[reactive] final class PipeThroughSelectorObservable[A, B, C](
   source: Observable[A],
   pipe: Pipe[A, B],
-  f: Observable[B] => Observable[C])
-  extends Observable[C] {
+  f: Observable[B] => Observable[C]
+) extends Observable[C] {
 
   def unsafeSubscribeFn(out: Subscriber[C]): Cancelable = {
     import out.scheduler

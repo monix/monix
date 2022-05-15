@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.consumers
 
-import monix.execution.{Callback, Cancelable, Scheduler}
+import monix.execution.{ Callback, Cancelable, Scheduler }
 import monix.eval.Task
 import monix.execution.cancelables.AssignableCancelable
 import scala.util.control.NonFatal
@@ -61,19 +61,22 @@ private[reactive] final class MapTaskConsumer[In, R, R2](source: Consumer[In, R]
     }
 
     val (sub, ac) = source.createSubscriber(asyncCallback, s)
-    (sub, new AssignableCancelable {
-      override def `:=`(value: Cancelable): this.type = {
-        ac := value
-        this
-      }
+    (
+      sub,
+      new AssignableCancelable {
+        override def `:=`(value: Cancelable): this.type = {
+          ac := value
+          this
+        }
 
-      override def cancel(): Unit = {
-        ac.cancel()
-        asyncCallback.synchronized {
-          isCancelled = true
-          lastCancelable.cancel()
+        override def cancel(): Unit = {
+          ac.cancel()
+          asyncCallback.synchronized {
+            isCancelled = true
+            lastCancelable.cancel()
+          }
         }
       }
-    })
+    )
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,8 +30,8 @@ import scala.collection.mutable.ListBuffer
 private[monix] final class BatchedBufferedSubscriber[A] private (
   out: Subscriber[List[A]],
   _bufferSize: Int,
-  pt: ChannelType.ProducerSide)
-  extends AbstractBackPressuredBufferedSubscriber[A, ListBuffer[A]](
+  pt: ChannelType.ProducerSide
+) extends AbstractBackPressuredBufferedSubscriber[A, ListBuffer[A]](
     subscriberBufferToList(out),
     _bufferSize,
     pt
@@ -56,6 +56,7 @@ private[monix] object BatchedBufferedSubscriber {
   def apply[A](
     underlying: Subscriber[List[A]],
     bufferSize: Int,
-    producerType: ChannelType.ProducerSide): BatchedBufferedSubscriber[A] =
+    producerType: ChannelType.ProducerSide
+  ): BatchedBufferedSubscriber[A] =
     new BatchedBufferedSubscriber[A](underlying, bufferSize, producerType)
 }

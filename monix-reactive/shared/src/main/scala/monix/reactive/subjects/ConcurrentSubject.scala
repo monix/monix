@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,11 +19,11 @@ package monix.reactive.subjects
 
 import monix.execution.ChannelType.MultiProducer
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.{Ack, Cancelable, ChannelType, Scheduler}
-import monix.reactive.OverflowStrategy.{Synchronous, Unbounded}
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
-import monix.reactive.{MulticastStrategy, Observer, OverflowStrategy}
-import org.reactivestreams.{Subscription, Processor => RProcessor, Subscriber => RSubscriber}
+import monix.execution.{ Ack, Cancelable, ChannelType, Scheduler }
+import monix.reactive.OverflowStrategy.{ Synchronous, Unbounded }
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
+import monix.reactive.{ MulticastStrategy, Observer, OverflowStrategy }
+import org.reactivestreams.{ Processor => RProcessor, Subscriber => RSubscriber, Subscription }
 
 /** A concurrent subject is meant for imperative style feeding of events.
   *
@@ -39,7 +39,8 @@ object ConcurrentSubject {
     apply(multicast, Unbounded)(s)
 
   def apply[A](multicast: MulticastStrategy[A], overflow: OverflowStrategy.Synchronous[A])(
-    implicit s: Scheduler): ConcurrentSubject[A, A] = {
+    implicit s: Scheduler
+  ): ConcurrentSubject[A, A] = {
 
     multicast match {
       case MulticastStrategy.Publish =>
@@ -69,7 +70,8 @@ object ConcurrentSubject {
   def from[I, O](
     p: Subject[I, O],
     overflowStrategy: Synchronous[I],
-    producerType: ChannelType.ProducerSide = MultiProducer)(implicit s: Scheduler): ConcurrentSubject[I, O] =
+    producerType: ChannelType.ProducerSide = MultiProducer
+  )(implicit s: Scheduler): ConcurrentSubject[I, O] =
     new SubjectAsConcurrent(p, overflowStrategy, producerType, s)
 
   /** Subject recipe for building [[PublishSubject publish]] subjects. */
@@ -219,7 +221,8 @@ object ConcurrentSubject {
     *        we're dealing with slow consumers.
     */
   def replayLimited[A](capacity: Int, initial: Seq[A], strategy: Synchronous[A])(
-    implicit s: Scheduler): ConcurrentSubject[A, A] =
+    implicit s: Scheduler
+  ): ConcurrentSubject[A, A] =
     from(ReplaySubject.createLimited[A](capacity, initial), strategy)
 
   /** Transforms the source [[ConcurrentSubject]] into a `org.reactivestreams.Processor`
@@ -232,7 +235,8 @@ object ConcurrentSubject {
     *                   the reactive streams specification
     */
   def toReactiveProcessor[I, O](source: ConcurrentSubject[I, O], bufferSize: Int)(
-    implicit s: Scheduler): RProcessor[I, O] = {
+    implicit s: Scheduler
+  ): RProcessor[I, O] = {
 
     new RProcessor[I, O] {
       private[this] val subscriber: RSubscriber[I] =
@@ -260,8 +264,8 @@ object ConcurrentSubject {
     subject: Subject[I, O],
     overflowStrategy: OverflowStrategy.Synchronous[I],
     producerType: ChannelType.ProducerSide,
-    scheduler: Scheduler)
-    extends ConcurrentSubject[I, O] {
+    scheduler: Scheduler
+  ) extends ConcurrentSubject[I, O] {
 
     private[this] val in: Subscriber.Sync[I] =
       BufferedSubscriber.synchronous(Subscriber(subject, scheduler), overflowStrategy, producerType)

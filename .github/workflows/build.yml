@@ -111,6 +111,10 @@ jobs:
   mima:
     name: Mima / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-20.04
+
+    env:
+      CI: true
+
     strategy:
       fail-fast: false
       matrix:
@@ -151,9 +155,60 @@ jobs:
           SCALA_VERSION: ${{ matrix.scala }}
           SBT_COMMAND: mimaReportBinaryIssues
 
+  scalafmt:
+    name: Scalafmt / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
+    runs-on: ubuntu-20.04
+
+    env:
+      CI: true
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { java: 11, scala: 2.12.15 }
+          - { java: 11, scala: 2.13.8 }
+          - { java: 11, scala: 3.1.2 }
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: "adopt@1.${{ matrix.java }}"
+
+      - name: Cache ivy2
+        uses: actions/cache@v1
+        with:
+          path: ~/.ivy2/cache
+          key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Cache coursier (linux)
+        if: contains(runner.os, 'linux')
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/coursier/v1
+          key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Cache sbt
+        uses: actions/cache@v1
+        with:
+          path: ~/.sbt
+          key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: sbt scalafmtCheckAll
+        run: |
+          ./.github/scripts/exec-sbt-command
+        env:
+          SCALA_VERSION: ${{ matrix.scala }}
+          SBT_COMMAND: scalafmtCheckAll
+
   unidoc:
     name: Unidoc / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-20.04
+
+    env:
+      CI: true
+
     strategy:
       fail-fast: false
       matrix:
@@ -196,7 +251,7 @@ jobs:
 
   all_tests:
     name: All Tests
-    needs: [ jvm-tests, js-tests, mima, unidoc ]
+    needs: [ jvm-tests, js-tests, mima, scalafmt, unidoc ]
     runs-on: ubuntu-20.04
     steps:
       - name: Ack
@@ -207,6 +262,9 @@ jobs:
     name: Publish to Sonatype
     if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/series/4.x')
     needs: [ all_tests ]
+
+    env:
+      CI: true
 
     runs-on: ubuntu-20.04
     steps:

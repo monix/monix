@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -233,7 +233,6 @@ object Local extends LocalCompanionDeprecated {
     val rest: Context
   ) extends Context
 }
-
 
 /** A `Local` is a [[ThreadLocal]] whose scope is flexible. The state
   * of all Locals may be saved or restored onto the current thread by

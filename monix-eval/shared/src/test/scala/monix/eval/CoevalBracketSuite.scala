@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,9 +20,9 @@ package monix.eval
 import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
-import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object CoevalBracketSuite extends BaseTestSuite {
   test("equivalence with onErrorHandleWith") { _ =>

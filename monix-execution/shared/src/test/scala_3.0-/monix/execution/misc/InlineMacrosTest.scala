@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.execution.misc
 
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.DummyException
-import monix.execution.misc.test.{TestBox, TestInlineMacros}
+import monix.execution.misc.test.{ TestBox, TestInlineMacros }
 import scala.util.control.NonFatal
 
 object InlineMacrosTest extends SimpleTestSuite {

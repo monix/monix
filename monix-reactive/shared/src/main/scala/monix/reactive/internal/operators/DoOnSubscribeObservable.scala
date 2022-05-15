@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,14 +21,14 @@ import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
-import monix.execution.cancelables.{OrderedCancelable, SingleAssignCancelable, StackedCancelable}
+import monix.execution.cancelables.{ OrderedCancelable, SingleAssignCancelable, StackedCancelable }
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import monix.execution.{Ack, Cancelable, FutureUtils}
+import monix.execution.{ Ack, Cancelable, FutureUtils }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ Future, Promise }
+import scala.util.{ Failure, Success }
 
 private[reactive] object DoOnSubscribeObservable {
   // Implementation for doBeforeSubscribe
@@ -80,12 +80,15 @@ private[reactive] object DoOnSubscribeObservable {
                   out.onNext(elem)
               }
             } else {
-              FutureUtils.transformWith[Unit, Ack](p.future, {
-                case Success(_) => out.onNext(elem)
-                case Failure(e) =>
-                  finalSignal(e)
-                  Stop
-              })(immediate)
+              FutureUtils.transformWith[Unit, Ack](
+                p.future,
+                {
+                  case Success(_) => out.onNext(elem)
+                  case Failure(e) =>
+                    finalSignal(e)
+                    Stop
+                }
+              )(immediate)
             }
           }
 

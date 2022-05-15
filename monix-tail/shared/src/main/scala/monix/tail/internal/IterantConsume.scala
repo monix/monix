@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,8 +19,8 @@ package monix.tail
 package internal
 
 import cats.implicits._
-import cats.effect.{Concurrent, ContextShift, Resource}
-import monix.catnap.{ConcurrentChannel, ConsumerF}
+import cats.effect.{ Concurrent, ContextShift, Resource }
+import monix.catnap.{ ConcurrentChannel, ConsumerF }
 import monix.execution.ChannelType.SingleProducer
 import monix.tail.Iterant.Consumer
 
@@ -29,8 +29,10 @@ private[tail] object IterantConsume {
     * Implementation for [[Iterant.consume]].
     */
   def apply[F[_], A](self: Iterant[F, A], cfg: ConsumerF.Config)(
-    implicit F: Concurrent[F],
-    cs: ContextShift[F]): Resource[F, Consumer[F, A]] = {
+    implicit
+    F: Concurrent[F],
+    cs: ContextShift[F]
+  ): Resource[F, Consumer[F, A]] = {
 
     /*_*/
     val res = Resource.apply {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,8 @@ import scala.collection.immutable.LongMap
 private[monix] class LinkedMap[K, +V](
   val entries: Map[K, (V, Long)],
   private[this] val insertionOrder: LongMap[K],
-  private[this] val nextId: Long) {
+  private[this] val nextId: Long
+) {
 
   /** Returns `true` if this map is empty, or `false` otherwise. */
   def isEmpty: Boolean =
@@ -47,7 +48,8 @@ private[monix] class LinkedMap[K, +V](
         .get(k)
         .map { case (_, id) => insertionOrder - id }
         .getOrElse(insertionOrder),
-      nextId)
+      nextId
+    )
 
   /** The keys in this map, in the order they were added. */
   def keys: Iterable[K] = insertionOrder.values

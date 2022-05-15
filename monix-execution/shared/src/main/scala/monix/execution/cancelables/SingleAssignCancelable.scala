@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -110,7 +110,8 @@ final class SingleAssignCancelable private (extra: Cancelable) extends Assignabl
   private def raiseError(): Nothing = {
     throw new IllegalStateException(
       "Cannot assign to SingleAssignmentCancelable, " +
-        "as it was already assigned once")
+        "as it was already assigned once"
+    )
   }
 
   private[this] val state = AtomicAny(Empty: State)

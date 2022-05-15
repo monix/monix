@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,17 +17,17 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.execution.exceptions.CompositeException
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.util.Failure
 
 /** Implementation for `Observable.scanTask`.
@@ -40,8 +40,8 @@ private[reactive] final class FlatScanObservable[A, R](
   source: Observable[A],
   initial: () => R,
   op: (R, A) => Observable[R],
-  delayErrors: Boolean)
-  extends Observable[R] {
+  delayErrors: Boolean
+) extends Observable[R] {
 
   def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
     var streamErrors = true
@@ -307,7 +307,8 @@ private[reactive] final class FlatScanObservable[A, R](
           s"State $state in the Monix ConcatMap.$method implementation is invalid, " +
             "due to either a broken Subscriber implementation, or a bug, " +
             "please open an issue, see: https://monix.io"
-        ))
+        )
+      )
       // $COVERAGE-ON$
     }
 

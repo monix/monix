@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,8 +25,8 @@ import monix.execution.Scheduler
 import monix.execution.schedulers.SchedulerService
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ Await, Future }
+import scala.util.{ Failure, Success }
 
 trait BaseConcurrencySuite extends TestSuite[SchedulerService] with Checkers with ArbitraryInstancesBase {
 

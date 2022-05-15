@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.atomic.internal.{BoxedLong, Factory}
+import monix.execution.atomic.internal.{ BoxedLong, Factory }
 
 /** Atomic references wrapping `Long` values.
   *
@@ -130,7 +130,8 @@ object AtomicLong {
         boxStrategyToPaddingStrategy(padding),
         true, // allowUnsafe
         allowPlatformIntrinsics
-      ))
+      )
+    )
   }
 
   /** $createDesc
@@ -155,6 +156,7 @@ object AtomicLong {
         boxStrategyToPaddingStrategy(padding),
         false, // allowUnsafe
         false // allowPlatformIntrinsics
-      ))
+      )
+    )
   }
 }

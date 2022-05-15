@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -72,7 +72,8 @@ private[reactive] trait Builders {
   def apply[A](
     subscriber: Subscriber[A],
     bufferPolicy: OverflowStrategy[A],
-    producerType: ChannelType.ProducerSide = MultiProducer): Subscriber[A]
+    producerType: ChannelType.ProducerSide = MultiProducer
+  ): Subscriber[A]
 
   /** Given an synchronous [[OverflowStrategy overflow strategy]] wraps
     * a [[Subscriber]] into a buffered subscriber.
@@ -80,7 +81,8 @@ private[reactive] trait Builders {
   def synchronous[A](
     subscriber: Subscriber[A],
     bufferPolicy: OverflowStrategy.Synchronous[A],
-    producerType: ChannelType.ProducerSide = MultiProducer): Subscriber.Sync[A]
+    producerType: ChannelType.ProducerSide = MultiProducer
+  ): Subscriber.Sync[A]
 
   /** Builds a batched buffered subscriber.
     *
@@ -97,7 +99,8 @@ private[reactive] trait Builders {
   def batched[A](
     underlying: Subscriber[List[A]],
     bufferSize: Int,
-    producerType: ChannelType.ProducerSide = MultiProducer): Subscriber[A]
+    producerType: ChannelType.ProducerSide = MultiProducer
+  ): Subscriber[A]
 }
 
 object BufferedSubscriber extends Builders with BuildersImpl

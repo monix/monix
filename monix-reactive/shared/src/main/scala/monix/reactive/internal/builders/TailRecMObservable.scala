@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,16 +18,16 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Scheduler
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.AtomicBoolean
-import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
+import monix.execution.cancelables.{ SingleAssignCancelable, StackedCancelable }
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ Future, Promise }
+import scala.util.{ Failure, Success }
 
 /** Implementation for `Observable.tailRecM`. */
 private[monix] final class TailRecMObservable[A, B](seed: A, f: A => Observable[Either[A, B]]) extends Observable[B] {

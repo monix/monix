@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 
 private[tail] object IterantFoldRightL {
   /** Implementation for `Iterant.foldRightL`. */
@@ -34,7 +34,7 @@ private[tail] object IterantFoldRightL {
     private[this] var remainder: Iterant[F, A] = _
     private[this] var suspendRef: F[B] = _
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
     private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
@@ -53,7 +53,7 @@ private[tail] object IterantFoldRightL {
         case xs => xs.flatMap(this)
       }
     }
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Next[F, A]): F[B] =
       f(ref.item, ref.rest.flatMap(this))

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,7 @@ import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform.recommendedBatchSize
 import monix.reactive.observers.Subscriber
-import monix.reactive.{BaseTestSuite, Observable}
+import monix.reactive.{ BaseTestSuite, Observable }
 
 import scala.concurrent.duration.MILLISECONDS
 
@@ -47,9 +47,10 @@ object PaginateEvalObservableSuite extends BaseTestSuite {
   test("paginateEval should execute 11 times and then return None") { implicit s =>
     var received = 0
 
-    Observable.paginateEval(0)(i => if (i < 10) Task.now((i, Some(i + 1))) else Task.now((i, None))).subscribe { (_: Int) =>
-      received += 1
-      Continue
+    Observable.paginateEval(0)(i => if (i < 10) Task.now((i, Some(i + 1))) else Task.now((i, None))).subscribe {
+      (_: Int) =>
+        received += 1
+        Continue
     }
 
     assertEquals((0 until received).toList, (0 to 10).toList)
@@ -86,7 +87,7 @@ object PaginateEvalObservableSuite extends BaseTestSuite {
 
   def int(seed: Long): (Int, Option[Long]) = {
     // `&` is bitwise AND. We use the current seed to generate a new seed.
-    val newSeed = (seed * 0X5DEECE66DL + 0XBL) & 0XFFFFFFFFFFFFL
+    val newSeed = (seed * 0x5deece66dL + 0xbL) & 0xffffffffffffL
     // The next state, which is an `RNG` instance created from the new seed.
     val nextRNG = newSeed
     // `>>>` is right binary shift with zero fill. The value `n` is our new pseudo-random integer.

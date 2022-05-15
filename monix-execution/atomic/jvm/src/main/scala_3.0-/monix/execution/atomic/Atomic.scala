@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -356,7 +356,8 @@ object Atomic {
     }
 
     def buildAnyMacro[A: c.WeakTypeTag, R <: Atomic[A]: c.WeakTypeTag](initialValue: c.Expr[A])(
-      builder: c.Expr[AtomicBuilder[A, R]]): c.Expr[R] = {
+      builder: c.Expr[AtomicBuilder[A, R]]
+    ): c.Expr[R] = {
 
       val expr = reify {
         builder.splice.buildInstance(initialValue.splice, NoPadding, allowPlatformIntrinsics = true)
@@ -367,7 +368,8 @@ object Atomic {
 
     def buildAnyWithPaddingMacro[A: c.WeakTypeTag, R <: Atomic[A]: c.WeakTypeTag](
       initialValue: c.Expr[A],
-      padding: c.Expr[PaddingStrategy])(builder: c.Expr[AtomicBuilder[A, R]]): c.Expr[R] = {
+      padding: c.Expr[PaddingStrategy]
+    )(builder: c.Expr[AtomicBuilder[A, R]]): c.Expr[R] = {
 
       val expr = reify {
         builder.splice.buildInstance(initialValue.splice, padding.splice, allowPlatformIntrinsics = true)

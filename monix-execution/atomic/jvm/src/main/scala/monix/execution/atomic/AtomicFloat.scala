@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,10 +17,10 @@
 
 package monix.execution.atomic
 
+import monix.execution.atomic.internal.{ BoxedInt, Factory }
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import scala.annotation.tailrec
-import java.lang.Float.{floatToIntBits, intBitsToFloat}
-import monix.execution.atomic.internal.{BoxedInt, Factory}
+import java.lang.Float.{ floatToIntBits, intBitsToFloat }
 
 /** Atomic references wrapping `Float` values.
   *
@@ -183,7 +183,8 @@ object AtomicFloat {
         boxStrategyToPaddingStrategy(padding),
         true, // allowUnsafe
         allowPlatformIntrinsics
-      ))
+      )
+    )
   }
 
   /** $createDesc
@@ -208,6 +209,7 @@ object AtomicFloat {
         boxStrategyToPaddingStrategy(padding),
         false, // allowUnsafe
         false // allowJava8Intrinsics
-      ))
+      )
+    )
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Task
-import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.reactive.Observable
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration._
@@ -38,7 +38,8 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
       Observable
         .repeat(acc + elem)
         .take(3L)
-        .endWithError(SomeException(10)))
+        .endWithError(SomeException(10))
+    )
 
     val recovered = o.onErrorHandleWith {
       case composite: CompositeException =>

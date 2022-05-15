@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package internal
 
 import cats.effect.CancelToken
 import monix.catnap.CancelableF
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{ Cancelable, Scheduler }
 import monix.execution.atomic.Atomic
 import scala.annotation.tailrec
 
@@ -41,7 +41,8 @@ private[eval] final class TaskConnectionRef extends CancelableF[Task] {
 
   @tailrec
   private def unsafeSet(ref: AnyRef /* CancelToken[Task] | CancelableF[Task] | Cancelable */ )(
-    implicit s: Scheduler): Unit = {
+    implicit s: Scheduler
+  ): Unit = {
 
     if (!state.compareAndSet(Empty, IsActive(ref))) {
       state.get() match {
@@ -87,7 +88,8 @@ private[eval] final class TaskConnectionRef extends CancelableF[Task] {
   private def raiseError(): Nothing = {
     throw new IllegalStateException(
       "Cannot assign to SingleAssignmentCancelable, " +
-        "as it was already assigned once")
+        "as it was already assigned once"
+    )
   }
 
   private[this] val state = Atomic(Empty: State)

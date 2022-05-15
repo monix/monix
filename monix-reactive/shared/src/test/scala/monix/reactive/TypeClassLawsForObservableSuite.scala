@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,14 @@ package monix.reactive
 
 import cats.effect.laws.discipline.BracketTests
 import cats.laws.discipline.arbitrary.catsLawsArbitraryForPartialFunction
-import cats.laws.discipline.{AlternativeTests, ApplyTests, CoflatMapTests, FunctorFilterTests, MonoidKTests, NonEmptyParallelTests}
+import cats.laws.discipline.{
+  AlternativeTests,
+  ApplyTests,
+  CoflatMapTests,
+  FunctorFilterTests,
+  MonoidKTests,
+  NonEmptyParallelTests
+}
 import monix.reactive.observables.CombineObservable
 
 object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@ import java.util.zip.Deflater
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.reactive.Observable.Operator
-import monix.reactive.compression.{CompressionLevel, CompressionParameters, CompressionStrategy, FlushMode}
+import monix.reactive.compression.{ CompressionLevel, CompressionParameters, CompressionStrategy, FlushMode }
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future

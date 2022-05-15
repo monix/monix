@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,9 +20,9 @@ package monix.reactive.internal.operators
 import monix.eval.Task
 import monix.execution.Cancelable
 import monix.execution.cancelables.BooleanCancelable
-import monix.reactive.{BaseConcurrencySuite, Observable}
+import monix.reactive.{ BaseConcurrencySuite, Observable }
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.{ Await, Future, Promise }
 
 object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
   val cancelTimeout = 3.minutes

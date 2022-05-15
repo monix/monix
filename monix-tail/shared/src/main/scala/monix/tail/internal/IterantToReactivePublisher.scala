@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,17 +19,17 @@ package monix.tail.internal
 
 import cats.effect.Effect
 import cats.implicits._
-import monix.execution.UncaughtExceptionReporter.{default => Logger}
+import monix.execution.UncaughtExceptionReporter.{ default => Logger }
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.internal.{AttemptCallback, Platform}
+import monix.execution.internal.{ AttemptCallback, Platform }
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.rstreams.Subscription
-import monix.execution.{Cancelable, UncaughtExceptionReporter}
+import monix.execution.{ Cancelable, UncaughtExceptionReporter }
 import monix.tail.Iterant
 import monix.tail.Iterant.Halt
-import org.reactivestreams.{Publisher, Subscriber}
+import org.reactivestreams.{ Publisher, Subscriber }
 
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
@@ -66,8 +66,8 @@ private[tail] object IterantToReactivePublisher {
   }
 
   private final class IterantSubscription[F[_], A](source: Iterant[F, A], out: Subscriber[_ >: A])(
-    implicit F: Effect[F])
-    extends Subscription { parent =>
+    implicit F: Effect[F]
+  ) extends Subscription { parent =>
 
     private[this] val cancelable =
       SingleAssignCancelable()
@@ -107,7 +107,9 @@ private[tail] object IterantToReactivePublisher {
             new IllegalArgumentException(
               "n must be strictly positive, according to " +
                 "the Reactive Streams contract, rule 3.9"
-            )))
+            )
+          )
+        )
       } else {
         loop(n)
       }
@@ -152,7 +154,8 @@ private[tail] object IterantToReactivePublisher {
       cancelable := Cancelable(() =>
         token.unsafeRunAsync(
           AttemptCallback.empty(UncaughtExceptionReporter.default)
-        ))
+        )
+      )
       ()
     }
 
@@ -161,7 +164,7 @@ private[tail] object IterantToReactivePublisher {
       private[this] var haltSignal = Option.empty[Option[Throwable]]
       private[this] var streamErrors = true
 
-      //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
       // Used in visit(Concat)
       private[this] var _stack: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
@@ -184,7 +187,7 @@ private[tail] object IterantToReactivePublisher {
             case null => F.pure(state)
             case xs => xs.flatMap(this)
           }
-      //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
       private def poll(cb: Either[Throwable, Unit] => Unit = null): F[Unit] = {
         val ref = parent.state

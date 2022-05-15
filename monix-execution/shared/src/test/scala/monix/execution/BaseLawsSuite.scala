@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,12 +27,12 @@ import monix.execution.exceptions.DummyException
 import org.scalacheck.Test.Parameters
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
+import org.scalacheck.{ Arbitrary, Cogen, Gen, Prop }
 import org.typelevel.discipline.Laws
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionException, Future}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ ExecutionException, Future }
+import scala.util.{ Failure, Success, Try }
 
 import scala.language.implicitConversions
 

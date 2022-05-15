@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution._
 import monix.reactive.Observable
@@ -27,7 +27,7 @@ import monix.execution.exceptions.APIContractViolationException
 import scala.util.control.NonFatal
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /** Converts any `Iterator` into an observable */
 private[reactive] final class IteratorAsObservable[A](iterator: Iterator[A]) extends Observable[A] {
@@ -43,7 +43,7 @@ private[reactive] final class IteratorAsObservable[A](iterator: Iterator[A]) ext
   }
 
   private def startLoop(subscriber: Subscriber[A]): Cancelable = {
-    import subscriber.{scheduler => s}
+    import subscriber.{ scheduler => s }
     // Protect against contract violations - we are only allowed to
     // call onError if no other terminal event has been called.
     var streamErrors = true
@@ -88,7 +88,8 @@ private[reactive] final class IteratorAsObservable[A](iterator: Iterator[A]) ext
     iter: Iterator[A],
     out: Subscriber[A],
     c: BooleanCancelable,
-    em: ExecutionModel)(implicit s: Scheduler): Unit = {
+    em: ExecutionModel
+  )(implicit s: Scheduler): Unit = {
 
     ack.onComplete {
       case Success(next) =>
@@ -123,7 +124,8 @@ private[reactive] final class IteratorAsObservable[A](iterator: Iterator[A]) ext
     out: Subscriber[A],
     c: BooleanCancelable,
     em: ExecutionModel,
-    syncIndex: Int)(implicit s: Scheduler): Unit = {
+    syncIndex: Int
+  )(implicit s: Scheduler): Unit = {
     // The result of onNext calls, on which we must do back-pressure
     var ack: Future[Ack] = Continue
     // We do not want to catch errors from our interaction with our

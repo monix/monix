@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import cats.effect.CancelToken
 import monix.catnap.CancelableF
 import monix.execution.Callback
 import monix.eval.Task
-import monix.execution.atomic.{Atomic, PaddingStrategy}
+import monix.execution.atomic.{ Atomic, PaddingStrategy }
 
 private[eval] object TaskRaceList {
   /**

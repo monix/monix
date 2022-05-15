@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -74,5 +74,6 @@ import scala.annotation.implicitNotFound
 @implicitNotFound(
   "Blocking operations aren't supported \n" +
     "on top of JavaScript, because it cannot block threads! \n" +
-    "Please use asynchronous API calls.")
+    "Please use asynchronous API calls."
+)
 final class CanBlock private ()

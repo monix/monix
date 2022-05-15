@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.execution
 
-import scala.collection.{BuildFrom => ScalaBuildFrom}
+import scala.collection.{ BuildFrom => ScalaBuildFrom }
 import scala.collection.mutable
 
 object compat {
@@ -42,30 +42,30 @@ object compat {
     opaque type Flag = Long
 
     extension (x: Flag) {
-      def & (y: Flag): Flag = x & y
+      def &(y: Flag): Flag = x & y
     }
 
     opaque type Flags = Long
 
     extension (x: Flags) {
       @targetName("and")
-      def & (y: Flags): Flags = x & y
+      def &(y: Flags): Flags = x & y
 
       @targetName("and2")
-      def & (y: Flag): Flags = x & y
+      def &(y: Flag): Flags = x & y
 
       @targetName("or")
-      def | (y: Flags): Flags = x | y
+      def |(y: Flags): Flags = x | y
 
       @targetName("or2")
-      def | (y: Flag): Flags = x | y
+      def |(y: Flag): Flags = x | y
 
       def unary_~ : Flags = ~x
     }
 
     extension (x: Long) {
       @targetName("or3")
-      def | (y: Flag): Long = x | y
+      def |(y: Flag): Long = x | y
     }
   }
 }

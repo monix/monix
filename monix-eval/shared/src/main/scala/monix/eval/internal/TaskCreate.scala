@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,14 +19,14 @@ package monix.eval.internal
 
 import java.util.concurrent.RejectedExecutionException
 
-import cats.effect.{CancelToken, IO}
+import cats.effect.{ CancelToken, IO }
 import monix.eval.Task.Context
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.CallbackCalledMultipleTimesException
 import monix.execution.internal.Platform
-import monix.execution.schedulers.{StartAsyncBatchRunnable, TrampolinedRunnable}
-import monix.execution.{Callback, Cancelable, Scheduler, UncaughtExceptionReporter}
+import monix.execution.schedulers.{ StartAsyncBatchRunnable, TrampolinedRunnable }
+import monix.execution.{ Callback, Cancelable, Scheduler, UncaughtExceptionReporter }
 
 import scala.util.control.NonFatal
 
@@ -149,7 +149,7 @@ private[eval] object TaskCreate {
       implicit val s = ctx.scheduler
       val conn = ctx.connection
       val cancelable = TaskConnectionRef()
-      conn push cancelable.cancel
+      conn.push(cancelable.cancel)
 
       val cbProtected = new CallbackForCreate(ctx, shouldPop = true, cb)
       try {

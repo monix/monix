@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskErrorSuite extends BaseTestSuite {
   test("Task.attempt should expose error") { implicit s =>

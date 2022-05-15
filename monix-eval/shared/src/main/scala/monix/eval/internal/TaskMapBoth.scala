@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@ import monix.eval.Task
 import monix.execution.Ack.Stop
 import monix.execution.Scheduler
 import monix.execution.atomic.PaddingStrategy.LeftRight128
-import monix.execution.atomic.{Atomic, AtomicAny}
+import monix.execution.atomic.{ Atomic, AtomicAny }
 import monix.execution.internal.exceptions.matchError
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
@@ -33,7 +33,13 @@ private[eval] object TaskMapBoth {
     * Implementation for `Task.mapBoth`.
     */
   def apply[A1, A2, R](fa1: Task[A1], fa2: Task[A2])(f: (A1, A2) => R): Task[R] = {
-    TracedAsync(new Register(fa1, fa2, f), trampolineBefore = true, trampolineAfter = true, restoreLocals = true, traceKey = f)
+    TracedAsync(
+      new Register(fa1, fa2, f),
+      trampolineBefore = true,
+      trampolineAfter = true,
+      restoreLocals = true,
+      traceKey = f
+    )
   }
 
   // Implementing Async's "start" via `ForkedStart` in order to signal
@@ -45,7 +51,8 @@ private[eval] object TaskMapBoth {
 
     /* For signaling the values after the successful completion of both tasks. */
     def sendSignal(mainConn: TaskConnection, cb: Callback[Throwable, R], a1: A1, a2: A2)(
-      implicit s: Scheduler): Unit = {
+      implicit s: Scheduler
+    ): Unit = {
 
       var streamErrors = true
       try {
@@ -67,7 +74,8 @@ private[eval] object TaskMapBoth {
       mainConn: TaskConnection,
       state: AtomicAny[AnyRef],
       cb: Callback[Throwable, R],
-      ex: Throwable)(implicit s: Scheduler): Unit = {
+      ex: Throwable
+    )(implicit s: Scheduler): Unit = {
 
       // Guarding the contract of the callback, as we cannot send an error
       // if an error has already happened because of the other task
@@ -117,7 +125,7 @@ private[eval] object TaskMapBoth {
               case other =>
                 // $COVERAGE-OFF$
                 matchError(other)
-                // $COVERAGE-ON$
+              // $COVERAGE-ON$
             }
 
           def onError(ex: Throwable): Unit =
@@ -145,7 +153,7 @@ private[eval] object TaskMapBoth {
               case other =>
                 // $COVERAGE-OFF$
                 matchError(other)
-                // $COVERAGE-ON$
+              // $COVERAGE-ON$
             }
 
           def onError(ex: Throwable): Unit =

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,11 +24,11 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
-import org.reactivestreams.{Publisher, Subscriber, Subscription}
-import org.scalacheck.{Arbitrary, Gen}
+import org.reactivestreams.{ Publisher, Subscriber, Subscription }
+import org.scalacheck.{ Arbitrary, Gen }
 
 import scala.concurrent.Promise
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 import scala.concurrent.duration._
 
 object IterantFromReactivePublisherSuite extends BaseTestSuite {
@@ -123,8 +123,8 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
   }
 
   class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])(
-    implicit sc: Scheduler)
-    extends Publisher[Int] {
+    implicit sc: Scheduler
+  ) extends Publisher[Int] {
 
     def this(range: Range, finish: Option[Throwable])(implicit sc: Scheduler) =
       this(range.start, range.end, range.step, finish, null)

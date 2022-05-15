@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@ import cats.laws.discipline._
 
 import monix.execution.exceptions.DummyException
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskEvalAlwaysSuite extends BaseTestSuite {
   test("Task.eval should work synchronously") { implicit s =>

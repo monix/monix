@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@ import monix.execution.Callback
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 object TaskCancelableSuite extends BaseTestSuite {
   test("Task.cancelable0 should be stack safe on repeated, right-associated binds") { implicit s =>

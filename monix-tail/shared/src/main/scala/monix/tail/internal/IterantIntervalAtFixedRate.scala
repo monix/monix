@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.tail.internal
 
 import cats.syntax.all._
-import cats.effect.{Async, Clock, Timer}
+import cats.effect.{ Async, Clock, Timer }
 import monix.tail.Iterant
 import monix.tail.Iterant.Suspend
 import scala.concurrent.duration._
@@ -29,7 +29,8 @@ private[tail] object IterantIntervalAtFixedRate {
     */
   def apply[F[_]](
     initialDelay: FiniteDuration,
-    interval: FiniteDuration)(implicit F: Async[F], timer: Timer[F], clock: Clock[F]): Iterant[F, Long] = {
+    interval: FiniteDuration
+  )(implicit F: Async[F], timer: Timer[F], clock: Clock[F]): Iterant[F, Long] = {
 
     def loop(time: F[Long], index: Long): F[Iterant[F, Long]] =
       time.map { startTime =>

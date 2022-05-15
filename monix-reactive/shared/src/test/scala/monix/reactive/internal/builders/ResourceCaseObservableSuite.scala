@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,11 +25,11 @@ import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
-import monix.reactive.{BaseTestSuite, Consumer, Observable}
+import monix.reactive.{ BaseTestSuite, Consumer, Observable }
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object ResourceCaseObservableSuite extends BaseTestSuite {
   class Resource(var acquired: Int = 0, var released: Int = 0) {
@@ -55,7 +55,8 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
       .flatMap(_ =>
         Observable(1, 2, 3).doOnEarlyStop(Task {
           earlyStopDone = true
-        }))
+        })
+      )
 
     bracketed.take(1L).completedL.runToFuture
     s.tick()
@@ -274,7 +275,8 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
       .resource(Task.unit)(_ =>
         Task {
           released = true
-        })
+        }
+      )
       .flatMap { _ =>
         Observable
           .resource(Task.unit)(_ => Task.raiseError(dummy))
@@ -295,7 +297,8 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
       .resource(Task.unit)(_ =>
         Task {
           released = true
-        })
+        }
+      )
       .flatMap { _ =>
         Observable.suspend[Int](Observable.raiseError(dummy))
       }
@@ -315,7 +318,8 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
         .resource(Task.unit)(_ =>
           Task {
             released = true
-          })
+          }
+        )
         .flatMap(_ => Observable(1, 2, 3))
     }
 
@@ -398,7 +402,8 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
         })(_ =>
           Task {
             log :+= s"Stop: $key"
-          })
+          }
+        )
         .flatMap(Observable.pure)
 
     val observable = for {

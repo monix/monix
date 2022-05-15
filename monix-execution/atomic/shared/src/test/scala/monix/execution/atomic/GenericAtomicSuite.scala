@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,8 +28,8 @@ abstract class GenericAtomicSuite[A, R <: Atomic[A]](
   valueFromInt: Int => A,
   valueToInt: A => Int,
   allowPlatformIntrinsics: Boolean,
-  allowUnsafe: Boolean)
-  extends SimpleTestSuite {
+  allowUnsafe: Boolean
+) extends SimpleTestSuite {
 
   def Atomic(initial: A): R = {
     if (allowUnsafe)
@@ -292,7 +292,8 @@ object GenericAtomicAnyNoPadding
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicBooleanNoPadding
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -301,7 +302,8 @@ object GenericAtomicBooleanNoPadding
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicNumberAnyNoPadding
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -310,7 +312,8 @@ object GenericAtomicNumberAnyNoPadding
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicFloatNoPadding
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -319,7 +322,8 @@ object GenericAtomicFloatNoPadding
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicDoubleNoPadding
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -328,7 +332,8 @@ object GenericAtomicDoubleNoPadding
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicShortNoPadding
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -337,7 +342,8 @@ object GenericAtomicShortNoPadding
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicByteNoPadding
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -346,7 +352,8 @@ object GenericAtomicByteNoPadding
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicCharNoPadding
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -355,7 +362,8 @@ object GenericAtomicCharNoPadding
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicIntNoPadding
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -364,7 +372,8 @@ object GenericAtomicIntNoPadding
     x => x,
     x => x,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicLongNoPadding
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -373,7 +382,8 @@ object GenericAtomicLongNoPadding
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Left64 (Java 8)
 
@@ -384,7 +394,8 @@ object GenericAtomicAnyLeft64
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicBooleanLeft64
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -393,7 +404,8 @@ object GenericAtomicBooleanLeft64
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicNumberAnyLeft64
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -402,7 +414,8 @@ object GenericAtomicNumberAnyLeft64
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicFloatLeft64
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -411,7 +424,8 @@ object GenericAtomicFloatLeft64
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicDoubleLeft64
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -420,7 +434,8 @@ object GenericAtomicDoubleLeft64
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicShortLeft64
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -429,7 +444,8 @@ object GenericAtomicShortLeft64
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicByteLeft64
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -438,7 +454,8 @@ object GenericAtomicByteLeft64
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicCharLeft64
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -447,7 +464,8 @@ object GenericAtomicCharLeft64
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicIntLeft64
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -456,7 +474,8 @@ object GenericAtomicIntLeft64
     x => x,
     x => x,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicLongLeft64
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -465,7 +484,8 @@ object GenericAtomicLongLeft64
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Right64 (Java 8)
 
@@ -476,7 +496,8 @@ object GenericAtomicAnyRight64
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicBooleanRight64
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -485,7 +506,8 @@ object GenericAtomicBooleanRight64
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicNumberAnyRight64
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -494,7 +516,8 @@ object GenericAtomicNumberAnyRight64
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicFloatRight64
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -503,7 +526,8 @@ object GenericAtomicFloatRight64
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicDoubleRight64
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -512,7 +536,8 @@ object GenericAtomicDoubleRight64
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicShortRight64
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -521,7 +546,8 @@ object GenericAtomicShortRight64
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicByteRight64
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -530,7 +556,8 @@ object GenericAtomicByteRight64
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicCharRight64
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -539,7 +566,8 @@ object GenericAtomicCharRight64
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicIntRight64
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -548,7 +576,8 @@ object GenericAtomicIntRight64
     x => x,
     x => x,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicLongRight64
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -557,7 +586,8 @@ object GenericAtomicLongRight64
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- LeftRight128 (Java 8)
 
@@ -568,7 +598,8 @@ object GenericAtomicAnyLeftRight128
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicBooleanLeftRight128
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -577,7 +608,8 @@ object GenericAtomicBooleanLeftRight128
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicNumberAnyLeftRight128
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -586,7 +618,8 @@ object GenericAtomicNumberAnyLeftRight128
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicFloatLeftRight128
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -595,7 +628,8 @@ object GenericAtomicFloatLeftRight128
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicDoubleLeftRight128
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -604,7 +638,8 @@ object GenericAtomicDoubleLeftRight128
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicShortLeftRight128
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -613,7 +648,8 @@ object GenericAtomicShortLeftRight128
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicByteLeftRight128
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -622,7 +658,8 @@ object GenericAtomicByteLeftRight128
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicCharLeftRight128
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -631,7 +668,8 @@ object GenericAtomicCharLeftRight128
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicIntLeftRight128
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -640,7 +678,8 @@ object GenericAtomicIntLeftRight128
     x => x,
     x => x,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicLongLeftRight128
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -649,7 +688,8 @@ object GenericAtomicLongLeftRight128
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Left128 (Java 8)
 
@@ -660,7 +700,8 @@ object GenericAtomicAnyLeft128
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicBooleanLeft128
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -669,7 +710,8 @@ object GenericAtomicBooleanLeft128
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicNumberAnyLeft128
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -678,7 +720,8 @@ object GenericAtomicNumberAnyLeft128
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicFloatLeft128
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -687,7 +730,8 @@ object GenericAtomicFloatLeft128
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicDoubleLeft128
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -696,7 +740,8 @@ object GenericAtomicDoubleLeft128
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicShortLeft128
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -705,7 +750,8 @@ object GenericAtomicShortLeft128
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicByteLeft128
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -714,7 +760,8 @@ object GenericAtomicByteLeft128
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicCharLeft128
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -723,7 +770,8 @@ object GenericAtomicCharLeft128
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicIntLeft128
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -732,7 +780,8 @@ object GenericAtomicIntLeft128
     x => x,
     x => x,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicLongLeft128
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -741,7 +790,8 @@ object GenericAtomicLongLeft128
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Right128 (Java 8)
 
@@ -752,7 +802,8 @@ object GenericAtomicAnyRight128
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicBooleanRight128
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -761,7 +812,8 @@ object GenericAtomicBooleanRight128
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicNumberAnyRight128
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -770,7 +822,8 @@ object GenericAtomicNumberAnyRight128
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicFloatRight128
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -779,7 +832,8 @@ object GenericAtomicFloatRight128
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicDoubleRight128
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -788,7 +842,8 @@ object GenericAtomicDoubleRight128
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicShortRight128
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -797,7 +852,8 @@ object GenericAtomicShortRight128
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicByteRight128
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -806,7 +862,8 @@ object GenericAtomicByteRight128
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicCharRight128
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -815,7 +872,8 @@ object GenericAtomicCharRight128
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicIntRight128
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -824,7 +882,8 @@ object GenericAtomicIntRight128
     x => x,
     x => x,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicLongRight128
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -833,7 +892,8 @@ object GenericAtomicLongRight128
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- LeftRight256 (Java 8)
 
@@ -844,7 +904,8 @@ object GenericAtomicAnyLeftRight256
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicBooleanLeftRight256
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -853,7 +914,8 @@ object GenericAtomicBooleanLeftRight256
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicNumberAnyLeftRight256
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -862,7 +924,8 @@ object GenericAtomicNumberAnyLeftRight256
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicFloatLeftRight256
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -871,7 +934,8 @@ object GenericAtomicFloatLeftRight256
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicDoubleLeftRight256
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -880,7 +944,8 @@ object GenericAtomicDoubleLeftRight256
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicShortLeftRight256
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -889,7 +954,8 @@ object GenericAtomicShortLeftRight256
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicByteLeftRight256
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -898,7 +964,8 @@ object GenericAtomicByteLeftRight256
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicCharLeftRight256
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -907,7 +974,8 @@ object GenericAtomicCharLeftRight256
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicIntLeftRight256
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -916,7 +984,8 @@ object GenericAtomicIntLeftRight256
     x => x,
     x => x,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicLongLeftRight256
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -925,7 +994,8 @@ object GenericAtomicLongLeftRight256
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // ----------------- Java 7
 
@@ -938,7 +1008,8 @@ object GenericAtomicAnyNoPaddingJava7Suite
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicBooleanNoPaddingJava7Suite
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -947,7 +1018,8 @@ object GenericAtomicBooleanNoPaddingJava7Suite
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicNumberAnyNoPaddingJava7Suite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -956,7 +1028,8 @@ object GenericAtomicNumberAnyNoPaddingJava7Suite
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicFloatNoPaddingJava7Suite
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -965,7 +1038,8 @@ object GenericAtomicFloatNoPaddingJava7Suite
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicDoubleNoPaddingJava7Suite
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -974,7 +1048,8 @@ object GenericAtomicDoubleNoPaddingJava7Suite
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicShortNoPaddingJava7Suite
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -983,7 +1058,8 @@ object GenericAtomicShortNoPaddingJava7Suite
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicByteNoPaddingJava7Suite
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -992,7 +1068,8 @@ object GenericAtomicByteNoPaddingJava7Suite
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicCharNoPaddingJava7Suite
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -1001,7 +1078,8 @@ object GenericAtomicCharNoPaddingJava7Suite
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicIntNoPaddingJava7Suite
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -1010,7 +1088,8 @@ object GenericAtomicIntNoPaddingJava7Suite
     x => x,
     x => x,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicLongNoPaddingJava7Suite
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -1019,7 +1098,8 @@ object GenericAtomicLongNoPaddingJava7Suite
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Left64 (Java 7)
 
@@ -1030,7 +1110,8 @@ object GenericAtomicAnyLeft64Java7Suite
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicBooleanLeft64Java7Suite
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -1039,7 +1120,8 @@ object GenericAtomicBooleanLeft64Java7Suite
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicNumberAnyLeft64Java7Suite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1048,7 +1130,8 @@ object GenericAtomicNumberAnyLeft64Java7Suite
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicFloatLeft64Java7Suite
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -1057,7 +1140,8 @@ object GenericAtomicFloatLeft64Java7Suite
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicDoubleLeft64Java7Suite
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -1066,7 +1150,8 @@ object GenericAtomicDoubleLeft64Java7Suite
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicShortLeft64Java7Suite
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -1075,7 +1160,8 @@ object GenericAtomicShortLeft64Java7Suite
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicByteLeft64Java7Suite
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -1084,7 +1170,8 @@ object GenericAtomicByteLeft64Java7Suite
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicCharLeft64Java7Suite
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -1093,7 +1180,8 @@ object GenericAtomicCharLeft64Java7Suite
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicIntLeft64Java7Suite
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -1102,7 +1190,8 @@ object GenericAtomicIntLeft64Java7Suite
     x => x,
     x => x,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicLongLeft64Java7Suite
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -1111,7 +1200,8 @@ object GenericAtomicLongLeft64Java7Suite
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Right64 (Java 7)
 
@@ -1122,7 +1212,8 @@ object GenericAtomicAnyRight64Java7Suite
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicBooleanRight64Java7Suite
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -1131,7 +1222,8 @@ object GenericAtomicBooleanRight64Java7Suite
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicNumberAnyRight64Java7Suite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1140,7 +1232,8 @@ object GenericAtomicNumberAnyRight64Java7Suite
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicFloatRight64Java7Suite
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -1149,7 +1242,8 @@ object GenericAtomicFloatRight64Java7Suite
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicDoubleRight64Java7Suite
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -1158,7 +1252,8 @@ object GenericAtomicDoubleRight64Java7Suite
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicShortRight64Java7Suite
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -1167,7 +1262,8 @@ object GenericAtomicShortRight64Java7Suite
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicByteRight64Java7Suite
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -1176,7 +1272,8 @@ object GenericAtomicByteRight64Java7Suite
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicCharRight64Java7Suite
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -1185,7 +1282,8 @@ object GenericAtomicCharRight64Java7Suite
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicIntRight64Java7Suite
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -1194,7 +1292,8 @@ object GenericAtomicIntRight64Java7Suite
     x => x,
     x => x,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicLongRight64Java7Suite
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -1203,7 +1302,8 @@ object GenericAtomicLongRight64Java7Suite
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- LeftRight128 (Java 7)
 
@@ -1214,7 +1314,8 @@ object GenericAtomicAnyLeftRight128Java7Suite
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicBooleanLeftRight128Java7Suite
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -1223,7 +1324,8 @@ object GenericAtomicBooleanLeftRight128Java7Suite
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicNumberAnyLeftRight128Java7Suite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1232,7 +1334,8 @@ object GenericAtomicNumberAnyLeftRight128Java7Suite
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicFloatLeftRight128Java7Suite
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -1241,7 +1344,8 @@ object GenericAtomicFloatLeftRight128Java7Suite
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicDoubleLeftRight128Java7Suite
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -1250,7 +1354,8 @@ object GenericAtomicDoubleLeftRight128Java7Suite
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicShortLeftRight128Java7Suite
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -1259,7 +1364,8 @@ object GenericAtomicShortLeftRight128Java7Suite
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicByteLeftRight128Java7Suite
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -1268,7 +1374,8 @@ object GenericAtomicByteLeftRight128Java7Suite
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicCharLeftRight128Java7Suite
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -1277,7 +1384,8 @@ object GenericAtomicCharLeftRight128Java7Suite
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicIntLeftRight128Java7Suite
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -1286,7 +1394,8 @@ object GenericAtomicIntLeftRight128Java7Suite
     x => x,
     x => x,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicLongLeftRight128Java7Suite
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -1295,7 +1404,8 @@ object GenericAtomicLongLeftRight128Java7Suite
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Left128 (Java 7)
 
@@ -1306,7 +1416,8 @@ object GenericAtomicAnyLeft128Java7Suite
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicBooleanLeft128Java7Suite
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -1315,7 +1426,8 @@ object GenericAtomicBooleanLeft128Java7Suite
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicNumberAnyLeft128Java7Suite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1324,7 +1436,8 @@ object GenericAtomicNumberAnyLeft128Java7Suite
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicFloatLeft128Java7Suite
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -1333,7 +1446,8 @@ object GenericAtomicFloatLeft128Java7Suite
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicDoubleLeft128Java7Suite
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -1342,7 +1456,8 @@ object GenericAtomicDoubleLeft128Java7Suite
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicShortLeft128Java7Suite
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -1351,7 +1466,8 @@ object GenericAtomicShortLeft128Java7Suite
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicByteLeft128Java7Suite
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -1360,7 +1476,8 @@ object GenericAtomicByteLeft128Java7Suite
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicCharLeft128Java7Suite
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -1369,7 +1486,8 @@ object GenericAtomicCharLeft128Java7Suite
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicIntLeft128Java7Suite
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -1378,7 +1496,8 @@ object GenericAtomicIntLeft128Java7Suite
     x => x,
     x => x,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicLongLeft128Java7Suite
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -1387,7 +1506,8 @@ object GenericAtomicLongLeft128Java7Suite
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Right128 (Java 7)
 
@@ -1398,7 +1518,8 @@ object GenericAtomicAnyRight128Java7Suite
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicBooleanRight128Java7Suite
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -1407,7 +1528,8 @@ object GenericAtomicBooleanRight128Java7Suite
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicNumberAnyRight128Java7Suite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1416,7 +1538,8 @@ object GenericAtomicNumberAnyRight128Java7Suite
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicFloatRight128Java7Suite
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -1425,7 +1548,8 @@ object GenericAtomicFloatRight128Java7Suite
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicDoubleRight128Java7Suite
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -1434,7 +1558,8 @@ object GenericAtomicDoubleRight128Java7Suite
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicShortRight128Java7Suite
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -1443,7 +1568,8 @@ object GenericAtomicShortRight128Java7Suite
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicByteRight128Java7Suite
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -1452,7 +1578,8 @@ object GenericAtomicByteRight128Java7Suite
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicCharRight128Java7Suite
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -1461,7 +1588,8 @@ object GenericAtomicCharRight128Java7Suite
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicIntRight128Java7Suite
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -1470,7 +1598,8 @@ object GenericAtomicIntRight128Java7Suite
     x => x,
     x => x,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicLongRight128Java7Suite
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -1479,7 +1608,8 @@ object GenericAtomicLongRight128Java7Suite
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- LeftRight256 (Java 7)
 
@@ -1490,7 +1620,8 @@ object GenericAtomicAnyLeftRight256Java7Suite
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicBooleanLeftRight256Java7Suite
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -1499,7 +1630,8 @@ object GenericAtomicBooleanLeftRight256Java7Suite
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicNumberAnyLeftRight256Java7Suite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1508,7 +1640,8 @@ object GenericAtomicNumberAnyLeftRight256Java7Suite
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicFloatLeftRight256Java7Suite
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -1517,7 +1650,8 @@ object GenericAtomicFloatLeftRight256Java7Suite
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicDoubleLeftRight256Java7Suite
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -1526,7 +1660,8 @@ object GenericAtomicDoubleLeftRight256Java7Suite
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicShortLeftRight256Java7Suite
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -1535,7 +1670,8 @@ object GenericAtomicShortLeftRight256Java7Suite
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicByteLeftRight256Java7Suite
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -1544,7 +1680,8 @@ object GenericAtomicByteLeftRight256Java7Suite
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicCharLeftRight256Java7Suite
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -1553,7 +1690,8 @@ object GenericAtomicCharLeftRight256Java7Suite
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicIntLeftRight256Java7Suite
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -1562,7 +1700,8 @@ object GenericAtomicIntLeftRight256Java7Suite
     x => x,
     x => x,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object GenericAtomicLongLeftRight256Java7Suite
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -1571,7 +1710,8 @@ object GenericAtomicLongLeftRight256Java7Suite
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // ----------------- Java X
 
@@ -1584,7 +1724,8 @@ object GenericAtomicAnyNoPaddingJavaXSuite
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicBooleanNoPaddingJavaXSuite
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -1593,7 +1734,8 @@ object GenericAtomicBooleanNoPaddingJavaXSuite
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicNumberAnyNoPaddingJavaXSuite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1602,7 +1744,8 @@ object GenericAtomicNumberAnyNoPaddingJavaXSuite
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicFloatNoPaddingJavaXSuite
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -1611,7 +1754,8 @@ object GenericAtomicFloatNoPaddingJavaXSuite
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicDoubleNoPaddingJavaXSuite
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -1620,7 +1764,8 @@ object GenericAtomicDoubleNoPaddingJavaXSuite
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicShortNoPaddingJavaXSuite
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -1629,7 +1774,8 @@ object GenericAtomicShortNoPaddingJavaXSuite
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicByteNoPaddingJavaXSuite
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -1638,7 +1784,8 @@ object GenericAtomicByteNoPaddingJavaXSuite
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicCharNoPaddingJavaXSuite
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -1647,7 +1794,8 @@ object GenericAtomicCharNoPaddingJavaXSuite
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicIntNoPaddingJavaXSuite
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -1656,7 +1804,8 @@ object GenericAtomicIntNoPaddingJavaXSuite
     x => x,
     x => x,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicLongNoPaddingJavaXSuite
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -1665,7 +1814,8 @@ object GenericAtomicLongNoPaddingJavaXSuite
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 // -- Left64 (Java X)
 
@@ -1676,7 +1826,8 @@ object GenericAtomicAnyLeft64JavaXSuite
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicBooleanLeft64JavaXSuite
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -1685,7 +1836,8 @@ object GenericAtomicBooleanLeft64JavaXSuite
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicNumberAnyLeft64JavaXSuite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1694,7 +1846,8 @@ object GenericAtomicNumberAnyLeft64JavaXSuite
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicFloatLeft64JavaXSuite
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -1703,7 +1856,8 @@ object GenericAtomicFloatLeft64JavaXSuite
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicDoubleLeft64JavaXSuite
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -1712,7 +1866,8 @@ object GenericAtomicDoubleLeft64JavaXSuite
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicShortLeft64JavaXSuite
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -1721,7 +1876,8 @@ object GenericAtomicShortLeft64JavaXSuite
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicByteLeft64JavaXSuite
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -1730,7 +1886,8 @@ object GenericAtomicByteLeft64JavaXSuite
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicCharLeft64JavaXSuite
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -1739,7 +1896,8 @@ object GenericAtomicCharLeft64JavaXSuite
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicIntLeft64JavaXSuite
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -1748,7 +1906,8 @@ object GenericAtomicIntLeft64JavaXSuite
     x => x,
     x => x,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicLongLeft64JavaXSuite
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -1757,7 +1916,8 @@ object GenericAtomicLongLeft64JavaXSuite
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 // -- Right64 (Java X)
 
@@ -1768,7 +1928,8 @@ object GenericAtomicAnyRight64JavaXSuite
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicBooleanRight64JavaXSuite
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -1777,7 +1938,8 @@ object GenericAtomicBooleanRight64JavaXSuite
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicNumberAnyRight64JavaXSuite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1786,7 +1948,8 @@ object GenericAtomicNumberAnyRight64JavaXSuite
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicFloatRight64JavaXSuite
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -1795,7 +1958,8 @@ object GenericAtomicFloatRight64JavaXSuite
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicDoubleRight64JavaXSuite
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -1804,7 +1968,8 @@ object GenericAtomicDoubleRight64JavaXSuite
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicShortRight64JavaXSuite
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -1813,7 +1978,8 @@ object GenericAtomicShortRight64JavaXSuite
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicByteRight64JavaXSuite
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -1822,7 +1988,8 @@ object GenericAtomicByteRight64JavaXSuite
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicCharRight64JavaXSuite
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -1831,7 +1998,8 @@ object GenericAtomicCharRight64JavaXSuite
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicIntRight64JavaXSuite
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -1840,7 +2008,8 @@ object GenericAtomicIntRight64JavaXSuite
     x => x,
     x => x,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicLongRight64JavaXSuite
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -1849,7 +2018,8 @@ object GenericAtomicLongRight64JavaXSuite
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 // -- LeftRight128 (Java X)
 
@@ -1860,7 +2030,8 @@ object GenericAtomicAnyLeftRight128JavaXSuite
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicBooleanLeftRight128JavaXSuite
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -1869,7 +2040,8 @@ object GenericAtomicBooleanLeftRight128JavaXSuite
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicNumberAnyLeftRight128JavaXSuite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1878,7 +2050,8 @@ object GenericAtomicNumberAnyLeftRight128JavaXSuite
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicFloatLeftRight128JavaXSuite
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -1887,7 +2060,8 @@ object GenericAtomicFloatLeftRight128JavaXSuite
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicDoubleLeftRight128JavaXSuite
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -1896,7 +2070,8 @@ object GenericAtomicDoubleLeftRight128JavaXSuite
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicShortLeftRight128JavaXSuite
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -1905,7 +2080,8 @@ object GenericAtomicShortLeftRight128JavaXSuite
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicByteLeftRight128JavaXSuite
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -1914,7 +2090,8 @@ object GenericAtomicByteLeftRight128JavaXSuite
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicCharLeftRight128JavaXSuite
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -1923,7 +2100,8 @@ object GenericAtomicCharLeftRight128JavaXSuite
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicIntLeftRight128JavaXSuite
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -1932,7 +2110,8 @@ object GenericAtomicIntLeftRight128JavaXSuite
     x => x,
     x => x,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicLongLeftRight128JavaXSuite
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -1941,7 +2120,8 @@ object GenericAtomicLongLeftRight128JavaXSuite
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 // -- Left128 (Java X)
 
@@ -1952,7 +2132,8 @@ object GenericAtomicAnyLeft128JavaXSuite
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicBooleanLeft128JavaXSuite
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -1961,7 +2142,8 @@ object GenericAtomicBooleanLeft128JavaXSuite
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicNumberAnyLeft128JavaXSuite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1970,7 +2152,8 @@ object GenericAtomicNumberAnyLeft128JavaXSuite
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicFloatLeft128JavaXSuite
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -1979,7 +2162,8 @@ object GenericAtomicFloatLeft128JavaXSuite
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicDoubleLeft128JavaXSuite
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -1988,7 +2172,8 @@ object GenericAtomicDoubleLeft128JavaXSuite
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicShortLeft128JavaXSuite
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -1997,7 +2182,8 @@ object GenericAtomicShortLeft128JavaXSuite
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicByteLeft128JavaXSuite
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -2006,7 +2192,8 @@ object GenericAtomicByteLeft128JavaXSuite
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicCharLeft128JavaXSuite
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -2015,7 +2202,8 @@ object GenericAtomicCharLeft128JavaXSuite
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicIntLeft128JavaXSuite
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -2024,7 +2212,8 @@ object GenericAtomicIntLeft128JavaXSuite
     x => x,
     x => x,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicLongLeft128JavaXSuite
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -2033,7 +2222,8 @@ object GenericAtomicLongLeft128JavaXSuite
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 // -- Right128 (Java X)
 
@@ -2044,7 +2234,8 @@ object GenericAtomicAnyRight128JavaXSuite
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicBooleanRight128JavaXSuite
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -2053,7 +2244,8 @@ object GenericAtomicBooleanRight128JavaXSuite
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicNumberAnyRight128JavaXSuite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -2062,7 +2254,8 @@ object GenericAtomicNumberAnyRight128JavaXSuite
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicFloatRight128JavaXSuite
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -2071,7 +2264,8 @@ object GenericAtomicFloatRight128JavaXSuite
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicDoubleRight128JavaXSuite
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -2080,7 +2274,8 @@ object GenericAtomicDoubleRight128JavaXSuite
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicShortRight128JavaXSuite
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -2089,7 +2284,8 @@ object GenericAtomicShortRight128JavaXSuite
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicByteRight128JavaXSuite
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -2098,7 +2294,8 @@ object GenericAtomicByteRight128JavaXSuite
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicCharRight128JavaXSuite
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -2107,7 +2304,8 @@ object GenericAtomicCharRight128JavaXSuite
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicIntRight128JavaXSuite
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -2116,7 +2314,8 @@ object GenericAtomicIntRight128JavaXSuite
     x => x,
     x => x,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicLongRight128JavaXSuite
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -2125,7 +2324,8 @@ object GenericAtomicLongRight128JavaXSuite
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 // -- LeftRight256 (Java X)
 
@@ -2136,7 +2336,8 @@ object GenericAtomicAnyLeftRight256JavaXSuite
     x => x.toString,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicBooleanLeftRight256JavaXSuite
   extends GenericAtomicSuite[Boolean, AtomicBoolean](
@@ -2145,7 +2346,8 @@ object GenericAtomicBooleanLeftRight256JavaXSuite
     x => if (x == 1) true else false,
     x => if (x) 1 else 0,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicNumberAnyLeftRight256JavaXSuite
   extends GenericAtomicSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -2154,7 +2356,8 @@ object GenericAtomicNumberAnyLeftRight256JavaXSuite
     x => BoxedLong(x.toLong),
     x => x.value.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicFloatLeftRight256JavaXSuite
   extends GenericAtomicSuite[Float, AtomicFloat](
@@ -2163,7 +2366,8 @@ object GenericAtomicFloatLeftRight256JavaXSuite
     x => x.toFloat,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicDoubleLeftRight256JavaXSuite
   extends GenericAtomicSuite[Double, AtomicDouble](
@@ -2172,7 +2376,8 @@ object GenericAtomicDoubleLeftRight256JavaXSuite
     x => x.toDouble,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicShortLeftRight256JavaXSuite
   extends GenericAtomicSuite[Short, AtomicShort](
@@ -2181,7 +2386,8 @@ object GenericAtomicShortLeftRight256JavaXSuite
     x => x.toShort,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicByteLeftRight256JavaXSuite
   extends GenericAtomicSuite[Byte, AtomicByte](
@@ -2190,7 +2396,8 @@ object GenericAtomicByteLeftRight256JavaXSuite
     x => x.toByte,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicCharLeftRight256JavaXSuite
   extends GenericAtomicSuite[Char, AtomicChar](
@@ -2199,7 +2406,8 @@ object GenericAtomicCharLeftRight256JavaXSuite
     x => x.toChar,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicIntLeftRight256JavaXSuite
   extends GenericAtomicSuite[Int, AtomicInt](
@@ -2208,7 +2416,8 @@ object GenericAtomicIntLeftRight256JavaXSuite
     x => x,
     x => x,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object GenericAtomicLongLeftRight256JavaXSuite
   extends GenericAtomicSuite[Long, AtomicLong](
@@ -2217,4 +2426,5 @@ object GenericAtomicLongLeftRight256JavaXSuite
     x => x.toLong,
     x => x.toInt,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )

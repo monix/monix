@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -125,7 +125,8 @@ object AtomicBuilder extends Implicits.Level2 {
       def buildInstance(
         initialValue: Double,
         strategy: PaddingStrategy,
-        allowPlatformIntrinsics: Boolean): AtomicDouble =
+        allowPlatformIntrinsics: Boolean
+      ): AtomicDouble =
         AtomicDouble(initialValue)
       def buildSafeInstance(initialValue: Double, strategy: PaddingStrategy): AtomicDouble =
         AtomicDouble(initialValue)

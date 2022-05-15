@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,7 @@ import monix.execution.schedulers.TestScheduler._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
-import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit}
+import scala.concurrent.duration.{ Duration, FiniteDuration, TimeUnit }
 import scala.util.Random
 
 /** [[Scheduler]] and a provider of `cats.effect.Timer` instances,
@@ -127,8 +127,8 @@ import scala.util.Random
   */
 final class TestScheduler private (
   private[this] val stateRef: AtomicAny[State],
-  override val executionModel: ExecutionModel)
-  extends ReferenceScheduler with BatchingScheduler {
+  override val executionModel: ExecutionModel
+) extends ReferenceScheduler with BatchingScheduler {
 
   /**
     * Returns the internal state of the `TestScheduler`, useful for testing
@@ -338,7 +338,8 @@ object TestScheduler {
         clock = Duration.Zero,
         tasks = SortedSet.empty[Task],
         lastReportedError = null
-      ))
+      )
+    )
 
     new TestScheduler(state, executionModel)
   }
@@ -387,7 +388,8 @@ object TestScheduler {
     state: State,
     delay: FiniteDuration,
     r: Runnable,
-    cancelTask: Task => Unit): (Cancelable, State) = {
+    cancelTask: Task => Unit
+  ): (Cancelable, State) = {
     // $COVERAGE-OFF$
     require(delay >= Duration.Zero, "The given delay must be positive")
     // $COVERAGE-ON$
@@ -409,6 +411,7 @@ object TestScheduler {
       state.copy(
         lastID = newID,
         tasks = state.tasks + task
-      ))
+      )
+    )
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +17,9 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
+import java.util.concurrent.{ CountDownLatch, Executors, TimeUnit }
 import minitest.SimpleTestSuite
-import monix.execution.{Scheduler, UncaughtExceptionReporter}
+import monix.execution.{ Scheduler, UncaughtExceptionReporter }
 
 object TestSchedulerCompanionSuite extends SimpleTestSuite {
   test("scheduler builder, apply, test 1") {

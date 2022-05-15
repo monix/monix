@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.execution.atomic
 
 import minitest.SimpleTestSuite
 import monix.execution.atomic.PaddingStrategy._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -30,7 +30,8 @@ abstract class ConcurrentAtomicNumberSuite[A, R <: AtomicNumber[A]](
   nan1: Option[A],
   maxValue: A,
   minValue: A,
-  allowPlatformIntrinsics: Boolean)(implicit ev: Numeric[A])
+  allowPlatformIntrinsics: Boolean
+)(implicit ev: Numeric[A])
   extends SimpleTestSuite {
 
   def Atomic(initial: A): R = builder.buildInstance(initial, strategy, allowPlatformIntrinsics)
@@ -39,10 +40,11 @@ abstract class ConcurrentAtomicNumberSuite[A, R <: AtomicNumber[A]](
 
   test("should perform concurrent compareAndSet") {
     val r = Atomic(ev.zero)
-    val futures = for (i <- 0 until 5) yield Future {
-      for (j <- 0 until 100)
-        r.increment()
-    }
+    val futures =
+      for (i <- 0 until 5) yield Future {
+        for (j <- 0 until 100)
+          r.increment()
+      }
 
     val f = Future.sequence(futures)
     Await.result(f, 30.seconds)
@@ -51,10 +53,11 @@ abstract class ConcurrentAtomicNumberSuite[A, R <: AtomicNumber[A]](
 
   test("should perform concurrent getAndSet") {
     val r = Atomic(ev.zero)
-    val futures = for (i <- 0 until 5) yield Future {
-      for (j <- 0 until 100)
-        r.getAndSet(ev.fromInt(j + 1))
-    }
+    val futures =
+      for (i <- 0 until 5) yield Future {
+        for (j <- 0 until 100)
+          r.getAndSet(ev.fromInt(j + 1))
+      }
 
     val f = Future.sequence(futures)
     Await.result(f, 30.seconds)
@@ -63,10 +66,11 @@ abstract class ConcurrentAtomicNumberSuite[A, R <: AtomicNumber[A]](
 
   test("should perform concurrent increment") {
     val r = Atomic(ev.zero)
-    val futures = for (i <- 0 until 5) yield Future {
-      for (j <- 0 until 100)
-        r.increment()
-    }
+    val futures =
+      for (i <- 0 until 5) yield Future {
+        for (j <- 0 until 100)
+          r.increment()
+      }
 
     val f = Future.sequence(futures)
     Await.result(f, 30.seconds)
@@ -75,10 +79,11 @@ abstract class ConcurrentAtomicNumberSuite[A, R <: AtomicNumber[A]](
 
   test("should perform concurrent incrementAndGet") {
     val r = Atomic(ev.zero)
-    val futures = for (i <- 0 until 5) yield Future {
-      for (j <- 0 until 100)
-        r.incrementAndGet()
-    }
+    val futures =
+      for (i <- 0 until 5) yield Future {
+        for (j <- 0 until 100)
+          r.incrementAndGet()
+      }
 
     val f = Future.sequence(futures)
     Await.result(f, 30.seconds)
@@ -87,10 +92,11 @@ abstract class ConcurrentAtomicNumberSuite[A, R <: AtomicNumber[A]](
 
   test("should perform concurrent getAndIncrement") {
     val r = Atomic(ev.zero)
-    val futures = for (i <- 0 until 5) yield Future {
-      for (j <- 0 until 100)
-        r.getAndIncrement()
-    }
+    val futures =
+      for (i <- 0 until 5) yield Future {
+        for (j <- 0 until 100)
+          r.getAndIncrement()
+      }
 
     val f = Future.sequence(futures)
     Await.result(f, 30.seconds)
@@ -108,7 +114,8 @@ object ConcurrentAtomicNumberDoubleNoPaddingSuite
     Some(Double.NaN),
     Double.MaxValue,
     Double.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberFloatNoPaddingSuite
   extends ConcurrentAtomicNumberSuite[Float, AtomicFloat](
@@ -118,7 +125,8 @@ object ConcurrentAtomicNumberFloatNoPaddingSuite
     Some(Float.NaN),
     Float.MaxValue,
     Float.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberLongNoPaddingSuite
   extends ConcurrentAtomicNumberSuite[Long, AtomicLong](
@@ -128,7 +136,8 @@ object ConcurrentAtomicNumberLongNoPaddingSuite
     None,
     Long.MaxValue,
     Long.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberIntNoPaddingSuite
   extends ConcurrentAtomicNumberSuite[Int, AtomicInt](
@@ -138,7 +147,8 @@ object ConcurrentAtomicNumberIntNoPaddingSuite
     None,
     Int.MaxValue,
     Int.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberShortNoPaddingSuite
   extends ConcurrentAtomicNumberSuite[Short, AtomicShort](
@@ -148,7 +158,8 @@ object ConcurrentAtomicNumberShortNoPaddingSuite
     None,
     Short.MaxValue,
     Short.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberByteNoPaddingSuite
   extends ConcurrentAtomicNumberSuite[Byte, AtomicByte](
@@ -158,7 +169,8 @@ object ConcurrentAtomicNumberByteNoPaddingSuite
     None,
     Byte.MaxValue,
     Byte.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberCharNoPaddingSuite
   extends ConcurrentAtomicNumberSuite[Char, AtomicChar](
@@ -168,7 +180,8 @@ object ConcurrentAtomicNumberCharNoPaddingSuite
     None,
     Char.MaxValue,
     Char.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberNumberAnyNoPaddingSuite
   extends ConcurrentAtomicNumberSuite[BigInt, AtomicNumberAny[BigInt]](
@@ -178,7 +191,8 @@ object ConcurrentAtomicNumberNumberAnyNoPaddingSuite
     None,
     BigInt(Long.MaxValue),
     BigInt(Long.MinValue),
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 //--Left64 (Java 8)
 
@@ -190,7 +204,8 @@ object ConcurrentAtomicNumberDoubleLeft64Suite
     Some(Double.NaN),
     Double.MaxValue,
     Double.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberFloatLeft64Suite
   extends ConcurrentAtomicNumberSuite[Float, AtomicFloat](
@@ -200,7 +215,8 @@ object ConcurrentAtomicNumberFloatLeft64Suite
     Some(Float.NaN),
     Float.MaxValue,
     Float.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberLongLeft64Suite
   extends ConcurrentAtomicNumberSuite[Long, AtomicLong](
@@ -210,7 +226,8 @@ object ConcurrentAtomicNumberLongLeft64Suite
     None,
     Long.MaxValue,
     Long.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberIntLeft64Suite
   extends ConcurrentAtomicNumberSuite[Int, AtomicInt](
@@ -220,7 +237,8 @@ object ConcurrentAtomicNumberIntLeft64Suite
     None,
     Int.MaxValue,
     Int.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberShortLeft64Suite
   extends ConcurrentAtomicNumberSuite[Short, AtomicShort](
@@ -230,7 +248,8 @@ object ConcurrentAtomicNumberShortLeft64Suite
     None,
     Short.MaxValue,
     Short.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberByteLeft64Suite
   extends ConcurrentAtomicNumberSuite[Byte, AtomicByte](
@@ -240,7 +259,8 @@ object ConcurrentAtomicNumberByteLeft64Suite
     None,
     Byte.MaxValue,
     Byte.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberCharLeft64Suite
   extends ConcurrentAtomicNumberSuite[Char, AtomicChar](
@@ -250,7 +270,8 @@ object ConcurrentAtomicNumberCharLeft64Suite
     None,
     Char.MaxValue,
     Char.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberNumberAnyLeft64Suite
   extends ConcurrentAtomicNumberSuite[BigInt, AtomicNumberAny[BigInt]](
@@ -260,7 +281,8 @@ object ConcurrentAtomicNumberNumberAnyLeft64Suite
     None,
     BigInt(Long.MaxValue),
     BigInt(Long.MinValue),
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 //-- Right64 (Java 8)
 
@@ -272,7 +294,8 @@ object ConcurrentAtomicNumberDoubleRight64Suite
     Some(Double.NaN),
     Double.MaxValue,
     Double.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberFloatRight64Suite
   extends ConcurrentAtomicNumberSuite[Float, AtomicFloat](
@@ -282,7 +305,8 @@ object ConcurrentAtomicNumberFloatRight64Suite
     Some(Float.NaN),
     Float.MaxValue,
     Float.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberLongRight64Suite
   extends ConcurrentAtomicNumberSuite[Long, AtomicLong](
@@ -292,7 +316,8 @@ object ConcurrentAtomicNumberLongRight64Suite
     None,
     Long.MaxValue,
     Long.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberIntRight64Suite
   extends ConcurrentAtomicNumberSuite[Int, AtomicInt](
@@ -302,7 +327,8 @@ object ConcurrentAtomicNumberIntRight64Suite
     None,
     Int.MaxValue,
     Int.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberShortRight64Suite
   extends ConcurrentAtomicNumberSuite[Short, AtomicShort](
@@ -312,7 +338,8 @@ object ConcurrentAtomicNumberShortRight64Suite
     None,
     Short.MaxValue,
     Short.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberByteRight64Suite
   extends ConcurrentAtomicNumberSuite[Byte, AtomicByte](
@@ -322,7 +349,8 @@ object ConcurrentAtomicNumberByteRight64Suite
     None,
     Byte.MaxValue,
     Byte.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberCharRight64Suite
   extends ConcurrentAtomicNumberSuite[Char, AtomicChar](
@@ -332,7 +360,8 @@ object ConcurrentAtomicNumberCharRight64Suite
     None,
     Char.MaxValue,
     Char.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberNumberAnyRight64Suite
   extends ConcurrentAtomicNumberSuite[BigInt, AtomicNumberAny[BigInt]](
@@ -342,7 +371,8 @@ object ConcurrentAtomicNumberNumberAnyRight64Suite
     None,
     BigInt(Long.MaxValue),
     BigInt(Long.MinValue),
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 //-- LeftRight128 (Java 8)
 
@@ -354,7 +384,8 @@ object ConcurrentAtomicNumberDoubleLeftRight128Suite
     Some(Double.NaN),
     Double.MaxValue,
     Double.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberFloatLeftRight128Suite
   extends ConcurrentAtomicNumberSuite[Float, AtomicFloat](
@@ -364,7 +395,8 @@ object ConcurrentAtomicNumberFloatLeftRight128Suite
     Some(Float.NaN),
     Float.MaxValue,
     Float.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberLongLeftRight128Suite
   extends ConcurrentAtomicNumberSuite[Long, AtomicLong](
@@ -374,7 +406,8 @@ object ConcurrentAtomicNumberLongLeftRight128Suite
     None,
     Long.MaxValue,
     Long.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberIntLeftRight128Suite
   extends ConcurrentAtomicNumberSuite[Int, AtomicInt](
@@ -384,7 +417,8 @@ object ConcurrentAtomicNumberIntLeftRight128Suite
     None,
     Int.MaxValue,
     Int.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberShortLeftRight128Suite
   extends ConcurrentAtomicNumberSuite[Short, AtomicShort](
@@ -394,7 +428,8 @@ object ConcurrentAtomicNumberShortLeftRight128Suite
     None,
     Short.MaxValue,
     Short.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberByteLeftRight128Suite
   extends ConcurrentAtomicNumberSuite[Byte, AtomicByte](
@@ -404,7 +439,8 @@ object ConcurrentAtomicNumberByteLeftRight128Suite
     None,
     Byte.MaxValue,
     Byte.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberCharLeftRight128Suite
   extends ConcurrentAtomicNumberSuite[Char, AtomicChar](
@@ -414,7 +450,8 @@ object ConcurrentAtomicNumberCharLeftRight128Suite
     None,
     Char.MaxValue,
     Char.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberNumberAnyLeftRight128Suite
   extends ConcurrentAtomicNumberSuite[BigInt, AtomicNumberAny[BigInt]](
@@ -424,7 +461,8 @@ object ConcurrentAtomicNumberNumberAnyLeftRight128Suite
     None,
     BigInt(Long.MaxValue),
     BigInt(Long.MinValue),
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 //--Left128 (Java 8)
 
@@ -436,7 +474,8 @@ object ConcurrentAtomicNumberDoubleLeft128Suite
     Some(Double.NaN),
     Double.MaxValue,
     Double.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberFloatLeft128Suite
   extends ConcurrentAtomicNumberSuite[Float, AtomicFloat](
@@ -446,7 +485,8 @@ object ConcurrentAtomicNumberFloatLeft128Suite
     Some(Float.NaN),
     Float.MaxValue,
     Float.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberLongLeft128Suite
   extends ConcurrentAtomicNumberSuite[Long, AtomicLong](
@@ -456,7 +496,8 @@ object ConcurrentAtomicNumberLongLeft128Suite
     None,
     Long.MaxValue,
     Long.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberIntLeft128Suite
   extends ConcurrentAtomicNumberSuite[Int, AtomicInt](
@@ -466,7 +507,8 @@ object ConcurrentAtomicNumberIntLeft128Suite
     None,
     Int.MaxValue,
     Int.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberShortLeft128Suite
   extends ConcurrentAtomicNumberSuite[Short, AtomicShort](
@@ -476,7 +518,8 @@ object ConcurrentAtomicNumberShortLeft128Suite
     None,
     Short.MaxValue,
     Short.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberByteLeft128Suite
   extends ConcurrentAtomicNumberSuite[Byte, AtomicByte](
@@ -486,7 +529,8 @@ object ConcurrentAtomicNumberByteLeft128Suite
     None,
     Byte.MaxValue,
     Byte.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberCharLeft128Suite
   extends ConcurrentAtomicNumberSuite[Char, AtomicChar](
@@ -496,7 +540,8 @@ object ConcurrentAtomicNumberCharLeft128Suite
     None,
     Char.MaxValue,
     Char.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberNumberAnyLeft128Suite
   extends ConcurrentAtomicNumberSuite[BigInt, AtomicNumberAny[BigInt]](
@@ -506,7 +551,8 @@ object ConcurrentAtomicNumberNumberAnyLeft128Suite
     None,
     BigInt(Long.MaxValue),
     BigInt(Long.MinValue),
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 //-- Right128 (Java 8)
 
@@ -518,7 +564,8 @@ object ConcurrentAtomicNumberDoubleRight128Suite
     Some(Double.NaN),
     Double.MaxValue,
     Double.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberFloatRight128Suite
   extends ConcurrentAtomicNumberSuite[Float, AtomicFloat](
@@ -528,7 +575,8 @@ object ConcurrentAtomicNumberFloatRight128Suite
     Some(Float.NaN),
     Float.MaxValue,
     Float.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberLongRight128Suite
   extends ConcurrentAtomicNumberSuite[Long, AtomicLong](
@@ -538,7 +586,8 @@ object ConcurrentAtomicNumberLongRight128Suite
     None,
     Long.MaxValue,
     Long.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberIntRight128Suite
   extends ConcurrentAtomicNumberSuite[Int, AtomicInt](
@@ -548,7 +597,8 @@ object ConcurrentAtomicNumberIntRight128Suite
     None,
     Int.MaxValue,
     Int.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberShortRight128Suite
   extends ConcurrentAtomicNumberSuite[Short, AtomicShort](
@@ -558,7 +608,8 @@ object ConcurrentAtomicNumberShortRight128Suite
     None,
     Short.MaxValue,
     Short.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberByteRight128Suite
   extends ConcurrentAtomicNumberSuite[Byte, AtomicByte](
@@ -568,7 +619,8 @@ object ConcurrentAtomicNumberByteRight128Suite
     None,
     Byte.MaxValue,
     Byte.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberCharRight128Suite
   extends ConcurrentAtomicNumberSuite[Char, AtomicChar](
@@ -578,7 +630,8 @@ object ConcurrentAtomicNumberCharRight128Suite
     None,
     Char.MaxValue,
     Char.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberNumberAnyRight128Suite
   extends ConcurrentAtomicNumberSuite[BigInt, AtomicNumberAny[BigInt]](
@@ -588,7 +641,8 @@ object ConcurrentAtomicNumberNumberAnyRight128Suite
     None,
     BigInt(Long.MaxValue),
     BigInt(Long.MinValue),
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 //-- LeftRight256 (Java 8)
 
@@ -600,7 +654,8 @@ object ConcurrentAtomicNumberDoubleLeftRight256Suite
     Some(Double.NaN),
     Double.MaxValue,
     Double.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberFloatLeftRight256Suite
   extends ConcurrentAtomicNumberSuite[Float, AtomicFloat](
@@ -610,7 +665,8 @@ object ConcurrentAtomicNumberFloatLeftRight256Suite
     Some(Float.NaN),
     Float.MaxValue,
     Float.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberLongLeftRight256Suite
   extends ConcurrentAtomicNumberSuite[Long, AtomicLong](
@@ -620,7 +676,8 @@ object ConcurrentAtomicNumberLongLeftRight256Suite
     None,
     Long.MaxValue,
     Long.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberIntLeftRight256Suite
   extends ConcurrentAtomicNumberSuite[Int, AtomicInt](
@@ -630,7 +687,8 @@ object ConcurrentAtomicNumberIntLeftRight256Suite
     None,
     Int.MaxValue,
     Int.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberShortLeftRight256Suite
   extends ConcurrentAtomicNumberSuite[Short, AtomicShort](
@@ -640,7 +698,8 @@ object ConcurrentAtomicNumberShortLeftRight256Suite
     None,
     Short.MaxValue,
     Short.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberByteLeftRight256Suite
   extends ConcurrentAtomicNumberSuite[Byte, AtomicByte](
@@ -650,7 +709,8 @@ object ConcurrentAtomicNumberByteLeftRight256Suite
     None,
     Byte.MaxValue,
     Byte.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberCharLeftRight256Suite
   extends ConcurrentAtomicNumberSuite[Char, AtomicChar](
@@ -660,7 +720,8 @@ object ConcurrentAtomicNumberCharLeftRight256Suite
     None,
     Char.MaxValue,
     Char.MinValue,
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 object ConcurrentAtomicNumberNumberAnyLeftRight256Suite
   extends ConcurrentAtomicNumberSuite[BigInt, AtomicNumberAny[BigInt]](
@@ -670,7 +731,8 @@ object ConcurrentAtomicNumberNumberAnyLeftRight256Suite
     None,
     BigInt(Long.MaxValue),
     BigInt(Long.MinValue),
-    allowPlatformIntrinsics = true)
+    allowPlatformIntrinsics = true
+  )
 
 // ------------ Java 7
 
@@ -684,7 +746,8 @@ object ConcurrentAtomicNumberDoubleNoPaddingJava7Suite
     Some(Double.NaN),
     Double.MaxValue,
     Double.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberFloatNoPaddingJava7Suite
   extends ConcurrentAtomicNumberSuite[Float, AtomicFloat](
@@ -694,7 +757,8 @@ object ConcurrentAtomicNumberFloatNoPaddingJava7Suite
     Some(Float.NaN),
     Float.MaxValue,
     Float.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberLongNoPaddingJava7Suite
   extends ConcurrentAtomicNumberSuite[Long, AtomicLong](
@@ -704,7 +768,8 @@ object ConcurrentAtomicNumberLongNoPaddingJava7Suite
     None,
     Long.MaxValue,
     Long.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberIntNoPaddingJava7Suite
   extends ConcurrentAtomicNumberSuite[Int, AtomicInt](
@@ -714,7 +779,8 @@ object ConcurrentAtomicNumberIntNoPaddingJava7Suite
     None,
     Int.MaxValue,
     Int.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberShortNoPaddingJava7Suite
   extends ConcurrentAtomicNumberSuite[Short, AtomicShort](
@@ -724,7 +790,8 @@ object ConcurrentAtomicNumberShortNoPaddingJava7Suite
     None,
     Short.MaxValue,
     Short.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberByteNoPaddingJava7Suite
   extends ConcurrentAtomicNumberSuite[Byte, AtomicByte](
@@ -734,7 +801,8 @@ object ConcurrentAtomicNumberByteNoPaddingJava7Suite
     None,
     Byte.MaxValue,
     Byte.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberCharNoPaddingJava7Suite
   extends ConcurrentAtomicNumberSuite[Char, AtomicChar](
@@ -744,7 +812,8 @@ object ConcurrentAtomicNumberCharNoPaddingJava7Suite
     None,
     Char.MaxValue,
     Char.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberNumberAnyNoPaddingJava7Suite
   extends ConcurrentAtomicNumberSuite[BigInt, AtomicNumberAny[BigInt]](
@@ -754,7 +823,8 @@ object ConcurrentAtomicNumberNumberAnyNoPaddingJava7Suite
     None,
     BigInt(Long.MaxValue),
     BigInt(Long.MinValue),
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 //--Left64 (Java 7)
 
@@ -766,7 +836,8 @@ object ConcurrentAtomicNumberDoubleLeft64Java7Suite
     Some(Double.NaN),
     Double.MaxValue,
     Double.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberFloatLeft64Java7Suite
   extends ConcurrentAtomicNumberSuite[Float, AtomicFloat](
@@ -776,7 +847,8 @@ object ConcurrentAtomicNumberFloatLeft64Java7Suite
     Some(Float.NaN),
     Float.MaxValue,
     Float.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberLongLeft64Java7Suite
   extends ConcurrentAtomicNumberSuite[Long, AtomicLong](
@@ -786,7 +858,8 @@ object ConcurrentAtomicNumberLongLeft64Java7Suite
     None,
     Long.MaxValue,
     Long.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberIntLeft64Java7Suite
   extends ConcurrentAtomicNumberSuite[Int, AtomicInt](
@@ -796,7 +869,8 @@ object ConcurrentAtomicNumberIntLeft64Java7Suite
     None,
     Int.MaxValue,
     Int.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberShortLeft64Java7Suite
   extends ConcurrentAtomicNumberSuite[Short, AtomicShort](
@@ -806,7 +880,8 @@ object ConcurrentAtomicNumberShortLeft64Java7Suite
     None,
     Short.MaxValue,
     Short.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberByteLeft64Java7Suite
   extends ConcurrentAtomicNumberSuite[Byte, AtomicByte](
@@ -816,7 +891,8 @@ object ConcurrentAtomicNumberByteLeft64Java7Suite
     None,
     Byte.MaxValue,
     Byte.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberCharLeft64Java7Suite
   extends ConcurrentAtomicNumberSuite[Char, AtomicChar](
@@ -826,7 +902,8 @@ object ConcurrentAtomicNumberCharLeft64Java7Suite
     None,
     Char.MaxValue,
     Char.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberNumberAnyLeft64Java7Suite
   extends ConcurrentAtomicNumberSuite[BigInt, AtomicNumberAny[BigInt]](
@@ -836,7 +913,8 @@ object ConcurrentAtomicNumberNumberAnyLeft64Java7Suite
     None,
     BigInt(Long.MaxValue),
     BigInt(Long.MinValue),
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 //-- Right64 (Java 7)
 
@@ -848,7 +926,8 @@ object ConcurrentAtomicNumberDoubleRight64Java7Suite
     Some(Double.NaN),
     Double.MaxValue,
     Double.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberFloatRight64Java7Suite
   extends ConcurrentAtomicNumberSuite[Float, AtomicFloat](
@@ -858,7 +937,8 @@ object ConcurrentAtomicNumberFloatRight64Java7Suite
     Some(Float.NaN),
     Float.MaxValue,
     Float.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberLongRight64Java7Suite
   extends ConcurrentAtomicNumberSuite[Long, AtomicLong](
@@ -868,7 +948,8 @@ object ConcurrentAtomicNumberLongRight64Java7Suite
     None,
     Long.MaxValue,
     Long.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberIntRight64Java7Suite
   extends ConcurrentAtomicNumberSuite[Int, AtomicInt](
@@ -878,7 +959,8 @@ object ConcurrentAtomicNumberIntRight64Java7Suite
     None,
     Int.MaxValue,
     Int.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberShortRight64Java7Suite
   extends ConcurrentAtomicNumberSuite[Short, AtomicShort](
@@ -888,7 +970,8 @@ object ConcurrentAtomicNumberShortRight64Java7Suite
     None,
     Short.MaxValue,
     Short.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberByteRight64Java7Suite
   extends ConcurrentAtomicNumberSuite[Byte, AtomicByte](
@@ -898,7 +981,8 @@ object ConcurrentAtomicNumberByteRight64Java7Suite
     None,
     Byte.MaxValue,
     Byte.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberCharRight64Java7Suite
   extends ConcurrentAtomicNumberSuite[Char, AtomicChar](
@@ -908,7 +992,8 @@ object ConcurrentAtomicNumberCharRight64Java7Suite
     None,
     Char.MaxValue,
     Char.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberNumberAnyRight64Java7Suite
   extends ConcurrentAtomicNumberSuite[BigInt, AtomicNumberAny[BigInt]](
@@ -918,7 +1003,8 @@ object ConcurrentAtomicNumberNumberAnyRight64Java7Suite
     None,
     BigInt(Long.MaxValue),
     BigInt(Long.MinValue),
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 //-- LeftRight128 (Java 7)
 
@@ -930,7 +1016,8 @@ object ConcurrentAtomicNumberDoubleLeftRight128Java7Suite
     Some(Double.NaN),
     Double.MaxValue,
     Double.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberFloatLeftRight128Java7Suite
   extends ConcurrentAtomicNumberSuite[Float, AtomicFloat](
@@ -940,7 +1027,8 @@ object ConcurrentAtomicNumberFloatLeftRight128Java7Suite
     Some(Float.NaN),
     Float.MaxValue,
     Float.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberLongLeftRight128Java7Suite
   extends ConcurrentAtomicNumberSuite[Long, AtomicLong](
@@ -950,7 +1038,8 @@ object ConcurrentAtomicNumberLongLeftRight128Java7Suite
     None,
     Long.MaxValue,
     Long.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberIntLeftRight128Java7Suite
   extends ConcurrentAtomicNumberSuite[Int, AtomicInt](
@@ -960,7 +1049,8 @@ object ConcurrentAtomicNumberIntLeftRight128Java7Suite
     None,
     Int.MaxValue,
     Int.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberShortLeftRight128Java7Suite
   extends ConcurrentAtomicNumberSuite[Short, AtomicShort](
@@ -970,7 +1060,8 @@ object ConcurrentAtomicNumberShortLeftRight128Java7Suite
     None,
     Short.MaxValue,
     Short.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberByteLeftRight128Java7Suite
   extends ConcurrentAtomicNumberSuite[Byte, AtomicByte](
@@ -980,7 +1071,8 @@ object ConcurrentAtomicNumberByteLeftRight128Java7Suite
     None,
     Byte.MaxValue,
     Byte.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberCharLeftRight128Java7Suite
   extends ConcurrentAtomicNumberSuite[Char, AtomicChar](
@@ -990,7 +1082,8 @@ object ConcurrentAtomicNumberCharLeftRight128Java7Suite
     None,
     Char.MaxValue,
     Char.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberNumberAnyLeftRight128Java7Suite
   extends ConcurrentAtomicNumberSuite[BigInt, AtomicNumberAny[BigInt]](
@@ -1000,7 +1093,8 @@ object ConcurrentAtomicNumberNumberAnyLeftRight128Java7Suite
     None,
     BigInt(Long.MaxValue),
     BigInt(Long.MinValue),
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 //--Left128 (Java 7)
 
@@ -1012,7 +1106,8 @@ object ConcurrentAtomicNumberDoubleLeft128Java7Suite
     Some(Double.NaN),
     Double.MaxValue,
     Double.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberFloatLeft128Java7Suite
   extends ConcurrentAtomicNumberSuite[Float, AtomicFloat](
@@ -1022,7 +1117,8 @@ object ConcurrentAtomicNumberFloatLeft128Java7Suite
     Some(Float.NaN),
     Float.MaxValue,
     Float.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberLongLeft128Java7Suite
   extends ConcurrentAtomicNumberSuite[Long, AtomicLong](
@@ -1032,7 +1128,8 @@ object ConcurrentAtomicNumberLongLeft128Java7Suite
     None,
     Long.MaxValue,
     Long.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberIntLeft128Java7Suite
   extends ConcurrentAtomicNumberSuite[Int, AtomicInt](
@@ -1042,7 +1139,8 @@ object ConcurrentAtomicNumberIntLeft128Java7Suite
     None,
     Int.MaxValue,
     Int.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberShortLeft128Java7Suite
   extends ConcurrentAtomicNumberSuite[Short, AtomicShort](
@@ -1052,7 +1150,8 @@ object ConcurrentAtomicNumberShortLeft128Java7Suite
     None,
     Short.MaxValue,
     Short.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberByteLeft128Java7Suite
   extends ConcurrentAtomicNumberSuite[Byte, AtomicByte](
@@ -1062,7 +1161,8 @@ object ConcurrentAtomicNumberByteLeft128Java7Suite
     None,
     Byte.MaxValue,
     Byte.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberCharLeft128Java7Suite
   extends ConcurrentAtomicNumberSuite[Char, AtomicChar](
@@ -1072,7 +1172,8 @@ object ConcurrentAtomicNumberCharLeft128Java7Suite
     None,
     Char.MaxValue,
     Char.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberNumberAnyLeft128Java7Suite
   extends ConcurrentAtomicNumberSuite[BigInt, AtomicNumberAny[BigInt]](
@@ -1082,7 +1183,8 @@ object ConcurrentAtomicNumberNumberAnyLeft128Java7Suite
     None,
     BigInt(Long.MaxValue),
     BigInt(Long.MinValue),
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 //-- Right128 (Java 7)
 
@@ -1094,7 +1196,8 @@ object ConcurrentAtomicNumberDoubleRight128Java7Suite
     Some(Double.NaN),
     Double.MaxValue,
     Double.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberFloatRight128Java7Suite
   extends ConcurrentAtomicNumberSuite[Float, AtomicFloat](
@@ -1104,7 +1207,8 @@ object ConcurrentAtomicNumberFloatRight128Java7Suite
     Some(Float.NaN),
     Float.MaxValue,
     Float.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberLongRight128Java7Suite
   extends ConcurrentAtomicNumberSuite[Long, AtomicLong](
@@ -1114,7 +1218,8 @@ object ConcurrentAtomicNumberLongRight128Java7Suite
     None,
     Long.MaxValue,
     Long.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberIntRight128Java7Suite
   extends ConcurrentAtomicNumberSuite[Int, AtomicInt](
@@ -1124,7 +1229,8 @@ object ConcurrentAtomicNumberIntRight128Java7Suite
     None,
     Int.MaxValue,
     Int.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberShortRight128Java7Suite
   extends ConcurrentAtomicNumberSuite[Short, AtomicShort](
@@ -1134,7 +1240,8 @@ object ConcurrentAtomicNumberShortRight128Java7Suite
     None,
     Short.MaxValue,
     Short.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberByteRight128Java7Suite
   extends ConcurrentAtomicNumberSuite[Byte, AtomicByte](
@@ -1144,7 +1251,8 @@ object ConcurrentAtomicNumberByteRight128Java7Suite
     None,
     Byte.MaxValue,
     Byte.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberCharRight128Java7Suite
   extends ConcurrentAtomicNumberSuite[Char, AtomicChar](
@@ -1154,7 +1262,8 @@ object ConcurrentAtomicNumberCharRight128Java7Suite
     None,
     Char.MaxValue,
     Char.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberNumberAnyRight128Java7Suite
   extends ConcurrentAtomicNumberSuite[BigInt, AtomicNumberAny[BigInt]](
@@ -1164,7 +1273,8 @@ object ConcurrentAtomicNumberNumberAnyRight128Java7Suite
     None,
     BigInt(Long.MaxValue),
     BigInt(Long.MinValue),
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 //-- LeftRight256 (Java 7)
 
@@ -1176,7 +1286,8 @@ object ConcurrentAtomicNumberDoubleLeftRight256Java7Suite
     Some(Double.NaN),
     Double.MaxValue,
     Double.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberFloatLeftRight256Java7Suite
   extends ConcurrentAtomicNumberSuite[Float, AtomicFloat](
@@ -1186,7 +1297,8 @@ object ConcurrentAtomicNumberFloatLeftRight256Java7Suite
     Some(Float.NaN),
     Float.MaxValue,
     Float.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberLongLeftRight256Java7Suite
   extends ConcurrentAtomicNumberSuite[Long, AtomicLong](
@@ -1196,7 +1308,8 @@ object ConcurrentAtomicNumberLongLeftRight256Java7Suite
     None,
     Long.MaxValue,
     Long.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberIntLeftRight256Java7Suite
   extends ConcurrentAtomicNumberSuite[Int, AtomicInt](
@@ -1206,7 +1319,8 @@ object ConcurrentAtomicNumberIntLeftRight256Java7Suite
     None,
     Int.MaxValue,
     Int.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberShortLeftRight256Java7Suite
   extends ConcurrentAtomicNumberSuite[Short, AtomicShort](
@@ -1216,7 +1330,8 @@ object ConcurrentAtomicNumberShortLeftRight256Java7Suite
     None,
     Short.MaxValue,
     Short.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberByteLeftRight256Java7Suite
   extends ConcurrentAtomicNumberSuite[Byte, AtomicByte](
@@ -1226,7 +1341,8 @@ object ConcurrentAtomicNumberByteLeftRight256Java7Suite
     None,
     Byte.MaxValue,
     Byte.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberCharLeftRight256Java7Suite
   extends ConcurrentAtomicNumberSuite[Char, AtomicChar](
@@ -1236,7 +1352,8 @@ object ConcurrentAtomicNumberCharLeftRight256Java7Suite
     None,
     Char.MaxValue,
     Char.MinValue,
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )
 
 object ConcurrentAtomicNumberNumberAnyLeftRight256Java7Suite
   extends ConcurrentAtomicNumberSuite[BigInt, AtomicNumberAny[BigInt]](
@@ -1246,4 +1363,5 @@ object ConcurrentAtomicNumberNumberAnyLeftRight256Java7Suite
     None,
     BigInt(Long.MaxValue),
     BigInt(Long.MinValue),
-    allowPlatformIntrinsics = false)
+    allowPlatformIntrinsics = false
+  )

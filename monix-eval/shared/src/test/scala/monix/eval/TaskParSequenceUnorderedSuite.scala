@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,14 +23,15 @@ import monix.execution.internal.Platform
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 object TaskParSequenceUnorderedSuite extends BaseTestSuite {
   test("Task.parSequenceUnordered should execute in parallel") { implicit s =>
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),
       Task.evalAsync(2).delayExecution(1.second),
-      Task.evalAsync(3).delayExecution(3.seconds))
+      Task.evalAsync(3).delayExecution(3.seconds)
+    )
     val f = Task.parSequenceUnordered(seq).runToFuture
 
     s.tick()
@@ -62,7 +63,8 @@ object TaskParSequenceUnorderedSuite extends BaseTestSuite {
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),
       Task.evalAsync(2).delayExecution(1.second),
-      Task.evalAsync(3).delayExecution(3.seconds))
+      Task.evalAsync(3).delayExecution(3.seconds)
+    )
     val f = Task.parSequenceUnordered(seq).runToFuture
 
     s.tick()
@@ -165,7 +167,7 @@ object TaskParSequenceUnorderedSuite extends BaseTestSuite {
   test("Task.parSequenceUnordered runAsync multiple times") { implicit s =>
     var effect = 0
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
-    val task2 = task1 map { x =>
+    val task2 = task1.map { x =>
       effect += 1; x + 1
     }
     val task3 = Task.parSequenceUnordered(List(task2, task2, task2))

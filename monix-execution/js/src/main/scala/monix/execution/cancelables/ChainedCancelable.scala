@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -84,7 +84,7 @@ import monix.execution.internal.exceptions.matchError
   */
 final class ChainedCancelable private (private var stateRef: AnyRef) extends AssignableCancelable {
 
-  import ChainedCancelable.{Canceled, WeakRef}
+  import ChainedCancelable.{ Canceled, WeakRef }
   private type CC = ChainedCancelable
 
   // States of `state`:
@@ -105,7 +105,7 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
       case other =>
         // $COVERAGE-OFF$
         matchError(other)
-        // $COVERAGE-ON$
+      // $COVERAGE-ON$
     }
   }
 
@@ -186,7 +186,7 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
     }
   }

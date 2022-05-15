@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,10 +17,10 @@
 
 package monix.execution.atomic
 
+import monix.execution.atomic.internal.{ BoxedLong, Factory }
 import monix.execution.atomic.PaddingStrategy.NoPadding
+import java.lang.Double.{ doubleToLongBits, longBitsToDouble }
 import scala.annotation.tailrec
-import java.lang.Double.{doubleToLongBits, longBitsToDouble}
-import monix.execution.atomic.internal.{BoxedLong, Factory}
 
 /** Atomic references wrapping `Double` values.
   *
@@ -183,7 +183,8 @@ object AtomicDouble {
         boxStrategyToPaddingStrategy(padding),
         true, // allowIntrinsics
         allowPlatformIntrinsics
-      ))
+      )
+    )
   }
 
   /** $createDesc
@@ -208,6 +209,7 @@ object AtomicDouble {
         boxStrategyToPaddingStrategy(padding),
         false, // allowUnsafe
         false // allowJava8Intrinsics
-      ))
+      )
+    )
   }
 }

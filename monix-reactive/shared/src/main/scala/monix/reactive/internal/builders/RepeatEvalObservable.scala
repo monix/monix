@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution._
 import scala.util.control.NonFatal
@@ -26,7 +26,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 private[reactive] final class RepeatEvalObservable[+A](eval: => A) extends Observable[A] {
 
@@ -38,7 +38,8 @@ private[reactive] final class RepeatEvalObservable[+A](eval: => A) extends Obser
   }
 
   def reschedule(ack: Future[Ack], o: Subscriber[A], c: BooleanCancelable, em: ExecutionModel)(
-    implicit s: Scheduler): Unit =
+    implicit s: Scheduler
+  ): Unit =
     ack.onComplete {
       case Success(Continue) =>
         fastLoop(o, c, em, 0)
@@ -50,7 +51,8 @@ private[reactive] final class RepeatEvalObservable[+A](eval: => A) extends Obser
 
   @tailrec
   def fastLoop(o: Subscriber[A], c: BooleanCancelable, em: ExecutionModel, syncIndex: Int)(
-    implicit s: Scheduler): Unit = {
+    implicit s: Scheduler
+  ): Unit = {
 
     val ack =
       try o.onNext(eval)

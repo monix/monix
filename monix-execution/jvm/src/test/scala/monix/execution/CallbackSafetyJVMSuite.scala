@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,16 +17,16 @@
 
 package monix.execution
 
-import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.{ CountDownLatch, TimeUnit }
 
 import minitest.TestSuite
-import minitest.api.{AssertionException, MiniTestException}
-import monix.execution.exceptions.{CallbackCalledMultipleTimesException, DummyException}
+import minitest.api.{ AssertionException, MiniTestException }
+import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, DummyException }
 import monix.execution.schedulers.SchedulerService
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils {
   val WORKERS = 10
@@ -228,7 +228,8 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
   def executeOnSuccessTest(
     wrap: Callback[Throwable, Int] => Callback[Throwable, Int],
     isForked: Boolean = false,
-    retries: Int = RETRIES)(implicit sc: Scheduler): Unit = {
+    retries: Int = RETRIES
+  )(implicit sc: Scheduler): Unit = {
 
     def run(trigger: Callback[Throwable, Int] => Any): Unit = {
       for (_ <- 0 until retries) {
@@ -258,19 +259,23 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
 
     run(cb =>
       try cb.onSuccess(1)
-      catch { case _: CallbackCalledMultipleTimesException => () })
+      catch { case _: CallbackCalledMultipleTimesException => () }
+    )
     run(cb =>
       try cb(Right(1))
-      catch { case _: CallbackCalledMultipleTimesException => () })
+      catch { case _: CallbackCalledMultipleTimesException => () }
+    )
     run(cb =>
       try cb(Success(1))
-      catch { case _: CallbackCalledMultipleTimesException => () })
+      catch { case _: CallbackCalledMultipleTimesException => () }
+    )
   }
 
   def executeOnErrorTest(
     wrap: Callback[Throwable, String] => Callback[Throwable, String],
     isForked: Boolean = false,
-    retries: Int = RETRIES)(implicit sc: Scheduler): Unit = {
+    retries: Int = RETRIES
+  )(implicit sc: Scheduler): Unit = {
 
     def run(trigger: Callback[Throwable, String] => Any): Unit = {
       for (_ <- 0 until retries) {
@@ -297,13 +302,16 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
 
     run(cb =>
       try cb.onError(DUMMY)
-      catch { case _: CallbackCalledMultipleTimesException => () })
+      catch { case _: CallbackCalledMultipleTimesException => () }
+    )
     run(cb =>
       try cb.tryApply(Left(DUMMY))
-      catch { case _: CallbackCalledMultipleTimesException => () })
+      catch { case _: CallbackCalledMultipleTimesException => () }
+    )
     run(cb =>
       try cb.tryApply(Failure(DUMMY))
-      catch { case _: CallbackCalledMultipleTimesException => () })
+      catch { case _: CallbackCalledMultipleTimesException => () }
+    )
   }
 
   def runConcurrently(sc: Scheduler)(f: => Any): Unit = {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,10 +55,12 @@ object FutureUtilsJVMSuite extends TestSuite[TestScheduler] {
           .delayedResult(originalTimeout) {
             15
           }
-          .timeoutTo(timeout, {
-            sideEffect.incrementAndGet()
-            Future.failed(TestException())
-          })(Scheduler.Implicits.global)
+          .timeoutTo(
+            timeout, {
+              sideEffect.incrementAndGet()
+              Future.failed(TestException())
+            }
+          )(Scheduler.Implicits.global)
         _ <- FutureUtils.delayedResult(100.millis)(()) // wait for all concurrent processes
       } yield ()).map { _ =>
         success.incrementAndGet()

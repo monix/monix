@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,11 @@
 
 package monix.eval
 
-import monix.eval.Task.{Error, Now}
+import monix.eval.Task.{ Error, Now }
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskFromEitherSuite extends BaseTestSuite {
   test("Task.fromEither (`E <: Throwable` version) should returns a Now with a Right") { implicit s =>

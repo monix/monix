@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,14 +16,14 @@
  */
 
 package monix.eval
-import cats.effect.{ContextShift, IO}
+import cats.effect.{ ContextShift, IO }
 import monix.catnap.SchedulerEffect
 import monix.execution.exceptions.DummyException
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskLiftSuite extends BaseTestSuite {
-  import TaskConversionsSuite.{CIO, CustomConcurrentEffect, CustomEffect}
+  import TaskConversionsSuite.{ CIO, CustomConcurrentEffect, CustomEffect }
 
   test("task.to[Task]") { _ =>
     val task = Task(1)

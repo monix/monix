@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@ import monix.execution.internal.Platform
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 object TaskParTraverseUnorderedSuite extends BaseTestSuite {
   test("Task.parTraverseUnordered should execute in parallel") { implicit s =>
@@ -99,11 +99,11 @@ object TaskParTraverseUnorderedSuite extends BaseTestSuite {
 
   test("Task.parTraverseUnordered should be stack safe on success") { implicit s =>
     def fold[A](ta: Task[ListBuffer[A]], next: A): Task[ListBuffer[A]] =
-      ta flatMap { acc =>
+      ta.flatMap { acc =>
         Task.parTraverseUnordered(Seq(acc, next)) { v =>
           Task.eval(v)
         }
-      } map {
+      }.map {
         case a :: b :: Nil =>
           val (accR, valueR) = if (a.isInstanceOf[ListBuffer[_]]) (a, b) else (b, a)
           val acc = accR.asInstanceOf[ListBuffer[A]]
@@ -167,7 +167,7 @@ object TaskParTraverseUnorderedSuite extends BaseTestSuite {
       effect += 1; 3
     }.memoize
 
-    val task2 = task1 map { x =>
+    val task2 = task1.map { x =>
       effect += 1; x + 1
     }
 

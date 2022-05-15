@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,10 +24,10 @@ import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
-import monix.reactive.{BaseTestSuite, Consumer, Observable, Observer}
+import monix.reactive.{ BaseTestSuite, Consumer, Observable, Observer }
 
 import scala.concurrent.Promise
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object FromObserverConsumerSuite extends BaseTestSuite {
   test("convert an observer into a consumer") { implicit s =>
@@ -44,7 +44,8 @@ object FromObserverConsumerSuite extends BaseTestSuite {
             def onNext(elem: Int) = {
               sum += elem; Continue
             }
-          })
+          }
+        )
 
         val onFinish = Promise[Unit]()
         val (out, _) = consumer.createSubscriber(Callback.fromPromise(onFinish), s)
@@ -70,7 +71,8 @@ object FromObserverConsumerSuite extends BaseTestSuite {
             def onError(ex: Throwable): Unit = throw ex
             def onComplete(): Unit = ()
             def onNext(elem: Int) = Continue
-          })
+          }
+        )
 
         val (out, _) = consumer.createSubscriber(cb, s)
         source.endWithError(ex).unsafeSubscribeFn(out)

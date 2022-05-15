@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,8 +19,8 @@ package monix.execution
 
 import java.util.concurrent.atomic.AtomicLong
 import minitest.TestSuite
-import monix.execution.BufferCapacity.{Bounded, Unbounded}
-import monix.execution.ChannelType.{MPMC, MPSC, SPMC, SPSC}
+import monix.execution.BufferCapacity.{ Bounded, Unbounded }
+import monix.execution.ChannelType.{ MPMC, MPSC, SPMC, SPSC }
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import scala.collection.immutable.Queue
@@ -120,7 +120,8 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
       if (n > 0)
         queue.poll().flatMap { a =>
           consumer(n - 1, acc.enqueue(a))
-        } else
+        }
+      else
         Future.successful(acc.foldLeft(0L)(_ + _))
 
     val p = producer(count)

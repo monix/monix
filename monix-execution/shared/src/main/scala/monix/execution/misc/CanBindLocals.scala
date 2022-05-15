@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.execution.misc
 
 import implicitbox.Not
-import monix.execution.{CancelableFuture, FutureUtils}
+import monix.execution.{ CancelableFuture, FutureUtils }
 import monix.execution.schedulers.TrampolineExecutionContext
 
 import scala.annotation.implicitNotFound
@@ -142,10 +142,13 @@ private[misc] abstract class CanIsolateInstancesLevel0 {
 
       try {
         FutureUtils
-          .transform[Any, Any](f, result => {
-            Local.setContext(prev)
-            result
-          })(TrampolineExecutionContext.immediate)
+          .transform[Any, Any](
+            f,
+            result => {
+              Local.setContext(prev)
+              result
+            }
+          )(TrampolineExecutionContext.immediate)
       } finally {
         Local.setContext(prev)
       }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -95,11 +95,13 @@ private[atomic] trait InlineMacros {
           tree match {
             case UnApply(
                   Apply(Select(qualifier, nme.unapply | nme.unapplySeq), List(Ident(nme.SELECTOR_DUMMY))),
-                  args) =>
+                  args
+                ) =>
               Apply(transform(qualifier), transformTrees(args))
             case UnApply(
                   Apply(TypeApply(Select(qualifier, nme.unapply | nme.unapplySeq), _), List(Ident(nme.SELECTOR_DUMMY))),
-                  args) =>
+                  args
+                ) =>
               Apply(transform(qualifier), transformTrees(args))
             case t => t
           }

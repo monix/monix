@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,28 +29,32 @@ private[reactive] final class TakeLastObservable[A](source: Observable[A], n: In
   extends ChainedObservable[A] {
 
   override def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
-    ChainedObservable.subscribe(source, conn, new Subscriber[A] {
-      implicit val scheduler = out.scheduler
-      private[this] val queue = mutable.Queue.empty[A]
-      private[this] var queued = 0
+    ChainedObservable.subscribe(
+      source,
+      conn,
+      new Subscriber[A] {
+        implicit val scheduler = out.scheduler
+        private[this] val queue = mutable.Queue.empty[A]
+        private[this] var queued = 0
 
-      def onNext(elem: A): Ack = {
-        queue.enqueue(elem)
-        if (queued < n)
-          queued += 1
-        else
-          queue.dequeue()
-        Continue
-      }
+        def onNext(elem: A): Ack = {
+          queue.enqueue(elem)
+          if (queued < n)
+            queued += 1
+          else
+            queue.dequeue()
+          Continue
+        }
 
-      def onComplete(): Unit = {
-        val other = Observable.fromIteratorUnsafe(queue.iterator)
-        ChainedObservable.subscribe(other, conn, out)
-      }
+        def onComplete(): Unit = {
+          val other = Observable.fromIteratorUnsafe(queue.iterator)
+          ChainedObservable.subscribe(other, conn, out)
+        }
 
-      def onError(ex: Throwable): Unit = {
-        out.onError(ex)
+        def onError(ex: Throwable): Unit = {
+          out.onError(ex)
+        }
       }
-    })
+    )
   }
 }

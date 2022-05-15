@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,7 +28,8 @@ abstract class AtomicNumberSuite[A, R <: AtomicNumber[A]](
   minValue: A,
   hasOverflow: Boolean = true,
   allowPlatformIntrinsics: Boolean,
-  allowUnsafe: Boolean)(implicit ev: Numeric[A])
+  allowUnsafe: Boolean
+)(implicit ev: Numeric[A])
   extends SimpleTestSuite {
 
   def Atomic(initial: A): R = {
@@ -348,7 +349,8 @@ abstract class AtomicDoubleSuite(strategy: PaddingStrategy, allowPlatformIntrins
     Double.MinValue,
     hasOverflow = false,
     allowPlatformIntrinsics,
-    allowUnsafe) {
+    allowUnsafe
+  ) {
 
   test("should store MinPositiveValue, NaN, NegativeInfinity, PositiveInfinity") {
     assert(Atomic(Double.MinPositiveValue).get() == Double.MinPositiveValue)
@@ -367,7 +369,8 @@ abstract class AtomicFloatSuite(strategy: PaddingStrategy, allowPlatformIntrinsi
     Float.MinValue,
     hasOverflow = false,
     allowPlatformIntrinsics,
-    allowUnsafe) {
+    allowUnsafe
+  ) {
 
   test("should store MinPositiveValue, NaN, NegativeInfinity, PositiveInfinity") {
     assert(Atomic(Float.MinPositiveValue).get() == Float.MinPositiveValue)
@@ -391,7 +394,8 @@ object AtomicLongNoPaddingSuite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicIntNoPaddingSuite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -401,7 +405,8 @@ object AtomicIntNoPaddingSuite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicShortNoPaddingSuite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -411,7 +416,8 @@ object AtomicShortNoPaddingSuite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicByteNoPaddingSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -421,7 +427,8 @@ object AtomicByteNoPaddingSuite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicCharNoPaddingSuite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -431,7 +438,8 @@ object AtomicCharNoPaddingSuite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicNumberAnyNoPaddingSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -441,7 +449,8 @@ object AtomicNumberAnyNoPaddingSuite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Left64 (Java 8)
 
@@ -456,7 +465,8 @@ object AtomicLongLeft64Suite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicIntLeft64Suite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -466,7 +476,8 @@ object AtomicIntLeft64Suite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicShortLeft64Suite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -476,7 +487,8 @@ object AtomicShortLeft64Suite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicByteLeft64Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -486,7 +498,8 @@ object AtomicByteLeft64Suite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicCharLeft64Suite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -496,7 +509,8 @@ object AtomicCharLeft64Suite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicNumberAnyLeft64Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -506,7 +520,8 @@ object AtomicNumberAnyLeft64Suite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Right64 (Java 8)
 
@@ -521,7 +536,8 @@ object AtomicLongRight64Suite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicIntRight64Suite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -531,7 +547,8 @@ object AtomicIntRight64Suite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicShortRight64Suite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -541,7 +558,8 @@ object AtomicShortRight64Suite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicByteRight64Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -551,7 +569,8 @@ object AtomicByteRight64Suite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicCharRight64Suite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -561,7 +580,8 @@ object AtomicCharRight64Suite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicNumberAnyRight64Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -571,7 +591,8 @@ object AtomicNumberAnyRight64Suite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- LeftRight128 (Java 8)
 
@@ -588,7 +609,8 @@ object AtomicLongLeftRight128Suite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicIntLeftRight128Suite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -598,7 +620,8 @@ object AtomicIntLeftRight128Suite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicShortLeftRight128Suite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -608,7 +631,8 @@ object AtomicShortLeftRight128Suite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicByteLeftRight128Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -618,7 +642,8 @@ object AtomicByteLeftRight128Suite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicCharLeftRight128Suite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -628,7 +653,8 @@ object AtomicCharLeftRight128Suite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicNumberAnyLeftRight128Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -638,7 +664,8 @@ object AtomicNumberAnyLeftRight128Suite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Left128 (Java 8)
 
@@ -653,7 +680,8 @@ object AtomicLongLeft128Suite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicIntLeft128Suite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -663,7 +691,8 @@ object AtomicIntLeft128Suite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicShortLeft128Suite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -673,7 +702,8 @@ object AtomicShortLeft128Suite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicByteLeft128Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -683,7 +713,8 @@ object AtomicByteLeft128Suite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicCharLeft128Suite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -693,7 +724,8 @@ object AtomicCharLeft128Suite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicNumberAnyLeft128Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -703,7 +735,8 @@ object AtomicNumberAnyLeft128Suite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Right128 (Java 8)
 
@@ -718,7 +751,8 @@ object AtomicLongRight128Suite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicIntRight128Suite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -728,7 +762,8 @@ object AtomicIntRight128Suite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicShortRight128Suite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -738,7 +773,8 @@ object AtomicShortRight128Suite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicByteRight128Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -748,7 +784,8 @@ object AtomicByteRight128Suite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicCharRight128Suite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -758,7 +795,8 @@ object AtomicCharRight128Suite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicNumberAnyRight128Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -768,7 +806,8 @@ object AtomicNumberAnyRight128Suite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- LeftRight256 (Java 8)
 
@@ -785,7 +824,8 @@ object AtomicLongLeftRight256Suite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicIntLeftRight256Suite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -795,7 +835,8 @@ object AtomicIntLeftRight256Suite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicShortLeftRight256Suite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -805,7 +846,8 @@ object AtomicShortLeftRight256Suite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicByteLeftRight256Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -815,7 +857,8 @@ object AtomicByteLeftRight256Suite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicCharLeftRight256Suite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -825,7 +868,8 @@ object AtomicCharLeftRight256Suite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicNumberAnyLeftRight256Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -835,7 +879,8 @@ object AtomicNumberAnyLeftRight256Suite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = true,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // ------------------ Java 7
 
@@ -854,7 +899,8 @@ object AtomicLongNoPaddingJava7Suite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicIntNoPaddingJava7Suite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -864,7 +910,8 @@ object AtomicIntNoPaddingJava7Suite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicShortNoPaddingJava7Suite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -874,7 +921,8 @@ object AtomicShortNoPaddingJava7Suite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicByteNoPaddingJava7Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -884,7 +932,8 @@ object AtomicByteNoPaddingJava7Suite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicCharNoPaddingJava7Suite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -894,7 +943,8 @@ object AtomicCharNoPaddingJava7Suite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicNumberAnyNoPaddingJava7Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -904,7 +954,8 @@ object AtomicNumberAnyNoPaddingJava7Suite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Left64 (Java 7)
 
@@ -920,7 +971,8 @@ object AtomicLongLeft64Java7Suite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicIntLeft64Java7Suite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -930,7 +982,8 @@ object AtomicIntLeft64Java7Suite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicShortLeft64Java7Suite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -940,7 +993,8 @@ object AtomicShortLeft64Java7Suite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicByteLeft64Java7Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -950,7 +1004,8 @@ object AtomicByteLeft64Java7Suite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicCharLeft64Java7Suite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -960,7 +1015,8 @@ object AtomicCharLeft64Java7Suite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicNumberAnyLeft64Java7Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -970,7 +1026,8 @@ object AtomicNumberAnyLeft64Java7Suite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Right64 (Java 7)
 
@@ -987,7 +1044,8 @@ object AtomicLongRight64Java7Suite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicIntRight64Java7Suite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -997,7 +1055,8 @@ object AtomicIntRight64Java7Suite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicShortRight64Java7Suite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -1007,7 +1066,8 @@ object AtomicShortRight64Java7Suite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicByteRight64Java7Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -1017,7 +1077,8 @@ object AtomicByteRight64Java7Suite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicCharRight64Java7Suite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -1027,7 +1088,8 @@ object AtomicCharRight64Java7Suite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicNumberAnyRight64Java7Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1037,7 +1099,8 @@ object AtomicNumberAnyRight64Java7Suite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- LeftRight128 (Java 7)
 
@@ -1054,7 +1117,8 @@ object AtomicLongLeftRight128Java7Suite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicIntLeftRight128Java7Suite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -1064,7 +1128,8 @@ object AtomicIntLeftRight128Java7Suite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicShortLeftRight128Java7Suite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -1074,7 +1139,8 @@ object AtomicShortLeftRight128Java7Suite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicByteLeftRight128Java7Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -1084,7 +1150,8 @@ object AtomicByteLeftRight128Java7Suite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicCharLeftRight128Java7Suite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -1094,7 +1161,8 @@ object AtomicCharLeftRight128Java7Suite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicNumberAnyLeftRight128Java7Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1104,7 +1172,8 @@ object AtomicNumberAnyLeftRight128Java7Suite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Left128 (Java 7)
 
@@ -1121,7 +1190,8 @@ object AtomicLongLeft128Java7Suite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicIntLeft128Java7Suite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -1131,7 +1201,8 @@ object AtomicIntLeft128Java7Suite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicShortLeft128Java7Suite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -1141,7 +1212,8 @@ object AtomicShortLeft128Java7Suite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicByteLeft128Java7Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -1151,7 +1223,8 @@ object AtomicByteLeft128Java7Suite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicCharLeft128Java7Suite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -1161,7 +1234,8 @@ object AtomicCharLeft128Java7Suite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicNumberAnyLeft128Java7Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1171,7 +1245,8 @@ object AtomicNumberAnyLeft128Java7Suite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- Right128 (Java 7)
 
@@ -1188,7 +1263,8 @@ object AtomicLongRight128Java7Suite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicIntRight128Java7Suite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -1198,7 +1274,8 @@ object AtomicIntRight128Java7Suite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicShortRight128Java7Suite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -1208,7 +1285,8 @@ object AtomicShortRight128Java7Suite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicByteRight128Java7Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -1218,7 +1296,8 @@ object AtomicByteRight128Java7Suite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicCharRight128Java7Suite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -1228,7 +1307,8 @@ object AtomicCharRight128Java7Suite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicNumberAnyRight128Java7Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1238,7 +1318,8 @@ object AtomicNumberAnyRight128Java7Suite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // -- LeftRight256 (Java 7)
 
@@ -1255,7 +1336,8 @@ object AtomicLongLeftRight256Java7Suite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicIntLeftRight256Java7Suite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -1265,7 +1347,8 @@ object AtomicIntLeftRight256Java7Suite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicShortLeftRight256Java7Suite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -1275,7 +1358,8 @@ object AtomicShortLeftRight256Java7Suite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicByteLeftRight256Java7Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -1285,7 +1369,8 @@ object AtomicByteLeftRight256Java7Suite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicCharLeftRight256Java7Suite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -1295,7 +1380,8 @@ object AtomicCharLeftRight256Java7Suite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 object AtomicNumberAnyLeftRight256Java7Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1305,7 +1391,8 @@ object AtomicNumberAnyLeftRight256Java7Suite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = true)
+    allowUnsafe = true
+  )
 
 // ------------------ Java X
 
@@ -1324,7 +1411,8 @@ object AtomicLongNoPaddingJavaXSuite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicIntNoPaddingJavaXSuite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -1334,7 +1422,8 @@ object AtomicIntNoPaddingJavaXSuite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicShortNoPaddingJavaXSuite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -1344,7 +1433,8 @@ object AtomicShortNoPaddingJavaXSuite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicByteNoPaddingJavaXSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -1354,7 +1444,8 @@ object AtomicByteNoPaddingJavaXSuite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicCharNoPaddingJavaXSuite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -1364,7 +1455,8 @@ object AtomicCharNoPaddingJavaXSuite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicNumberAnyNoPaddingJavaXSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1374,7 +1466,8 @@ object AtomicNumberAnyNoPaddingJavaXSuite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 // -- Left64 (Java X)
 
@@ -1391,7 +1484,8 @@ object AtomicLongLeft64JavaXSuite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicIntLeft64JavaXSuite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -1401,7 +1495,8 @@ object AtomicIntLeft64JavaXSuite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicShortLeft64JavaXSuite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -1411,7 +1506,8 @@ object AtomicShortLeft64JavaXSuite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicByteLeft64JavaXSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -1421,7 +1517,8 @@ object AtomicByteLeft64JavaXSuite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicCharLeft64JavaXSuite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -1431,7 +1528,8 @@ object AtomicCharLeft64JavaXSuite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicNumberAnyLeft64JavaXSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1441,7 +1539,8 @@ object AtomicNumberAnyLeft64JavaXSuite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 // -- Right64 (Java X)
 
@@ -1458,7 +1557,8 @@ object AtomicLongRight64JavaXSuite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicIntRight64JavaXSuite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -1468,7 +1568,8 @@ object AtomicIntRight64JavaXSuite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicShortRight64JavaXSuite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -1478,7 +1579,8 @@ object AtomicShortRight64JavaXSuite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicByteRight64JavaXSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -1488,7 +1590,8 @@ object AtomicByteRight64JavaXSuite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicCharRight64JavaXSuite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -1498,7 +1601,8 @@ object AtomicCharRight64JavaXSuite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicNumberAnyRight64JavaXSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1508,7 +1612,8 @@ object AtomicNumberAnyRight64JavaXSuite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 // -- LeftRight128 (Java X)
 
@@ -1525,7 +1630,8 @@ object AtomicLongLeftRight128JavaXSuite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicIntLeftRight128JavaXSuite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -1535,7 +1641,8 @@ object AtomicIntLeftRight128JavaXSuite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicShortLeftRight128JavaXSuite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -1545,7 +1652,8 @@ object AtomicShortLeftRight128JavaXSuite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicByteLeftRight128JavaXSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -1555,7 +1663,8 @@ object AtomicByteLeftRight128JavaXSuite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicCharLeftRight128JavaXSuite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -1565,7 +1674,8 @@ object AtomicCharLeftRight128JavaXSuite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicNumberAnyLeftRight128JavaXSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1575,7 +1685,8 @@ object AtomicNumberAnyLeftRight128JavaXSuite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 // -- Left128 (Java X)
 
@@ -1592,7 +1703,8 @@ object AtomicLongLeft128JavaXSuite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicIntLeft128JavaXSuite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -1602,7 +1714,8 @@ object AtomicIntLeft128JavaXSuite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicShortLeft128JavaXSuite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -1612,7 +1725,8 @@ object AtomicShortLeft128JavaXSuite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicByteLeft128JavaXSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -1622,7 +1736,8 @@ object AtomicByteLeft128JavaXSuite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicCharLeft128JavaXSuite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -1632,7 +1747,8 @@ object AtomicCharLeft128JavaXSuite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicNumberAnyLeft128JavaXSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1642,7 +1758,8 @@ object AtomicNumberAnyLeft128JavaXSuite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 // -- Right128 (Java X)
 
@@ -1659,7 +1776,8 @@ object AtomicLongRight128JavaXSuite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicIntRight128JavaXSuite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -1669,7 +1787,8 @@ object AtomicIntRight128JavaXSuite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicShortRight128JavaXSuite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -1679,7 +1798,8 @@ object AtomicShortRight128JavaXSuite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicByteRight128JavaXSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -1689,7 +1809,8 @@ object AtomicByteRight128JavaXSuite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicCharRight128JavaXSuite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -1699,7 +1820,8 @@ object AtomicCharRight128JavaXSuite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicNumberAnyRight128JavaXSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1709,7 +1831,8 @@ object AtomicNumberAnyRight128JavaXSuite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 // -- LeftRight256 (Java X)
 
@@ -1726,7 +1849,8 @@ object AtomicLongLeftRight256JavaXSuite
     Long.MaxValue,
     Long.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicIntLeftRight256JavaXSuite
   extends AtomicNumberSuite[Int, AtomicInt](
@@ -1736,7 +1860,8 @@ object AtomicIntLeftRight256JavaXSuite
     Int.MaxValue,
     Int.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicShortLeftRight256JavaXSuite
   extends AtomicNumberSuite[Short, AtomicShort](
@@ -1746,7 +1871,8 @@ object AtomicShortLeftRight256JavaXSuite
     Short.MaxValue,
     Short.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicByteLeftRight256JavaXSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
@@ -1756,7 +1882,8 @@ object AtomicByteLeftRight256JavaXSuite
     Byte.MaxValue,
     Byte.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicCharLeftRight256JavaXSuite
   extends AtomicNumberSuite[Char, AtomicChar](
@@ -1766,7 +1893,8 @@ object AtomicCharLeftRight256JavaXSuite
     Char.MaxValue,
     Char.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )
 
 object AtomicNumberAnyLeftRight256JavaXSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
@@ -1776,4 +1904,5 @@ object AtomicNumberAnyLeftRight256JavaXSuite
     BoxedLong.MaxValue,
     BoxedLong.MinValue,
     allowPlatformIntrinsics = false,
-    allowUnsafe = false)
+    allowUnsafe = false
+  )

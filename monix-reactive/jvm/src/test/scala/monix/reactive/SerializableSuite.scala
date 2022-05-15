@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +17,12 @@
 
 package monix.reactive
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream }
 import cats.laws._
 import cats.laws.discipline._
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 object SerializableSuite extends BaseTestSuite {
   def serialize(obj: Serializable) = {
