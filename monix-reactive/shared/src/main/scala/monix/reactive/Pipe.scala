@@ -81,8 +81,8 @@ abstract class Pipe[I, +O] extends Serializable {
     *        which configures the type of the producer, for performance optimization;
     *        can be multi producer (the default) or single producer
     */
-  def concurrent(strategy: Synchronous[I], producerType: ChannelType.ProducerSide)(
-    implicit s: Scheduler): (Observer.Sync[I], Observable[O]) = {
+  def concurrent(strategy: Synchronous[I], producerType: ChannelType.ProducerSide)(implicit
+    s: Scheduler): (Observer.Sync[I], Observable[O]) = {
 
     val (in, out) = multicast(s)
     val buffer = BufferedSubscriber.synchronous[I](Subscriber(in, s), strategy, producerType)

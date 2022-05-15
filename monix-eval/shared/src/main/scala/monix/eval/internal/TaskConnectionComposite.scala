@@ -72,8 +72,8 @@ private[eval] final class TaskConnectionComposite private (stateRef: AtomicAny[S
     add(conn)
 
   @tailrec
-  private def addAny(ref: AnyRef /* CancelToken[Task] | CancelableF[Task] | Cancelable */ )(
-    implicit s: Scheduler): Unit = {
+  private def addAny(ref: AnyRef /* CancelToken[Task] | CancelableF[Task] | Cancelable */ )(implicit
+    s: Scheduler): Unit = {
 
     stateRef.get() match {
       case Cancelled =>

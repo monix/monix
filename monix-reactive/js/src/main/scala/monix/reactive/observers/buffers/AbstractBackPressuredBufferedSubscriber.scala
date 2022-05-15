@@ -167,52 +167,54 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
       var nextIndex = startIndex
       var streamErrors = true
 
-      try while (isLoopActive && !downstreamIsComplete) {
-        val next = fetchNext()
+      try
+        while (isLoopActive && !downstreamIsComplete) {
+          val next = fetchNext()
 
-        if (next != null) {
-          if (nextIndex > 0 || isFirstIteration) {
-            isFirstIteration = false
+          if (next != null) {
+            if (nextIndex > 0 || isFirstIteration) {
+              isFirstIteration = false
 
-            ack match {
-              case Continue =>
-                ack = signalNext(next)
-                if (ack == Stop) {
+              ack match {
+                case Continue =>
+                  ack = signalNext(next)
+                  if (ack == Stop) {
+                    stopStreaming()
+                    return
+                  } else {
+                    val isSync = ack == Continue
+                    nextIndex = if (isSync) em.nextFrameIndex(nextIndex) else 0
+                  }
+
+                case Stop =>
                   stopStreaming()
                   return
-                } else {
-                  val isSync = ack == Continue
-                  nextIndex = if (isSync) em.nextFrameIndex(nextIndex) else 0
-                }
 
-              case Stop =>
-                stopStreaming()
-                return
-
-              case _ =>
-                goAsync(next, ack)
-                return
+                case _ =>
+                  goAsync(next, ack)
+                  return
+              }
+            } else {
+              goAsync(next, ack)
+              return
             }
           } else {
-            goAsync(next, ack)
+            // Ending loop
+            if (backPressured != null) {
+              backPressured.success(if (upstreamIsComplete) Stop else Continue)
+              backPressured = null
+            }
+
+            streamErrors = false
+            if (upstreamIsComplete)
+              downstreamSignalComplete(errorThrown)
+
+            lastIterationAck = ack
+            isLoopActive = false
             return
           }
-        } else {
-          // Ending loop
-          if (backPressured != null) {
-            backPressured.success(if (upstreamIsComplete) Stop else Continue)
-            backPressured = null
-          }
-
-          streamErrors = false
-          if (upstreamIsComplete)
-            downstreamSignalComplete(errorThrown)
-
-          lastIterationAck = ack
-          isLoopActive = false
-          return
         }
-      } catch {
+      catch {
         case ex if NonFatal(ex) =>
           if (streamErrors) downstreamSignalComplete(ex)
           else scheduler.reportFailure(ex)

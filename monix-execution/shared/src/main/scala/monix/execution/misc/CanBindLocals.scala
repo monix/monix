@@ -142,10 +142,12 @@ private[misc] abstract class CanIsolateInstancesLevel0 {
 
       try {
         FutureUtils
-          .transform[Any, Any](f, result => {
-            Local.setContext(prev)
-            result
-          })(TrampolineExecutionContext.immediate)
+          .transform[Any, Any](
+            f,
+            result => {
+              Local.setContext(prev)
+              result
+            })(TrampolineExecutionContext.immediate)
       } finally {
         Local.setContext(prev)
       }

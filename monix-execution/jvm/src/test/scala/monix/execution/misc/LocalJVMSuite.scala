@@ -50,9 +50,11 @@ object LocalJVMSuite extends SimpleTestSuite {
     val f = for {
       _ <- CancelableFuture(Future { local := 50 }, Cancelable())
       _ <- Local.isolate {
-        CancelableFuture(Future {
-          local := 100
-        }, Cancelable())
+        CancelableFuture(
+          Future {
+            local := 100
+          },
+          Cancelable())
       }
       v <- CancelableFuture(Future { local() }, Cancelable())
     } yield v
@@ -85,9 +87,12 @@ object LocalJVMSuite extends SimpleTestSuite {
 
     val f = for {
       _ <- Future { local := 50 }
-      _ <- Local.bindCurrentIf(true)(CancelableFuture(Future {
-        local := 100
-      }, Cancelable.empty))
+      _ <- Local.bindCurrentIf(true)(
+        CancelableFuture(
+          Future {
+            local := 100
+          },
+          Cancelable.empty))
       v <- Future { local() }
     } yield v
 

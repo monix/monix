@@ -92,7 +92,8 @@ object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {
     var wasFinalized = false
     var wasEarlyStopped = false
 
-    val f = Observable.range(0, 100)
+    val f = Observable
+      .range(0, 100)
       .guarantee(Task { wasFinalized = true })
       .doOnEarlyStop(Task { wasEarlyStopped = true })
       .bufferIntrospective(3)

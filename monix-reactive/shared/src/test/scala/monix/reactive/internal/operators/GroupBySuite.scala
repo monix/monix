@@ -112,11 +112,10 @@ object GroupBySuite extends BaseOperatorSuite {
   test("on error groups should also error") { implicit s =>
     var groupsErrored = 0
 
-    Observable(1, 2, 3)
-      .mapEval {
-        case n if n < 3 => Task.pure(n)
-        case _ => Task.raiseError(new RuntimeException)
-      }
+    Observable(1, 2, 3).mapEval {
+      case n if n < 3 => Task.pure(n)
+      case _ => Task.raiseError(new RuntimeException)
+    }
       .groupBy(identity)
       .mapEval(_.completedL.onErrorHandleWith(_ => Task(groupsErrored += 1)))
       .runAsyncGetLast

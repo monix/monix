@@ -19,7 +19,7 @@ package monix.eval
 
 import cats.effect.{ExitCase, Sync}
 import cats.kernel.Semigroup
-import cats.{Monoid, ~>}
+import cats.{~>, Monoid}
 import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
 import monix.eval.internal._
 import monix.eval.internal.TracingPlatform.{isCachedStackTracing, isFullStackTracing}
@@ -702,7 +702,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     } else if (isFullStackTracing) {
       CoevalTracing.uncached()
     } else {
-    null
+      null
     }
 
     Map(this, f, trace)
@@ -1152,8 +1152,8 @@ object Coeval extends CoevalInstancesLevel0 {
     *
     * It's a simple version of [[traverse]].
     */
-  def sequence[A, M[X] <: Iterable[X]](sources: M[Coeval[A]])(
-    implicit bf: BuildFrom[M[Coeval[A]], A, M[A]]): Coeval[M[A]] = {
+  def sequence[A, M[X] <: Iterable[X]](sources: M[Coeval[A]])(implicit
+    bf: BuildFrom[M[Coeval[A]], A, M[A]]): Coeval[M[A]] = {
     val init = eval(newBuilder(bf, sources))
     val r = sources.foldLeft(init)((acc, elem) => acc.zipMap(elem)(_ += _))
     r.map(_.result())
@@ -1164,8 +1164,8 @@ object Coeval extends CoevalInstancesLevel0 {
     *
     * It's a generalized version of [[sequence]].
     */
-  def traverse[A, B, M[X] <: Iterable[X]](sources: M[A])(f: A => Coeval[B])(
-    implicit bf: BuildFrom[M[A], B, M[B]]): Coeval[M[B]] = {
+  def traverse[A, B, M[X] <: Iterable[X]](sources: M[A])(f: A => Coeval[B])(implicit
+    bf: BuildFrom[M[A], B, M[B]]): Coeval[M[B]] = {
     val init = eval(newBuilder(bf, sources))
     val r = sources.foldLeft(init)((acc, elem) => acc.zipMap(f(elem))(_ += _))
     r.map(_.result())

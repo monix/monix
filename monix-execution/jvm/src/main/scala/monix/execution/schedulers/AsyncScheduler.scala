@@ -19,7 +19,7 @@ package monix.execution.schedulers
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 
-import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import monix.execution.{Cancelable, ExecutionModel => ExecModel, Features, Scheduler, UncaughtExceptionReporter}
 
 import scala.concurrent.ExecutionContext
 import monix.execution.internal.{InterceptRunnable, ScheduledExecutors}

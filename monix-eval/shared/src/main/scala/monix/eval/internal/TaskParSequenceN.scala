@@ -43,7 +43,7 @@ private[eval] object TaskParSequenceN {
         queue <- ConcurrentQueue
           .withConfig[Task, (Deferred[Task, A], Task[A])](BufferCapacity.Bounded(itemSize), ChannelType.SPMC)
         pairs <- Task.traverse(in.toList)(task => Deferred[Task, A].map(p => (p, task)))
-        _     <- queue.offerMany(pairs)
+        _ <- queue.offerMany(pairs)
         workers = Task.parSequence(List.fill(parallelism.min(itemSize)) {
           queue.poll.flatMap {
             case (p, task) =>

@@ -93,7 +93,7 @@ object TaskParTraverseSuite extends BaseTestSuite {
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
 
     val task2 = Task.parTraverse(Seq(0, 0, 0)) { _ =>
-      task1 map { x =>
+      task1.map { x =>
         effect += 1; x + 1
       }
     }

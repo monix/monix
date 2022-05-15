@@ -198,9 +198,10 @@ object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
       var wasCompleted = false
 
       val f = Observable
-        .fromCharsReaderF(Task.pure(
-          randomReaderWithOnFinish(() => wasClosed = true)
-        ))
+        .fromCharsReaderF(
+          Task.pure(
+            randomReaderWithOnFinish(() => wasClosed = true)
+          ))
         .flatMap { _ =>
           Observable.suspend {
             wasStarted = true
@@ -290,8 +291,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
 
     val gen = for {
       nCharsPerLine <- Gen.choose(1, 150)
-      nLines        <- Gen.choose(1, 250)
-      chunkSize     <- Gen.choose(Math.floorDiv(nCharsPerLine, 2).max(1), nCharsPerLine * 2)
+      nLines <- Gen.choose(1, 250)
+      chunkSize <- Gen.choose(Math.floorDiv(nCharsPerLine, 2).max(1), nCharsPerLine * 2)
     } yield (nCharsPerLine, nLines, chunkSize)
 
     val prop = Prop

@@ -119,8 +119,8 @@ private[eval] object TaskMemoize {
     /** While the task is pending completion, registers a new listener
       * that will receive the result once the task is complete.
       */
-    private def registerListener(p: Promise[A], context: Context, cb: Callback[Throwable, A])(
-      implicit ec: ExecutionContext): Unit = {
+    private def registerListener(p: Promise[A], context: Context, cb: Callback[Throwable, A])(implicit
+      ec: ExecutionContext): Unit = {
 
       p.future.onComplete { r =>
         // Listener is cancelable: we simply ensure that the result isn't streamed
@@ -164,12 +164,12 @@ private[eval] object TaskMemoize {
           // Race condition happened
           // $COVERAGE-OFF$
           cb(ref)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
 
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
     }
   }

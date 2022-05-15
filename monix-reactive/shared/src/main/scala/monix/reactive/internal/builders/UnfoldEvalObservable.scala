@@ -47,23 +47,25 @@ private[reactive] final class UnfoldEvalObservable[S, A](seed: S, f: S => Task[O
   }
 
   def loop(subscriber: Subscriber[A], state: S): Task[Unit] =
-    try f(state).redeemWith(
-      { ex =>
-        subscriber.onError(ex)
-        Task.unit
-      }, {
-        case Some((a, newState)) =>
-          Task.fromFuture(subscriber.onNext(a)).flatMap {
-            case Continue =>
-              loop(subscriber, newState)
-            case Stop =>
-              Task.unit
-          }
-        case None =>
-          subscriber.onComplete()
+    try
+      f(state).redeemWith(
+        { ex =>
+          subscriber.onError(ex)
           Task.unit
-      }
-    )
+        },
+        {
+          case Some((a, newState)) =>
+            Task.fromFuture(subscriber.onNext(a)).flatMap {
+              case Continue =>
+                loop(subscriber, newState)
+              case Stop =>
+                Task.unit
+            }
+          case None =>
+            subscriber.onComplete()
+            Task.unit
+        }
+      )
     catch {
       case ex if NonFatal(ex) =>
         Task.raiseError(ex)

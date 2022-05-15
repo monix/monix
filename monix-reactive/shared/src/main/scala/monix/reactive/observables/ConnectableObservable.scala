@@ -50,8 +50,8 @@ object ConnectableObservable {
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
-  def unsafeMulticast[A, B](source: Observable[A], subject: Subject[A, B])(
-    implicit s: Scheduler): ConnectableObservable[B] = {
+  def unsafeMulticast[A, B](source: Observable[A], subject: Subject[A, B])(implicit
+    s: Scheduler): ConnectableObservable[B] = {
 
     new ConnectableObservable[B] {
       private[this] lazy val connection: Cancelable =
@@ -91,8 +91,8 @@ object ConnectableObservable {
     * subscribers.
     */
   @UnsafeBecauseImpure
-  def cacheUntilConnect[A, B](source: Observable[A], subject: Subject[A, B])(
-    implicit s: Scheduler): ConnectableObservable[B] = {
+  def cacheUntilConnect[A, B](source: Observable[A], subject: Subject[A, B])(implicit
+    s: Scheduler): ConnectableObservable[B] = {
 
     new ConnectableObservable[B] {
       private[this] val (connectable, cancelRef) = {

@@ -354,15 +354,17 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var wasCompleted = false
 
-    val buffer = BufferedSubscriber[Long](new Subscriber[Long] {
-      def onNext(elem: Long) = {
-        received += 1
-        Continue
-      }
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-      val scheduler = s
-    }, Unbounded)
+    val buffer = BufferedSubscriber[Long](
+      new Subscriber[Long] {
+        def onNext(elem: Long) = {
+          received += 1
+          Continue
+        }
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+        val scheduler = s
+      },
+      Unbounded)
 
     for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i.toLong)
     buffer.onComplete()

@@ -36,7 +36,7 @@ private[tail] object IterantInterleave {
     def apply(lh: Iterant[F, A], rh: Iterant[F, A]): Iterant[F, A] =
       lhLoop.visit(lh, rh)
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used by Concat:
 
     private[this] var _lhStack: ChunkedArrayStack[F[Iterant[F, A]]] = _
@@ -60,12 +60,12 @@ private[tail] object IterantInterleave {
       if (_rhStack == null) null.asInstanceOf[F[Iterant[F, A]]]
       else _rhStack.pop()
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     private[this] val lhLoop = new LHLoop
     private[this] val rhLoop = new RHLoop
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     private final class LHLoop extends Iterant.Visitor[F, A, Iterant[F, A]] {
       protected var rhRef: F[Iterant[F, A]] = _

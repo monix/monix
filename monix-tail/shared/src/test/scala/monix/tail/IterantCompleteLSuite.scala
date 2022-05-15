@@ -89,12 +89,14 @@ object IterantCompleteLSuite extends BaseTestSuite {
       (_, _) => Coeval(triggered.set(true))
     )
 
-    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
-      if (!triggered.getAndSet(true))
-        Iterant[Coeval].raiseError[Int](fail)
-      else
-        Iterant[Coeval].empty[Int]
-    })
+    val stream = Iterant[Coeval].concatS(
+      Coeval(lh),
+      Coeval {
+        if (!triggered.getAndSet(true))
+          Iterant[Coeval].raiseError[Int](fail)
+        else
+          Iterant[Coeval].empty[Int]
+      })
 
     assertEquals(stream.completedL.value(), ())
   }

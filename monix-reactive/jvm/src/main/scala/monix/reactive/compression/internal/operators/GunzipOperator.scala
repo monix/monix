@@ -236,7 +236,7 @@ private final class Gunzipper(bufferSize: Int) {
   private class CheckCrc16Step(pastCrc16Bytes: Array[Byte], crcValue: Long) extends State {
     override def feed(chunkBytes: Array[Byte]): (State, Array[Byte]) = {
       val (crc16Bytes, leftover) = (pastCrc16Bytes ++ chunkBytes).splitAt(2)
-      //Unlikely but possible that chunk was 1 byte only, leftover is empty.
+      // Unlikely but possible that chunk was 1 byte only, leftover is empty.
       if (crc16Bytes.length < 2) {
         (new CheckCrc16Step(crc16Bytes, crcValue), Array.emptyByteArray)
       } else {

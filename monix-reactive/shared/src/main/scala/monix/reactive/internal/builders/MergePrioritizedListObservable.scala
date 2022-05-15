@@ -43,9 +43,8 @@ import scala.util.Success
   * same order as received from the source, and at most a single item from a
   * given source will be in flight at a time.
   */
-private[reactive] final class MergePrioritizedListObservable[A](
-    sources: Seq[(Int, Observable[A])])
-    extends Observable[A] {
+private[reactive] final class MergePrioritizedListObservable[A](sources: Seq[(Int, Observable[A])])
+  extends Observable[A] {
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     import out.scheduler
@@ -88,12 +87,12 @@ private[reactive] final class MergePrioritizedListObservable[A](
     def signalOnNext(): Future[Ack] = {
       lastAck = lastAck match {
         case Continue => processNext()
-        case Stop     => Stop
+        case Stop => Stop
         case async =>
           async.flatMap {
             // async execution, we have to re-sync
             case Continue => lock.synchronized(processNext())
-            case Stop     => Stop
+            case Stop => Stop
           }
       }
       lastAck

@@ -159,7 +159,7 @@ private[eval] object TaskConversions {
         implicit val sc = ctx.scheduler
         val conn = ctx.connection
         val cancelable = TaskConnectionRef()
-        conn push cancelable.cancel
+        conn.push(cancelable.cancel)
 
         val syncIO = F.runCancelable(fa)(new CreateCallback[A](conn, cb))
         cancelable := fromEffect(syncIO.unsafeRunSync(): F[Unit])

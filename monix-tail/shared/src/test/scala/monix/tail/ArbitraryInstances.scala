@@ -30,8 +30,8 @@ import org.scalacheck.{Arbitrary, Cogen}
 trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
   import ArbitraryInstances.materialize
 
-  def arbitraryListToIterant[F[_], A](list: List[A], idx: Int, allowErrors: Boolean = true)(
-    implicit F: Sync[F]): Iterant[F, A] = {
+  def arbitraryListToIterant[F[_], A](list: List[A], idx: Int, allowErrors: Boolean = true)(implicit
+    F: Sync[F]): Iterant[F, A] = {
 
     def loop(list: List[A], idx: Int): Iterant[F, A] =
       list match {
@@ -42,7 +42,7 @@ trait ArbitraryInstances extends monix.eval.ArbitraryInstances {
             Iterant[F].haltS(Some(DummyException("arbitrary")))
 
         case x :: Nil if math.abs(idx % 2) == 1 =>
-          if (idx                     % 4 == 1)
+          if (idx % 4 == 1)
             Iterant[F].lastS(x)
           else
             Iterant.Concat(F.delay(Iterant[F].lastS(x)), F.delay(Halt(None)))

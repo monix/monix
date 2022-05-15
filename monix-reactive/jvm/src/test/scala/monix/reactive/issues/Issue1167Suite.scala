@@ -33,7 +33,6 @@ object Issue1167Suite extends BaseTestSuite {
     assertEquals(received, Right(()))
   }
 
-
   test("zip2 of different sizes should terminate [issue #1167]") { _ =>
     val obs1 = Observable(1, 2, 3)
     val obs2 = Observable(1, 2, 3, 4)
@@ -75,7 +74,6 @@ object Issue1167Suite extends BaseTestSuite {
     val obs4 = Observable(1, 2, 3, 4)
     val obs5 = Observable(1, 2, 3, 4)
     val obs6 = Observable(1, 2, 3, 4)
-
 
     testIssue1167(Observable.zip6(obs1, obs2, obs3, obs4, obs5, obs6))
   }
@@ -170,6 +168,8 @@ object Issue1167Suite extends BaseTestSuite {
     val received: List[Seq[Int]] =
       Observable.zipList(obs1, obs2, obs3, obs4, obs5, obs6).toListL.runSyncUnsafe()
 
-    assertEquals(received, List(List(0, 0, 0, 0, 0, 0), List(1, 1, 1, 1, 1, 1), List(2, 2, 2, 2, 2, 2), List(3, 3, 3, 3, 3, 3)))
+    assertEquals(
+      received,
+      List(List(0, 0, 0, 0, 0, 0), List(1, 1, 1, 1, 1, 1), List(2, 2, 2, 2, 2, 2), List(3, 3, 3, 3, 3, 3)))
   }
 }

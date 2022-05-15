@@ -38,7 +38,9 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
   def timeout[A](source: Future[A], atMost: FiniteDuration)(implicit s: Scheduler): Future[A] = {
     val err = new TimeoutException
     val promise = Promise[A]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit,
+    val task = s.scheduleOnce(
+      atMost.length,
+      atMost.unit,
       () => {
         promise.tryFailure(err); ()
       })
@@ -65,11 +67,13 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
     * @return a new future that will either complete with the result of our
     *         source or with the fallback in case the timeout is reached
     */
-  def timeoutTo[A](source: Future[A], atMost: FiniteDuration, fallback: => Future[A])(
-    implicit s: Scheduler): Future[A] = {
+  def timeoutTo[A](source: Future[A], atMost: FiniteDuration, fallback: => Future[A])(implicit
+    s: Scheduler): Future[A] = {
 
     val promise = Promise[Option[Try[A]]]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit,
+    val task = s.scheduleOnce(
+      atMost.length,
+      atMost.unit,
       () => {
         promise.trySuccess(None); ()
       })

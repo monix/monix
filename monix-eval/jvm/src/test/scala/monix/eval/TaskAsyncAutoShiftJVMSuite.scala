@@ -872,7 +872,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  ///...
+  /// ...
   testAsync("Task.asyncF(register) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 

@@ -113,7 +113,7 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
       case other =>
         // $COVERAGE-OFF$
         matchError(other)
-        // $COVERAGE-ON$
+      // $COVERAGE-ON$
     }
   }
 
@@ -210,7 +210,7 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
     }
   }

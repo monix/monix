@@ -227,11 +227,14 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
     val runnable: Runnable = () => wasScheduled = true
 
     val f =
-      Task.contextShift(s).evalOn(s2)(
-        Task.deferAction { scheduler =>
-          Task(scheduler.execute(runnable))
-        }
-      ).runToFuture
+      Task
+        .contextShift(s)
+        .evalOn(s2)(
+          Task.deferAction { scheduler =>
+            Task(scheduler.execute(runnable))
+          }
+        )
+        .runToFuture
 
     assertEquals(f.value, None)
     s.tick()

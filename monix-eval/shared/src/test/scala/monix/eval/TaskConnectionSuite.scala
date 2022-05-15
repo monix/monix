@@ -29,7 +29,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     val initial = Task { effect += 1 }
 
     val c = TaskConnection()
-    c push initial
+    c.push(initial)
 
     assert(!c.isCanceled, "!c.isCanceled")
     c.cancel.runAsyncAndForget
@@ -47,7 +47,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     c.cancel.runAsyncAndForget; s.tick()
     assert(c.isCanceled, "c.isCanceled")
 
-    c push initial
+    c.push(initial)
     s.tick()
     assertEquals(effect, 1)
   }
@@ -62,7 +62,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     c.cancel.runAsyncAndForget; s.tick()
     assert(c.isCanceled, "c.isCanceled")
 
-    c push initial
+    c.push(initial)
     s.tick()
     assertEquals(effect, 1)
   }
@@ -74,7 +74,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     c.cancel.runAsyncAndForget; s.tick()
     assert(c.isCanceled, "c.isCanceled")
 
-    c push initial
+    c.push(initial)
     s.tick()
     assert(initial.isCanceled, "initial.isCanceled")
   }
@@ -219,7 +219,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(effect, 0)
 
     sc.cancel.runAsyncAndForget; s.tick()
-    for (c   <- cancelables) assert(c.isCanceled, "r.isCanceled")
+    for (c <- cancelables) assert(c.isCanceled, "r.isCanceled")
     for (cn1 <- connections1) assert(cn1.isCanceled, "cn1.isCanceled")
     for (cn2 <- connections2) assert(cn2.isCanceled, "cn2.isCanceled")
     assertEquals(effect, 100)
@@ -247,7 +247,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     for (cn <- connections2) sc.push(cn)
     s.tick()
 
-    for (c   <- cancelables) assert(c.isCanceled, "r.isCanceled")
+    for (c <- cancelables) assert(c.isCanceled, "r.isCanceled")
     for (cn1 <- connections1) assert(cn1.isCanceled, "cn1.isCanceled")
     for (cn2 <- connections2) assert(cn2.isCanceled, "cn2.isCanceled")
     assertEquals(effect, 100)

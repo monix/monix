@@ -70,16 +70,16 @@ final class AtomicLong private (private[this] val ref: BoxedLong) extends Atomic
   def subtractAndGet(v: Long): Long =
     addAndGet(-v)
 
-  def decrement(v: Int = 1): Unit = 
+  def decrement(v: Int = 1): Unit =
     increment(-v)
 
-  def decrementAndGet(v: Int = 1): Long = 
+  def decrementAndGet(v: Int = 1): Long =
     incrementAndGet(-v)
 
-  def getAndDecrement(v: Int = 1): Long = 
+  def getAndDecrement(v: Int = 1): Long =
     getAndIncrement(-v)
 
-  override def toString: String = 
+  override def toString: String =
     s"AtomicLong(${ref.volatileGet()})"
 }
 

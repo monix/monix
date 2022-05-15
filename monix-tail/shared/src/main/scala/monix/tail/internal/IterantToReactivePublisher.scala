@@ -65,8 +65,8 @@ private[tail] object IterantToReactivePublisher {
     }
   }
 
-  private final class IterantSubscription[F[_], A](source: Iterant[F, A], out: Subscriber[_ >: A])(
-    implicit F: Effect[F])
+  private final class IterantSubscription[F[_], A](source: Iterant[F, A], out: Subscriber[_ >: A])(implicit
+    F: Effect[F])
     extends Subscription { parent =>
 
     private[this] val cancelable =
@@ -161,7 +161,7 @@ private[tail] object IterantToReactivePublisher {
       private[this] var haltSignal = Option.empty[Option[Throwable]]
       private[this] var streamErrors = true
 
-      //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
       // Used in visit(Concat)
       private[this] var _stack: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
@@ -184,7 +184,7 @@ private[tail] object IterantToReactivePublisher {
             case null => F.pure(state)
             case xs => xs.flatMap(this)
           }
-      //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
       private def poll(cb: Either[Throwable, Unit] => Unit = null): F[Unit] = {
         val ref = parent.state

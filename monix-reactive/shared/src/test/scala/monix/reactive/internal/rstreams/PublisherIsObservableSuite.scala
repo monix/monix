@@ -132,8 +132,8 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
       })
   }
 
-  private def createPublisher(isPublisherActive: AtomicBoolean, requested: AtomicInt, requestSize: Int)(
-    implicit s: Scheduler): Publisher[Long] = {
+  private def createPublisher(isPublisherActive: AtomicBoolean, requested: AtomicInt, requestSize: Int)(implicit
+    s: Scheduler): Publisher[Long] = {
 
     new Publisher[Long] {
       override def subscribe(subscriber: Subscriber[_ >: Long]): Unit =

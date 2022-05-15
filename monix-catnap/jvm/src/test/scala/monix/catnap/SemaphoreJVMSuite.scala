@@ -68,10 +68,10 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
       val task = for {
         df <- Semaphore[IO](0)(OrElse.primary(IO.ioConcurrentEffect), contextShift)
         fb <- get(df).start
-        _  <- IO(assertEquals(Thread.currentThread().getName, name))
-        _  <- df.release
-        _  <- IO(assertEquals(Thread.currentThread().getName, name))
-        _  <- fb.join
+        _ <- IO(assertEquals(Thread.currentThread().getName, name))
+        _ <- df.release
+        _ <- IO(assertEquals(Thread.currentThread().getName, name))
+        _ <- fb.join
       } yield ()
 
       val dt = 10.seconds
@@ -88,11 +88,11 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
 
       try {
         val task = for {
-          df    <- Semaphore[IO](0)(OrElse.primary(IO.ioConcurrentEffect), contextShift)
+          df <- Semaphore[IO](0)(OrElse.primary(IO.ioConcurrentEffect), contextShift)
           latch <- Deferred[IO, Unit]
-          fb    <- (latch.complete(()) *> df.acquire *> unit.foreverM).start
-          _     <- latch.get
-          _     <- df.release.timeout(timeout).guarantee(fb.cancel)
+          fb <- (latch.complete(()) *> df.acquire *> unit.foreverM).start
+          _ <- latch.get
+          _ <- df.release.timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -113,7 +113,7 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
         val task = for {
           df <- Semaphore[IO](0)(OrElse.primary(IO.ioConcurrentEffect), contextShift)
           fb <- (df.acquire *> unit.foreverM).start
-          _  <- df.release.timeout(timeout).guarantee(fb.cancel)
+          _ <- df.release.timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -131,11 +131,11 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
       }
 
       for {
-        d     <- Semaphore[IO](0)(OrElse.primary(IO.ioConcurrentEffect), contextShift)
+        d <- Semaphore[IO](0)(OrElse.primary(IO.ioConcurrentEffect), contextShift)
         latch <- Deferred[IO, Unit]
-        fb    <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- d.release.timeout(timeout).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -152,9 +152,9 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
       }
 
       for {
-        d  <- Semaphore[IO](0)(OrElse.primary(IO.ioConcurrentEffect), contextShift)
+        d <- Semaphore[IO](0)(OrElse.primary(IO.ioConcurrentEffect), contextShift)
         fb <- (d.acquire *> foreverAsync(0)).start
-        _  <- d.release.timeout(timeout).guarantee(fb.cancel)
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -171,11 +171,11 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
       }
 
       for {
-        d     <- Semaphore[IO](0)(OrElse.primary(IO.ioConcurrentEffect), contextShift)
+        d <- Semaphore[IO](0)(OrElse.primary(IO.ioConcurrentEffect), contextShift)
         latch <- Deferred[IO, Unit]
-        fb    <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- d.release.timeout(timeout).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -192,9 +192,9 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
       }
 
       for {
-        d  <- Semaphore[IO](0)(OrElse.primary(IO.ioConcurrentEffect), contextShift)
+        d <- Semaphore[IO](0)(OrElse.primary(IO.ioConcurrentEffect), contextShift)
         fb <- (d.acquire *> foreverAsync(0)).start
-        _  <- d.release.timeout(timeout).guarantee(fb.cancel)
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -217,10 +217,10 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
       val task = for {
         df <- Semaphore[IO](0)(OrElse.secondary(IO.ioEffect), contextShift)
         fb <- get(df).start
-        _  <- IO(assertEquals(Thread.currentThread().getName, name))
-        _  <- df.release
-        _  <- IO(assertEquals(Thread.currentThread().getName, name))
-        _  <- fb.join
+        _ <- IO(assertEquals(Thread.currentThread().getName, name))
+        _ <- df.release
+        _ <- IO(assertEquals(Thread.currentThread().getName, name))
+        _ <- fb.join
       } yield ()
 
       val dt = 10.seconds
@@ -237,11 +237,11 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
 
       try {
         val task = for {
-          df    <- Semaphore[IO](0)(OrElse.primary(IO.ioConcurrentEffect), contextShift)
+          df <- Semaphore[IO](0)(OrElse.primary(IO.ioConcurrentEffect), contextShift)
           latch <- Deferred.uncancelable[IO, Unit]
-          fb    <- (latch.complete(()) *> df.acquire *> unit.foreverM).start
-          _     <- latch.get
-          _     <- df.release.timeout(timeout).guarantee(fb.cancel)
+          fb <- (latch.complete(()) *> df.acquire *> unit.foreverM).start
+          _ <- latch.get
+          _ <- df.release.timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -262,7 +262,7 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
         val task = for {
           df <- Semaphore[IO](0)(OrElse.secondary(IO.ioEffect), contextShift)
           fb <- (df.acquire *> unit.foreverM).start
-          _  <- df.release.timeout(timeout).guarantee(fb.cancel)
+          _ <- df.release.timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -280,11 +280,11 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
       }
 
       for {
-        d     <- Semaphore[IO](0)(OrElse.secondary(IO.ioEffect), contextShift)
+        d <- Semaphore[IO](0)(OrElse.secondary(IO.ioEffect), contextShift)
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- d.release.timeout(timeout).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -301,9 +301,9 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
       }
 
       for {
-        d  <- Semaphore[IO](0)(OrElse.secondary(IO.ioEffect), contextShift)
+        d <- Semaphore[IO](0)(OrElse.secondary(IO.ioEffect), contextShift)
         fb <- (d.acquire *> foreverAsync(0)).start
-        _  <- d.release.timeout(timeout).guarantee(fb.cancel)
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -320,11 +320,11 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
       }
 
       for {
-        d     <- Semaphore[IO](0)(OrElse.secondary(IO.ioEffect), contextShift)
+        d <- Semaphore[IO](0)(OrElse.secondary(IO.ioEffect), contextShift)
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- d.release.timeout(timeout).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -341,9 +341,9 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends TestSuite[Schedul
       }
 
       for {
-        d  <- Semaphore[IO](0)(OrElse.secondary(IO.ioEffect), contextShift)
+        d <- Semaphore[IO](0)(OrElse.secondary(IO.ioEffect), contextShift)
         fb <- (d.acquire *> foreverAsync(0)).start
-        _  <- d.release.timeout(timeout).guarantee(fb.cancel)
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 

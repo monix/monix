@@ -218,7 +218,7 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
         assertEquals(r, count)
         assertEquals(semaphore.available(), available)
       }
-    }    
+    }
   }
 
   def repeatTest(n: Int)(f: () => Future[Unit])(implicit ec: ExecutionContext): Future[Unit] =

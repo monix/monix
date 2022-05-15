@@ -165,7 +165,7 @@ object TaskParSequenceUnorderedSuite extends BaseTestSuite {
   test("Task.parSequenceUnordered runAsync multiple times") { implicit s =>
     var effect = 0
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
-    val task2 = task1 map { x =>
+    val task2 = task1.map { x =>
       effect += 1; x + 1
     }
     val task3 = Task.parSequenceUnordered(List(task2, task2, task2))

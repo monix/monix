@@ -47,11 +47,7 @@ object TypeClassLawsForTaskAutoCancelableWithCallbackSuite
   )
 
 class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options) extends BaseLawsSuite {
-  override implicit def equalityTask[A](
-    implicit
-    A: Eq[A],
-    ec: TestScheduler,
-    opts: Options) = {
+  override implicit def equalityTask[A](implicit A: Eq[A], ec: TestScheduler, opts: Options) = {
 
     Eq.by { task =>
       val p = Promise[A]()
@@ -60,11 +56,7 @@ class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options) ext
     }
   }
 
-  override implicit def equalityTaskPar[A](
-    implicit
-    A: Eq[A],
-    ec: TestScheduler,
-    opts: Options): Eq[Task.Par[A]] = {
+  override implicit def equalityTaskPar[A](implicit A: Eq[A], ec: TestScheduler, opts: Options): Eq[Task.Par[A]] = {
 
     import Task.Par.unwrap
     Eq.by { task =>

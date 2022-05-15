@@ -98,7 +98,7 @@ object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
         .repeatEval(jdkGzip(longText, syncFlush = false))
         .take(sourceCount.toLong)
         .transform(gunzip()) ++ Observable
-        .repeatEval(longText) //corrupted payload
+        .repeatEval(longText) // corrupted payload
         .transform(gunzip()))
         .map(_ => 1L)
         .onErrorFallbackTo(Observable.raiseError(ex))

@@ -502,7 +502,15 @@ private[eval] object TaskRunLoop {
           case async =>
             if (tracingCtx eq null) tracingCtx = new StackTracedContext
 
-            return goAsync4Step(async, scheduler, opts, bFirst, bRest, frameIndex, forceFork = false, tracingCtx = tracingCtx)
+            return goAsync4Step(
+              async,
+              scheduler,
+              opts,
+              bFirst,
+              bRest,
+              frameIndex,
+              forceFork = false,
+              tracingCtx = tracingCtx)
         }
 
         if (hasUnboxed) {
@@ -526,7 +534,15 @@ private[eval] object TaskRunLoop {
         if (tracingCtx eq null) tracingCtx = new StackTracedContext
 
         // Force async boundary
-        return goAsync4Step(current, scheduler, opts, bFirst, bRest, frameIndex, forceFork = true, tracingCtx = tracingCtx)
+        return goAsync4Step(
+          current,
+          scheduler,
+          opts,
+          bFirst,
+          bRest,
+          frameIndex,
+          forceFork = true,
+          tracingCtx = tracingCtx)
       }
     }
     // $COVERAGE-OFF$
@@ -665,7 +681,15 @@ private[eval] object TaskRunLoop {
       } else {
         if (tracingCtx eq null) tracingCtx = new StackTracedContext
         // Force async boundary
-        return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceFork = true, tracingCtx = tracingCtx)
+        return goAsync4Future(
+          current,
+          scheduler,
+          opts,
+          bFirst,
+          bRest,
+          frameIndex,
+          forceFork = true,
+          tracingCtx = tracingCtx)
       }
     }
     // $COVERAGE-OFF$
@@ -837,8 +861,7 @@ private[eval] object TaskRunLoop {
 
   private type RestoreFunction = (Any, Throwable, Context, Context) => Context
 
-  private final class RestoreContext(old: Context, restore: RestoreFunction)
-    extends StackFrame[Any, Task[Any]] {
+  private final class RestoreContext(old: Context, restore: RestoreFunction) extends StackFrame[Any, Task[Any]] {
 
     def apply(a: Any): Task[Any] =
       ContextSwitch(Now(a), current => restore(a, null, old, current), null)
@@ -864,7 +887,8 @@ private[eval] object TaskRunLoop {
             case (methodSite, callSite) =>
               val op = NameTransformer.decode(methodSite.getMethodName)
 
-              new StackTraceElement(op + " @ " + callSite.getClassName,
+              new StackTraceElement(
+                op + " @ " + callSite.getClassName,
                 callSite.getMethodName,
                 callSite.getFileName,
                 callSite.getLineNumber)

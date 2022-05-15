@@ -75,12 +75,14 @@ private[tail] object IterantAttempt {
       Suspend(continueWith(ref.rest))
 
     def visit(ref: Concat[F, A]): Iterant[F, Either[Throwable, A]] =
-      Concat(ref.lh.map(this), F.defer {
-        if (self.wasErrorHandled)
-          F.pure(Iterant.empty[F, Attempt])
-        else
-          ref.rh.map(this)
-      })
+      Concat(
+        ref.lh.map(this),
+        F.defer {
+          if (self.wasErrorHandled)
+            F.pure(Iterant.empty[F, Attempt])
+          else
+            ref.rh.map(this)
+        })
 
     def visit[S](ref: Scope[F, S, A]): Iterant[F, Attempt] = {
       val Scope(acquire, use, release) = ref
@@ -113,9 +115,11 @@ private[tail] object IterantAttempt {
               es match {
                 case Left(_) => F.unit
                 case Right(s) =>
-                  try F.handleError(release(s, exit)) { e =>
-                    pushError(errors, e)
-                  } catch {
+                  try
+                    F.handleError(release(s, exit)) { e =>
+                      pushError(errors, e)
+                    }
+                  catch {
                     case NonFatal(e) =>
                       F.delay(pushError(errors, e))
                   }

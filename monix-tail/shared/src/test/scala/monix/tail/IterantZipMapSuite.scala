@@ -109,12 +109,14 @@ object IterantZipMapSuite extends BaseTestSuite {
         (_, _) => Coeval(triggered.set(true))
       )
 
-      val scope = Iterant[Coeval].concatS(Coeval(lh), Coeval {
-        if (!triggered.getAndSet(true))
-          Iterant[Coeval].raiseError[Int](fail)
-        else
-          Iterant[Coeval].empty[Int]
-      })
+      val scope = Iterant[Coeval].concatS(
+        Coeval(lh),
+        Coeval {
+          if (!triggered.getAndSet(true))
+            Iterant[Coeval].raiseError[Int](fail)
+          else
+            Iterant[Coeval].empty[Int]
+        })
 
       0 +: scope :+ 2
     }

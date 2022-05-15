@@ -40,8 +40,8 @@ private[eval] final class TaskConnectionRef extends CancelableF[Task] {
     unsafeSet(conn.cancel)
 
   @tailrec
-  private def unsafeSet(ref: AnyRef /* CancelToken[Task] | CancelableF[Task] | Cancelable */ )(
-    implicit s: Scheduler): Unit = {
+  private def unsafeSet(ref: AnyRef /* CancelToken[Task] | CancelableF[Task] | Cancelable */ )(implicit
+    s: Scheduler): Unit = {
 
     if (!state.compareAndSet(Empty, IsActive(ref))) {
       state.get() match {

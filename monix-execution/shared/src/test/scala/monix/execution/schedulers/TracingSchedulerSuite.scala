@@ -128,14 +128,19 @@ object TracingSchedulerSuite extends SimpleTestSuite {
       val p = Promise[Int]()
       val sub = SingleAssignCancelable()
 
-      sub := schedule(traced, 1, 1, TimeUnit.SECONDS, () => {
-        sum += local1.get + local2.get
-        count += 1
-        if (count >= 3) {
-          p.success(sum)
-          sub.cancel()
-        }
-      })
+      sub := schedule(
+        traced,
+        1,
+        1,
+        TimeUnit.SECONDS,
+        () => {
+          sum += local1.get + local2.get
+          count += 1
+          if (count >= 3) {
+            p.success(sum)
+            sub.cancel()
+          }
+        })
 
       p.future
     }

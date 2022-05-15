@@ -23,7 +23,7 @@ import monix.execution.{Ack, Cancelable, ChannelType, Scheduler}
 import monix.reactive.OverflowStrategy.{Synchronous, Unbounded}
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 import monix.reactive.{MulticastStrategy, Observer, OverflowStrategy}
-import org.reactivestreams.{Subscription, Processor => RProcessor, Subscriber => RSubscriber}
+import org.reactivestreams.{Processor => RProcessor, Subscriber => RSubscriber, Subscription}
 
 /** A concurrent subject is meant for imperative style feeding of events.
   *
@@ -38,8 +38,8 @@ object ConcurrentSubject {
   def apply[A](multicast: MulticastStrategy[A])(implicit s: Scheduler): ConcurrentSubject[A, A] =
     apply(multicast, Unbounded)(s)
 
-  def apply[A](multicast: MulticastStrategy[A], overflow: OverflowStrategy.Synchronous[A])(
-    implicit s: Scheduler): ConcurrentSubject[A, A] = {
+  def apply[A](multicast: MulticastStrategy[A], overflow: OverflowStrategy.Synchronous[A])(implicit
+    s: Scheduler): ConcurrentSubject[A, A] = {
 
     multicast match {
       case MulticastStrategy.Publish =>
@@ -218,8 +218,8 @@ object ConcurrentSubject {
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  def replayLimited[A](capacity: Int, initial: Seq[A], strategy: Synchronous[A])(
-    implicit s: Scheduler): ConcurrentSubject[A, A] =
+  def replayLimited[A](capacity: Int, initial: Seq[A], strategy: Synchronous[A])(implicit
+    s: Scheduler): ConcurrentSubject[A, A] =
     from(ReplaySubject.createLimited[A](capacity, initial), strategy)
 
   /** Transforms the source [[ConcurrentSubject]] into a `org.reactivestreams.Processor`
@@ -231,8 +231,8 @@ object ConcurrentSubject {
     *                   on each cycle when communicating demand, compliant with
     *                   the reactive streams specification
     */
-  def toReactiveProcessor[I, O](source: ConcurrentSubject[I, O], bufferSize: Int)(
-    implicit s: Scheduler): RProcessor[I, O] = {
+  def toReactiveProcessor[I, O](source: ConcurrentSubject[I, O], bufferSize: Int)(implicit
+    s: Scheduler): RProcessor[I, O] = {
 
     new RProcessor[I, O] {
       private[this] val subscriber: RSubscriber[I] =

@@ -22,8 +22,7 @@ import org.scalacheck.Arbitrary
 
 import scala.reflect.ClassTag
 
-abstract class BatchSuite[A: ClassTag](
-  implicit
+abstract class BatchSuite[A: ClassTag](implicit
   arbA: Arbitrary[A],
   arbAtoA: Arbitrary[A => A],
   arbAtoBoolean: Arbitrary[A => Boolean])

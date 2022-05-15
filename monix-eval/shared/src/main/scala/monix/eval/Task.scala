@@ -18,7 +18,7 @@
 package monix.eval
 
 import cats.effect.{Fiber => _, _}
-import cats.{CommutativeApplicative, Monoid, Semigroup, ~>}
+import cats.{~>, CommutativeApplicative, Monoid, Semigroup}
 import monix.catnap.FutureLift
 import monix.eval.instances._
 import monix.eval.internal._
@@ -1087,8 +1087,8 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     */
   @UnsafeBecauseImpure
   @UnsafeBecauseBlocking
-  final def runSyncUnsafeOpt(timeout: Duration = Duration.Inf)(
-    implicit s: Scheduler,
+  final def runSyncUnsafeOpt(timeout: Duration = Duration.Inf)(implicit
+    s: Scheduler,
     opts: Options,
     permit: CanBlock
   ): A = {
@@ -2536,8 +2536,8 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   final def timed: Task[(FiniteDuration, A)] =
     for {
       start <- Task.clock.monotonic(NANOSECONDS)
-      a     <- this
-      end   <- Task.clock.monotonic(NANOSECONDS)
+      a <- this
+      end <- Task.clock.monotonic(NANOSECONDS)
     } yield (FiniteDuration(end - start, NANOSECONDS), a)
 
   /**
@@ -3619,8 +3619,8 @@ object Task extends TaskInstancesLevel1 {
     *
     *  It's a generalized version of [[sequence]].
     */
-  def traverse[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(
-    implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
+  def traverse[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(implicit
+    bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
     TaskSequence.traverse(in, f)(bf)
 
   /**
@@ -3660,7 +3660,6 @@ object Task extends TaskInstancesLevel1 {
     * }}}
     */
   def raiseUnless(cond: Boolean)(e: => Throwable): Task[Unit] = Task.unless(cond)(Task.raiseError(e))
-
 
   /** Executes the given sequence of tasks in parallel, non-deterministically
     * gathering their results, returning a task that will signal the sequence
@@ -3747,7 +3746,8 @@ object Task extends TaskInstancesLevel1 {
     *
     * @see [[parTraverseN]] for a version that limits parallelism.
     */
-  def parTraverse[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
+  def parTraverse[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(implicit
+    bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] =
     Task.eval(in.map(f)).flatMap(col => TaskParSequence[B, M](col, () => newBuilder(bf, in)))
 
   /** Given a `Iterable[A]` and a function `A => Task[B]`,
@@ -4305,8 +4305,8 @@ object Task extends TaskInstancesLevel1 {
     * Prefer to use [[liftTo]], this alternative is provided in order to force
     * the usage of `cats.effect.Concurrent`, since [[TaskLift]] is lawless.
     */
-  def liftToConcurrent[F[_]](
-    implicit F: cats.effect.Concurrent[F],
+  def liftToConcurrent[F[_]](implicit
+    F: cats.effect.Concurrent[F],
     eff: cats.effect.ConcurrentEffect[Task]): (Task ~> F) =
     TaskLift.toConcurrent[F]
 
@@ -4499,8 +4499,8 @@ object Task extends TaskInstancesLevel1 {
       * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type Technique]].
       */
     private[eval] final class CreatePartiallyApplied[A](val dummy: Boolean = true) extends AnyVal {
-      def apply[CancelationToken](register: (Scheduler, Callback[Throwable, A]) => CancelationToken)(
-        implicit B: AsyncBuilder[CancelationToken]): Task[A] =
+      def apply[CancelationToken](register: (Scheduler, Callback[Throwable, A]) => CancelationToken)(implicit
+        B: AsyncBuilder[CancelationToken]): Task[A] =
         B.create(register)
     }
 
@@ -4615,7 +4615,11 @@ object Task extends TaskInstancesLevel1 {
     def apply(scheduler: Scheduler, options: Options): Context =
       apply(scheduler, options, TaskConnection(), new StackTracedContext)
 
-    def apply(scheduler: Scheduler, options: Options, connection: TaskConnection, stackTracedContext: StackTracedContext): Context = {
+    def apply(
+      scheduler: Scheduler,
+      options: Options,
+      connection: TaskConnection,
+      stackTracedContext: StackTracedContext): Context = {
       val em = scheduler.executionModel
       val frameRef = FrameIndexRef(em)
       new Context(scheduler, options, connection, frameRef, stackTracedContext)
@@ -4651,8 +4655,8 @@ object Task extends TaskInstancesLevel1 {
     }
 
     // Optimization to avoid the run-loop
-    override def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(
-      implicit s: Scheduler,
+    override def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(implicit
+      s: Scheduler,
       opts: Options
     ): Unit = {
       if (s.executionModel != AlwaysAsyncExecution)
@@ -4699,8 +4703,8 @@ object Task extends TaskInstancesLevel1 {
       s.reportFailure(e)
 
     // Optimization to avoid the run-loop
-    override def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(
-      implicit s: Scheduler,
+    override def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(implicit
+      s: Scheduler,
       opts: Options
     ): Unit = {
       if (s.executionModel != AlwaysAsyncExecution)
@@ -4931,8 +4935,8 @@ private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
     * @param s is a [[monix.execution.Scheduler Scheduler]] that needs
     *        to be available in scope
     */
-  implicit def catsEffect(
-    implicit s: Scheduler,
+  implicit def catsEffect(implicit
+    s: Scheduler,
     opts: Task.Options = Task.defaultOptions): CatsConcurrentEffectForTask = {
 
     new CatsConcurrentEffectForTask

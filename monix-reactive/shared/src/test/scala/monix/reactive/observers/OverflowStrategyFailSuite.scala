@@ -89,7 +89,8 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
       if (n > 0)
         s.execute { () =>
           buffer.onNext(n); loop(n - 1)
-        } else
+        }
+      else
         buffer.onComplete()
 
     loop(10000)

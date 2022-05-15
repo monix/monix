@@ -109,8 +109,8 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
       })
   }
 
-  def runTestRegisterCanThrow(create: (Callback[Throwable, Int] => Unit) => Task[Int])(
-    implicit sc: TestScheduler): Unit = {
+  def runTestRegisterCanThrow(create: (Callback[Throwable, Int] => Unit) => Task[Int])(implicit
+    sc: TestScheduler): Unit = {
 
     var effect = 0
     val task = create { _ =>
@@ -128,8 +128,8 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
     assertEquals(sc.state.lastReportedError, null)
   }
 
-  def runTestRegisterThrowingCanBeReported(create: (Callback[Throwable, Int] => Unit) => Task[Int])(
-    implicit sc: TestScheduler): Unit = {
+  def runTestRegisterThrowingCanBeReported(create: (Callback[Throwable, Int] => Unit) => Task[Int])(implicit
+    sc: TestScheduler): Unit = {
 
     var effect = 0
     val task = create { cb =>
@@ -148,8 +148,8 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
     assertEquals(sc.state.lastReportedError, WrappedEx(10))
   }
 
-  def runTestCanCallMultipleTimes(create: (Callback[Throwable, Int] => Unit) => Task[Int])(
-    implicit sc: TestScheduler): Unit = {
+  def runTestCanCallMultipleTimes(create: (Callback[Throwable, Int] => Unit) => Task[Int])(implicit
+    sc: TestScheduler): Unit = {
 
     def run(expected: Int)(trySignal: Callback[Throwable, Int] => Boolean) = {
       var effect = 0

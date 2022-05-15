@@ -177,8 +177,8 @@ object IterantBuilders {
       Iterant.resource(acquire)(release)
 
     /** Aliased builder, see documentation for [[Iterant.resourceCase]]. */
-    def resourceCase[A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit])(
-      implicit F: Sync[F]): Iterant[F, A] =
+    def resourceCase[A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit])(implicit
+      F: Sync[F]): Iterant[F, A] =
       Iterant.resourceCase(acquire)(release)
 
     /** Aliased builder, see documentation for [[Iterant.fromResource]]. */
@@ -235,8 +235,8 @@ object IterantBuilders {
       * Aliased builder, see documentation for
       * [[[Iterant.intervalAtFixedRate[F[_]](initialDelay* Iterant.intervalAtFixedRate]]].
       */
-    def intervalAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)(
-      implicit F: Async[F],
+    def intervalAtFixedRate(initialDelay: FiniteDuration, period: FiniteDuration)(implicit
+      F: Async[F],
       timer: Timer[F]): Iterant[F, Long] =
       Iterant.intervalAtFixedRate(initialDelay, period)
 
@@ -251,8 +251,8 @@ object IterantBuilders {
       * Aliased builder, see documentation for
       * [[[Iterant.intervalWithFixedDelay[F[_]](initialDelay* Iterant.intervalAtFixedRate]]].
       */
-    def intervalWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)(
-      implicit F: Async[F],
+    def intervalWithFixedDelay(initialDelay: FiniteDuration, delay: FiniteDuration)(implicit
+      F: Async[F],
       timer: Timer[F]): Iterant[F, Long] =
       Iterant.intervalWithFixedDelay(initialDelay, delay)
 
@@ -279,8 +279,8 @@ object IterantBuilders {
     def channel[A](
       bufferCapacity: BufferCapacity = Bounded(recommendedBufferChunkSize),
       maxBatchSize: Int = recommendedBufferChunkSize,
-      producerType: ChannelType.ProducerSide = MultiProducer)(
-      implicit F: Concurrent[F],
+      producerType: ChannelType.ProducerSide = MultiProducer)(implicit
+      F: Concurrent[F],
       cs: ContextShift[F]): F[(ProducerF[F, Option[Throwable], A], Iterant[F, A])] =
       Iterant.channel(bufferCapacity, maxBatchSize, producerType)
   }

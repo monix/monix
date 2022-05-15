@@ -254,7 +254,8 @@ private[monix] object TaskBracket {
 
     private final def unsafeApply(b: B): Task[B] = {
       if (waitsForResult.compareAndSet(expect = true, update = false))
-        releaseOnSuccess(a, b).redeemWith(ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)), _ => Task{p.success(()); b})
+        releaseOnSuccess(a, b)
+          .redeemWith(ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)), _ => Task { p.success(()); b })
       else
         Task.never
 
@@ -262,10 +263,12 @@ private[monix] object TaskBracket {
 
     private final def unsafeRecover(e: Throwable): Task[B] = {
       if (waitsForResult.compareAndSet(expect = true, update = false))
-        releaseOnError(a, e).redeemWith(
-          ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)),
-          _ => Task { p.success(()); () }
-        ).flatMap(new ReleaseRecover(e))
+        releaseOnError(a, e)
+          .redeemWith(
+            ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)),
+            _ => Task { p.success(()); () }
+          )
+          .flatMap(new ReleaseRecover(e))
       else
         Task.never
     }

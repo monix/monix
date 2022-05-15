@@ -27,8 +27,8 @@ private[tail] object IterantFromConsumer {
   /**
     * Implementation for [[Iterant.fromConsumer]].
     */
-  def apply[F[_], A](consumer: ConsumerF[F, Option[Throwable], A], maxBatchSize: Int)(
-    implicit F: Async[F]): Iterant[F, A] = {
+  def apply[F[_], A](consumer: ConsumerF[F, Option[Throwable], A], maxBatchSize: Int)(implicit
+    F: Async[F]): Iterant[F, A] = {
 
     suspendS(
       if (maxBatchSize > 1)
@@ -46,8 +46,8 @@ private[tail] object IterantFromConsumer {
     }
   }
 
-  private def loopMany[F[_], A](consumer: ConsumerF[F, Option[Throwable], A], maxBatchSize: Int)(
-    implicit F: Async[F]): F[Iterant[F, A]] = {
+  private def loopMany[F[_], A](consumer: ConsumerF[F, Option[Throwable], A], maxBatchSize: Int)(implicit
+    F: Async[F]): F[Iterant[F, A]] = {
 
     F.map(consumer.pullMany(1, maxBatchSize)) {
       case Left(e) => haltS(e)

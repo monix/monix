@@ -122,8 +122,8 @@ object Observer {
     * it builds an [[Observer]] instance compliant with the
     * Monix Rx implementation.
     */
-  def fromReactiveSubscriber[A](subscriber: RSubscriber[A], subscription: Cancelable)(
-    implicit s: Scheduler): Observer[A] =
+  def fromReactiveSubscriber[A](subscriber: RSubscriber[A], subscription: Cancelable)(implicit
+    s: Scheduler): Observer[A] =
     ReactiveSubscriberAsMonixSubscriber(subscriber, subscription)
 
   /** Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
@@ -163,8 +163,8 @@ object Observer {
     * @param subscription $feedCancelableDesc
     * @param iterable is the collection of items to push downstream
     */
-  def feed[A](target: Observer[A], subscription: BooleanCancelable, iterable: Iterable[A])(
-    implicit s: Scheduler): Future[Ack] = {
+  def feed[A](target: Observer[A], subscription: BooleanCancelable, iterable: Iterable[A])(implicit
+    s: Scheduler): Future[Ack] = {
 
     try feed(target, subscription, iterable.iterator)
     catch {
@@ -188,8 +188,8 @@ object Observer {
     * @param subscription $feedCancelableDesc
     * @param iterator is the collection of items to push downstream
     */
-  def feed[A](target: Observer[A], subscription: BooleanCancelable, iterator: Iterator[A])(
-    implicit s: Scheduler): Future[Ack] = {
+  def feed[A](target: Observer[A], subscription: BooleanCancelable, iterator: Iterator[A])(implicit
+    s: Scheduler): Future[Ack] = {
 
     def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[A]): Future[Ack] = {
       s.execute(new Runnable {

@@ -56,7 +56,7 @@ private[tail] object IterantFoldWhileLeftL {
 
     private[this] var state: S = seed
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
     private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
@@ -79,7 +79,7 @@ private[tail] object IterantFoldWhileLeftL {
       case right =>
         F.pure(right)
     }
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Next[F, A]): F[Either[S, S]] =
       f(state, ref.item) match {
@@ -153,7 +153,7 @@ private[tail] object IterantFoldWhileLeftL {
 
     private[this] var state: S = seed
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
     private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
@@ -176,7 +176,7 @@ private[tail] object IterantFoldWhileLeftL {
       case right =>
         F.pure(right)
     }
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Next[F, A]): F[Either[S, S]] =
       f(state, ref.item).flatMap {

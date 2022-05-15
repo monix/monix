@@ -28,8 +28,8 @@ private[tail] object IterantConsume {
   /**
     * Implementation for [[Iterant.consume]].
     */
-  def apply[F[_], A](self: Iterant[F, A], cfg: ConsumerF.Config)(
-    implicit F: Concurrent[F],
+  def apply[F[_], A](self: Iterant[F, A], cfg: ConsumerF.Config)(implicit
+    F: Concurrent[F],
     cs: ContextShift[F]): Resource[F, Consumer[F, A]] = {
 
     /*_*/

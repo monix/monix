@@ -109,10 +109,9 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val f: Future[Unit] = {
       Observable(1)
         .consumeWith(
-          Consumer.foreachTask(_ =>
-            Task.raiseError(dummyException)
-          )
-        ).runToFuture
+          Consumer.foreachTask(_ => Task.raiseError(dummyException))
+        )
+        .runToFuture
     }
 
     s.tick()

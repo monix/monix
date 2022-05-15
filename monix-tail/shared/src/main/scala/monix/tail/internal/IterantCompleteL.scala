@@ -35,7 +35,7 @@ private[tail] object IterantCompleteL {
 
   private final class Loop[F[_], A](implicit F: Sync[F]) extends Iterant.Visitor[F, A, F[Unit]] {
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
     private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
@@ -55,7 +55,7 @@ private[tail] object IterantCompleteL {
           case null => F.unit
           case xs => xs.flatMap(this)
         }
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Next[F, A]): F[Unit] =
       ref.rest.flatMap(this)

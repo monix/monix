@@ -82,10 +82,11 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     val expected = 15
     val f = Future
       .delayedResult(50.millis)(expected)
-      .timeoutTo(100.millis, {
-        called = true
-        Future.failed(new RuntimeException)
-      })
+      .timeoutTo(
+        100.millis, {
+          called = true
+          Future.failed(new RuntimeException)
+        })
 
     s.tick(1.second)
     assertEquals(f.value, Some(Success(expected)))

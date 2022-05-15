@@ -181,10 +181,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
     try {
       val ex = DummyException("dummy")
 
-      scheduler.scheduleOnce(
-        1,
-        TimeUnit.MILLISECONDS,
-        () => throw ex)
+      scheduler.scheduleOnce(1, TimeUnit.MILLISECONDS, () => throw ex)
 
       assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
       self.synchronized(assertEquals(lastReportedFailure, ex))

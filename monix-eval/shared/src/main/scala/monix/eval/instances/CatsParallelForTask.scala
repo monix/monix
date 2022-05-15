@@ -17,7 +17,7 @@
 
 package monix.eval.instances
 
-import cats.{Applicative, CommutativeApplicative, Monad, Parallel, ~>}
+import cats.{~>, Applicative, CommutativeApplicative, Monad, Parallel}
 import monix.eval.Task
 
 /** `cats.Parallel` type class instance for [[monix.eval.Task Task]].

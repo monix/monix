@@ -27,9 +27,10 @@ private[tail] object IterantIntervalAtFixedRate {
   /**
     * Implementation for `Iterant.intervalAtFixedRate`
     */
-  def apply[F[_]](
-    initialDelay: FiniteDuration,
-    interval: FiniteDuration)(implicit F: Async[F], timer: Timer[F], clock: Clock[F]): Iterant[F, Long] = {
+  def apply[F[_]](initialDelay: FiniteDuration, interval: FiniteDuration)(implicit
+    F: Async[F],
+    timer: Timer[F],
+    clock: Clock[F]): Iterant[F, Long] = {
 
     def loop(time: F[Long], index: Long): F[Iterant[F, Long]] =
       time.map { startTime =>

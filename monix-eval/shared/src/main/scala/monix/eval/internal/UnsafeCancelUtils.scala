@@ -91,8 +91,8 @@ private[eval] object UnsafeCancelUtils {
   /**
     * Internal API — very unsafe!
     */
-  private[internal] def triggerCancel(task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ )(
-    implicit s: Scheduler): Unit = {
+  private[internal] def triggerCancel(task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ )(implicit
+    s: Scheduler): Unit = {
 
     task match {
       case ref: Task[Unit] @unchecked =>

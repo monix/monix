@@ -42,9 +42,9 @@ object CatsEffectIssue380Suite extends SimpleTestSuite {
         try {
           val task = for {
             mv <- MVar[IO].empty[Unit]()
-            _  <- (mv.take *> unit.foreverM).start
-            _  <- timer.sleep(100.millis)
-            _  <- mv.put(())
+            _ <- (mv.take *> unit.foreverM).start
+            _ <- timer.sleep(100.millis)
+            _ <- mv.put(())
           } yield ()
 
           val dt = 10.seconds
@@ -74,9 +74,9 @@ object CatsEffectIssue380Suite extends SimpleTestSuite {
         try {
           val task = for {
             mv <- Semaphore[IO](0)
-            _  <- (mv.acquire *> unit.foreverM).start
-            _  <- timer.sleep(100.millis)
-            _  <- mv.release
+            _ <- (mv.acquire *> unit.foreverM).start
+            _ <- timer.sleep(100.millis)
+            _ <- mv.release
           } yield ()
 
           val dt = 10.seconds

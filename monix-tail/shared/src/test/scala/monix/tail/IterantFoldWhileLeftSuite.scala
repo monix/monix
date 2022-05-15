@@ -408,12 +408,14 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
       (_, _) => Coeval(triggered.set(true))
     )
 
-    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
-      if (!triggered.getAndSet(true))
-        Iterant[Coeval].raiseError[Int](fail)
-      else
-        Iterant[Coeval].empty[Int]
-    })
+    val stream = Iterant[Coeval].concatS(
+      Coeval(lh),
+      Coeval {
+        if (!triggered.getAndSet(true))
+          Iterant[Coeval].raiseError[Int](fail)
+        else
+          Iterant[Coeval].empty[Int]
+      })
 
     assertEquals(stream.foldWhileLeftL(List.empty[Int])((acc, i) => Left(i :: acc)).value(), List(1))
   }
@@ -449,12 +451,14 @@ object IterantFoldWhileLeftSuite extends BaseTestSuite {
       (_, _) => Coeval(triggered.set(true))
     )
 
-    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
-      if (!triggered.getAndSet(true))
-        Iterant[Coeval].raiseError[Int](fail)
-      else
-        Iterant[Coeval].empty[Int]
-    })
+    val stream = Iterant[Coeval].concatS(
+      Coeval(lh),
+      Coeval {
+        if (!triggered.getAndSet(true))
+          Iterant[Coeval].raiseError[Int](fail)
+        else
+          Iterant[Coeval].empty[Int]
+      })
 
     assertEquals(
       stream.foldWhileLeftEvalL(Coeval(List.empty[Int]))((acc, i) => Coeval(Left(i :: acc))).value(),

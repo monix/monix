@@ -180,8 +180,8 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
     testStreamEndingInError(256, eagerBuffer = false, async = false)
   }
 
-  class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])(
-    implicit sc: Scheduler)
+  class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])(implicit
+    sc: Scheduler)
     extends Publisher[Int] {
 
     def this(range: Range, finish: Option[Throwable])(implicit sc: Scheduler) =
@@ -223,8 +223,7 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
 
               if (!isInRange(index.toLong, until.toLong, step.toLong) &&
                 !isCanceled &&
-                finished.compareAndSet(expect = false, update = true)
-              ) {
+                finished.compareAndSet(expect = false, update = true)) {
                 finish match {
                   case None =>
                     s.onComplete()

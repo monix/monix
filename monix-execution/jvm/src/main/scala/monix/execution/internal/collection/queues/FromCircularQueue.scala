@@ -102,8 +102,7 @@ private[internal] object FromCircularQueue {
     def fencePoll(): Unit = UNSAFE.fullFence()
   }
 
-  private final class Java7[A](queue: MessagePassingQueue[A], ct: ChannelType)
-    extends FromCircularQueue[A](queue) {
+  private final class Java7[A](queue: MessagePassingQueue[A], ct: ChannelType) extends FromCircularQueue[A](queue) {
 
     def fenceOffer(): Unit =
       if (ct.producerType == SingleProducer) {

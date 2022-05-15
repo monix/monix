@@ -61,19 +61,21 @@ private[reactive] final class MapTaskConsumer[In, R, R2](source: Consumer[In, R]
     }
 
     val (sub, ac) = source.createSubscriber(asyncCallback, s)
-    (sub, new AssignableCancelable {
-      override def `:=`(value: Cancelable): this.type = {
-        ac := value
-        this
-      }
-
-      override def cancel(): Unit = {
-        ac.cancel()
-        asyncCallback.synchronized {
-          isCancelled = true
-          lastCancelable.cancel()
+    (
+      sub,
+      new AssignableCancelable {
+        override def `:=`(value: Cancelable): this.type = {
+          ac := value
+          this
         }
-      }
-    })
+
+        override def cancel(): Unit = {
+          ac.cancel()
+          asyncCallback.synchronized {
+            isCancelled = true
+            lastCancelable.cancel()
+          }
+        }
+      })
   }
 }

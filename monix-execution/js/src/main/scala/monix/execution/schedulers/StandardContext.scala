@@ -28,10 +28,11 @@ private[execution] class StandardContext(reporter: UncaughtExceptionReporter) ex
 
   override def execute(r: Runnable): Unit = {
     executeRef(() =>
-      try { 
-        r.run() 
-      } catch { case e: Throwable => 
-        reporter.reportFailure(e)
+      try {
+        r.run()
+      } catch {
+        case e: Throwable =>
+          reporter.reportFailure(e)
       })
     ()
   }

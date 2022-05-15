@@ -58,8 +58,8 @@ private[reactive] final class LinesReaderObservable(reader: Reader) extends Obse
     }
   }
 
-  private def reschedule(ack: Future[Ack], out: Subscriber[String], c: BooleanCancelable, em: ExecutionModel)(
-    implicit s: Scheduler): Unit = {
+  private def reschedule(ack: Future[Ack], out: Subscriber[String], c: BooleanCancelable, em: ExecutionModel)(implicit
+    s: Scheduler): Unit = {
 
     ack.onComplete {
       case Success(next) =>
@@ -75,8 +75,8 @@ private[reactive] final class LinesReaderObservable(reader: Reader) extends Obse
   }
 
   @tailrec
-  private def fastLoop(out: Subscriber[String], c: BooleanCancelable, em: ExecutionModel, syncIndex: Int)(
-    implicit s: Scheduler): Unit = {
+  private def fastLoop(out: Subscriber[String], c: BooleanCancelable, em: ExecutionModel, syncIndex: Int)(implicit
+    s: Scheduler): Unit = {
 
     // Dealing with mutable status in order to keep the
     // loop tail-recursive :-(

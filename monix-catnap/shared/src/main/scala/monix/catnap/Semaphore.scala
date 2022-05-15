@@ -66,8 +66,8 @@ import scala.concurrent.Promise
   * inspired by the implementation in Cats-Effect, which was ported
   * from FS2.
   */
-final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)(
-  implicit F: Concurrent[F] OrElse Async[F],
+final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)(implicit
+  F: Concurrent[F] OrElse Async[F],
   cs: ContextShift[F])
   extends cats.effect.concurrent.Semaphore[F] {
 
@@ -231,8 +231,8 @@ object Semaphore {
     * @param cs is a `ContextShift` instance required in order to introduce
     *        async boundaries after successful `acquire` operations, for safety
     */
-  def apply[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(
-    implicit F: Concurrent[F] OrElse Async[F],
+  def apply[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(implicit
+    F: Concurrent[F] OrElse Async[F],
     cs: ContextShift[F]): F[Semaphore[F]] = {
 
     F.unify.delay(new Semaphore[F](provisioned, ps))
@@ -256,8 +256,8 @@ object Semaphore {
     *        async boundaries after successful `acquire` operations, for safety
     */
   @UnsafeBecauseImpure
-  def unsafe[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(
-    implicit F: Concurrent[F] OrElse Async[F],
+  def unsafe[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(implicit
+    F: Concurrent[F] OrElse Async[F],
     cs: ContextShift[F]): Semaphore[F] =
     new Semaphore[F](provisioned, ps)
 
@@ -273,8 +273,8 @@ object Semaphore {
     def greenLight[A](fa: F[A]): F[A] = source.withPermit(fa)
   }
 
-  private final class Impl[F[_]](provisioned: Long, ps: PaddingStrategy)(
-    implicit F: Concurrent[F] OrElse Async[F],
+  private final class Impl[F[_]](provisioned: Long, ps: PaddingStrategy)(implicit
+    F: Concurrent[F] OrElse Async[F],
     F0: Async[F],
     cs: ContextShift[F])
     extends GenericSemaphore[F[Unit]](provisioned, ps) {

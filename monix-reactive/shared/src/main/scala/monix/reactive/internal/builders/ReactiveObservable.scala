@@ -22,7 +22,7 @@ import monix.execution.rstreams.SingleAssignSubscription
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import org.reactivestreams
-import org.reactivestreams.{Subscription, Publisher => RPublisher}
+import org.reactivestreams.{Publisher => RPublisher, Subscription}
 
 /** Implementation for `Observable.fromReactivePublisher` */
 private[reactive] final class ReactiveObservable[A](publisher: RPublisher[A], requestCount: Int) extends Observable[A] {

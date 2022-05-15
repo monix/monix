@@ -19,7 +19,20 @@ package monix.reactive
 
 import java.io.{BufferedReader, InputStream, PrintStream, Reader}
 
-import cats.{Alternative, Applicative, Apply, CoflatMap, Eq, FlatMap, Functor, FunctorFilter, Monoid, NonEmptyParallel, Order, ~>}
+import cats.{
+  ~>,
+  Alternative,
+  Applicative,
+  Apply,
+  CoflatMap,
+  Eq,
+  FlatMap,
+  Functor,
+  FunctorFilter,
+  Monoid,
+  NonEmptyParallel,
+  Order
+}
 import cats.effect.{Bracket, Effect, ExitCase, Resource}
 import monix.eval.{Coeval, Task, TaskLift, TaskLike}
 import monix.eval.Task.defaultOptions

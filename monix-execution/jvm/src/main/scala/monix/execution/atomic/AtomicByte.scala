@@ -29,10 +29,10 @@ final class AtomicByte private (private[this] val ref: BoxedInt) extends AtomicN
 
   private[this] val mask = 255
 
-  def get(): Byte = 
+  def get(): Byte =
     (ref.volatileGet() & mask).asInstanceOf[Byte]
 
-  def set(update: Byte): Unit = 
+  def set(update: Byte): Unit =
     ref.volatileSet(update.asInstanceOf[Int])
 
   def lazySet(update: Byte): Unit =

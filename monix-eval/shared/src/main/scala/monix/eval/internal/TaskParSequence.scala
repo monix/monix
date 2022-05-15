@@ -65,8 +65,8 @@ private[eval] object TaskParSequence {
 
       // MUST BE synchronized by `lock`!
       // MUST NOT BE called if isActive == false!
-      def maybeSignalFinal(mainConn: TaskConnection, finalCallback: Callback[Throwable, M[A]])(
-        implicit s: Scheduler): Unit = {
+      def maybeSignalFinal(mainConn: TaskConnection, finalCallback: Callback[Throwable, M[A]])(implicit
+        s: Scheduler): Unit = {
 
         completed += 1
         if (completed >= tasksCount) {
@@ -92,11 +92,14 @@ private[eval] object TaskParSequence {
         if (isActive) {
           isActive = false
           // This should cancel our CompositeCancelable
-          mainConn.pop().map { _ =>
-            tasks = null // GC relief
-            results = null // GC relief
-            finalCallback.onError(ex)
-          }.runAsyncAndForget
+          mainConn
+            .pop()
+            .map { _ =>
+              tasks = null // GC relief
+              results = null // GC relief
+              finalCallback.onError(ex)
+            }
+            .runAsyncAndForget
         } else {
           s.reportFailure(ex)
         }

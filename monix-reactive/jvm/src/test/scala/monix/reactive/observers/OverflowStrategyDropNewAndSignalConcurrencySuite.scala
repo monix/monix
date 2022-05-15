@@ -289,11 +289,13 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
   test("should send onComplete when in flight") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
-    val buffer = buildNewForInt(5, new Observer[Int] {
-      def onError(ex: Throwable) = throw new IllegalStateException()
-      def onNext(elem: Int) = promise.future
-      def onComplete() = latch.countDown()
-    })
+    val buffer = buildNewForInt(
+      5,
+      new Observer[Int] {
+        def onError(ex: Throwable) = throw new IllegalStateException()
+        def onNext(elem: Int) = promise.future
+        def onComplete() = latch.countDown()
+      })
 
     buffer.onNext(1)
     buffer.onComplete()
@@ -303,11 +305,13 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
   test("should send onComplete when at capacity") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
-    val buffer = buildNewForInt(5, new Observer[Int] {
-      def onError(ex: Throwable) = throw new IllegalStateException()
-      def onNext(elem: Int) = promise.future
-      def onComplete() = latch.countDown()
-    })
+    val buffer = buildNewForInt(
+      5,
+      new Observer[Int] {
+        def onError(ex: Throwable) = throw new IllegalStateException()
+        def onNext(elem: Int) = promise.future
+        def onComplete() = latch.countDown()
+      })
 
     buffer.onNext(1)
     buffer.onNext(2)
@@ -326,14 +330,16 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue.type]()
 
-    val buffer = buildNewForLong(10000, new Observer[Long] {
-      def onNext(elem: Long) = {
-        sum += elem
-        startConsuming.future
-      }
-      def onError(ex: Throwable) = throw ex
-      def onComplete() = complete.countDown()
-    })
+    val buffer = buildNewForLong(
+      10000,
+      new Observer[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          startConsuming.future
+        }
+        def onError(ex: Throwable) = throw ex
+        def onComplete() = complete.countDown()
+      })
 
     (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
@@ -347,14 +353,16 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     var sum = 0L
     val complete = new CountDownLatch(1)
 
-    val buffer = buildNewForLong(10000, new Observer[Long] {
-      def onNext(elem: Long) = {
-        sum += elem
-        Continue
-      }
-      def onError(ex: Throwable) = throw ex
-      def onComplete() = complete.countDown()
-    })
+    val buffer = buildNewForLong(
+      10000,
+      new Observer[Long] {
+        def onNext(elem: Long) = {
+          sum += elem
+          Continue
+        }
+        def onError(ex: Throwable) = throw ex
+        def onComplete() = complete.countDown()
+      })
 
     (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()

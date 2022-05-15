@@ -37,8 +37,8 @@ private[reactive] final class RepeatEvalObservable[+A](eval: => A) extends Obser
     cancelable
   }
 
-  def reschedule(ack: Future[Ack], o: Subscriber[A], c: BooleanCancelable, em: ExecutionModel)(
-    implicit s: Scheduler): Unit =
+  def reschedule(ack: Future[Ack], o: Subscriber[A], c: BooleanCancelable, em: ExecutionModel)(implicit
+    s: Scheduler): Unit =
     ack.onComplete {
       case Success(Continue) =>
         fastLoop(o, c, em, 0)
@@ -49,8 +49,8 @@ private[reactive] final class RepeatEvalObservable[+A](eval: => A) extends Obser
     }
 
   @tailrec
-  def fastLoop(o: Subscriber[A], c: BooleanCancelable, em: ExecutionModel, syncIndex: Int)(
-    implicit s: Scheduler): Unit = {
+  def fastLoop(o: Subscriber[A], c: BooleanCancelable, em: ExecutionModel, syncIndex: Int)(implicit
+    s: Scheduler): Unit = {
 
     val ack =
       try o.onNext(eval)

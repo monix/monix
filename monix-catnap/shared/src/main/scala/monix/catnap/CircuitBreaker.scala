@@ -826,8 +826,8 @@ object CircuitBreaker extends CircuitBreakerDocs {
     override def equals(other: Any): Boolean = other match {
       case that: Open =>
         startedAt == that.startedAt &&
-          resetTimeout == that.resetTimeout &&
-          awaitClose == that.awaitClose
+        resetTimeout == that.resetTimeout &&
+        awaitClose == that.awaitClose
       case _ =>
         false
     }
@@ -889,7 +889,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
     override def equals(other: Any): Boolean = other match {
       case that: HalfOpen =>
         resetTimeout == that.resetTimeout &&
-          awaitClose == that.awaitClose
+        awaitClose == that.awaitClose
       case _ =>
         false
     }

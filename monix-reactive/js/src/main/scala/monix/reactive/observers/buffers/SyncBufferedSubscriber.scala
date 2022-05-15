@@ -257,11 +257,13 @@ private[monix] object SyncBufferedSubscriber {
     */
   def bounded[A](underlying: Subscriber[A], bufferSize: Int): Subscriber.Sync[A] = {
     require(bufferSize > 1, "bufferSize must be strictly higher than 1")
-    val buffer = JSArrayQueue.bounded[A](bufferSize, _ => {
-      BufferOverflowException(
-        s"Downstream observer is too slow, buffer over capacity with a " +
-          s"specified buffer size of $bufferSize")
-    })
+    val buffer = JSArrayQueue.bounded[A](
+      bufferSize,
+      _ => {
+        BufferOverflowException(
+          s"Downstream observer is too slow, buffer over capacity with a " +
+            s"specified buffer size of $bufferSize")
+      })
 
     new SyncBufferedSubscriber[A](underlying, buffer, null)
   }

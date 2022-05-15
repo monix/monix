@@ -103,8 +103,8 @@ private[reactive] trait ObservableDeprecatedBuilders extends Any {
     * Switch to: `Observable(list).merge`
     */
   @deprecated("Switch to Observable(list).merge", "3.0.0")
-  def mergeDelayError[A](sources: Observable[A]*)(
-    implicit os: OverflowStrategy[A] = OverflowStrategy.Default): Observable[A] = {
+  def mergeDelayError[A](sources: Observable[A]*)(implicit
+    os: OverflowStrategy[A] = OverflowStrategy.Default): Observable[A] = {
     // $COVERAGE-OFF$
     Observable.fromIterable(sources).mergeMapDelayErrors(identity)(os)
     // $COVERAGE-ON$

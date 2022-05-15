@@ -38,7 +38,8 @@ object BufferSlidingDropSuite extends BaseOperatorSuite {
       val count = 2 + (sc - 4) / 2
       val sum = count / 4 * 6
       Sample(o, count, sum.toLong, waitFirst, waitNext)
-    } else
+    }
+    else
       Some {
         val o = Observable
           .now(1L)

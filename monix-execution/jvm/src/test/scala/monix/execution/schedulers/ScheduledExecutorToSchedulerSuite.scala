@@ -23,7 +23,7 @@ import minitest.TestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.{Features, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import monix.execution.{ExecutionModel => ExecModel, Features, UncaughtExceptionReporter}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}

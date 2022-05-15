@@ -105,7 +105,7 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
       case other =>
         // $COVERAGE-OFF$
         matchError(other)
-        // $COVERAGE-ON$
+      // $COVERAGE-ON$
     }
   }
 
@@ -186,7 +186,7 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
     }
   }

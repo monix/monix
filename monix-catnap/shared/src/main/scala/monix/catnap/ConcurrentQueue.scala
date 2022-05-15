@@ -209,7 +209,7 @@ final class ConcurrentQueue[F[_], A] private (
   def poll: F[A] = pollRef
   private[this] val pollRef = F.defer[A] {
     val happy = tryPollUnsafe()
-    //noinspection ForwardReference
+    // noinspection ForwardReference
     if (happy != null)
       F.pure(happy)
     else
@@ -271,7 +271,7 @@ final class ConcurrentQueue[F[_], A] private (
     * so it must be called from the same thread(s) that call [[poll]].
     */
   def clear: F[Unit] = clearRef
-  //noinspection ForwardReference
+  // noinspection ForwardReference
   private[this] val clearRef = F.delay {
     queue.clear()
     notifyProducers()
@@ -457,8 +457,8 @@ object ConcurrentQueue {
     * @param F $concurrentParam
     */
   @UnsafeProtocol
-  def withConfig[F[_], A](capacity: BufferCapacity, channelType: ChannelType)(
-    implicit F: Concurrent[F],
+  def withConfig[F[_], A](capacity: BufferCapacity, channelType: ChannelType)(implicit
+    F: Concurrent[F],
     cs: ContextShift[F]): F[ConcurrentQueue[F, A]] = {
 
     F.delay(unsafe(capacity, channelType))
@@ -484,8 +484,8 @@ object ConcurrentQueue {
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
-  def unsafe[F[_], A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(
-    implicit F: Concurrent[F],
+  def unsafe[F[_], A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(implicit
+    F: Concurrent[F],
     cs: ContextShift[F]): ConcurrentQueue[F, A] = {
 
     new ConcurrentQueue[F, A](capacity, channelType)(F, cs)
@@ -510,15 +510,15 @@ object ConcurrentQueue {
     /**
       * @see documentation for [[ConcurrentQueue.withConfig]]
       */
-    def withConfig[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(
-      implicit cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
+    def withConfig[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(implicit
+      cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
       ConcurrentQueue.withConfig(capacity, channelType)(F, cs)
 
     /**
       * @see documentation for [[ConcurrentQueue.unsafe]]
       */
-    def unsafe[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(
-      implicit cs: ContextShift[F]): ConcurrentQueue[F, A] =
+    def unsafe[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(implicit
+      cs: ContextShift[F]): ConcurrentQueue[F, A] =
       ConcurrentQueue.unsafe(capacity, channelType)(F, cs)
   }
 }

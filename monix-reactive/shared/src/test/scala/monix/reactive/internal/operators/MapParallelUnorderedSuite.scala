@@ -420,8 +420,10 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
     val failedTask = Task.raiseError(DummyException("boom")).delayExecution(1.second)
     val otherTask = Task.sleep(2.second).doOnCancel(Task(received += 1))
 
-    Observable(0, 1, 2, 3, 4, 5,
-      6).mapParallelUnordered(4)(i => if (i == 0) failedTask else otherTask).toListL.runToFuture
+    Observable(0, 1, 2, 3, 4, 5, 6)
+      .mapParallelUnordered(4)(i => if (i == 0) failedTask else otherTask)
+      .toListL
+      .runToFuture
 
     s.tick(1.second)
     assertEquals(received, 3)

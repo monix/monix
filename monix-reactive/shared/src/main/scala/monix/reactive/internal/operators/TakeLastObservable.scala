@@ -25,32 +25,35 @@ import monix.reactive.observables.ChainedObservable
 import monix.reactive.observers.Subscriber
 import scala.collection.mutable
 
-private[reactive] final class TakeLastObservable[A](source: Observable[A], n: Int)
-  extends ChainedObservable[A] {
+private[reactive] final class TakeLastObservable[A](source: Observable[A], n: Int) extends ChainedObservable[A] {
 
   override def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
-    ChainedObservable.subscribe(source, conn, new Subscriber[A] {
-      implicit val scheduler = out.scheduler
-      private[this] val queue = mutable.Queue.empty[A]
-      private[this] var queued = 0
+    ChainedObservable.subscribe(
+      source,
+      conn,
+      new Subscriber[A] {
+        implicit val scheduler = out.scheduler
+        private[this] val queue = mutable.Queue.empty[A]
+        private[this] var queued = 0
 
-      def onNext(elem: A): Ack = {
-        queue.enqueue(elem)
-        if (queued < n)
-          queued += 1
-        else
-          queue.dequeue()
-        Continue
-      }
+        def onNext(elem: A): Ack = {
+          queue.enqueue(elem)
+          if (queued < n)
+            queued += 1
+          else
+            queue.dequeue()
+          Continue
+        }
 
-      def onComplete(): Unit = {
-        val other = Observable.fromIteratorUnsafe(queue.iterator)
-        ChainedObservable.subscribe(other, conn, out)
-      }
+        def onComplete(): Unit = {
+          val other = Observable.fromIteratorUnsafe(queue.iterator)
+          ChainedObservable.subscribe(other, conn, out)
+        }
 
-      def onError(ex: Throwable): Unit = {
-        out.onError(ex)
+        def onError(ex: Throwable): Unit = {
+          out.onError(ex)
+        }
       }
-    })
+    )
   }
 }

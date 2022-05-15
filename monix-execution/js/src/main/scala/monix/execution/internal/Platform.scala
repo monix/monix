@@ -46,7 +46,9 @@ private[monix] object Platform {
     try {
       // Node.js specific API, could fail
       if (js.typeOf(global.process) == "object" && js.typeOf(global.process.env) == "object")
-        global.process.env.selectDynamic(key).asInstanceOf[js.UndefOr[String]]
+        global.process.env
+          .selectDynamic(key)
+          .asInstanceOf[js.UndefOr[String]]
           .toOption
           .collect { case s: String => s.trim }
           .filter(_.nonEmpty)

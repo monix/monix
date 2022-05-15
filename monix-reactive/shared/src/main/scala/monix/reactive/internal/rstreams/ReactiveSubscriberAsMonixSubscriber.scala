@@ -112,8 +112,8 @@ private[reactive] object ReactiveSubscriberAsMonixSubscriber {
     * specification, it builds an [[monix.reactive.Observer]]
     * instance compliant with the Monix Rx implementation.
     */
-  def apply[A](subscriber: RSubscriber[A], subscription: Cancelable)(
-    implicit s: Scheduler): ReactiveSubscriberAsMonixSubscriber[A] =
+  def apply[A](subscriber: RSubscriber[A], subscription: Cancelable)(implicit
+    s: Scheduler): ReactiveSubscriberAsMonixSubscriber[A] =
     new ReactiveSubscriberAsMonixSubscriber[A](subscriber, subscription)
 
   /** An asynchronous queue implementation for dealing with

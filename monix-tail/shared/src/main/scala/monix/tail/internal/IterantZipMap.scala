@@ -41,8 +41,8 @@ private[tail] object IterantZipMap {
   /**
     * Implementation for `Iterant#parZipMap`
     */
-  def par[F[_], G[_], A, B, C](lh: Iterant[F, A], rh: Iterant[F, B], f: (A, B) => C)(
-    implicit F: Sync[F],
+  def par[F[_], G[_], A, B, C](lh: Iterant[F, A], rh: Iterant[F, B], f: (A, B) => C)(implicit
+    F: Sync[F],
     P: Parallel[F]): Iterant[F, C] = {
 
     val A = ParallelApplicative(P)
@@ -55,7 +55,7 @@ private[tail] object IterantZipMap {
     def apply(lh: Iterant[F, A], rh: Iterant[F, B]): Iterant[F, C] =
       lhLoop.visit(lh, rh)
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used by Concat:
 
     private[this] var _lhStack: ChunkedArrayStack[F[Iterant[F, A]]] = _
@@ -79,7 +79,7 @@ private[tail] object IterantZipMap {
       if (_rhStack == null) null.asInstanceOf[F[Iterant[F, B]]]
       else _rhStack.pop()
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     private[this] val lhLoop = new LHLoop
 
@@ -107,7 +107,7 @@ private[tail] object IterantZipMap {
       _rhLastLoop
     }
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     private final class LHLoop extends Iterant.Visitor[F, A, Iterant[F, C]] {
       protected var rhRef: Iterant[F, B] = _
@@ -349,7 +349,7 @@ private[tail] object IterantZipMap {
         Iterant.raiseError(e)
     }
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def processPair(a: A, restA: F[Iterant[F, A]], b: B, restB: F[Iterant[F, B]]) = {
       val rest = A.map2(restA, restB)(loop)

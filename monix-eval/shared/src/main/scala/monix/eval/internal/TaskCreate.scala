@@ -149,7 +149,7 @@ private[eval] object TaskCreate {
       implicit val s = ctx.scheduler
       val conn = ctx.connection
       val cancelable = TaskConnectionRef()
-      conn push cancelable.cancel
+      conn.push(cancelable.cancel)
 
       val cbProtected = new CallbackForCreate(ctx, shouldPop = true, cb)
       try {

@@ -280,9 +280,7 @@ object TaskBracketSuite extends BaseTestSuite {
     val fa = for {
       pa <- Deferred[Task, Unit]
       fibA <- Task.unit
-        .bracket(
-          _ => Task.unit.guarantee(pa.complete(()) >> Task.sleep(2.second))
-        )(_ => Task.unit)
+        .bracket(_ => Task.unit.guarantee(pa.complete(()) >> Task.sleep(2.second)))(_ => Task.unit)
         .start
       _ <- pa.get
       _ <- fibA.cancel
@@ -302,9 +300,7 @@ object TaskBracketSuite extends BaseTestSuite {
     val fa = for {
       pa <- Deferred[Task, Unit]
       fiber <- Task.unit
-        .bracket(
-          _ => (pa.complete(()) >> Task.never).guarantee(Task.sleep(2.second))
-        )(_ => Task.unit)
+        .bracket(_ => (pa.complete(()) >> Task.never).guarantee(Task.sleep(2.second)))(_ => Task.unit)
         .start
       _ <- pa.get
       _ <- Task.race(fiber.cancel, fiber.cancel)
@@ -342,25 +338,24 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("second cancel during acquire should wait for it and finalizers to complete (non-terminating)") {
-    implicit sc =>
+  test("second cancel during acquire should wait for it and finalizers to complete (non-terminating)") { implicit sc =>
 
-      val fa = for {
-        pa <- Deferred[Task, Unit]
-        fiber <- (pa.complete(()) >> Task.sleep(1.second))
-          .bracket(_ => Task.unit)(_ => Task.never)
-          .start
-        _ <- pa.get
-        _ <- Task.race(fiber.cancel, fiber.cancel)
-      } yield ()
+    val fa = for {
+      pa <- Deferred[Task, Unit]
+      fiber <- (pa.complete(()) >> Task.sleep(1.second))
+        .bracket(_ => Task.unit)(_ => Task.never)
+        .start
+      _ <- pa.get
+      _ <- Task.race(fiber.cancel, fiber.cancel)
+    } yield ()
 
-      val f = fa.runToFuture
+    val f = fa.runToFuture
 
-      sc.tick()
-      assertEquals(f.value, None)
+    sc.tick()
+    assertEquals(f.value, None)
 
-      sc.tick(1.day)
-      assertEquals(f.value, None)
+    sc.tick(1.day)
+    assertEquals(f.value, None)
   }
 
   test("Multiple cancel should not hang") { implicit sc =>

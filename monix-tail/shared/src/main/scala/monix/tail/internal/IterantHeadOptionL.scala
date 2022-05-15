@@ -40,7 +40,7 @@ private[tail] object IterantHeadOptionL {
 
   private final class Loop[F[_], A](implicit F: Sync[F]) extends Iterant.Visitor[F, A, F[Option[A]]] {
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
     private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
@@ -63,7 +63,7 @@ private[tail] object IterantHeadOptionL {
       case some =>
         F.pure(some)
     }
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Next[F, A]): F[Option[A]] =
       F.pure(Some(ref.item))

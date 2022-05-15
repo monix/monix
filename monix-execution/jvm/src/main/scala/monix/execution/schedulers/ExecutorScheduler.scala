@@ -24,7 +24,7 @@ import monix.execution.{Cancelable, UncaughtExceptionReporter}
 import monix.execution.{Features, Scheduler}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
-import scala.concurrent.{ExecutionContext, Future, Promise, blocking}
+import scala.concurrent.{blocking, ExecutionContext, Future, Promise}
 import scala.concurrent.duration.TimeUnit
 import scala.util.control.NonFatal
 
@@ -51,13 +51,16 @@ abstract class ExecutorScheduler(e: ExecutorService, r: UncaughtExceptionReporte
 
   override final def awaitTermination(timeout: Long, unit: TimeUnit, awaitOn: ExecutionContext): Future[Boolean] = {
     val p = Promise[Boolean]()
-    awaitOn.execute(() => try blocking {
-      p.success(e.awaitTermination(timeout, unit))
-      ()
-    } catch {
-      case ex if NonFatal(ex) =>
-        p.failure(ex); ()
-    })
+    awaitOn.execute(() =>
+      try
+        blocking {
+          p.success(e.awaitTermination(timeout, unit))
+          ()
+        }
+      catch {
+        case ex if NonFatal(ex) =>
+          p.failure(ex); ()
+      })
     p.future
   }
 

@@ -1503,8 +1503,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        backup throwable that is subscribed when the source
     *        throws an error.
     */
-  final def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Iterant[F, B]])(
-    implicit F: Sync[F]): Iterant[F, B] =
+  final def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Iterant[F, B]])(implicit
+    F: Sync[F]): Iterant[F, B] =
     onErrorHandleWith { ex =>
       if (pf.isDefinedAt(ex)) pf(ex)
       else Iterant.raiseError[F, B](ex)
@@ -1621,7 +1621,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        right hand side)
     */
   final def parZip[B](rhs: Iterant[F, B])(implicit F: Sync[F], P: Parallel[F]): Iterant[F, (A, B)] =
-    (self parZipMap rhs)((a, b) => (a, b))
+    (self.parZipMap(rhs))((a, b) => (a, b))
 
   /** Lazily zip two iterants together, in parallel, using the given
     * function `f` to produce output values.
@@ -1864,8 +1864,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        [[monix.catnap.ConsumerF.Config ConsumerF.Config1]]
     */
   @UnsafeProtocol
-  final def consumeWithConfig(config: ConsumerF.Config)(
-    implicit F: Concurrent[F],
+  final def consumeWithConfig(config: ConsumerF.Config)(implicit
+    F: Concurrent[F],
     cs: ContextShift[F]
   ): Resource[F, Consumer[F, A]] = {
     IterantConsume(self, config)(F, cs)
@@ -2184,7 +2184,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        right hand side)
     */
   final def zip[B](rhs: Iterant[F, B])(implicit F: Sync[F]): Iterant[F, (A, B)] =
-    (self zipMap rhs)((a, b) => (a, b))
+    (self.zipMap(rhs))((a, b) => (a, b))
 
   /** Lazily zip two iterants together, using the given function `f` to
     * produce output values.
@@ -2483,8 +2483,8 @@ object Iterant extends IterantInstances {
     * @param acquire an effect that acquires an expensive resource
     * @param release function that releases the acquired resource
     */
-  def resourceCase[F[_], A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit])(
-    implicit F: Sync[F]): Iterant[F, A] = {
+  def resourceCase[F[_], A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit])(implicit
+    F: Sync[F]): Iterant[F, A] = {
 
     Scope[F, A, A](acquire, a => F.pure(Iterant.pure(a)), release)
   }
@@ -2633,8 +2633,8 @@ object Iterant extends IterantInstances {
   def fromReactivePublisher[F[_], A](
     publisher: Publisher[A],
     requestCount: Int = recommendedBufferChunkSize,
-    eagerBuffer: Boolean = true)(
-    implicit F: Async[F]
+    eagerBuffer: Boolean = true)(implicit
+    F: Async[F]
   ): Iterant[F, A] = {
     IterantFromReactivePublisher(publisher, requestCount, eagerBuffer)
   }
@@ -2694,8 +2694,8 @@ object Iterant extends IterantInstances {
     * @see [[fromStateAction]] for version without `F[_]` context which
     *     generates `NextBatch` items
     */
-  def fromLazyStateAction[F[_], S, A](f: S => F[(A, S)])(seed: => F[S])(
-    implicit F: Sync[F]
+  def fromLazyStateAction[F[_], S, A](f: S => F[(A, S)])(seed: => F[S])(implicit
+    F: Sync[F]
   ): Iterant[F, A] = {
     def loop(state: S): F[Iterant[F, A]] =
       try {
@@ -2722,8 +2722,8 @@ object Iterant extends IterantInstances {
     *        [[Iterant.NextBatch]] nodes, effectively specifying how many
     *        items can be pulled from the queue and processed in batches
     */
-  def fromConsumer[F[_], A](consumer: Consumer[F, A], maxBatchSize: Int = recommendedBufferChunkSize)(
-    implicit F: Async[F]): Iterant[F, A] = {
+  def fromConsumer[F[_], A](consumer: Consumer[F, A], maxBatchSize: Int = recommendedBufferChunkSize)(implicit
+    F: Async[F]): Iterant[F, A] = {
 
     IterantFromConsumer(consumer, maxBatchSize)
   }
@@ -2839,8 +2839,8 @@ object Iterant extends IterantInstances {
   def channel[F[_], A](
     bufferCapacity: BufferCapacity = Bounded(recommendedBufferChunkSize),
     maxBatchSize: Int = recommendedBufferChunkSize,
-    producerType: ChannelType.ProducerSide = MultiProducer)(
-    implicit F: Concurrent[F],
+    producerType: ChannelType.ProducerSide = MultiProducer)(implicit
+    F: Concurrent[F],
     cs: ContextShift[F]): F[(Producer[F, A], Iterant[F, A])] = {
 
     val channelF = ConcurrentChannel[F].withConfig[Option[Throwable], A](
@@ -2940,8 +2940,8 @@ object Iterant extends IterantInstances {
     * @param timer is the timer implementation used to generate
     *        delays and to fetch the current time
     */
-  def intervalAtFixedRate[F[_]](initialDelay: FiniteDuration, period: FiniteDuration)(
-    implicit F: Async[F],
+  def intervalAtFixedRate[F[_]](initialDelay: FiniteDuration, period: FiniteDuration)(implicit
+    F: Async[F],
     timer: Timer[F]): Iterant[F, Long] =
     IterantIntervalAtFixedRate(initialDelay, period)
 
@@ -2964,8 +2964,8 @@ object Iterant extends IterantInstances {
     * @param timer is the timer implementation used to generate
     *        delays and to fetch the current time
     */
-  def intervalWithFixedDelay[F[_]](initialDelay: FiniteDuration, delay: FiniteDuration)(
-    implicit F: Async[F],
+  def intervalWithFixedDelay[F[_]](initialDelay: FiniteDuration, delay: FiniteDuration)(implicit
+    F: Async[F],
     timer: Timer[F]): Iterant[F, Long] =
     IterantIntervalWithFixedDelay(initialDelay, delay)
 
@@ -2974,8 +2974,8 @@ object Iterant extends IterantInstances {
   def concat[F[_], A](xs: Iterant[F, A]*)(implicit F: Sync[F]): Iterant[F, A] =
     xs.foldLeft(Iterant.empty[F, A])((acc, e) => IterantConcat.concat(acc, F.pure(e))(F))
 
-  //------------------------------------------------------------------
-  //-- Data constructors
+  // ------------------------------------------------------------------
+  // -- Data constructors
 
   /** Data constructor for building a [[Iterant.Next]] value.
     *

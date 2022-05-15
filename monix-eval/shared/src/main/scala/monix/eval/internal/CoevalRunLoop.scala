@@ -43,7 +43,7 @@ private[eval] object CoevalRunLoop {
 
     while (true) {
       current match {
-        case bind@FlatMap(fa, bindNext, _) =>
+        case bind @ FlatMap(fa, bindNext, _) =>
           if (isStackTracing) {
             val trace = bind.trace
             if (tracingCtx eq null) tracingCtx = new CoevalStackTracedContext
@@ -195,7 +195,8 @@ private[eval] object CoevalRunLoop {
             case (methodSite, callSite) =>
               val op = NameTransformer.decode(methodSite.getMethodName)
 
-              new StackTraceElement(op + " @ " + callSite.getClassName,
+              new StackTraceElement(
+                op + " @ " + callSite.getClassName,
                 callSite.getMethodName,
                 callSite.getFileName,
                 callSite.getLineNumber)

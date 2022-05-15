@@ -50,8 +50,8 @@ private[catnap] abstract class FutureLiftForPlatform {
     * A generic function that subsumes both [[javaCompletableToConcurrent]]
     * and [[javaCompletableToAsync]].
     */
-  def javaCompletableToConcurrentOrAsync[F[_], A](fa: F[CompletableFuture[A]])(
-    implicit F: Concurrent[F] OrElse Async[F]): F[A] = {
+  def javaCompletableToConcurrentOrAsync[F[_], A](fa: F[CompletableFuture[A]])(implicit
+    F: Concurrent[F] OrElse Async[F]): F[A] = {
 
     F.unify match {
       case ref: Concurrent[F] @unchecked => javaCompletableToConcurrent(fa)(ref)
@@ -64,8 +64,8 @@ private[catnap] abstract class FutureLiftForPlatform {
     * `java.util.concurrent.CompletableFuture` to any `Concurrent`
     * or `Async` data type.
     */
-  implicit def javaCompletableLiftForConcurrentOrAsync[F[_]](
-    implicit F: Concurrent[F] OrElse Async[F]): FutureLift[F, CompletableFuture] = {
+  implicit def javaCompletableLiftForConcurrentOrAsync[F[_]](implicit
+    F: Concurrent[F] OrElse Async[F]): FutureLift[F, CompletableFuture] = {
 
     F.unify match {
       case ref: Concurrent[F] @unchecked =>

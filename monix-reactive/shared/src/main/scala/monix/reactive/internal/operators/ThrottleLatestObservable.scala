@@ -113,8 +113,8 @@ private[reactive] final class ThrottleLatestObservable[A](
 
       override def onComplete(): Unit = self.synchronized {
         if (!isDone) {
-          val lastAck = if(ack == null) Continue else ack
-          lastAck.syncTryFlatten.syncOnContinue{signalOnComplete()}
+          val lastAck = if (ack == null) Continue else ack
+          lastAck.syncTryFlatten.syncOnContinue { signalOnComplete() }
         }
         ()
       }

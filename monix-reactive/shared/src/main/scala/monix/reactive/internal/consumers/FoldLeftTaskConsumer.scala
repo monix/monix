@@ -45,13 +45,15 @@ private[reactive] final class FoldLeftTaskConsumer[A, R](initial: () => R, f: (R
         // as a matter of contract.
         try {
           def task =
-            f(state, elem).redeem(error => {
-              onError(error)
-              Stop
-            }, update => {
-              state = update
-              Continue
-            })
+            f(state, elem).redeem(
+              error => {
+                onError(error)
+                Stop
+              },
+              update => {
+                state = update
+                Continue
+              })
 
           synchronized {
             if (!isDone) {
@@ -80,12 +82,14 @@ private[reactive] final class FoldLeftTaskConsumer[A, R](initial: () => R, f: (R
         }
     }
 
-    (out, SingleAssignCancelable.plusOne(Cancelable { () =>
-      synchronized {
-        isDone = true
-        lastCancelable.cancel()
-        lastCancelable = Cancelable.empty
-      }
-    }))
+    (
+      out,
+      SingleAssignCancelable.plusOne(Cancelable { () =>
+        synchronized {
+          isDone = true
+          lastCancelable.cancel()
+          lastCancelable = Cancelable.empty
+        }
+      }))
   }
 }

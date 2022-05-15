@@ -212,7 +212,7 @@ object CancelablePromise {
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
 
     @tailrec
@@ -262,7 +262,7 @@ object CancelablePromise {
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
 
     @tailrec def unsafeSubscribe(cb: AnyRef): Cancelable =
@@ -279,7 +279,7 @@ object CancelablePromise {
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
 
     private final class IdCancelable(id: Long) extends Cancelable {

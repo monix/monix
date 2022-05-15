@@ -170,7 +170,17 @@ private[eval] object TaskRunToFutureWithLocal {
       } else {
         if (tracingCtx eq null) tracingCtx = new StackTracedContext
         // Force async boundary
-        return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceFork = true, prev, isolated, tracingCtx = tracingCtx)
+        return goAsync4Future(
+          current,
+          scheduler,
+          opts,
+          bFirst,
+          bRest,
+          frameIndex,
+          forceFork = true,
+          prev,
+          isolated,
+          tracingCtx = tracingCtx)
       }
     }
     // $COVERAGE-OFF$

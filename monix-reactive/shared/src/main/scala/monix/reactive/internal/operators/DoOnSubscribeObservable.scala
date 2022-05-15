@@ -80,12 +80,14 @@ private[reactive] object DoOnSubscribeObservable {
                   out.onNext(elem)
               }
             } else {
-              FutureUtils.transformWith[Unit, Ack](p.future, {
-                case Success(_) => out.onNext(elem)
-                case Failure(e) =>
-                  finalSignal(e)
-                  Stop
-              })(immediate)
+              FutureUtils.transformWith[Unit, Ack](
+                p.future,
+                {
+                  case Success(_) => out.onNext(elem)
+                  case Failure(e) =>
+                    finalSignal(e)
+                    Stop
+                })(immediate)
             }
           }
 

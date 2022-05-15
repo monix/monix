@@ -60,35 +60,37 @@ private[tail] object IterantZipWithIndex {
     }
 
     def apply(source: Iterant[F, A]): Iterant[F, (A, Long)] = {
-      try source match {
-        case Next(item, rest) =>
-          val r = Iterant.nextS((item, index), rest.map(this))
-          index += 1
-          r
+      try
+        source match {
+          case Next(item, rest) =>
+            val r = Iterant.nextS((item, index), rest.map(this))
+            index += 1
+            r
 
-        case Last(item) =>
-          val r = Iterant.lastS[F, (A, Long)]((item, index))
-          index += 1
-          r
+          case Last(item) =>
+            val r = Iterant.lastS[F, (A, Long)]((item, index))
+            index += 1
+            r
 
-        case ref @ NextCursor(_, _) =>
-          processSeq(ref)
+          case ref @ NextCursor(_, _) =>
+            processSeq(ref)
 
-        case NextBatch(batch, rest) =>
-          processSeq(NextCursor(batch.cursor(), rest))
+          case NextBatch(batch, rest) =>
+            processSeq(NextCursor(batch.cursor(), rest))
 
-        case Suspend(rest) =>
-          Suspend(rest.map(this))
+          case Suspend(rest) =>
+            Suspend(rest.map(this))
 
-        case empty @ Halt(_) =>
-          empty.asInstanceOf[Iterant[F, (A, Long)]]
+          case empty @ Halt(_) =>
+            empty.asInstanceOf[Iterant[F, (A, Long)]]
 
-        case node @ Scope(_, _, _) =>
-          node.runMap(this)
+          case node @ Scope(_, _, _) =>
+            node.runMap(this)
 
-        case node @ Concat(_, _) =>
-          node.runMap(this)
-      } catch {
+          case node @ Concat(_, _) =>
+            node.runMap(this)
+        }
+      catch {
         case ex if NonFatal(ex) => Iterant.raiseError(ex)
       }
     }

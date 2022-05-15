@@ -46,18 +46,20 @@ private[reactive] final class AsyncStateActionObservable[S, A](seed: => S, f: S 
   }
 
   def loop(subscriber: Subscriber[A], state: S): Task[Unit] =
-    try f(state).redeemWith(
-      { ex =>
-        subscriber.onError(ex)
-        Task.unit
-      }, {
-        case (a, newState) =>
-          Task.fromFuture(subscriber.onNext(a)).flatMap {
-            case Continue => loop(subscriber, newState)
-            case Stop => Task.unit
-          }
-      }
-    )
+    try
+      f(state).redeemWith(
+        { ex =>
+          subscriber.onError(ex)
+          Task.unit
+        },
+        {
+          case (a, newState) =>
+            Task.fromFuture(subscriber.onNext(a)).flatMap {
+              case Continue => loop(subscriber, newState)
+              case Stop => Task.unit
+            }
+        }
+      )
     catch {
       case ex if NonFatal(ex) =>
         Task.raiseError(ex)

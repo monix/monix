@@ -47,7 +47,7 @@ trait InlineMacros {
         case i @ Ident(_) if i.name == symbol =>
           value
         case tt: TypeTree if tt.original != null =>
-          //super.transform(TypeTree().setOriginal(transform(tt.original)))
+          // super.transform(TypeTree().setOriginal(transform(tt.original)))
           super.transform(c.universe.internal.setOriginal(TypeTree(), transform(tt.original)))
         case _ =>
           super.transform(tree)
@@ -60,13 +60,15 @@ trait InlineMacros {
 
       override def transform(tree: Tree): Tree = tree match {
         case Apply(Select(Function(params, body), ApplyName), args) =>
-          params.zip(args).foldLeft(body) { case (b, (param, arg)) =>
-            inlineSymbol(param.name, b, arg)
+          params.zip(args).foldLeft(body) {
+            case (b, (param, arg)) =>
+              inlineSymbol(param.name, b, arg)
           }
 
         case Apply(Function(params, body), args) =>
-          params.zip(args).foldLeft(body) { case (b, (param, arg)) =>
-            inlineSymbol(param.name, b, arg)
+          params.zip(args).foldLeft(body) {
+            case (b, (param, arg)) =>
+              inlineSymbol(param.name, b, arg)
           }
 
         case _ =>

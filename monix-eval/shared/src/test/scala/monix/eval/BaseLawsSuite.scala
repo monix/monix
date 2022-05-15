@@ -43,8 +43,7 @@ trait BaseLawsSuite extends monix.execution.BaseLawsSuite with ArbitraryInstance
 }
 
 trait ArbitraryInstances extends ArbitraryInstancesBase {
-  implicit def equalityTask[A](
-    implicit
+  implicit def equalityTask[A](implicit
     A: Eq[A],
     sc: TestScheduler,
     opts: Task.Options = Task.defaultOptions): Eq[Task[A]] = {
@@ -55,8 +54,7 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
     }
   }
 
-  implicit def equalityTaskPar[A](
-    implicit
+  implicit def equalityTaskPar[A](implicit
     A: Eq[A],
     ec: TestScheduler,
     opts: Task.Options = Task.defaultOptions): Eq[Task.Par[A]] = {
@@ -143,20 +141,20 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
     def genFlatMap: Gen[Task[A]] =
       for {
         ioa <- genSimpleTask
-        f   <- getArbitrary[A => Task[A]]
+        f <- getArbitrary[A => Task[A]]
       } yield ioa.flatMap(f)
 
     def getMapOne: Gen[Task[A]] =
       for {
         ioa <- genSimpleTask
-        f   <- getArbitrary[A => A]
+        f <- getArbitrary[A => A]
       } yield ioa.map(f)
 
     def getMapTwo: Gen[Task[A]] =
       for {
         ioa <- genSimpleTask
-        f1  <- getArbitrary[A => A]
-        f2  <- getArbitrary[A => A]
+        f1 <- getArbitrary[A => A]
+        f2 <- getArbitrary[A => A]
       } yield ioa.map(f1).map(f2)
 
     Arbitrary(

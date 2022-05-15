@@ -21,8 +21,7 @@ import monix.tail.batches._
 import org.scalacheck.Arbitrary
 import scala.reflect.ClassTag
 
-abstract class BatchCursorSuite[A: ClassTag](
-  implicit
+abstract class BatchCursorSuite[A: ClassTag](implicit
   arbA: Arbitrary[A],
   arbAtoA: Arbitrary[A => A],
   arbAtoBoolean: Arbitrary[A => Boolean])

@@ -144,11 +144,13 @@ object Ack {
         }
       else if (source ne Continue)
         source.onComplete { ack =>
-          try ack match {
-            case Success(Stop) => cb(None)
-            case Failure(e) => cb(Some(e))
-            case _ => ()
-          } catch {
+          try
+            ack match {
+              case Success(Stop) => cb(None)
+              case Failure(e) => cb(Some(e))
+              case _ => ()
+            }
+          catch {
             case e if NonFatal(e) => r.reportFailure(e)
           }
         }(immediate)

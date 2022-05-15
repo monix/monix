@@ -80,19 +80,21 @@ private[reactive] final class DoOnTerminateOperator[A](
 
         if (active.getAndSet(false)) {
           var streamErrors = true
-          try if (happensBefore) {
-            val task = onTerminate(ex).onErrorHandle { ex =>
-              scheduler.reportFailure(ex)
-            }
-            streamErrors = false
-            task.map { _ =>
+          try
+            if (happensBefore) {
+              val task = onTerminate(ex).onErrorHandle { ex =>
+                scheduler.reportFailure(ex)
+              }
+              streamErrors = false
+              task.map { _ =>
+                triggerSignal()
+              }
+            } else {
+              streamErrors = false
               triggerSignal()
+              onTerminate(ex)
             }
-          } else {
-            streamErrors = false
-            triggerSignal()
-            onTerminate(ex)
-          } catch {
+          catch {
             case err if NonFatal(err) =>
               if (streamErrors) {
                 out.onError(err)

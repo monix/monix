@@ -29,9 +29,9 @@ import scala.util.Failure
 object IterantMapBatchSuite extends BaseTestSuite {
   test("Iterant[Task].mapBatch(f) equivalence with List.flatMap(f andThen (_.toList))") { implicit s =>
     check2 { (stream: Iterant[Task, Array[Int]], f: Array[Int] => Long) =>
-      val g = f andThen (Batch.apply(_))
+      val g = f.andThen(Batch.apply(_))
       stream.mapBatch(g).toListL <->
-        stream.toListL.map(_.flatMap(g andThen (_.toList)))
+        stream.toListL.map(_.flatMap(g.andThen(_.toList)))
     }
   }
 
@@ -41,7 +41,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
         Iterant[Task].nextBatchS(Batch.fromSeq(list, recommendedBatchSize), Task.delay(Iterant[Task].lastS[Int](elem)))
       val f: Int => List[Int] = List.fill(recommendedBatchSize * 2)(_)
 
-      val received = stream.mapBatch(f andThen (Batch.fromSeq(_))).toListL
+      val received = stream.mapBatch(f.andThen(Batch.fromSeq(_))).toListL
       val expected = stream.toListL.map(_.flatMap(f))
 
       received <-> expected

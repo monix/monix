@@ -17,7 +17,7 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import monix.execution.{ExecutionModel => ExecModel, Scheduler, UncaughtExceptionReporter}
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent.{ExecutionContext, Future}

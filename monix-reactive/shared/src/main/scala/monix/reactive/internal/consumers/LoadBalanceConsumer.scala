@@ -215,19 +215,21 @@ private[reactive] final class LoadBalanceConsumer[-In, R](parallelism: Int, cons
         // We are forcing an asynchronous boundary here, since we
         // don't want to block the main thread!
         scheduler.execute { () =>
-          try out.out.onNext(elem).syncOnComplete {
-            case Success(ack) =>
-              ack match {
-                case Continue =>
-                  // We have permission to continue from this subscriber
-                  // so returning it to the queue, to be reused
-                  subscribersQueue.offer(out)
-                case Stop =>
-                  interruptOne(out, null)
-              }
-            case Failure(ex) =>
-              interruptAll(ex)
-          } catch {
+          try
+            out.out.onNext(elem).syncOnComplete {
+              case Success(ack) =>
+                ack match {
+                  case Continue =>
+                    // We have permission to continue from this subscriber
+                    // so returning it to the queue, to be reused
+                    subscribersQueue.offer(out)
+                  case Stop =>
+                    interruptOne(out, null)
+                }
+              case Failure(ex) =>
+                interruptAll(ex)
+            }
+          catch {
             case ex if NonFatal(ex) =>
               interruptAll(ex)
           }

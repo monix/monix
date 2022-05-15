@@ -44,10 +44,10 @@ object IterantConsumeSuite extends BaseTestSuite {
 
     val task = for {
       channel <- ConcurrentChannel[Task].of[Option[Throwable], Int]
-      fiber   <- channel.consume.use(c => foldConsumerViaPullOne(c, 0L)(_ + _)).start
-      _       <- channel.awaitConsumers(1)
-      _       <- stream.pushToChannel(channel)
-      sum     <- fiber.join
+      fiber <- channel.consume.use(c => foldConsumerViaPullOne(c, 0L)(_ + _)).start
+      _ <- channel.awaitConsumers(1)
+      _ <- stream.pushToChannel(channel)
+      sum <- fiber.join
     } yield {
       assertEquals(sum, iterationsCount.toLong * (iterationsCount - 1) / 2)
     }
@@ -63,10 +63,10 @@ object IterantConsumeSuite extends BaseTestSuite {
 
       val task = for {
         channel <- ConcurrentChannel[Task].of[Option[Throwable], Int]
-        fiber   <- channel.consume.use(c => foldConsumerViaPullOne(c, 0L)(_ + _)).start
-        _       <- channel.awaitConsumers(1)
-        _       <- stream.pushToChannel(channel)
-        sum     <- fiber.join
+        fiber <- channel.consume.use(c => foldConsumerViaPullOne(c, 0L)(_ + _)).start
+        _ <- channel.awaitConsumers(1)
+        _ <- stream.pushToChannel(channel)
+        sum <- fiber.join
       } yield {
         assertEquals(sum, iterationsCount.toLong * (iterationsCount - 1) / 2)
       }
@@ -109,7 +109,7 @@ object IterantConsumeSuite extends BaseTestSuite {
       case (producer, stream) =>
         val write = Iterant[Task].range(0, iterationsCount).pushToChannel(producer)
         for {
-          _   <- (producer.awaitConsumers(1) *> write).start
+          _ <- (producer.awaitConsumers(1) *> write).start
           sum <- stream.foldLeftL(0L)(_ + _)
         } yield {
           assertEquals(sum, iterationsCount.toLong * (iterationsCount - 1) / 2)

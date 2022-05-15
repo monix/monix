@@ -68,20 +68,22 @@ object WhileBusyAggregateEventsOperatorSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
 
     val o = Observable
-        .range(0, sourceCount.toLong)
-        .whileBusyAggregateEvents{ elem =>
-          if (sourceCount == 1) throw ex else elem
-        }{ case (acc, elem) =>
+      .range(0, sourceCount.toLong)
+      .whileBusyAggregateEvents { elem =>
+        if (sourceCount == 1) throw ex else elem
+      } {
+        case (acc, elem) =>
           if (elem == sourceCount - 1) throw ex
           else elem + acc
-        }
-        .throttle(waitNext, 1)
+      }
+      .throttle(waitNext, 1)
 
     Sample(o, 0, 0, waitNext, waitNext)
   }
 
   test("performs no conflation when upstream is slow than downstream") { implicit s =>
-    val result = Observable.range(0, 10)
+    val result = Observable
+      .range(0, 10)
       .throttle(100.milliseconds, 1)
       .whileBusyAggregateEvents[Chain[Long]](Chain.apply(_)) { case (list, ele) => list.append(ele) }
       .throttle(10.milliseconds, 1)
@@ -94,7 +96,8 @@ object WhileBusyAggregateEventsOperatorSuite extends BaseOperatorSuite {
   }
 
   test("performs conflation when upstream is faster than downstream") { implicit s =>
-    val result = Observable.range(0, 5)
+    val result = Observable
+      .range(0, 5)
       .throttle(10.milliseconds, 1)
       .whileBusyAggregateEvents[Chain[Long]](Chain.apply(_)) { case (list, ele) => list.append(ele) }
       .throttle(100.milliseconds, 1)
@@ -107,7 +110,8 @@ object WhileBusyAggregateEventsOperatorSuite extends BaseOperatorSuite {
   }
 
   test("emits groups of conflated elements each time backpressuring stops") { implicit s =>
-    val result = Observable.range(0, 9)
+    val result = Observable
+      .range(0, 9)
       .throttle(3.seconds, 1)
       .whileBusyAggregateEvents[Chain[Long]](Chain.apply(_)) { case (list, ele) => list.append(ele) }
       .throttle(10.seconds, 1)
@@ -119,11 +123,12 @@ object WhileBusyAggregateEventsOperatorSuite extends BaseOperatorSuite {
     s.tick(10.seconds) // 21,24,27 seconds - elements 6,7,8
     s.tick(10.seconds)
 
-    assertEquals(result.value, Some(Success(List(Chain(0), Chain(1, 2), Chain(3, 4 , 5), Chain(6, 7, 8)))))
+    assertEquals(result.value, Some(Success(List(Chain(0), Chain(1, 2), Chain(3, 4, 5), Chain(6, 7, 8)))))
   }
 
   test("performs conflation when upstream is unbounded and downstream is slow") { implicit s =>
-    val result = Observable.range(0, 10)
+    val result = Observable
+      .range(0, 10)
       .whileBusyAggregateEvents[Chain[Long]](Chain.apply(_)) { case (list, ele) => list.append(ele) }
       .throttle(100.milliseconds, 1)
       .toListL
@@ -135,7 +140,8 @@ object WhileBusyAggregateEventsOperatorSuite extends BaseOperatorSuite {
   }
 
   test("performs no conflation when downstream is unbounded") { implicit s =>
-    val result = Observable.range(0, 10)
+    val result = Observable
+      .range(0, 10)
       .throttle(10.milliseconds, 1)
       .whileBusyAggregateEvents[Chain[Long]](Chain.apply(_)) { case (list, ele) => list.append(ele) }
       .toListL

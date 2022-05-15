@@ -98,7 +98,8 @@ private[eval] object TaskCancellation {
         conn2.cancel.map { _ =>
           conn.tryReactivate()
           cb.onError(e)
-        } else
+        }
+      else
         Task.unit
     }
   }

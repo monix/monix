@@ -133,8 +133,8 @@ private[eval] object TaskFromFuture {
     }
   }
 
-  private def trampolinedCB[A](cb: Callback[Throwable, A], conn: TaskConnection)(
-    implicit ec: ExecutionContext): Try[A] => Unit = {
+  private def trampolinedCB[A](cb: Callback[Throwable, A], conn: TaskConnection)(implicit
+    ec: ExecutionContext): Try[A] => Unit = {
 
     new (Try[A] => Unit) with TrampolinedRunnable {
       private[this] var value: Try[A] = _

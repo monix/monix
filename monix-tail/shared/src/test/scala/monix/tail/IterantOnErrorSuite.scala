@@ -128,11 +128,13 @@ object IterantOnErrorSuite extends BaseTestSuite {
     var effect = 0
 
     val errorInTail = Iterant[Coeval]
-      .nextS(1, Coeval {
-        Iterant[Coeval]
-          .nextS(2, Coeval { (throw DummyException("Dummy")): Iterant[Coeval, Int] })
-          .guarantee(Coeval { effect += 2 })
-      })
+      .nextS(
+        1,
+        Coeval {
+          Iterant[Coeval]
+            .nextS(2, Coeval { (throw DummyException("Dummy")): Iterant[Coeval, Int] })
+            .guarantee(Coeval { effect += 2 })
+        })
       .guarantee(Coeval { effect += 1 })
 
     errorInTail.onErrorHandleWith(_ => Iterant[Coeval].empty[Int]).completedL.value()
@@ -153,11 +155,13 @@ object IterantOnErrorSuite extends BaseTestSuite {
     var effect = 0
 
     val errorInTail = Iterant[Coeval]
-      .nextS(1, Coeval {
-        Iterant[Coeval]
-          .nextS(2, Coeval { (throw DummyException("Dummy")): Iterant[Coeval, Int] })
-          .guarantee(Coeval { effect += 2 })
-      })
+      .nextS(
+        1,
+        Coeval {
+          Iterant[Coeval]
+            .nextS(2, Coeval { (throw DummyException("Dummy")): Iterant[Coeval, Int] })
+            .guarantee(Coeval { effect += 2 })
+        })
       .guarantee(Coeval { effect += 1 })
 
     errorInTail.attempt.completedL.value()
@@ -224,7 +228,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     assertEquals(result, Some(Left(dummy)))
   }
 
-  //noinspection ScalaUnreachableCode
+  // noinspection ScalaUnreachableCode
   def semiBrokenIterator(ex: Throwable): Iterator[Int] = {
     def end: Iterator[Int] = new Iterator[Int] {
       override def hasNext: Boolean = true

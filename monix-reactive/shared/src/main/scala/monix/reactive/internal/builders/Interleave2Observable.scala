@@ -82,7 +82,8 @@ private[reactive] final class Interleave2Observable[+A](obsA1: Observable[A], ob
 
       def onNext(elem: A): Future[Ack] = lock.synchronized {
         def sendSignal(elem: A): Future[Ack] = lock.synchronized {
-          if (isDone) Stop else {
+          if (isDone) Stop
+          else {
             downstreamAck = out.onNext(elem)
             pauseA1 = Promise[Ack]()
             pauseA2.completeWith(downstreamAck)

@@ -30,7 +30,7 @@ object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
   val lastReported = Atomic(null: Throwable)
   val reporter = new StandardContext(new UncaughtExceptionReporter {
     def reportFailure(ex: Throwable): Unit =
-      lastReported set ex
+      lastReported.set(ex)
   })
 
   def setup(): Scheduler = {

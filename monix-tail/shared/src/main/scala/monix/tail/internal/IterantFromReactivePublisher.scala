@@ -32,8 +32,8 @@ private[tail] object IterantFromReactivePublisher {
   /**
     * Implementation for `Iterant.fromReactivePublisher`.
     */
-  def apply[F[_], A](pub: Publisher[A], requestCount: Int, eagerBuffer: Boolean)(
-    implicit F: Async[F]): Iterant[F, A] = {
+  def apply[F[_], A](pub: Publisher[A], requestCount: Int, eagerBuffer: Boolean)(implicit
+    F: Async[F]): Iterant[F, A] = {
 
     if (requestCount < 1) {
       Iterant.raiseError(new IllegalArgumentException("requestSize must be greater than 1"))
@@ -148,7 +148,7 @@ private[tail] object IterantFromReactivePublisher {
             finish(fa)
           }
 
-        case current : Take[F, A] @unchecked =>
+        case current: Take[F, A] @unchecked =>
           if (state.compareAndSet(current, Stop(fa)))
             current.cb(Right(fa))
           else

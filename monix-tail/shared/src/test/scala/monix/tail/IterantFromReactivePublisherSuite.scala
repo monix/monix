@@ -122,8 +122,8 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])(
-    implicit sc: Scheduler)
+  class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])(implicit
+    sc: Scheduler)
     extends Publisher[Int] {
 
     def this(range: Range, finish: Option[Throwable])(implicit sc: Scheduler) =

@@ -25,7 +25,8 @@ import monix.reactive.observers.Subscriber
 
 import scala.util.control.NonFatal
 
-private[reactive] final class PaginateEvalObservable[S, A](seed: S, f: S => Task[(A, Option[S])]) extends Observable[A] {
+private[reactive] final class PaginateEvalObservable[S, A](seed: S, f: S => Task[(A, Option[S])])
+  extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
@@ -47,24 +48,26 @@ private[reactive] final class PaginateEvalObservable[S, A](seed: S, f: S => Task
   }
 
   def loop(subscriber: Subscriber[A], state: S): Task[Unit] =
-    try f(state).redeemWith(
-      { ex =>
-        subscriber.onError(ex)
-        Task.unit
-      }, {
-        case (a, Some(newState)) =>
-          Task.fromFuture(subscriber.onNext(a)).flatMap {
-            case Continue =>
-              loop(subscriber, newState)
-            case Stop =>
-              Task.unit
-          }
-        case (a, None) =>
-          subscriber.onNext(a)
-          subscriber.onComplete()
+    try
+      f(state).redeemWith(
+        { ex =>
+          subscriber.onError(ex)
           Task.unit
-      }
-    )
+        },
+        {
+          case (a, Some(newState)) =>
+            Task.fromFuture(subscriber.onNext(a)).flatMap {
+              case Continue =>
+                loop(subscriber, newState)
+              case Stop =>
+                Task.unit
+            }
+          case (a, None) =>
+            subscriber.onNext(a)
+            subscriber.onComplete()
+            Task.unit
+        }
+      )
     catch {
       case ex if NonFatal(ex) =>
         Task.raiseError(ex)

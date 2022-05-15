@@ -41,7 +41,7 @@ private[reactive] final class ForeachAsyncConsumer[A](f: A => Task[Unit]) extend
         try {
           this.synchronized {
             if (!isDone) {
-              val future = f(elem).redeem({e => onError(e); Stop}, _ => Continue).runToFuture
+              val future = f(elem).redeem({ e => onError(e); Stop }, _ => Continue).runToFuture
               lastCancelable = future
               future.syncTryFlatten
             } else Stop
@@ -66,12 +66,14 @@ private[reactive] final class ForeachAsyncConsumer[A](f: A => Task[Unit]) extend
         }
     }
 
-    (out, SingleAssignCancelable.plusOne(Cancelable { () =>
-      out.synchronized {
-        isDone = true
-        lastCancelable.cancel()
-        lastCancelable = Cancelable.empty
-      }
-    }))
+    (
+      out,
+      SingleAssignCancelable.plusOne(Cancelable { () =>
+        out.synchronized {
+          isDone = true
+          lastCancelable.cancel()
+          lastCancelable = Cancelable.empty
+        }
+      }))
   }
 }

@@ -163,7 +163,8 @@ final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) 
 
         connectedFuture
       }
-    } else if (!wasCanceled) {
+    }
+    else if (!wasCanceled) {
       // taking fast path :-)
       downstream.onNext(elem)
     } else {

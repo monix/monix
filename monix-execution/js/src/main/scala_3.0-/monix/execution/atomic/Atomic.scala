@@ -168,8 +168,8 @@ object Atomic {
     * @param builder is the builder that helps us to build the
     *        best reference possible, based on our `initialValue`
     */
-  def withPadding[A, R <: Atomic[A]](initialValue: A, padding: PaddingStrategy)(
-    implicit builder: AtomicBuilder[A, R]): R =
+  def withPadding[A, R <: Atomic[A]](initialValue: A, padding: PaddingStrategy)(implicit
+    builder: AtomicBuilder[A, R]): R =
     macro Atomic.Macros.buildAnyWithPaddingMacro[A, R]
 
   /** Returns the builder that would be chosen to construct Atomic
