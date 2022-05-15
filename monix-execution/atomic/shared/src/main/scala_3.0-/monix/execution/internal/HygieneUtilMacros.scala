@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package monix.execution.misc
+package monix.execution.atomic.internal
 
 import scala.reflect.macros.whitebox
 
 /** Utilities for macro-hygiene. */
-trait HygieneUtilMacros {
+private[atomic] trait HygieneUtilMacros {
   val c: whitebox.Context
 
   import c.universe._

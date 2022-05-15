@@ -15,15 +15,14 @@
  * limitations under the License.
  */
 
-package monix.execution.misc.test
+package monix.execution.atomic.internal
 
-import monix.execution.misc.{HygieneUtilMacros, InlineMacros}
 import scala.reflect.macros.whitebox
 
 /** Represents a boxed value, to be used in the testing
   * of [[InlineMacros]].
   */
-private[execution] final case class TestBox[A](value: A) {
+private[atomic] final case class TestBox[A](value: A) {
   def map[B](f: A => B): TestBox[B] = macro TestBox.Macros.mapMacroImpl[A, B]
   def collect[B](f: PartialFunction[A, B]): TestBox[B] = macro TestBox.Macros.mapMacroImpl[A, B]
 }
@@ -31,7 +30,7 @@ private[execution] final case class TestBox[A](value: A) {
 /** Represents a boxed value, to be used in the testing
   * of [[InlineMacros]].
   */
-private[execution] object TestBox {
+private[atomic] object TestBox {
 
   class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
     import c.universe._

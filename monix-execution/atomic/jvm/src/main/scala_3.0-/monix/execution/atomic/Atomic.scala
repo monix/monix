@@ -18,8 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.misc._
-
+import monix.execution.atomic.internal._
 import scala.reflect.macros.whitebox
 
 /**

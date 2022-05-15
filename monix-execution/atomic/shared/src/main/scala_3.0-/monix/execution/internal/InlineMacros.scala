@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 
-package monix.execution.misc
+package monix.execution.atomic.internal
 
 import scala.reflect.macros.whitebox
 
-trait InlineMacros {
+private[atomic] trait InlineMacros {
   val c: whitebox.Context
 
   import c.universe._

@@ -15,12 +15,11 @@
  * limitations under the License.
  */
 
-package monix.execution.misc.test
+package monix.execution.atomic.internal
 
-import monix.execution.misc._
 import scala.reflect.macros.whitebox
 
-private[execution] object TestInlineMacros {
+private[atomic] object TestInlineMacros {
   def testInlineSingleArg(): Either[String, Unit] =
     macro Macros.testInlineSingleArg
 
