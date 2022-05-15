@@ -28,26 +28,11 @@ abstract class Atomic[A] extends Serializable {
   /** Get the current value persisted by this Atomic. */
   def get(): A
 
-  /** Get the current value persisted by this Atomic, an alias for `get()`. */
-  final def apply(): A = macro Atomic.Macros.applyMacro[A]
-
   /** Updates the current value.
     *
     * @param update will be the new value returned by `get()`
     */
   def set(update: A): Unit
-
-  /** Alias for [[set]]. Updates the current value.
-    *
-    * @param value will be the new value returned by `get()`
-    */
-  final def update(value: A): Unit = macro Atomic.Macros.setMacro[A]
-
-  /** Alias for [[set]]. Updates the current value.
-    *
-    * @param value will be the new value returned by `get()`
-    */
-  final def `:=`(value: A): Unit = macro Atomic.Macros.setMacro[A]
 
   /** Does a compare-and-set operation on the current value. For more info, checkout the related
     * [[https://en.wikipedia.org/wiki/Compare-and-swap Compare-and-swap Wikipedia page]].
@@ -70,56 +55,93 @@ abstract class Atomic[A] extends Serializable {
     */
   def lazySet(update: A): Unit
 
-  /** Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
-    * executed, a callback that transforms the current value. This method will loop until it will
-    * succeed in replacing the current value with the one produced by your callback.
+  /** Abstracts over `compareAndSet`. You specify a transformation by
+    * specifying a function to be executed, a function that transforms the
+    * current value. This method will loop until the transaction succeeds in
+    * replacing the current value with the one produced by your
+    * transformation.
+    * 
+    * Sample: {{{
+    *   import monix.execution.atomic._
+    *   import scala.collection.immutable.Queue
+    * 
+    *   final class ConcurrentQueue[A] private (state: AtomicRef[Queue[A]]) {
+    *     def enqueue(value: A): Unit = 
+    *       state.transform(_.enqueue(value))
+    * 
+    *     def dequeue(): Option[A] =
+    *       state.transformAndExtract { queue =>
+    *         if (queue.isEmpty)
+    *           (None, queue)
+    *         else
+    *           (Some(queue.dequeue), queue)
+    *       }
+    *   }
+    * }}}
     *
-    * Note that the callback will be executed on each iteration of the loop, so it can be called
-    * multiple times - don't do destructive I/O or operations that mutate global state in it.
+    * Note that the function will be executed on each iteration of the loop,
+    * so it can be called multiple times - don't do destructive I/O or
+    * operations that mutate global state in it.
     *
-    * @param cb is a callback that receives the current value as input and returns a tuple that specifies
-    *           the update + what should this method return when the operation succeeds.
-    * @return whatever was specified by your callback, once the operation succeeds
+    * @param f is a function that receives the current value as input and
+    *  returns a tuple that specifies the update + what should this method
+    *  return when the operation succeeds.
+    * 
+    * @return whatever was extracted by your function, once the operation
+    *  succeeds
     */
-  def transformAndExtract[U](cb: (A) => (U, A)): U = macro Atomic.Macros.transformAndExtractMacro[A, U]
+  def transformAndExtract[U](@deprecatedName("cb") f: (A) => (U, A)): U =
+    macro Atomic.Macros.transformAndExtractMacro[A, U]
 
-  /** Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
-    * executed, a callback that transforms the current value. This method will loop until it will
-    * succeed in replacing the current value with the one produced by the given callback.
+  /** Abstracts over `compareAndSet`. You specify a transformation by
+    * specifying a function to be executed, a function that transforms the
+    * current value. This method will loop until it will succeed in replacing
+    * the current value with the one produced by the given function.
     *
-    * Note that the callback will be executed on each iteration of the loop, so it can be called
-    * multiple times - don't do destructive I/O or operations that mutate global state in it.
+    * Note that the callback will be executed on each iteration of the loop,
+    * so it can be called multiple times - don't do destructive I/O or
+    * operations that mutate global state in it.
     *
-    * @param cb is a callback that receives the current value as input and returns the `update` which is the
-    *           new value that should be persisted
-    * @return whatever the update is, after the operation succeeds
+    * @param f is a function that receives the current value as input and
+    *  returns the `update` which is the new value that should be persisted.
+    * 
+    * @return whatever the update is, after the transaction succeeds.
     */
-  def transformAndGet(cb: (A) => A): A = macro Atomic.Macros.transformAndGetMacro[A]
+  def transformAndGet(@deprecatedName("cb") f: A => A): A =
+    macro Atomic.Macros.transformAndGetMacro[A]
 
-  /** Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
-    * executed, a callback that transforms the current value. This method will loop until it will
-    * succeed in replacing the current value with the one produced by the given callback.
+  /** Abstracts over `compareAndSet`. You specify a transformation by
+    * specifying a callback to be executed, a callback that transforms the
+    * current value. This method will loop until it will succeed in replacing
+    * the current value with the one produced by the given callback.
     *
-    * Note that the callback will be executed on each iteration of the loop, so it can be called
-    * multiple times - don't do destructive I/O or operations that mutate global state in it.
+    * Note that the callback will be executed on each iteration of the loop,
+    * so it can be called multiple times - don't do destructive I/O or
+    * operations that mutate global state in it.
     *
-    * @param cb is a callback that receives the current value as input and returns the `update` which is the
-    *           new value that should be persisted
-    * @return the old value, just prior to when the successful update happened
+    * @param f is a callback that receives the current value as input and
+    *  returns the `update` which is the new value that should be persisted.
+    * 
+    * @return the old value, just prior to when the successful update
+    *  happened.
     */
-  final def getAndTransform(cb: (A) => A): A = macro Atomic.Macros.getAndTransformMacro[A]
+  final def getAndTransform(@deprecatedName("cb") f: A => A): A =
+    macro Atomic.Macros.getAndTransformMacro[A]
 
-  /** Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
-    * executed, a callback that transforms the current value. This method will loop until it will
-    * succeed in replacing the current value with the one produced by the given callback.
+  /** Abstracts over `compareAndSet`. You specify a transformation by
+    * specifying a callback to be executed, a callback that transforms the
+    * current value. This method will loop until it will succeed in replacing
+    * the current value with the one produced by the given callback.
     *
-    * Note that the callback will be executed on each iteration of the loop, so it can be called
-    * multiple times - don't do destructive I/O or operations that mutate global state in it.
+    * Note that the callback will be executed on each iteration of the loop,
+    * so it can be called multiple times - don't do destructive I/O or
+    * operations that mutate global state in it.
     *
-    * @param cb is a callback that receives the current value as input and returns the `update` which is the
-    *           new value that should be persisted
+    * @param f is a function that receives the current value as input and
+    *  returns the `update` which is the new value that should be persisted
     */
-  final def transform(cb: (A) => A): Unit = macro Atomic.Macros.transformMacro[A]
+  final def transform(@deprecatedName("cb") f: A => A): Unit =
+    macro Atomic.Macros.transformMacro[A]
 }
 
 object Atomic {
@@ -165,7 +187,8 @@ object Atomic {
     *        best reference possible, based on our `initialValue`
     */
   def withPadding[A, R <: Atomic[A]](initialValue: A, padding: PaddingStrategy)(implicit
-    builder: AtomicBuilder[A, R]): R = macro Atomic.Macros.buildAnyWithPaddingMacro[A, R]
+    builder: AtomicBuilder[A, R]
+  ): R = macro Atomic.Macros.buildAnyWithPaddingMacro[A, R]
 
   /** Returns the builder that would be chosen to construct Atomic
     * references for the given `initialValue`.
@@ -173,11 +196,37 @@ object Atomic {
   def builderFor[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): AtomicBuilder[A, R] =
     builder
 
+  implicit final class DeprecatedExtensions[A](val self: Atomic[A]) extends AnyVal {
+    /** DEPRECATED - switch to [[Atomic.get]]. */
+    @deprecated("Switch to .get()", "4.0.0")
+    def apply(): A = {
+      // $COVERAGE-OFF$
+      self.get()
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — switch to [[Atomic.set]]. */
+    @deprecated("Switch to .set()", "4.0.0")
+    def update(value: A): Unit = {
+      // $COVERAGE-OFF$
+      self.set(value)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — switch to [[Atomic.set]]. */
+    @deprecated("Switch to .set()", "4.0.0")
+    def `:=`(value: A): Unit = {
+      // $COVERAGE-OFF$
+      self.set(value)
+      // $COVERAGE-ON$
+    }
+  }
+
   /** Macros implementations for the [[Atomic]] type */
   class Macros(override val c: whitebox.Context) extends HygieneUtilMacros with InlineMacros {
     import c.universe._
 
-    def transformMacro[A: c.WeakTypeTag](cb: c.Expr[A => A]): c.Expr[Unit] = {
+    def transformMacro[A: c.WeakTypeTag](f: c.Expr[A => A]): c.Expr[Unit] = {
       val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val self = util.name("self")
       val current = util.name("current")
@@ -187,22 +236,22 @@ object Atomic {
        * then inline them directly, otherwise bind arguments to a val for safety.
        */
       val tree =
-        if (util.isClean(cb)) {
+        if (util.isClean(f)) {
           q"""
           val $self = $selfExpr
           var $current = $self.get()
-          var $update = $cb($current)
+          var $update = $f($current)
 
           while (!$self.compareAndSet($current, $update)) {
             $current = $self.get()
-            $update = $cb($current)
+            $update = $f($current)
           }
           """
         } else {
           val fn = util.name("fn")
           q"""
           val $self = $selfExpr
-          val $fn = $cb
+          val $fn = $f
 
           var $current = $self.get()
           var $update = $fn($current)
@@ -217,7 +266,7 @@ object Atomic {
       inlineAndReset[Unit](tree)
     }
 
-    def transformAndGetMacro[A: c.WeakTypeTag](cb: c.Expr[A => A]): c.Expr[A] = {
+    def transformAndGetMacro[A: c.WeakTypeTag](f: c.Expr[A => A]): c.Expr[A] = {
       val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val self = util.name("self")
       val current = util.name("current")
@@ -227,15 +276,15 @@ object Atomic {
        * then inline them directly, otherwise bind arguments to a val for safety.
        */
       val tree =
-        if (util.isClean(cb)) {
+        if (util.isClean(f)) {
           q"""
           val $self = $selfExpr
           var $current = $self.get()
-          var $update = $cb($current)
+          var $update = $f($current)
 
           while (!$self.compareAndSet($current, $update)) {
             $current = $self.get()
-            $update = $cb($current)
+            $update = $f($current)
           }
 
           $update
@@ -244,7 +293,7 @@ object Atomic {
           val fn = util.name("fn")
           q"""
           val $self = $selfExpr
-          val $fn = $cb
+          val $fn = $f
           var $current = $self.get()
           var $update = $fn($current)
 
@@ -260,7 +309,7 @@ object Atomic {
       inlineAndReset[A](tree)
     }
 
-    def getAndTransformMacro[A: c.WeakTypeTag](cb: c.Expr[A => A]): c.Expr[A] = {
+    def getAndTransformMacro[A: c.WeakTypeTag](f: c.Expr[A => A]): c.Expr[A] = {
       val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val self = util.name("self")
       val current = util.name("current")
@@ -270,15 +319,15 @@ object Atomic {
        * then inline them directly, otherwise bind arguments to a val for safety.
        */
       val tree =
-        if (util.isClean(cb)) {
+        if (util.isClean(f)) {
           q"""
           val $self = $selfExpr
           var $current = $self.get()
-          var $update = $cb($current)
+          var $update = $f($current)
 
           while (!$self.compareAndSet($current, $update)) {
             $current = $self.get()
-            $update = $cb($current)
+            $update = $f($current)
           }
 
           $current
@@ -287,7 +336,7 @@ object Atomic {
           val fn = util.name("fn")
           q"""
           val $self = $selfExpr
-          val $fn = $cb
+          val $fn = $f
           var $current = $self.get()
           var $update = $fn($current)
 
@@ -303,8 +352,9 @@ object Atomic {
       inlineAndReset[A](tree)
     }
 
-    def transformAndExtractMacro[S: c.WeakTypeTag, A: c.WeakTypeTag](cb: c.Expr[S => (A, S)]): c.Expr[A] = {
-
+    def transformAndExtractMacro[S: c.WeakTypeTag, A: c.WeakTypeTag](
+      f: c.Expr[S => (A, S)]
+    ): c.Expr[A] = {
       val selfExpr = c.Expr[Atomic[S]](c.prefix.tree)
       val self = util.name("self")
       val current = util.name("current")
@@ -317,15 +367,15 @@ object Atomic {
        * then inline them directly, otherwise bind arguments to a val for safety.
        */
       val tree =
-        if (util.isClean(cb)) {
+        if (util.isClean(f)) {
           q"""
           val $self = $selfExpr
           var $current = $self.get()
-          var ($resultVar, $updateVar) = $cb($current)
+          var ($resultVar, $updateVar) = $f($current)
 
           while (!$self.compareAndSet($current, $updateVar)) {
             $current = $self.get()
-            val ($resultTmp, $updateTmp) = $cb($current)
+            val ($resultTmp, $updateTmp) = $f($current)
             $updateVar = $updateTmp
             $resultVar = $resultTmp
           }
@@ -336,7 +386,7 @@ object Atomic {
           val fn = util.name("fn")
           q"""
           val $self = $selfExpr
-          val $fn = $cb
+          val $fn = $f
 
           var $current = $self.get()
           var ($resultVar, $updateVar) = $fn($current)
@@ -358,11 +408,13 @@ object Atomic {
     def buildAnyMacro[A: c.WeakTypeTag, R <: Atomic[A]: c.WeakTypeTag](initialValue: c.Expr[A])(
       builder: c.Expr[AtomicBuilder[A, R]]
     ): c.Expr[R] = {
-
       val expr = reify {
-        builder.splice.buildInstance(initialValue.splice, NoPadding, allowPlatformIntrinsics = true)
+        builder.splice.buildInstance(
+          initialValue.splice,
+          NoPadding,
+          allowPlatformIntrinsics = true
+        )
       }
-
       inlineAndReset[R](expr.tree)
     }
 
@@ -370,11 +422,9 @@ object Atomic {
       initialValue: c.Expr[A],
       padding: c.Expr[PaddingStrategy]
     )(builder: c.Expr[AtomicBuilder[A, R]]): c.Expr[R] = {
-
       val expr = reify {
         builder.splice.buildInstance(initialValue.splice, padding.splice, allowPlatformIntrinsics = true)
       }
-
       inlineAndReset[R](expr.tree)
     }
 

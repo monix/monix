@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package monix.execution.misc
+package monix.execution.atomic.internal
 
 import minitest.SimpleTestSuite
-import monix.execution.exceptions.DummyException
-import monix.execution.misc.test.{ TestBox, TestInlineMacros }
 import scala.util.control.NonFatal
 
 object InlineMacrosTest extends SimpleTestSuite {
+  class DummyException(msg: String) extends RuntimeException(msg)
+
   test("inline a function code gen") {
     val result = TestInlineMacros.testInlineSingleArg()
     result match {
@@ -114,7 +114,7 @@ object InlineMacrosTest extends SimpleTestSuite {
 
   test("Inline NonFatal clause") {
     val box = TestBox(1)
-    val dummy = DummyException("dummy")
+    val dummy = new DummyException("dummy")
     def increment(x: Int): Int = throw dummy
 
     val mapped = box.map { x =>
