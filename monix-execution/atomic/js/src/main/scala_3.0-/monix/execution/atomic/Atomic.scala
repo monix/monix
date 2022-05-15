@@ -17,7 +17,7 @@
 
 package monix.execution.atomic
 
-import monix.execution.internal._
+import monix.execution.atomic.internal._
 import scala.reflect.macros.whitebox
 import monix.execution.atomic.PaddingStrategy.NoPadding
 
@@ -28,26 +28,11 @@ abstract class Atomic[A] extends Serializable {
   /** Get the current value persisted by this Atomic. */
   def get(): A
 
-  /** Get the current value persisted by this Atomic, an alias for `get()`. */
-  final def apply(): A = macro Atomic.Macros.applyMacro[A]
-
   /** Updates the current value.
     *
     * @param update will be the new value returned by `get()`
     */
   def set(update: A): Unit
-
-  /** Alias for [[set]]. Updates the current value.
-    *
-    * @param value will be the new value returned by `get()`
-    */
-  final def update(value: A): Unit = macro Atomic.Macros.setMacro[A]
-
-  /** Alias for [[set]]. Updates the current value.
-    *
-    * @param value will be the new value returned by `get()`
-    */
-  final def `:=`(value: A): Unit = macro Atomic.Macros.setMacro[A]
 
   /** Does a compare-and-set operation on the current value. For more info, checkout the related
     * [[https://en.wikipedia.org/wiki/Compare-and-swap Compare-and-swap Wikipedia page]].
@@ -178,6 +163,32 @@ object Atomic {
     */
   def builderFor[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): AtomicBuilder[A, R] =
     builder
+
+  implicit final class DeprecatedExtensions[A](val self: Atomic[A]) extends AnyVal {
+    /** DEPRECATED - switch to [[Atomic.get]]. */
+    @deprecated("Switch to .get()", "4.0.0")
+    def apply(): A = {
+      // $COVERAGE-OFF$
+      self.get()
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — switch to [[Atomic.set]]. */
+    @deprecated("Switch to .set()", "4.0.0")
+    def update(value: A): Unit = {
+      // $COVERAGE-OFF$
+      self.set(value)
+      // $COVERAGE-ON$
+    }
+
+    /** DEPRECATED — switch to [[Atomic.set]]. */
+    @deprecated("Switch to .set()", "4.0.0")
+    def `:=`(value: A): Unit = {
+      // $COVERAGE-OFF$
+      self.set(value)
+      // $COVERAGE-ON$
+    }
+  }
 
   /** Macros implementations for the [[Atomic]] type */
   class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
