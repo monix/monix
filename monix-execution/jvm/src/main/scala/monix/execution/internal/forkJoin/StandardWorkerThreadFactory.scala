@@ -18,7 +18,7 @@
 package monix.execution.internal.forkJoin
 
 import java.util.concurrent.ForkJoinPool.ForkJoinWorkerThreadFactory
-import java.util.concurrent.{ForkJoinPool, ForkJoinWorkerThread, ThreadFactory}
+import java.util.concurrent.{ ForkJoinPool, ForkJoinWorkerThread, ThreadFactory }
 
 private[monix] final class StandardWorkerThreadFactory(
   prefix: String,

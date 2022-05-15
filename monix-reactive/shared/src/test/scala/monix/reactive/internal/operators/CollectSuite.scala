@@ -21,10 +21,10 @@ import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
 import monix.execution.exceptions.DummyException
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 
 import scala.concurrent.duration._
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 object CollectSuite extends BaseOperatorSuite {
   val waitFirst = Duration.Zero

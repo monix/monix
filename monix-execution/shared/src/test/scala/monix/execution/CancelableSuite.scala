@@ -18,7 +18,7 @@
 package monix.execution
 
 import minitest.SimpleTestSuite
-import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.schedulers.TestScheduler
 import monix.execution.internal.Platform
 import scala.concurrent.Promise

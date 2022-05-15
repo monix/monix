@@ -17,15 +17,15 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Ack, Cancelable, ExecutionModel, Scheduler}
+import monix.execution.{ Ack, Cancelable, ExecutionModel, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 private[reactive] final class RepeatOneObservable[A](elem: A) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
@@ -36,7 +36,8 @@ private[reactive] final class RepeatOneObservable[A](elem: A) extends Observable
   }
 
   def reschedule(ack: Future[Ack], o: Subscriber[A], c: BooleanCancelable, em: ExecutionModel)(
-    implicit s: Scheduler): Unit =
+    implicit s: Scheduler
+  ): Unit =
     ack.onComplete {
       case Success(Continue) =>
         fastLoop(o, c, em, 0)
@@ -48,7 +49,8 @@ private[reactive] final class RepeatOneObservable[A](elem: A) extends Observable
 
   @tailrec
   def fastLoop(o: Subscriber[A], c: BooleanCancelable, em: ExecutionModel, syncIndex: Int)(
-    implicit s: Scheduler): Unit = {
+    implicit s: Scheduler
+  ): Unit = {
 
     val ack = o.onNext(elem)
     val nextIndex =

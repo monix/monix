@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Task
-import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.reactive.Observable
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration._
@@ -38,7 +38,8 @@ object FlatScanDelayErrorSuite extends BaseOperatorSuite {
       Observable
         .repeat(acc + elem)
         .take(3L)
-        .endWithError(SomeException(10)))
+        .endWithError(SomeException(10))
+    )
 
     val recovered = o.onErrorHandleWith {
       case composite: CompositeException =>

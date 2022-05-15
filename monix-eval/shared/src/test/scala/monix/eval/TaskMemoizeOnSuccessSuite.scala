@@ -22,7 +22,7 @@ import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import scala.concurrent.Promise
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 import concurrent.duration._
 
 object TaskMemoizeOnSuccessSuite extends BaseTestSuite {

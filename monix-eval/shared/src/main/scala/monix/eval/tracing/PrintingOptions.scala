@@ -26,9 +26,11 @@ package monix.eval.tracing
   *
   * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
   */
-final case class PrintingOptions private (showFullStackTraces: Boolean,
-                                          maxStackTraceLines: Int,
-                                          ignoreStackTraceLines: Int) {
+final case class PrintingOptions private (
+  showFullStackTraces: Boolean,
+  maxStackTraceLines: Int,
+  ignoreStackTraceLines: Int
+) {
   def withShowFullStackTraces(showFullStackTraces: Boolean): PrintingOptions =
     copy(showFullStackTraces = showFullStackTraces)
 

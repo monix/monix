@@ -21,7 +21,7 @@ import minitest.SimpleTestSuite
 import monix.execution.Scheduler.Implicits.global
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, TimeoutException}
+import scala.concurrent.{ Await, Future, TimeoutException }
 import scala.util.Success
 
 object CancelableFutureJVMSuite extends SimpleTestSuite {

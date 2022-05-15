@@ -18,7 +18,7 @@
 package monix.execution.exceptions
 
 import scala.runtime.AbstractFunction1
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /** Generic exception thrown on API contract violations. */
 class APIContractViolationException(val message: String, cause: Throwable)

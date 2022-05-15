@@ -20,10 +20,10 @@ package monix.eval.internal
 import cats.effect.CancelToken
 import monix.catnap.CancelableF
 import monix.eval.Task
-import monix.eval.internal.TaskConnectionComposite.{Active, Cancelled, State}
-import monix.execution.{Cancelable, Scheduler}
+import monix.eval.internal.TaskConnectionComposite.{ Active, Cancelled, State }
+import monix.execution.{ Cancelable, Scheduler }
 import monix.execution.atomic.PaddingStrategy.LeftRight128
-import monix.execution.atomic.{Atomic, AtomicAny}
+import monix.execution.atomic.{ Atomic, AtomicAny }
 
 import scala.annotation.tailrec
 
@@ -73,7 +73,8 @@ private[eval] final class TaskConnectionComposite private (stateRef: AtomicAny[S
 
   @tailrec
   private def addAny(ref: AnyRef /* CancelToken[Task] | CancelableF[Task] | Cancelable */ )(
-    implicit s: Scheduler): Unit = {
+    implicit s: Scheduler
+  ): Unit = {
 
     stateRef.get() match {
       case Cancelled =>

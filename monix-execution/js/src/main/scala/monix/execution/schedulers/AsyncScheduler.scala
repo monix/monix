@@ -20,8 +20,8 @@ package schedulers
 
 import java.util.concurrent.TimeUnit
 
-import monix.execution.schedulers.JSTimer.{clearTimeout, setTimeout}
-import monix.execution.{ExecutionModel => ExecModel}
+import monix.execution.schedulers.JSTimer.{ clearTimeout, setTimeout }
+import monix.execution.{ ExecutionModel => ExecModel }
 
 import scala.concurrent.ExecutionContext
 import monix.execution.internal.InterceptRunnable

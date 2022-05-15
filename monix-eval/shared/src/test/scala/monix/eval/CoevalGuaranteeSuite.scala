@@ -17,9 +17,9 @@
 
 package monix.eval
 
-import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object CoevalGuaranteeSuite extends BaseTestSuite {
 

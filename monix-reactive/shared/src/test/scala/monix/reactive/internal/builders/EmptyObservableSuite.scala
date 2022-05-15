@@ -19,7 +19,7 @@ package monix.reactive.internal.builders
 
 import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 
 object EmptyObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()

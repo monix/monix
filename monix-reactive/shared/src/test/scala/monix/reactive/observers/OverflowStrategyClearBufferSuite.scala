@@ -19,14 +19,14 @@ package monix.reactive.observers
 
 import minitest.TestSuite
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.internal.{Platform, RunnableAction}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.internal.{ Platform, RunnableAction }
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.ClearBuffer
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.OverflowStrategyClearBufferAndSignalSuite._
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()

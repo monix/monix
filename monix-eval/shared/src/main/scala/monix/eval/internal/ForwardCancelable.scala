@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference
 import cats.effect.CancelToken
 import monix.eval.Task
 import monix.execution.schedulers.TrampolineExecutionContext
-import monix.execution.{Callback, Scheduler}
+import monix.execution.{ Callback, Scheduler }
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext

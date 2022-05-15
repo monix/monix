@@ -23,7 +23,7 @@ import monix.eval.Task
 import monix.execution.cancelables.SingleAssignCancelable
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolinedRunnable
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.Try
 
 private[eval] object TaskFromFuture {
@@ -134,7 +134,8 @@ private[eval] object TaskFromFuture {
   }
 
   private def trampolinedCB[A](cb: Callback[Throwable, A], conn: TaskConnection)(
-    implicit ec: ExecutionContext): Try[A] => Unit = {
+    implicit ec: ExecutionContext
+  ): Try[A] => Unit = {
 
     new (Try[A] => Unit) with TrampolinedRunnable {
       private[this] var value: Try[A] = _

@@ -23,7 +23,7 @@ import cats.syntax.all._
 import monix.execution.internal.collection.ChunkedArrayStack
 
 import scala.util.control.NonFatal
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 import monix.tail.batches.BatchCursor
 
 import scala.collection.mutable.ArrayBuffer

@@ -25,12 +25,12 @@ import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.extensions._
 import monix.execution.Scheduler
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 import monix.execution.exceptions.DummyException
 
 import scala.concurrent.duration._
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Random}
+import scala.concurrent.{ Future, Promise }
+import scala.util.{ Failure, Random }
 
 object MapTaskSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {

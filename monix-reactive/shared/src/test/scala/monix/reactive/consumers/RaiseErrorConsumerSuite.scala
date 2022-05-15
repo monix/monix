@@ -21,7 +21,7 @@ import monix.execution.Callback
 import monix.execution.Ack.Stop
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
-import monix.reactive.{BaseTestSuite, Consumer}
+import monix.reactive.{ BaseTestSuite, Consumer }
 
 import scala.concurrent.Promise
 import scala.util.Failure

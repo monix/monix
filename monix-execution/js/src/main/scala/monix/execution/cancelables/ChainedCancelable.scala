@@ -84,7 +84,7 @@ import monix.execution.internal.exceptions.matchError
   */
 final class ChainedCancelable private (private var stateRef: AnyRef) extends AssignableCancelable {
 
-  import ChainedCancelable.{Canceled, WeakRef}
+  import ChainedCancelable.{ Canceled, WeakRef }
   private type CC = ChainedCancelable
 
   // States of `state`:
@@ -105,7 +105,7 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
       case other =>
         // $COVERAGE-OFF$
         matchError(other)
-        // $COVERAGE-ON$
+      // $COVERAGE-ON$
     }
   }
 
@@ -186,7 +186,7 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
     }
   }

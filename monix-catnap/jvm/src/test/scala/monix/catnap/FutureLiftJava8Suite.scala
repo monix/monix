@@ -18,13 +18,13 @@
 package monix.catnap
 
 import java.util.concurrent.CompletableFuture
-import cats.effect.{Async, Concurrent, ContextShift, IO}
+import cats.effect.{ Async, Concurrent, ContextShift, IO }
 import minitest.TestSuite
 import monix.catnap.syntax._
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import scala.concurrent.Promise
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object FutureLiftJava8Suite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -94,7 +94,8 @@ object FutureLiftJava8Suite extends TestSuite[TestScheduler] {
 
     val p = Promise[Int]()
     val cancel = convertConcurrent(IO(future)).unsafeRunCancelable(r =>
-      p.complete(r match { case Right(a) => Success(a); case Left(e) => Failure(e) }))
+      p.complete(r match { case Right(a) => Success(a); case Left(e) => Failure(e) })
+    )
 
     s.tick()
     assertEquals(p.future.value, None)

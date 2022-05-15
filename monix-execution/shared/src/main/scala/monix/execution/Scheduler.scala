@@ -24,14 +24,15 @@ import monix.execution.schedulers.SchedulerCompanionImpl
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, TimeUnit}
+import scala.concurrent.duration.{ FiniteDuration, MILLISECONDS, TimeUnit }
 
 /** A Scheduler is an `scala.concurrent.ExecutionContext` that additionally can
   * schedule the execution of units of work to run with a delay or periodically.
   */
 @implicitNotFound(
   "Cannot find an implicit Scheduler, either " +
-    "import monix.execution.Scheduler.Implicits.global or use a custom one")
+    "import monix.execution.Scheduler.Implicits.global or use a custom one"
+)
 trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Executor {
   /** Schedules the given `command` for execution at some time in the future.
     *

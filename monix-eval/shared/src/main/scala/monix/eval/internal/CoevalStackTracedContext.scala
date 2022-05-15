@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.tracing.{CoevalEvent, CoevalTrace}
+import monix.eval.tracing.{ CoevalEvent, CoevalTrace }
 import monix.eval.internal.TracingPlatform.traceBufferLogSize
 import monix.execution.internal.RingBuffer
 

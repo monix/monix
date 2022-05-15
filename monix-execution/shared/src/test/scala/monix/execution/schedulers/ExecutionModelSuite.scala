@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import minitest.SimpleTestSuite
-import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
+import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, BatchedExecution, SynchronousExecution }
 
 object ExecutionModelSuite extends SimpleTestSuite {
   test("SynchronousExecution") {

@@ -16,7 +16,7 @@
  */
 
 package monix.catnap
-import monix.execution.{BufferCapacity, ChannelType}
+import monix.execution.{ BufferCapacity, ChannelType }
 import monix.execution.atomic.PaddingStrategy
 
 /**

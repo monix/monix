@@ -18,9 +18,9 @@
 package monix.reactive.internal.operators
 
 import monix.execution.ChannelType.SingleProducer
-import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.reactive.{Observable, OverflowStrategy}
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import monix.execution.{ Ack, Cancelable, Scheduler }
+import monix.reactive.{ Observable, OverflowStrategy }
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
 
 import scala.concurrent.Future
 

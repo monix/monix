@@ -25,8 +25,8 @@ abstract class BatchCursorSuite[A: ClassTag](
   implicit
   arbA: Arbitrary[A],
   arbAtoA: Arbitrary[A => A],
-  arbAtoBoolean: Arbitrary[A => Boolean])
-  extends BaseTestSuite {
+  arbAtoBoolean: Arbitrary[A => Boolean]
+) extends BaseTestSuite {
 
   type Cursor <: BatchCursor[A]
 

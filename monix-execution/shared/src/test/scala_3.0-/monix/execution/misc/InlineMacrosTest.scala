@@ -19,7 +19,7 @@ package monix.execution.misc
 
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.DummyException
-import monix.execution.misc.test.{TestBox, TestInlineMacros}
+import monix.execution.misc.test.{ TestBox, TestInlineMacros }
 import scala.util.control.NonFatal
 
 object InlineMacrosTest extends SimpleTestSuite {

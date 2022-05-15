@@ -17,9 +17,9 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.internal.builders.UnsafeCreateObservable.SafeSubscriber
 import monix.reactive.observers.Subscriber

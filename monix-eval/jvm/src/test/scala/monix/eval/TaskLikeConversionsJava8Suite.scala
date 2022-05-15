@@ -23,7 +23,7 @@ import minitest.TestSuite
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskLikeConversionsJava8Suite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()

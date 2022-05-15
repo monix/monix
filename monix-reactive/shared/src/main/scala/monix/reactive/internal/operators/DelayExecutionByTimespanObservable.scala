@@ -28,10 +28,14 @@ private[reactive] final class DelayExecutionByTimespanObservable[A](source: Obse
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val conn = OrderedCancelable()
-    val main = out.scheduler.scheduleOnce(timespan.length, timespan.unit, () => {
-      conn.orderedUpdate(source.unsafeSubscribeFn(out), order = 2)
-      ()
-    })
+    val main = out.scheduler.scheduleOnce(
+      timespan.length,
+      timespan.unit,
+      () => {
+        conn.orderedUpdate(source.unsafeSubscribeFn(out), order = 2)
+        ()
+      }
+    )
 
     conn.orderedUpdate(main, order = 1)
   }

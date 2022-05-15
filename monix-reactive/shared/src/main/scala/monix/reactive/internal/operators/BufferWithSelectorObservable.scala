@@ -17,20 +17,20 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
-import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.cancelables.{ CompositeCancelable, SingleAssignCancelable }
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 private[reactive] final class BufferWithSelectorObservable[+A, S](
   source: Observable[A],
   sampler: Observable[S],
   maxSize: Int,
-  sizeOf: A => Int)
-  extends Observable[Seq[A]] {
+  sizeOf: A => Int
+) extends Observable[Seq[A]] {
 
   def unsafeSubscribeFn(downstream: Subscriber[Seq[A]]): Cancelable = {
     val upstreamSubscription = SingleAssignCancelable()

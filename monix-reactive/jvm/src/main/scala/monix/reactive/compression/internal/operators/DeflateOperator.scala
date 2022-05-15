@@ -22,7 +22,7 @@ import java.util.zip.Deflater
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.reactive.Observable.Operator
-import monix.reactive.compression.{CompressionLevel, CompressionParameters, CompressionStrategy, FlushMode}
+import monix.reactive.compression.{ CompressionLevel, CompressionParameters, CompressionStrategy, FlushMode }
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future

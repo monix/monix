@@ -20,7 +20,7 @@ package monix.reactive.internal.builders
 import java.io.Reader
 import java.util
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution._
@@ -32,8 +32,8 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
-import scala.concurrent.{blocking, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ blocking, Future }
+import scala.util.{ Failure, Success }
 
 private[reactive] final class CharsReaderObservable(in: Reader, chunkSize: Int) extends Observable[Array[Char]] {
 
@@ -61,7 +61,8 @@ private[reactive] final class CharsReaderObservable(in: Reader, chunkSize: Int) 
     b: Array[Char],
     out: Subscriber[Array[Char]],
     c: BooleanCancelable,
-    em: ExecutionModel)(implicit s: Scheduler): Unit = {
+    em: ExecutionModel
+  )(implicit s: Scheduler): Unit = {
 
     ack.onComplete {
       case Success(next) =>
@@ -82,7 +83,8 @@ private[reactive] final class CharsReaderObservable(in: Reader, chunkSize: Int) 
     out: Subscriber[Array[Char]],
     c: BooleanCancelable,
     em: ExecutionModel,
-    syncIndex: Int)(implicit s: Scheduler): Unit = {
+    syncIndex: Int
+  )(implicit s: Scheduler): Unit = {
 
     // Dealing with mutable status in order to keep the
     // loop tail-recursive :-(

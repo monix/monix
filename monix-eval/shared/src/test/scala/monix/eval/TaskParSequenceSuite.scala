@@ -20,14 +20,15 @@ package monix.eval
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskParSequenceSuite extends BaseTestSuite {
   test("Task.parSequence should execute in parallel for async tasks") { implicit s =>
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),
       Task.evalAsync(2).delayExecution(1.second),
-      Task.evalAsync(3).delayExecution(3.seconds))
+      Task.evalAsync(3).delayExecution(3.seconds)
+    )
     val f = Task.parSequence(seq).runToFuture
 
     s.tick()
@@ -59,7 +60,8 @@ object TaskParSequenceSuite extends BaseTestSuite {
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),
       Task.evalAsync(2).delayExecution(1.second),
-      Task.evalAsync(3).delayExecution(3.seconds))
+      Task.evalAsync(3).delayExecution(3.seconds)
+    )
     val f = Task.parSequence(seq).runToFuture
 
     s.tick()
@@ -84,7 +86,7 @@ object TaskParSequenceSuite extends BaseTestSuite {
   test("Task.parSequence runAsync multiple times") { implicit s =>
     var effect = 0
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
-    val task2 = task1 map { x =>
+    val task2 = task1.map { x =>
       effect += 1; x + 1
     }
     val task3 = Task.parSequence(List(task2, task2, task2))

@@ -19,15 +19,15 @@ package monix.reactive.internal.consumers
 
 import monix.execution.Callback
 import monix.execution.Ack.Stop
-import monix.execution.{Ack, Scheduler}
+import monix.execution.{ Ack, Scheduler }
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.AssignableCancelable
 import scala.util.control.NonFatal
-import monix.reactive.{Consumer, Observer}
+import monix.reactive.{ Consumer, Observer }
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /** Implementation for [[monix.reactive.Consumer.fromObserver]]. */
 private[reactive] final class FromObserverConsumer[In](f: Scheduler => Observer[In]) extends Consumer[In, Unit] {

@@ -18,15 +18,16 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 import scala.util.control.NonFatal
 
-private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => S, aggregate: (S, A) => S) extends Operator[A, S] {
+private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => S, aggregate: (S, A) => S)
+  extends Operator[A, S] {
 
   def apply(downstream: Subscriber[S]): Subscriber.Sync[A] = {
     new Subscriber.Sync[A] {
@@ -43,21 +44,21 @@ private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => 
           if (downstreamIsDone) Stop
           else {
             if (!pendingAck) {
-              val downstreamAck = try {
-                downstream.onNext(seed(elem))
-              } catch {
-                case ex if NonFatal(ex) =>
-                  downstream.onError(ex)
-                  Stop
-              }
+              val downstreamAck =
+                try {
+                  downstream.onNext(seed(elem))
+                } catch {
+                  case ex if NonFatal(ex) =>
+                    downstream.onError(ex)
+                    Stop
+                }
               lastAck = downstreamAck
 
               if (downstreamAck == Continue) Continue
               else if (downstreamAck == Stop) {
                 downstreamIsDone = true
                 Stop
-              }
-              else {
+              } else {
                 pendingAck = true
                 emitAggregatedOnAckContinue(downstreamAck)
                 Continue

@@ -23,7 +23,7 @@ import cats.implicits._
 import cats.effect._
 import cats.effect.concurrent.Deferred
 import minitest.TestSuite
-import monix.execution.{Scheduler, TestUtils}
+import monix.execution.{ Scheduler, TestUtils }
 import monix.execution.schedulers.SchedulerService
 
 import scala.concurrent.CancellationException

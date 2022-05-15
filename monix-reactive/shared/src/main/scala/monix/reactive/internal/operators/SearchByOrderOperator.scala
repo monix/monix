@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import cats.Order
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator

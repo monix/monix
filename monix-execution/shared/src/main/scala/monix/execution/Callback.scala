@@ -17,11 +17,11 @@
 
 package monix.execution
 
-import monix.execution.exceptions.{CallbackCalledMultipleTimesException, UncaughtErrorException}
-import monix.execution.schedulers.{TrampolineExecutionContext, TrampolinedRunnable}
-import scala.concurrent.{ExecutionContext, Promise}
+import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, UncaughtErrorException }
+import monix.execution.schedulers.{ TrampolineExecutionContext, TrampolinedRunnable }
+import scala.concurrent.{ ExecutionContext, Promise }
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /** Represents a callback that should be called asynchronously
   * with the result of a computation.

@@ -73,7 +73,8 @@ import scala.annotation.implicitNotFound
   */
 @implicitNotFound(
   "For blocking operations on the JVM, there should be an implicit " +
-    "available by default, or import monix.execution.schedulers.CanBlock.permit.")
+    "available by default, or import monix.execution.schedulers.CanBlock.permit."
+)
 final class CanBlock private ()
 
 object CanBlock {

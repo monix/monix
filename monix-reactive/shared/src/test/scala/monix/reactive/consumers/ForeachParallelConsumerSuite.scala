@@ -24,10 +24,10 @@ import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.{Consumer, Observable}
+import monix.reactive.{ Consumer, Observable }
 
 import scala.concurrent.Promise
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object ForeachParallelConsumerSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()

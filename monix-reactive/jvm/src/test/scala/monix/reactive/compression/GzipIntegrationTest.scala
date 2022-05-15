@@ -17,8 +17,8 @@
 
 package monix.reactive.compression
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream}
-import java.util.zip.{GZIPInputStream, GZIPOutputStream}
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, InputStream }
+import java.util.zip.{ GZIPInputStream, GZIPOutputStream }
 
 import monix.eval.Task
 import monix.reactive.Observable

@@ -17,17 +17,17 @@
 
 package monix.catnap
 
-import cats.effect.{Concurrent, ContextShift}
+import cats.effect.{ Concurrent, ContextShift }
 import cats.implicits._
 import monix.catnap.internal.QueueHelpers
-import monix.execution.BufferCapacity.{Bounded, Unbounded}
+import monix.execution.BufferCapacity.{ Bounded, Unbounded }
 import monix.execution.ChannelType.MPMC
-import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
+import monix.execution.annotations.{ UnsafeBecauseImpure, UnsafeProtocol }
 import monix.execution.atomic.AtomicAny
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.internal.Constants
-import monix.execution.internal.collection.{LowLevelConcurrentQueue => LowLevelQueue}
-import monix.execution.{BufferCapacity, CancelablePromise, ChannelType}
+import monix.execution.internal.collection.{ LowLevelConcurrentQueue => LowLevelQueue }
+import monix.execution.{ BufferCapacity, CancelablePromise, ChannelType }
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 
@@ -209,7 +209,7 @@ final class ConcurrentQueue[F[_], A] private (
   def poll: F[A] = pollRef
   private[this] val pollRef = F.defer[A] {
     val happy = tryPollUnsafe()
-    //noinspection ForwardReference
+    // noinspection ForwardReference
     if (happy != null)
       F.pure(happy)
     else
@@ -271,7 +271,7 @@ final class ConcurrentQueue[F[_], A] private (
     * so it must be called from the same thread(s) that call [[poll]].
     */
   def clear: F[Unit] = clearRef
-  //noinspection ForwardReference
+  // noinspection ForwardReference
   private[this] val clearRef = F.delay {
     queue.clear()
     notifyProducers()
@@ -440,7 +440,8 @@ object ConcurrentQueue {
     * @param F $concurrentParam
     */
   def unbounded[F[_], A](
-    chunkSizeHint: Option[Int] = None)(implicit F: Concurrent[F], cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
+    chunkSizeHint: Option[Int] = None
+  )(implicit F: Concurrent[F], cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
     withConfig(Unbounded(chunkSizeHint), MPMC)
 
   /**
@@ -458,8 +459,10 @@ object ConcurrentQueue {
     */
   @UnsafeProtocol
   def withConfig[F[_], A](capacity: BufferCapacity, channelType: ChannelType)(
-    implicit F: Concurrent[F],
-    cs: ContextShift[F]): F[ConcurrentQueue[F, A]] = {
+    implicit
+    F: Concurrent[F],
+    cs: ContextShift[F]
+  ): F[ConcurrentQueue[F, A]] = {
 
     F.delay(unsafe(capacity, channelType))
   }
@@ -485,8 +488,10 @@ object ConcurrentQueue {
   @UnsafeProtocol
   @UnsafeBecauseImpure
   def unsafe[F[_], A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(
-    implicit F: Concurrent[F],
-    cs: ContextShift[F]): ConcurrentQueue[F, A] = {
+    implicit
+    F: Concurrent[F],
+    cs: ContextShift[F]
+  ): ConcurrentQueue[F, A] = {
 
     new ConcurrentQueue[F, A](capacity, channelType)(F, cs)
   }
@@ -511,14 +516,16 @@ object ConcurrentQueue {
       * @see documentation for [[ConcurrentQueue.withConfig]]
       */
     def withConfig[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(
-      implicit cs: ContextShift[F]): F[ConcurrentQueue[F, A]] =
+      implicit cs: ContextShift[F]
+    ): F[ConcurrentQueue[F, A]] =
       ConcurrentQueue.withConfig(capacity, channelType)(F, cs)
 
     /**
       * @see documentation for [[ConcurrentQueue.unsafe]]
       */
     def unsafe[A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(
-      implicit cs: ContextShift[F]): ConcurrentQueue[F, A] =
+      implicit cs: ContextShift[F]
+    ): ConcurrentQueue[F, A] =
       ConcurrentQueue.unsafe(capacity, channelType)(F, cs)
   }
 }

@@ -18,7 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.internal.atomic.{BoxedObject, Factory}
+import monix.execution.internal.atomic.{ BoxedObject, Factory }
 
 /** Atomic references wrapping `AnyRef` values.
   *
@@ -86,7 +86,8 @@ object AtomicAny {
         boxStrategyToPaddingStrategy(padding),
         true, // allowUnsafe
         allowPlatformIntrinsics
-      ))
+      )
+    )
   }
 
   /** $createDesc
@@ -111,5 +112,6 @@ object AtomicAny {
         boxStrategyToPaddingStrategy(padding),
         false, // allowUnsafe
         false // allowPlatformIntrinsics
-      ))
+      )
+    )
 }

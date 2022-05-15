@@ -19,7 +19,7 @@ package monix.reactive.observers
 
 import monix.execution.Ack.Stop
 import monix.execution.exceptions.DummyException
-import monix.reactive.{BaseTestSuite, Observer}
+import monix.reactive.{ BaseTestSuite, Observer }
 
 object StoppedObserverSuite extends BaseTestSuite {
   test("Observer.stopped works") { implicit s =>

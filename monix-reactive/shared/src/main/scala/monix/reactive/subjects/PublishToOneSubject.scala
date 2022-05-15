@@ -17,15 +17,15 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.APIContractViolationException
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 /** `PublishToOneSubject` is a [[monix.reactive.subjects.PublishSubject]]
   * that can be subscribed at most once.
@@ -39,7 +39,7 @@ import scala.concurrent.{Future, Promise}
   * one can also be notified when the subscription finally happens.
   */
 final class PublishToOneSubject[A] private () extends Subject[A, A] with BooleanCancelable {
-  import PublishToOneSubject.{canceledState, pendingCompleteState}
+  import PublishToOneSubject.{ canceledState, pendingCompleteState }
 
   private[this] val subscriptionP = Promise[Ack]()
   private[this] var errorThrown: Throwable = _

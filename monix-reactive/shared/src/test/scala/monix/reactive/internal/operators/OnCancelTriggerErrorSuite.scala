@@ -18,11 +18,11 @@
 package monix.reactive.internal.operators
 
 import minitest.TestSuite
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
-import monix.reactive.{Observable, Observer}
-import scala.concurrent.{CancellationException, Future}
+import monix.reactive.{ Observable, Observer }
+import scala.concurrent.{ CancellationException, Future }
 import scala.concurrent.duration._
 
 object OnCancelTriggerErrorSuite extends TestSuite[TestScheduler] {
@@ -46,7 +46,8 @@ object OnCancelTriggerErrorSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 0)
     assert(
       errorThrow != null && errorThrow.isInstanceOf[CancellationException],
-      "errorThrow should be CancellationException")
+      "errorThrow should be CancellationException"
+    )
   }
 
   test("cannot cancel after complete") { implicit s =>

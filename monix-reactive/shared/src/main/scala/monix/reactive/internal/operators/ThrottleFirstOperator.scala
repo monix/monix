@@ -23,7 +23,7 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
+import scala.concurrent.duration.{ FiniteDuration, MILLISECONDS }
 
 private[reactive] final class ThrottleFirstOperator[A](interval: FiniteDuration) extends Operator[A, A] {
 

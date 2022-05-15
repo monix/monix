@@ -19,7 +19,7 @@ package monix.catnap
 
 import cats.effect.IO
 import monix.execution.BufferCapacity.Bounded
-import monix.execution.{BufferCapacity, Scheduler}
+import monix.execution.{ BufferCapacity, Scheduler }
 import monix.execution.schedulers.SchedulerService
 import scala.concurrent.duration._
 

@@ -38,7 +38,8 @@ object TakeWhileNotCanceledSuite extends BaseOperatorSuite {
         if (sourceCount == 1)
           Observable.range(1, 10).takeWhileNotCanceled(c).map { x =>
             c.cancel(); x
-          } else
+          }
+        else
           Observable.range(1L, sourceCount.toLong * 2).takeWhileNotCanceled(c).map { x =>
             if (x == sourceCount) c.cancel(); x
           }

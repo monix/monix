@@ -17,21 +17,21 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable}
-import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.cancelables.{ CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable }
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.{Future, Promise}
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
+import scala.concurrent.{ Future, Promise }
+import scala.concurrent.duration.{ FiniteDuration, MILLISECONDS }
 
 private[reactive] final class ThrottleLatestObservable[A](
   source: Observable[A],
   duration: FiniteDuration,
-  emitLast: Boolean)
-  extends Observable[A] {
+  emitLast: Boolean
+) extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val task = MultiAssignCancelable()
@@ -113,8 +113,8 @@ private[reactive] final class ThrottleLatestObservable[A](
 
       override def onComplete(): Unit = self.synchronized {
         if (!isDone) {
-          val lastAck = if(ack == null) Continue else ack
-          lastAck.syncTryFlatten.syncOnContinue{signalOnComplete()}
+          val lastAck = if (ack == null) Continue else ack
+          lastAck.syncTryFlatten.syncOnContinue { signalOnComplete() }
         }
         ()
       }

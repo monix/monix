@@ -20,7 +20,7 @@ package monix.tail
 import java.io.PrintStream
 
 import cats.implicits._
-import cats.effect.{Async, Effect, Sync, _}
+import cats.effect.{ Async, Effect, Sync, _ }
 import cats.{
   ~>,
   Applicative,
@@ -36,23 +36,23 @@ import cats.{
   Parallel,
   StackSafeMonad
 }
-import monix.catnap.{ConcurrentChannel, ConsumerF}
+import monix.catnap.{ ConcurrentChannel, ConsumerF }
 import monix.execution.BufferCapacity.Bounded
-import monix.execution.{BufferCapacity, ChannelType}
-import monix.execution.ChannelType.{MultiProducer, SingleConsumer}
+import monix.execution.{ BufferCapacity, ChannelType }
+import monix.execution.ChannelType.{ MultiProducer, SingleConsumer }
 import monix.execution.annotations.UnsafeProtocol
 import monix.execution.compat.internal._
 
 import scala.util.control.NonFatal
-import monix.execution.internal.Platform.{recommendedBatchSize, recommendedBufferChunkSize}
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.execution.internal.Platform.{ recommendedBatchSize, recommendedBufferChunkSize }
+import monix.tail.batches.{ Batch, BatchCursor }
 import monix.tail.internal._
 import monix.tail.internal.Constants.emptyRef
 import org.reactivestreams.Publisher
 
 import scala.collection.immutable.LinearSeq
 import scala.collection.mutable
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.{ Duration, FiniteDuration }
 
 /** The `Iterant` is a type that describes lazy, possibly asynchronous
   * streaming of elements using a pull-based protocol.
@@ -1504,7 +1504,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        throws an error.
     */
   final def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Iterant[F, B]])(
-    implicit F: Sync[F]): Iterant[F, B] =
+    implicit F: Sync[F]
+  ): Iterant[F, B] =
     onErrorHandleWith { ex =>
       if (pf.isDefinedAt(ex)) pf(ex)
       else Iterant.raiseError[F, B](ex)
@@ -1621,7 +1622,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        right hand side)
     */
   final def parZip[B](rhs: Iterant[F, B])(implicit F: Sync[F], P: Parallel[F]): Iterant[F, (A, B)] =
-    (self parZipMap rhs)((a, b) => (a, b))
+    (self.parZipMap(rhs))((a, b) => (a, b))
 
   /** Lazily zip two iterants together, in parallel, using the given
     * function `f` to produce output values.
@@ -1865,7 +1866,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     */
   @UnsafeProtocol
   final def consumeWithConfig(config: ConsumerF.Config)(
-    implicit F: Concurrent[F],
+    implicit
+    F: Concurrent[F],
     cs: ContextShift[F]
   ): Resource[F, Consumer[F, A]] = {
     IterantConsume(self, config)(F, cs)
@@ -2184,7 +2186,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *        right hand side)
     */
   final def zip[B](rhs: Iterant[F, B])(implicit F: Sync[F]): Iterant[F, (A, B)] =
-    (self zipMap rhs)((a, b) => (a, b))
+    (self.zipMap(rhs))((a, b) => (a, b))
 
   /** Lazily zip two iterants together, using the given function `f` to
     * produce output values.
@@ -2484,7 +2486,8 @@ object Iterant extends IterantInstances {
     * @param release function that releases the acquired resource
     */
   def resourceCase[F[_], A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit])(
-    implicit F: Sync[F]): Iterant[F, A] = {
+    implicit F: Sync[F]
+  ): Iterant[F, A] = {
 
     Scope[F, A, A](acquire, a => F.pure(Iterant.pure(a)), release)
   }
@@ -2633,7 +2636,8 @@ object Iterant extends IterantInstances {
   def fromReactivePublisher[F[_], A](
     publisher: Publisher[A],
     requestCount: Int = recommendedBufferChunkSize,
-    eagerBuffer: Boolean = true)(
+    eagerBuffer: Boolean = true
+  )(
     implicit F: Async[F]
   ): Iterant[F, A] = {
     IterantFromReactivePublisher(publisher, requestCount, eagerBuffer)
@@ -2723,7 +2727,8 @@ object Iterant extends IterantInstances {
     *        items can be pulled from the queue and processed in batches
     */
   def fromConsumer[F[_], A](consumer: Consumer[F, A], maxBatchSize: Int = recommendedBufferChunkSize)(
-    implicit F: Async[F]): Iterant[F, A] = {
+    implicit F: Async[F]
+  ): Iterant[F, A] = {
 
     IterantFromConsumer(consumer, maxBatchSize)
   }
@@ -2747,7 +2752,8 @@ object Iterant extends IterantInstances {
   def fromChannel[F[_], A](
     channel: Channel[F, A],
     bufferCapacity: BufferCapacity = Bounded(recommendedBufferChunkSize),
-    maxBatchSize: Int = recommendedBufferChunkSize)(implicit F: Async[F]): Iterant[F, A] = {
+    maxBatchSize: Int = recommendedBufferChunkSize
+  )(implicit F: Async[F]): Iterant[F, A] = {
 
     val config = ConsumerF.Config(
       capacity = Some(bufferCapacity),
@@ -2839,9 +2845,12 @@ object Iterant extends IterantInstances {
   def channel[F[_], A](
     bufferCapacity: BufferCapacity = Bounded(recommendedBufferChunkSize),
     maxBatchSize: Int = recommendedBufferChunkSize,
-    producerType: ChannelType.ProducerSide = MultiProducer)(
-    implicit F: Concurrent[F],
-    cs: ContextShift[F]): F[(Producer[F, A], Iterant[F, A])] = {
+    producerType: ChannelType.ProducerSide = MultiProducer
+  )(
+    implicit
+    F: Concurrent[F],
+    cs: ContextShift[F]
+  ): F[(Producer[F, A], Iterant[F, A])] = {
 
     val channelF = ConcurrentChannel[F].withConfig[Option[Throwable], A](
       producerType = producerType
@@ -2941,8 +2950,10 @@ object Iterant extends IterantInstances {
     *        delays and to fetch the current time
     */
   def intervalAtFixedRate[F[_]](initialDelay: FiniteDuration, period: FiniteDuration)(
-    implicit F: Async[F],
-    timer: Timer[F]): Iterant[F, Long] =
+    implicit
+    F: Async[F],
+    timer: Timer[F]
+  ): Iterant[F, Long] =
     IterantIntervalAtFixedRate(initialDelay, period)
 
   /** $intervalWithFixedDelayDesc
@@ -2965,8 +2976,10 @@ object Iterant extends IterantInstances {
     *        delays and to fetch the current time
     */
   def intervalWithFixedDelay[F[_]](initialDelay: FiniteDuration, delay: FiniteDuration)(
-    implicit F: Async[F],
-    timer: Timer[F]): Iterant[F, Long] =
+    implicit
+    F: Async[F],
+    timer: Timer[F]
+  ): Iterant[F, Long] =
     IterantIntervalWithFixedDelay(initialDelay, delay)
 
   /** Concatenates list of Iterants into a single stream
@@ -2974,8 +2987,8 @@ object Iterant extends IterantInstances {
   def concat[F[_], A](xs: Iterant[F, A]*)(implicit F: Sync[F]): Iterant[F, A] =
     xs.foldLeft(Iterant.empty[F, A])((acc, e) => IterantConcat.concat(acc, F.pure(e))(F))
 
-  //------------------------------------------------------------------
-  //-- Data constructors
+  // ------------------------------------------------------------------
+  // -- Data constructors
 
   /** Data constructor for building a [[Iterant.Next]] value.
     *
@@ -3036,7 +3049,8 @@ object Iterant extends IterantInstances {
   def scopeS[F[_], A, B](
     acquire: F[A],
     use: A => F[Iterant[F, B]],
-    release: (A, ExitCase[Throwable]) => F[Unit]): Iterant[F, B] =
+    release: (A, ExitCase[Throwable]) => F[Unit]
+  ): Iterant[F, B] =
     Scope(acquire, use, release)
 
   /** Builds a stream state equivalent with [[Iterant.Concat]].
@@ -3126,8 +3140,8 @@ object Iterant extends IterantInstances {
   final case class Scope[F[_], A, B](
     acquire: F[A],
     use: A => F[Iterant[F, B]],
-    release: (A, ExitCase[Throwable]) => F[Unit])
-    extends Iterant[F, B] {
+    release: (A, ExitCase[Throwable]) => F[Unit]
+  ) extends Iterant[F, B] {
 
     def accept[R](visitor: Visitor[F, B, R]): R =
       visitor.visit(this)

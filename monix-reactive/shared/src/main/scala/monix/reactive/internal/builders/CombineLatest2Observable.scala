@@ -17,8 +17,8 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.{Ack, Cancelable}
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.{ Ack, Cancelable }
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.CompositeCancelable
 import scala.util.control.NonFatal
 import monix.reactive.Observable
@@ -28,8 +28,8 @@ import scala.concurrent.Future
 import scala.util.Success
 
 private[reactive] final class CombineLatest2Observable[A1, A2, +R](obsA1: Observable[A1], obsA2: Observable[A2])(
-  f: (A1, A2) => R)
-  extends Observable[R] {
+  f: (A1, A2) => R
+) extends Observable[R] {
 
   def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
     import out.scheduler

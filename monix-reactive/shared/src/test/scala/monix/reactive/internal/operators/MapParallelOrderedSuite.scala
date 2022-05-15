@@ -24,11 +24,11 @@ import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import monix.reactive.{Observable, Observer, OverflowStrategy}
+import monix.reactive.{ Observable, Observer, OverflowStrategy }
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.concurrent.duration._
-import scala.util.{Failure, Random}
+import scala.util.{ Failure, Random }
 
 object MapParallelOrderedSuite extends BaseOperatorSuite {
 
@@ -96,7 +96,8 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
         Task {
           counter += 1
           x
-        }.delayExecution(1.second))
+        }.delayExecution(1.second)
+      )
       .toListL
       .runToFuture
 

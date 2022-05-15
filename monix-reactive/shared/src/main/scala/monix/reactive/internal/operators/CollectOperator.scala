@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
@@ -26,7 +26,7 @@ import scala.concurrent.Future
 
 private[reactive] final class CollectOperator[-A, +B](pf: PartialFunction[A, B]) extends Operator[A, B] {
 
-  import CollectOperator.{checkFallback, isDefined}
+  import CollectOperator.{ checkFallback, isDefined }
 
   def apply(out: Subscriber[B]): Subscriber[A] = {
     new Subscriber[A] {

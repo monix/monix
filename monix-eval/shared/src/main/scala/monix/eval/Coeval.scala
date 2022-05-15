@@ -17,21 +17,21 @@
 
 package monix.eval
 
-import cats.effect.{ExitCase, Sync}
+import cats.effect.{ ExitCase, Sync }
 import cats.kernel.Semigroup
-import cats.{Monoid, ~>}
-import monix.eval.instances.{CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval}
+import cats.{ ~>, Monoid }
+import monix.eval.instances.{ CatsMonadToMonoid, CatsMonadToSemigroup, CatsSyncForCoeval }
 import monix.eval.internal._
-import monix.eval.internal.TracingPlatform.{isCachedStackTracing, isFullStackTracing}
+import monix.eval.internal.TracingPlatform.{ isCachedStackTracing, isFullStackTracing }
 import monix.eval.tracing.CoevalEvent
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
 
-import scala.annotation.unchecked.{uncheckedVariance => uV}
+import scala.annotation.unchecked.{ uncheckedVariance => uV }
 import scala.collection.mutable
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /** `Coeval` represents lazy computations that can execute synchronously.
   *
@@ -702,7 +702,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     } else if (isFullStackTracing) {
       CoevalTracing.uncached()
     } else {
-    null
+      null
     }
 
     Map(this, f, trace)
@@ -863,7 +863,8 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   final def onErrorRestart(maxRetries: Long): Coeval[A] =
     self.onErrorHandleWith(ex =>
       if (maxRetries > 0) self.onErrorRestart(maxRetries - 1)
-      else Error(ex))
+      else Error(ex)
+    )
 
   /** Creates a new coeval that in case of error will retry executing the
     * source again and again, until it succeeds.
@@ -1153,7 +1154,8 @@ object Coeval extends CoevalInstancesLevel0 {
     * It's a simple version of [[traverse]].
     */
   def sequence[A, M[X] <: Iterable[X]](sources: M[Coeval[A]])(
-    implicit bf: BuildFrom[M[Coeval[A]], A, M[A]]): Coeval[M[A]] = {
+    implicit bf: BuildFrom[M[Coeval[A]], A, M[A]]
+  ): Coeval[M[A]] = {
     val init = eval(newBuilder(bf, sources))
     val r = sources.foldLeft(init)((acc, elem) => acc.zipMap(elem)(_ += _))
     r.map(_.result())
@@ -1165,7 +1167,8 @@ object Coeval extends CoevalInstancesLevel0 {
     * It's a generalized version of [[sequence]].
     */
   def traverse[A, B, M[X] <: Iterable[X]](sources: M[A])(f: A => Coeval[B])(
-    implicit bf: BuildFrom[M[A], B, M[B]]): Coeval[M[B]] = {
+    implicit bf: BuildFrom[M[A], B, M[B]]
+  ): Coeval[M[B]] = {
     val init = eval(newBuilder(bf, sources))
     val r = sources.foldLeft(init)((acc, elem) => acc.zipMap(f(elem))(_ += _))
     r.map(_.result())
@@ -1292,7 +1295,8 @@ object Coeval extends CoevalInstancesLevel0 {
     * }}}
     */
   def map4[A1, A2, A3, A4, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4])(
-    f: (A1, A2, A3, A4) => R): Coeval[R] = {
+    f: (A1, A2, A3, A4) => R
+  ): Coeval[R] = {
 
     for (a1 <- fa1; a2 <- fa2; a3 <- fa3; a4 <- fa4)
       yield f(a1, a2, a3, a4)
@@ -1323,7 +1327,8 @@ object Coeval extends CoevalInstancesLevel0 {
     * }}}
     */
   def map5[A1, A2, A3, A4, A5, R](fa1: Coeval[A1], fa2: Coeval[A2], fa3: Coeval[A3], fa4: Coeval[A4], fa5: Coeval[A5])(
-    f: (A1, A2, A3, A4, A5) => R): Coeval[R] = {
+    f: (A1, A2, A3, A4, A5) => R
+  ): Coeval[R] = {
 
     for (a1 <- fa1; a2 <- fa2; a3 <- fa3; a4 <- fa4; a5 <- fa5)
       yield f(a1, a2, a3, a4, a5)
@@ -1360,7 +1365,8 @@ object Coeval extends CoevalInstancesLevel0 {
     fa3: Coeval[A3],
     fa4: Coeval[A4],
     fa5: Coeval[A5],
-    fa6: Coeval[A6])(f: (A1, A2, A3, A4, A5, A6) => R): Coeval[R] = {
+    fa6: Coeval[A6]
+  )(f: (A1, A2, A3, A4, A5, A6) => R): Coeval[R] = {
 
     for (a1 <- fa1; a2 <- fa2; a3 <- fa3; a4 <- fa4; a5 <- fa5; a6 <- fa6)
       yield f(a1, a2, a3, a4, a5, a6)
@@ -1379,7 +1385,8 @@ object Coeval extends CoevalInstancesLevel0 {
     fa1: Coeval[A1],
     fa2: Coeval[A2],
     fa3: Coeval[A3],
-    fa4: Coeval[A4]): Coeval[(A1, A2, A3, A4)] =
+    fa4: Coeval[A4]
+  ): Coeval[(A1, A2, A3, A4)] =
     map4(fa1, fa2, fa3, fa4)((a1, a2, a3, a4) => (a1, a2, a3, a4))
 
   /** Pairs five [[Coeval]] instances. */
@@ -1388,7 +1395,8 @@ object Coeval extends CoevalInstancesLevel0 {
     fa2: Coeval[A2],
     fa3: Coeval[A3],
     fa4: Coeval[A4],
-    fa5: Coeval[A5]): Coeval[(A1, A2, A3, A4, A5)] =
+    fa5: Coeval[A5]
+  ): Coeval[(A1, A2, A3, A4, A5)] =
     map5(fa1, fa2, fa3, fa4, fa5)((a1, a2, a3, a4, a5) => (a1, a2, a3, a4, a5))
 
   /** Pairs six [[Coeval]] instances. */
@@ -1398,7 +1406,8 @@ object Coeval extends CoevalInstancesLevel0 {
     fa3: Coeval[A3],
     fa4: Coeval[A4],
     fa5: Coeval[A5],
-    fa6: Coeval[A6]): Coeval[(A1, A2, A3, A4, A5, A6)] =
+    fa6: Coeval[A6]
+  ): Coeval[(A1, A2, A3, A4, A5, A6)] =
     map6(fa1, fa2, fa3, fa4, fa5, fa6)((a1, a2, a3, a4, a5, a6) => (a1, a2, a3, a4, a5, a6))
 
   /**

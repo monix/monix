@@ -29,7 +29,8 @@ private[eval] object CoevalBracket {
   def either[A, B](
     acquire: Coeval[A],
     use: A => Coeval[B],
-    release: (A, Either[Throwable, B]) => Coeval[Unit]): Coeval[B] = {
+    release: (A, Either[Throwable, B]) => Coeval[Unit]
+  ): Coeval[B] = {
 
     acquire.flatMap { a =>
       val next =
@@ -45,7 +46,8 @@ private[eval] object CoevalBracket {
   def exitCase[A, B](
     acquire: Coeval[A],
     use: A => Coeval[B],
-    release: (A, ExitCase[Throwable]) => Coeval[Unit]): Coeval[B] = {
+    release: (A, ExitCase[Throwable]) => Coeval[Unit]
+  ): Coeval[B] = {
 
     acquire.flatMap { a =>
       val next =

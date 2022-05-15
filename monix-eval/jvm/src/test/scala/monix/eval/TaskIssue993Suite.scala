@@ -18,7 +18,7 @@
 package monix.eval
 
 import minitest.SimpleTestSuite
-import monix.execution.{ExecutionModel, Scheduler}
+import monix.execution.{ ExecutionModel, Scheduler }
 import monix.execution.schedulers.SchedulerService
 import monix.execution.misc.Local
 import scala.concurrent.Await

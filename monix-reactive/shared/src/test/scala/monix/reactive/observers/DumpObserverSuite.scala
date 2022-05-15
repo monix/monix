@@ -17,7 +17,7 @@
 
 package monix.reactive.observers
 
-import java.io.{OutputStream, PrintStream}
+import java.io.{ OutputStream, PrintStream }
 
 import minitest.SimpleTestSuite
 import monix.execution.Ack.Continue
