@@ -398,11 +398,12 @@ lazy val sharedJSSettings = Seq(
 )
 
 def mimaSettings(projectName: String) = Seq(
-  mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_3_0,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_4_0
+  ThisBuild / mimaFailOnNoPrevious := false,
+  // mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
+  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
+  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0,
+  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_3_0,
+  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_4_0
 )
 
 lazy val doctestTestSettings = Seq(

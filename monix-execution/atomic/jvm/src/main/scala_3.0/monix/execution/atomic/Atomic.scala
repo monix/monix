@@ -51,24 +51,48 @@ abstract class Atomic[A] extends Serializable {
     */
   def lazySet(update: A): Unit
 
-  /** Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
-    * executed, a callback that transforms the current value. This method will loop until it will
-    * succeed in replacing the current value with the one produced by your callback.
+  /** Abstracts over `compareAndSet`. You specify a transformation by
+    * specifying a function to be executed, a function that transforms the
+    * current value. This method will loop until the transaction succeeds in
+    * replacing the current value with the one produced by your
+    * transformation.
+    * 
+    * Sample: {{{
+    *   import monix.execution.atomic._
+    *   import scala.collection.immutable.Queue
+    * 
+    *   final class ConcurrentQueue[A] private (state: AtomicRef[Queue[A]]) {
+    *     def enqueue(value: A): Unit = 
+    *       state.transform(_.enqueue(value))
+    * 
+    *     def dequeue(): Option[A] =
+    *       state.transformAndExtract { queue =>
+    *         if (queue.isEmpty)
+    *           (None, queue)
+    *         else
+    *           (Some(queue.dequeue), queue)
+    *       }
+    *   }
+    * }}}
     *
-    * Note that the callback will be executed on each iteration of the loop, so it can be called
-    * multiple times - don't do destructive I/O or operations that mutate global state in it.
+    * Note that the function will be executed on each iteration of the loop,
+    * so it can be called multiple times - don't do destructive I/O or
+    * operations that mutate global state in it.
     *
-    * @param cb is a callback that receives the current value as input and returns a tuple that specifies
-    *           the update + what should this method return when the operation succeeds.
-    * @return whatever was specified by your callback, once the operation succeeds
+    * @param f is a function that receives the current value as input and
+    *  returns a tuple that specifies the update + what should this method
+    *  return when the operation succeeds.
+    * 
+    * @return whatever was extracted by your function, once the operation
+    *  succeeds
     */
-  inline final def transformAndExtract[U](inline cb: (A) => (U, A)): U = {
+  inline final def transformAndExtract[U](inline f: A => (U, A)): U = {
     var current = get()
     var result = null.asInstanceOf[U]
     var continue = true
 
     while (continue) {
-      val (resultTmp, update) = cb(current)
+      val (resultTmp, update) = f(current)
       if (compareAndSet(current, update)) {
         result = resultTmp
         continue = false
@@ -79,16 +103,19 @@ abstract class Atomic[A] extends Serializable {
     result
   }
 
-  /** Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
-    * executed, a callback that transforms the current value. This method will loop until it will
-    * succeed in replacing the current value with the one produced by the given callback.
+  /** Abstracts over `compareAndSet`. You specify a transformation by
+    * specifying a function to be executed, a function that transforms the
+    * current value. This method will loop until it will succeed in replacing
+    * the current value with the one produced by the given function.
     *
-    * Note that the callback will be executed on each iteration of the loop, so it can be called
-    * multiple times - don't do destructive I/O or operations that mutate global state in it.
+    * Note that the callback will be executed on each iteration of the loop,
+    * so it can be called multiple times - don't do destructive I/O or
+    * operations that mutate global state in it.
     *
-    * @param cb is a callback that receives the current value as input and returns the `update` which is the
-    *           new value that should be persisted
-    * @return whatever the update is, after the operation succeeds
+    * @param f is a function that receives the current value as input and
+    *  returns the `update` which is the new value that should be persisted.
+    * 
+    * @return whatever the update is, after the transaction succeeds.
     */
   inline final def transformAndGet(inline cb: (A) => A): A = {
     var current = get()
@@ -105,23 +132,27 @@ abstract class Atomic[A] extends Serializable {
     update
   }
 
-  /** Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
-    * executed, a callback that transforms the current value. This method will loop until it will
-    * succeed in replacing the current value with the one produced by the given callback.
+  /** Abstracts over `compareAndSet`. You specify a transformation by
+    * specifying a callback to be executed, a callback that transforms the
+    * current value. This method will loop until it will succeed in replacing
+    * the current value with the one produced by the given callback.
     *
-    * Note that the callback will be executed on each iteration of the loop, so it can be called
-    * multiple times - don't do destructive I/O or operations that mutate global state in it.
+    * Note that the callback will be executed on each iteration of the loop,
+    * so it can be called multiple times - don't do destructive I/O or
+    * operations that mutate global state in it.
     *
-    * @param cb is a callback that receives the current value as input and returns the `update` which is the
-    *           new value that should be persisted
-    * @return the old value, just prior to when the successful update happened
+    * @param f is a callback that receives the current value as input and
+    *  returns the `update` which is the new value that should be persisted.
+    * 
+    * @return the old value, just prior to when the successful update
+    *  happened.
     */
-  inline final def getAndTransform(inline cb: (A) => A): A = {
+  inline final def getAndTransform(inline f: A => A): A = {
     var current = get()
     var continue = true
 
     while (continue) {
-      val update = cb(current)
+      val update = f(current)
       if (compareAndSet(current, update))
         continue = false
       else
@@ -130,22 +161,24 @@ abstract class Atomic[A] extends Serializable {
     current
   }
 
-  /** Abstracts over `compareAndSet`. You specify a transformation by specifying a callback to be
-    * executed, a callback that transforms the current value. This method will loop until it will
-    * succeed in replacing the current value with the one produced by the given callback.
+  /** Abstracts over `compareAndSet`. You specify a transformation by
+    * specifying a callback to be executed, a callback that transforms the
+    * current value. This method will loop until it will succeed in replacing
+    * the current value with the one produced by the given callback.
     *
-    * Note that the callback will be executed on each iteration of the loop, so it can be called
-    * multiple times - don't do destructive I/O or operations that mutate global state in it.
+    * Note that the callback will be executed on each iteration of the loop,
+    * so it can be called multiple times - don't do destructive I/O or
+    * operations that mutate global state in it.
     *
-    * @param cb is a callback that receives the current value as input and returns the `update` which is the
-    *           new value that should be persisted
+    * @param f is a function that receives the current value as input and
+    *  returns the `update` which is the new value that should be persisted
     */
-  inline final def transform(inline cb: (A) => A): Unit = {
+  inline final def transform(inline f: A => A): Unit = {
     var continue = true
 
     while (continue) {
       val current = get()
-      val update = cb(current)
+      val update = f(current)
       continue = !compareAndSet(current, update)
     }
   }

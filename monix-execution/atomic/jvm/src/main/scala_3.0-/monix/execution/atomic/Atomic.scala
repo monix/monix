@@ -90,7 +90,7 @@ abstract class Atomic[A] extends Serializable {
     * @return whatever was extracted by your function, once the operation
     *  succeeds
     */
-  def transformAndExtract[U](@deprecatedName("cb") f: (A) => (U, A)): U =
+  def transformAndExtract[U](f: (A) => (U, A)): U =
     macro Atomic.Macros.transformAndExtractMacro[A, U]
 
   /** Abstracts over `compareAndSet`. You specify a transformation by
@@ -107,7 +107,7 @@ abstract class Atomic[A] extends Serializable {
     * 
     * @return whatever the update is, after the transaction succeeds.
     */
-  def transformAndGet(@deprecatedName("cb") f: A => A): A =
+  def transformAndGet(f: A => A): A =
     macro Atomic.Macros.transformAndGetMacro[A]
 
   /** Abstracts over `compareAndSet`. You specify a transformation by
@@ -125,7 +125,7 @@ abstract class Atomic[A] extends Serializable {
     * @return the old value, just prior to when the successful update
     *  happened.
     */
-  final def getAndTransform(@deprecatedName("cb") f: A => A): A =
+  final def getAndTransform(f: A => A): A =
     macro Atomic.Macros.getAndTransformMacro[A]
 
   /** Abstracts over `compareAndSet`. You specify a transformation by
@@ -140,7 +140,7 @@ abstract class Atomic[A] extends Serializable {
     * @param f is a function that receives the current value as input and
     *  returns the `update` which is the new value that should be persisted
     */
-  final def transform(@deprecatedName("cb") f: A => A): Unit =
+  final def transform(f: A => A): Unit =
     macro Atomic.Macros.transformMacro[A]
 }
 
