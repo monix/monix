@@ -17,7 +17,8 @@ object MimaFilters {
 
   lazy val changesFor_3_3_0 = Seq(
     // Upgraded JCTools to 3.0.0
-    exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue#Java8SPMC.this"),
+    exclude[IncompatibleMethTypeProblem](
+      "monix.execution.internal.collection.queues.FromMessagePassingQueue#Java8SPMC.this"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue#Java7.this"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue#MPMC.this"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue#Java8SPSC.this"),
@@ -25,16 +26,21 @@ object MimaFilters {
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue.this"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue.apply"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue.this"),
-    exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue#Java8SPSC.this"),
+    exclude[IncompatibleMethTypeProblem](
+      "monix.execution.internal.collection.queues.FromMessagePassingQueue#Java8SPSC.this"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue.apply"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue.apply"),
-    exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue#MPMC.this"),
+    exclude[IncompatibleMethTypeProblem](
+      "monix.execution.internal.collection.queues.FromMessagePassingQueue#MPMC.this"),
     exclude[MissingTypesProblem]("monix.execution.internal.collection.queues.QueueDrain"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue#Java8MPSC.this"),
-    exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue#Java8MPSC.this"),
-    exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue#Java7.this"),
+    exclude[IncompatibleMethTypeProblem](
+      "monix.execution.internal.collection.queues.FromMessagePassingQueue#Java8MPSC.this"),
+    exclude[IncompatibleMethTypeProblem](
+      "monix.execution.internal.collection.queues.FromMessagePassingQueue#Java7.this"),
     exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue#Java8SPMC.this"),
-    exclude[IncompatibleMethTypeProblem]("monix.reactive.observers.buffers.ConcurrentQueue#FromMessagePassingQueue.this"),
+    exclude[IncompatibleMethTypeProblem](
+      "monix.reactive.observers.buffers.ConcurrentQueue#FromMessagePassingQueue.this"),
     // Fixed annoying incremental compilation error with Coeval deprecations
     exclude[MissingTypesProblem]("monix.eval.CoevalInstancesLevel0"),
     exclude[MissingTypesProblem]("monix.eval.Coeval$DeprecatedExtensions"),
@@ -92,6 +98,6 @@ object MimaFilters {
     exclude[MissingClassProblem]("monix.execution.misc.compat"),
     exclude[MissingClassProblem]("monix.execution.misc.compat$"),
     // Scala 3 / Dotty support
-    exclude[MissingClassProblem]("monix.execution.schedulers.AdaptedThreadPoolExecutorMixin"),
+    exclude[MissingClassProblem]("monix.execution.schedulers.AdaptedThreadPoolExecutorMixin")
   )
 }
