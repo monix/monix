@@ -50,7 +50,7 @@ object CatsEffectIssue380Suite extends SimpleTestSuite {
           val dt = 10.seconds
           assert(task.unsafeRunTimed(dt).nonEmpty, s"timed-out after $dt")
         } finally {
-          cancelLoop := true
+          cancelLoop.set(true)
         }
       }
     } finally {
@@ -82,7 +82,7 @@ object CatsEffectIssue380Suite extends SimpleTestSuite {
           val dt = 10.seconds
           assert(task.unsafeRunTimed(dt).nonEmpty, s"timed-out after $dt")
         } finally {
-          cancelLoop := true
+          cancelLoop.set(true)
         }
       }
     } finally {

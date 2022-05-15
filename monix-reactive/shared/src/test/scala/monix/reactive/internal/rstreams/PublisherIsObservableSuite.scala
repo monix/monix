@@ -141,14 +141,15 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
       override def subscribe(subscriber: Subscriber[_ >: Long]): Unit =
         subscriber.onSubscribe(new Subscription {
           override def cancel(): Unit =
-            isPublisherActive := false
+            isPublisherActive.set(false)
 
           override def request(n: Long): Unit = {
             assertEquals(n, requestSize.toLong)
             requested.increment(requestSize)
             if (isPublisherActive.get()) {
               s.executeTrampolined { () =>
-                for (_ <- 0 until n.toInt) subscriber.onNext(1L)
+                for (_ <- 0 until n.toInt) 
+                  subscriber.onNext(1L)
               }
             }
           }
