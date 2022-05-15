@@ -658,11 +658,11 @@ object TaskMemoizeSuite extends BaseTestSuite {
       local <- TaskLocal(0)
       memoizeTask = local.write(100).flatMap(_ => local.read).memoize
       v1 <- memoizeTask
-      _ <- Task.shift
+      _  <- Task.shift
       v2 <- local.read
-      _ <- local.write(200)
-      _ <- memoizeTask
-      _ <- Task.shift
+      _  <- local.write(200)
+      _  <- memoizeTask
+      _  <- Task.shift
       v3 <- local.read
     } yield (v1, v2, v3)
 
@@ -681,8 +681,8 @@ object TaskMemoizeSuite extends BaseTestSuite {
 
     val t = for {
       local <- TaskLocal(0)
-      ii <- Task.evalAsync(i.incrementAndGet())
-      _ <- local.write(ii)
+      ii    <- Task.evalAsync(i.incrementAndGet())
+      _     <- local.write(ii)
       result <- Task.parZip2(
         memoizedTask.flatMap { _ =>
           local.read.executeAsync

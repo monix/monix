@@ -48,7 +48,7 @@ object TaskStartAndForgetSuite extends BaseTestSuite {
     val errorTask = Task.raiseError(dummy)
 
     val result = for {
-      _ <- errorTask.startAndForget
+      _     <- errorTask.startAndForget
       value <- task
     } yield value
 

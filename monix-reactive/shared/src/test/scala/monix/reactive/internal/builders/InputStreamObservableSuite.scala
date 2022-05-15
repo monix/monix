@@ -248,7 +248,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
     implicit val s = TestScheduler()
 
     val gen = for {
-      byteSize <- Gen.choose(1, 4096)
+      byteSize  <- Gen.choose(1, 4096)
       chunkSize <- Gen.choose(Math.floorDiv(byteSize, 2).max(1), byteSize * 2)
     } yield {
       (byteSize, chunkSize)

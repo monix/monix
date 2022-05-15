@@ -241,10 +241,10 @@ object TaskBracketSuite extends BaseTestSuite {
   test("cancel should wait for already started finalizers on success") { implicit sc =>
 
     val fa = for {
-      pa <- Deferred[Task, Unit]
+      pa    <- Deferred[Task, Unit]
       fiber <- Task.unit.guarantee(pa.complete(()) >> Task.sleep(1.second)).start
-      _ <- pa.get
-      _ <- fiber.cancel
+      _     <- pa.get
+      _     <- fiber.cancel
     } yield ()
 
     val f = fa.runToFuture
@@ -260,10 +260,10 @@ object TaskBracketSuite extends BaseTestSuite {
     val dummy = new RuntimeException("dummy")
 
     val fa = for {
-      pa <- Deferred[Task, Unit]
+      pa    <- Deferred[Task, Unit]
       fiber <- Task.unit.guarantee(pa.complete(()) >> Task.sleep(1.second) >> Task.raiseError(dummy)).start
-      _ <- pa.get
-      _ <- fiber.cancel
+      _     <- pa.get
+      _     <- fiber.cancel
     } yield ()
 
     val f = fa.runToFuture
@@ -362,8 +362,8 @@ object TaskBracketSuite extends BaseTestSuite {
 
     val fa = for {
       fiber <- Task.sleep(1.second).start
-      _ <- fiber.cancel
-      _ <- fiber.cancel
+      _     <- fiber.cancel
+      _     <- fiber.cancel
     } yield ()
 
     val f = fa.runToFuture

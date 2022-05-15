@@ -142,10 +142,10 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
       val task = for {
         df <- allocateConcurrent
         fb <- get(df).start
-        _ <- IO(assertEquals(Thread.currentThread().getName, name))
-        _ <- release(df)
-        _ <- IO(assertEquals(Thread.currentThread().getName, name))
-        _ <- fb.join
+        _  <- IO(assertEquals(Thread.currentThread().getName, name))
+        _  <- release(df)
+        _  <- IO(assertEquals(Thread.currentThread().getName, name))
+        _  <- fb.join
       } yield ()
 
       assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -161,11 +161,11 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
 
       try {
         val task = for {
-          df <- allocateConcurrent
+          df    <- allocateConcurrent
           latch <- Deferred.uncancelable[IO, Unit]
-          fb <- (latch.complete(()) *> acquire(df) *> unit.foreverM).start
-          _ <- latch.get
-          _ <- release(df).timeout(timeout).guarantee(fb.cancel)
+          fb    <- (latch.complete(()) *> acquire(df) *> unit.foreverM).start
+          _     <- latch.get
+          _     <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -186,7 +186,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
         val task = for {
           df <- allocateConcurrent
           fb <- (acquire(df) *> unit.foreverM).start
-          _ <- release(df).timeout(timeout).guarantee(fb.cancel)
+          _  <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -204,11 +204,11 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
       }
 
       for {
-        d <- allocateConcurrent
+        d     <- allocateConcurrent
         latch <- Deferred.uncancelable[IO, Unit]
-        fb <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
-        _ <- latch.get
-        _ <- release(d).timeout(5.seconds).guarantee(fb.cancel)
+        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
+        _     <- latch.get
+        _     <- release(d).timeout(5.seconds).guarantee(fb.cancel)
       } yield true
     }
 
@@ -225,9 +225,9 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
       }
 
       for {
-        d <- allocateConcurrent
+        d  <- allocateConcurrent
         fb <- (acquire(d) *> foreverAsync(0)).start
-        _ <- release(d).timeout(5.seconds).guarantee(fb.cancel)
+        _  <- release(d).timeout(5.seconds).guarantee(fb.cancel)
       } yield true
     }
 
@@ -244,11 +244,11 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
       }
 
       for {
-        d <- allocateConcurrent
+        d     <- allocateConcurrent
         latch <- Deferred.uncancelable[IO, Unit]
-        fb <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
-        _ <- latch.get
-        _ <- release(d).timeout(timeout).guarantee(fb.cancel)
+        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
+        _     <- latch.get
+        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -265,9 +265,9 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
       }
 
       for {
-        d <- allocateConcurrent
+        d  <- allocateConcurrent
         fb <- (acquire(d) *> foreverAsync(0)).start
-        _ <- release(d).timeout(timeout).guarantee(fb.cancel)
+        _  <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -290,10 +290,10 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
       val task = for {
         df <- allocateAsync
         fb <- get(df).start
-        _ <- IO(assertEquals(Thread.currentThread().getName, name))
-        _ <- release(df)
-        _ <- IO(assertEquals(Thread.currentThread().getName, name))
-        _ <- fb.join
+        _  <- IO(assertEquals(Thread.currentThread().getName, name))
+        _  <- release(df)
+        _  <- IO(assertEquals(Thread.currentThread().getName, name))
+        _  <- fb.join
       } yield ()
 
       assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -309,11 +309,11 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
 
       try {
         val task = for {
-          df <- allocateAsync
+          df    <- allocateAsync
           latch <- Deferred[IO, Unit]
-          fb <- (latch.complete(()) *> acquire(df) *> unit.foreverM).start
-          _ <- latch.get
-          _ <- release(df).timeout(timeout).guarantee(fb.cancel)
+          fb    <- (latch.complete(()) *> acquire(df) *> unit.foreverM).start
+          _     <- latch.get
+          _     <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -334,7 +334,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
         val task = for {
           df <- allocateAsync
           fb <- (acquire(df) *> unit.foreverM).start
-          _ <- release(df).timeout(timeout).guarantee(fb.cancel)
+          _  <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -352,11 +352,11 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
       }
 
       for {
-        d <- allocateAsync
+        d     <- allocateAsync
         latch <- Deferred.uncancelable[IO, Unit]
-        fb <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
-        _ <- latch.get
-        _ <- release(d).timeout(timeout).guarantee(fb.cancel)
+        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
+        _     <- latch.get
+        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -373,9 +373,9 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
       }
 
       for {
-        d <- allocateAsync
+        d  <- allocateAsync
         fb <- (acquire(d) *> foreverAsync(0)).start
-        _ <- release(d).timeout(timeout).guarantee(fb.cancel)
+        _  <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -392,11 +392,11 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
       }
 
       for {
-        d <- allocateAsync
+        d     <- allocateAsync
         latch <- Deferred.uncancelable[IO, Unit]
-        fb <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
-        _ <- latch.get
-        _ <- release(d).timeout(timeout).guarantee(fb.cancel)
+        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
+        _     <- latch.get
+        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 

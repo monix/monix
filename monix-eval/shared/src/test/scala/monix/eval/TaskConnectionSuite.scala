@@ -219,7 +219,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(effect, 0)
 
     sc.cancel.runAsyncAndForget; s.tick()
-    for (c <- cancelables) assert(c.isCanceled, "r.isCanceled")
+    for (c   <- cancelables) assert(c.isCanceled, "r.isCanceled")
     for (cn1 <- connections1) assert(cn1.isCanceled, "cn1.isCanceled")
     for (cn2 <- connections2) assert(cn2.isCanceled, "cn2.isCanceled")
     assertEquals(effect, 100)
@@ -247,7 +247,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     for (cn <- connections2) sc.push(cn)
     s.tick()
 
-    for (c <- cancelables) assert(c.isCanceled, "r.isCanceled")
+    for (c   <- cancelables) assert(c.isCanceled, "r.isCanceled")
     for (cn1 <- connections1) assert(cn1.isCanceled, "cn1.isCanceled")
     for (cn2 <- connections2) assert(cn2.isCanceled, "cn2.isCanceled")
     assertEquals(effect, 100)

@@ -80,9 +80,9 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
   testFuture("simple offer and poll", times = repeatForFastTests) { implicit s =>
     val queue = AsyncQueue.bounded[Int](10)
     for {
-      _ <- queue.offer(1)
-      _ <- queue.offer(2)
-      _ <- queue.offer(3)
+      _  <- queue.offer(1)
+      _  <- queue.offer(2)
+      _  <- queue.offer(3)
       r1 <- queue.poll()
       r2 <- queue.poll()
       r3 <- queue.poll()
@@ -96,12 +96,12 @@ abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
   testFuture("async poll", times = repeatForFastTests) { implicit s =>
     val queue = AsyncQueue.bounded[Int](10)
     for {
-      _ <- queue.offer(1)
+      _  <- queue.offer(1)
       r1 <- queue.poll()
-      _ <- Future(assertEquals(r1, 1))
-      f <- Future(queue.poll())
-      _ <- Future(assertEquals(f.value, None))
-      _ <- queue.offer(2)
+      _  <- Future(assertEquals(r1, 1))
+      f  <- Future(queue.poll())
+      _  <- Future(assertEquals(f.value, None))
+      _  <- queue.offer(2)
       r2 <- f
     } yield {
       assertEquals(r2, 2)

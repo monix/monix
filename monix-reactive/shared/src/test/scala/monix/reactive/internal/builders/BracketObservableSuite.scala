@@ -108,8 +108,8 @@ object BracketObservableSuite extends BaseTestSuite {
   test("bracket should not be cancelable in its acquire") { implicit s =>
     for (_ <- 0 until 1000) {
       val task = for {
-        start <- Deferred.uncancelable[Task, Unit]
-        latch <- Deferred[Task, Unit]
+        start    <- Deferred.uncancelable[Task, Unit]
+        latch    <- Deferred[Task, Unit]
         canceled <- Deferred.uncancelable[Task, Unit]
         acquire = start.complete(()) *> latch.get
         obs = Observable.fromTask(acquire).bracketCase(Observable.pure) {
@@ -119,10 +119,10 @@ object BracketObservableSuite extends BaseTestSuite {
             Task.unit
         }
         fiber <- obs.flatMap(_ => Observable.never[Unit]).completedL.start
-        _ <- start.get
-        _ <- fiber.cancel.start
-        _ <- latch.complete(()).start
-        _ <- canceled.get
+        _     <- start.get
+        _     <- fiber.cancel.start
+        _     <- latch.complete(()).start
+        _     <- canceled.get
       } yield ()
 
       val f = task.runToFuture; s.tick()

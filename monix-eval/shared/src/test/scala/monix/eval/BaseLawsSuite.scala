@@ -141,20 +141,20 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
     def genFlatMap: Gen[Task[A]] =
       for {
         ioa <- genSimpleTask
-        f <- getArbitrary[A => Task[A]]
+        f   <- getArbitrary[A => Task[A]]
       } yield ioa.flatMap(f)
 
     def getMapOne: Gen[Task[A]] =
       for {
         ioa <- genSimpleTask
-        f <- getArbitrary[A => A]
+        f   <- getArbitrary[A => A]
       } yield ioa.map(f)
 
     def getMapTwo: Gen[Task[A]] =
       for {
         ioa <- genSimpleTask
-        f1 <- getArbitrary[A => A]
-        f2 <- getArbitrary[A => A]
+        f1  <- getArbitrary[A => A]
+        f2  <- getArbitrary[A => A]
       } yield ioa.map(f1).map(f2)
 
     Arbitrary(

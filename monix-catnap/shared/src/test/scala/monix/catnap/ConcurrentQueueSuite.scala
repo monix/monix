@@ -88,12 +88,12 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
   testIO("simple offer and poll", times = repeatForFastTests) { implicit s =>
     for {
       queue <- ConcurrentQueue[IO].withConfig[Int](Bounded(10))
-      _ <- queue.offer(1)
-      _ <- queue.offer(2)
-      _ <- queue.offer(3)
-      r1 <- queue.poll
-      r2 <- queue.poll
-      r3 <- queue.poll
+      _     <- queue.offer(1)
+      _     <- queue.offer(2)
+      _     <- queue.offer(3)
+      r1    <- queue.poll
+      r2    <- queue.poll
+      r3    <- queue.poll
     } yield {
       assertEquals(r1, 1)
       assertEquals(r2, 2)
@@ -104,13 +104,13 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
   testIO("async poll", times = repeatForFastTests) { implicit s =>
     for {
       queue <- ConcurrentQueue[IO].bounded[Int](10)
-      _ <- queue.offer(1)
-      r1 <- queue.poll
-      _ <- IO(assertEquals(r1, 1))
-      f <- IO(queue.poll.unsafeToFuture())
-      _ <- IO(assertEquals(f.value, None))
-      _ <- queue.offer(2)
-      r2 <- IO.fromFuture(IO.pure(f))
+      _     <- queue.offer(1)
+      r1    <- queue.poll
+      _     <- IO(assertEquals(r1, 1))
+      f     <- IO(queue.poll.unsafeToFuture())
+      _     <- IO(assertEquals(f.value, None))
+      _     <- queue.offer(2)
+      r2    <- IO.fromFuture(IO.pure(f))
     } yield {
       assertEquals(r2, 2)
     }
@@ -214,10 +214,10 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
 
     for {
       queue <- ConcurrentQueue[IO].withConfig[Int](bc, ct)
-      f1 <- queue.drain(1000, 1000).start
-      f2 <- queue.offerMany(elems).start
-      _ <- f2.join
-      r <- f1.join
+      f1    <- queue.drain(1000, 1000).start
+      f2    <- queue.offerMany(elems).start
+      _     <- f2.join
+      r     <- f1.join
     } yield {
       assertEquals(r.sum, count * (count - 1) / 2)
     }
@@ -234,9 +234,9 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
 
     for {
       queue <- ConcurrentQueue[IO].bounded[Int](10)
-      _ <- queue.offer(1)
-      _ <- queue.clear
-      r <- queue.tryPoll
+      _     <- queue.offer(1)
+      _     <- queue.clear
+      r     <- queue.tryPoll
     } yield {
       assertEquals(r, None)
     }
@@ -257,11 +257,11 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
 
     for {
       queue <- ConcurrentQueue[IO].bounded[Int](512)
-      _ <- fillQueue(queue)
-      _ <- queue.offerMany((0 until 500).map(_ => 1)).start
-      _ <- queue.clear
-      _ <- queue.offer(0)
-      r <- consume(queue)
+      _     <- fillQueue(queue)
+      _     <- queue.offerMany((0 until 500).map(_ => 1)).start
+      _     <- queue.clear
+      _     <- queue.offer(0)
+      r     <- consume(queue)
     } yield {
       assert(r <= 500)
     }
@@ -270,8 +270,8 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
   testIO("queue should be empty") { implicit s =>
     for {
       queue <- ConcurrentQueue[IO].bounded[Int](10)
-      _ <- queue.offer(1)
-      _ <- queue.clear
+      _     <- queue.offer(1)
+      _     <- queue.clear
       value <- queue.tryPoll
     } yield {
       assertEquals(value, None)

@@ -2536,8 +2536,8 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   final def timed: Task[(FiniteDuration, A)] =
     for {
       start <- Task.clock.monotonic(NANOSECONDS)
-      a <- this
-      end <- Task.clock.monotonic(NANOSECONDS)
+      a     <- this
+      end   <- Task.clock.monotonic(NANOSECONDS)
     } yield (FiniteDuration(end - start, NANOSECONDS), a)
 
   /**

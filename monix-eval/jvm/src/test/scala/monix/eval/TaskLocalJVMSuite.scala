@@ -47,15 +47,15 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       val task =
         for {
           local <- TaskLocal(0)
-          _ <- local.write(100).executeOn(ec2)
-          v1 <- local.read.executeOn(ec)
-          _ <- Task.shift(Scheduler.global)
-          v2 <- local.read.executeOn(ec2)
-          _ <- Task.shift
-          v3 <- local.read.executeOn(ec2)
-          _ <- createShift(ec2)
-          v4 <- local.read
-          v5 <- local.read.executeOn(ec)
+          _     <- local.write(100).executeOn(ec2)
+          v1    <- local.read.executeOn(ec)
+          _     <- Task.shift(Scheduler.global)
+          v2    <- local.read.executeOn(ec2)
+          _     <- Task.shift
+          v3    <- local.read.executeOn(ec2)
+          _     <- createShift(ec2)
+          v4    <- local.read
+          v5    <- local.read.executeOn(ec)
         } yield v1 :: v2 :: v3 :: v4 :: v5 :: Nil
 
       val r = task.runSyncUnsafe(Duration.Inf)
@@ -72,9 +72,9 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     val task =
       for {
         local <- TaskLocal(0)
-        _ <- local.write(100).executeWithModel(AlwaysAsyncExecution)
-        _ <- Task.shift
-        v <- local.read
+        _     <- local.write(100).executeWithModel(AlwaysAsyncExecution)
+        _     <- Task.shift
+        v     <- local.read
       } yield v
 
     val r = task.runSyncUnsafe(Duration.Inf)
@@ -87,9 +87,9 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     val task =
       for {
         local <- TaskLocal(0)
-        _ <- local.write(100).executeWithOptions(_.enableAutoCancelableRunLoops)
-        _ <- Task.shift
-        v <- local.read
+        _     <- local.write(100).executeWithOptions(_.enableAutoCancelableRunLoops)
+        _     <- Task.shift
+        v     <- local.read
       } yield v
 
     val r = task.runSyncUnsafe(Duration.Inf)
@@ -421,7 +421,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       }.runToFuture
       i1 <- Future(local.get)
       i2 <- Future(local.get)
-      _ <- Future(local.update(i2 + 1))
+      _  <- Future(local.update(i2 + 1))
       i3 <- Future(local.get)
     } yield {
       assertEquals(i1, 1)
@@ -437,7 +437,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       }.runToFuture
       i1 <- Future(local.get)
       i2 <- Future(local.get)
-      _ <- Future(local.update(i2 + 1))
+      _  <- Future(local.update(i2 + 1))
       i3 <- Future(local.get)
     } yield {
       assertEquals(i1, 1)
@@ -455,7 +455,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     val local = Local(0)
 
     for {
-      _ <- Task(local.update(1)).runToFuture
+      _  <- Task(local.update(1)).runToFuture
       i1 <- Future(local.get)
       i2 <- Local.isolate {
         Future(local.update(i1 + 1))
@@ -505,7 +505,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       }.runToFuture
       i1 <- Future(local.get)
       i2 <- Future(local.get)
-      _ <- Future(local.update(i2 + 10))
+      _  <- Future(local.update(i2 + 10))
       i3 <- Future(local.get)
     } yield {
       assertEquals(i1, 10)
@@ -521,7 +521,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       }.runToFuture
       i1 <- Future(local.get)
       i2 <- Future(local.get)
-      _ <- Future(local.update(i2 + 1))
+      _  <- Future(local.update(i2 + 1))
       i3 <- Future(local.get)
     } yield {
       assertEquals(i1, 1)
@@ -547,7 +547,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
 
     val t1 = for {
       i1 <- Task(local.get)
-      _ <- Task.sleep(10.millis)
+      _  <- Task.sleep(10.millis)
       i2 <- Task(local.get)
     } yield assertEquals(i1, i2)
 

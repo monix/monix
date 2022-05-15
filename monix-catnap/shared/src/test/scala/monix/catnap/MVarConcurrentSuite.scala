@@ -35,11 +35,11 @@ object MVarConcurrentSuite extends BaseMVarSuite {
 
   testAsync("swap is cancelable on take") {
     val task = for {
-      mVar <- empty[Int]
+      mVar     <- empty[Int]
       finished <- Deferred.uncancelable[IO, Int]
-      fiber <- mVar.swap(20).flatMap(finished.complete).start
-      _ <- fiber.cancel
-      _ <- mVar.put(10)
+      fiber    <- mVar.swap(20).flatMap(finished.complete).start
+      _        <- fiber.cancel
+      _        <- mVar.put(10)
       fallback = IO.sleep(100.millis) *> mVar.take
       v <- IO.race(finished.get, fallback)
     } yield v
@@ -51,11 +51,11 @@ object MVarConcurrentSuite extends BaseMVarSuite {
 
   testAsync("modify is cancelable on take") {
     val task = for {
-      mVar <- empty[Int]
+      mVar     <- empty[Int]
       finished <- Deferred.uncancelable[IO, String]
-      fiber <- mVar.modify(n => IO.pure((n * 2, n.show))).flatMap(finished.complete).start
-      _ <- fiber.cancel
-      _ <- mVar.put(10)
+      fiber    <- mVar.modify(n => IO.pure((n * 2, n.show))).flatMap(finished.complete).start
+      _        <- fiber.cancel
+      _        <- mVar.put(10)
       fallback = IO.sleep(100.millis) *> mVar.take
       v <- IO.race(finished.get, fallback)
     } yield v
@@ -67,12 +67,12 @@ object MVarConcurrentSuite extends BaseMVarSuite {
 
   testAsync("modify is cancelable on f") {
     val task = for {
-      mVar <- empty[Int]
+      mVar     <- empty[Int]
       finished <- Deferred.uncancelable[IO, String]
-      fiber <- mVar.modify(n => IO.never *> IO.pure((n * 2, n.show))).flatMap(finished.complete).start
-      _ <- mVar.put(10)
-      _ <- IO.sleep(10.millis)
-      _ <- fiber.cancel
+      fiber    <- mVar.modify(n => IO.never *> IO.pure((n * 2, n.show))).flatMap(finished.complete).start
+      _        <- mVar.put(10)
+      _        <- IO.sleep(10.millis)
+      _        <- fiber.cancel
       fallback = IO.sleep(100.millis) *> mVar.take
       v <- IO.race(finished.get, fallback)
     } yield v
@@ -92,13 +92,13 @@ object MVarAsyncSuite extends BaseMVarSuite {
 
   testAsync("put; take; modify; put") {
     val task = for {
-      mVar <- empty[Int]
-      _ <- mVar.put(10)
-      _ <- mVar.take
+      mVar  <- empty[Int]
+      _     <- mVar.put(10)
+      _     <- mVar.take
       fiber <- mVar.modify(n => IO.pure((n * 2, n.toString))).start
-      _ <- mVar.put(20)
-      s <- fiber.join
-      v <- mVar.take
+      _     <- mVar.put(20)
+      s     <- fiber.join
+      v     <- mVar.take
     } yield (s, v)
 
     for (r <- task.unsafeToFuture()) yield {
@@ -109,10 +109,10 @@ object MVarAsyncSuite extends BaseMVarSuite {
   testAsync("modify replaces the original value of the mvar on error") {
     val error = new Exception("Boom!")
     val task = for {
-      mVar <- empty[Int]
-      _ <- mVar.put(10)
+      mVar     <- empty[Int]
+      _        <- mVar.put(10)
       finished <- Deferred.uncancelable[IO, String]
-      e <- mVar.modify(_ => IO.raiseError(error)).attempt
+      e        <- mVar.modify(_ => IO.raiseError(error)).attempt
       fallback = IO.sleep(100.millis) *> mVar.take
       v <- IO.race(finished.get, fallback)
     } yield (e, v)
@@ -136,13 +136,13 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
 
   testAsync("empty; put; take; put; take") {
     val task = for {
-      av <- empty[Int]
+      av   <- empty[Int]
       isE1 <- av.isEmpty
-      _ <- av.put(10)
+      _    <- av.put(10)
       isE2 <- av.isEmpty
-      r1 <- av.take
-      _ <- av.put(20)
-      r2 <- av.take
+      r1   <- av.take
+      _    <- av.put(20)
+      r2   <- av.take
     } yield (isE1, isE2, r1, r2)
 
     for (r <- task.unsafeToFuture()) yield {
@@ -152,15 +152,15 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
 
   testAsync("empty; tryPut; tryPut; tryTake; tryTake; put; take") {
     val task = for {
-      av <- empty[Int]
+      av   <- empty[Int]
       isE1 <- av.isEmpty
-      p1 <- av.tryPut(10)
-      p2 <- av.tryPut(11)
+      p1   <- av.tryPut(10)
+      p2   <- av.tryPut(11)
       isE2 <- av.isEmpty
-      r1 <- av.tryTake
-      r2 <- av.tryTake
-      _ <- av.put(20)
-      r3 <- av.take
+      r1   <- av.tryTake
+      r2   <- av.tryTake
+      _    <- av.put(20)
+      r3   <- av.take
     } yield (isE1, p1, p2, isE2, r1, r2, r3)
 
     for (r <- task.unsafeToFuture()) yield {
@@ -172,9 +172,9 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     val task = for {
       av <- empty[Int]
       f1 <- av.take.start
-      _ <- av.put(10)
+      _  <- av.put(10)
       f2 <- av.take.start
-      _ <- av.put(20)
+      _  <- av.put(20)
       r1 <- f1.join
       r2 <- f2.join
     } yield Set(r1, r2)
@@ -193,9 +193,9 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
       r1 <- av.take
       r2 <- av.take
       r3 <- av.take
-      _ <- f1.join
-      _ <- f2.join
-      _ <- f3.join
+      _  <- f1.join
+      _  <- f2.join
+      _  <- f3.join
     } yield Set(r1, r2, r3)
 
     for (r <- task.unsafeToFuture()) yield {
@@ -209,9 +209,9 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
       f1 <- av.take.start
       f2 <- av.take.start
       f3 <- av.take.start
-      _ <- av.put(10)
-      _ <- av.put(20)
-      _ <- av.put(30)
+      _  <- av.put(10)
+      _  <- av.put(20)
+      _  <- av.put(30)
       r1 <- f1.join
       r2 <- f2.join
       r3 <- f3.join
@@ -224,11 +224,11 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
 
   testAsync("initial; take; put; take") {
     val task = for {
-      av <- init(10)
+      av  <- init(10)
       isE <- av.isEmpty
-      r1 <- av.take
-      _ <- av.put(20)
-      r2 <- av.take
+      r1  <- av.take
+      _   <- av.put(20)
+      r2  <- av.take
     } yield (isE, r1, r2)
 
     for (v <- task.unsafeToFuture()) yield {
@@ -238,7 +238,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
 
   testAsync("initial; read; take") {
     val task = for {
-      av <- init(10)
+      av   <- init(10)
       read <- av.read
       take <- av.take
     } yield read + take
@@ -250,10 +250,10 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
 
   testAsync("empty; read; put") {
     val task = for {
-      av <- empty[Int]
+      av   <- empty[Int]
       read <- av.read.start
-      _ <- av.put(10)
-      r <- read.join
+      _    <- av.put(10)
+      r    <- read.join
     } yield r
 
     for (v <- task.unsafeToFuture()) yield {
@@ -298,8 +298,8 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
       // Ensure they run in parallel
       producerFiber <- (IO.shift *> producer(channel, (0 until count).toList)).start
       consumerFiber <- (IO.shift *> consumer(channel, 0L)).start
-      _ <- producerFiber.join
-      sum <- consumerFiber.join
+      _             <- producerFiber.join
+      sum           <- consumerFiber.join
     } yield sum
 
     // Evaluate
@@ -330,8 +330,8 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
       for {
         f1 <- producerTask.start
         f2 <- consumerTask.start
-        _ <- f1.join
-        r <- f2.join
+        _  <- f1.join
+        r  <- f2.join
       } yield r
     }
 
@@ -396,8 +396,8 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
       channel <- empty[Int]
       (count, reads, writes) = testStackSequential(channel)
       fr <- reads.start
-      _ <- writes
-      r <- fr.join
+      _  <- writes
+      r  <- fr.join
     } yield r == count
 
     for (r <- task.unsafeToFuture()) yield {
@@ -409,7 +409,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     val count = if (Platform.isJVM) 10000 else 1000
     val task = for {
       mVar <- empty[Int]
-      ref <- Ref[IO].of(0)
+      ref  <- Ref[IO].of(0)
       takes = (0 until count)
         .map(_ => IO.shift *> mVar.read.map2(mVar.take)(_ + _).flatMap(x => ref.update(_ + x)))
         .toList
@@ -417,9 +417,9 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
       puts = (0 until count).map(_ => IO.shift *> mVar.put(1)).toList.parSequence
       fiber1 <- takes.start
       fiber2 <- puts.start
-      _ <- fiber1.join
-      _ <- fiber2.join
-      r <- ref.get
+      _      <- fiber1.join
+      _      <- fiber2.join
+      r      <- ref.get
     } yield r
 
     for (r <- task.unsafeToFuture()) yield {
@@ -430,14 +430,14 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
   testAsync("put is cancelable") {
     val task = for {
       mVar <- init(0)
-      _ <- mVar.put(1).start
-      p2 <- mVar.put(2).start
-      _ <- mVar.put(3).start
-      _ <- IO.sleep(10.millis) // Give put callbacks a chance to register
-      _ <- p2.cancel
-      _ <- mVar.take
-      r1 <- mVar.take
-      r3 <- mVar.take
+      _    <- mVar.put(1).start
+      p2   <- mVar.put(2).start
+      _    <- mVar.put(3).start
+      _    <- IO.sleep(10.millis) // Give put callbacks a chance to register
+      _    <- p2.cancel
+      _    <- mVar.take
+      r1   <- mVar.take
+      r3   <- mVar.take
     } yield Set(r1, r3)
 
     for (r <- task.unsafeToFuture()) yield {
@@ -448,15 +448,15 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
   testAsync("take is cancelable") {
     val task = for {
       mVar <- empty[Int]
-      t1 <- mVar.take.start
-      t2 <- mVar.take.start
-      t3 <- mVar.take.start
-      _ <- IO.sleep(10.millis) // Give take callbacks a chance to register
-      _ <- t2.cancel
-      _ <- mVar.put(1)
-      _ <- mVar.put(3)
-      r1 <- t1.join
-      r3 <- t3.join
+      t1   <- mVar.take.start
+      t2   <- mVar.take.start
+      t3   <- mVar.take.start
+      _    <- IO.sleep(10.millis) // Give take callbacks a chance to register
+      _    <- t2.cancel
+      _    <- mVar.put(1)
+      _    <- mVar.put(3)
+      r1   <- t1.join
+      r3   <- t3.join
     } yield Set(r1, r3)
 
     for (r <- task.unsafeToFuture()) yield {
@@ -466,12 +466,12 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
 
   testAsync("read is cancelable") {
     val task = for {
-      mVar <- empty[Int]
+      mVar     <- empty[Int]
       finished <- Deferred.uncancelable[IO, Int]
-      fiber <- mVar.read.flatMap(finished.complete).start
-      _ <- IO.sleep(10.millis) // Give read callback a chance to register
-      _ <- fiber.cancel
-      _ <- mVar.put(10)
+      fiber    <- mVar.read.flatMap(finished.complete).start
+      _        <- IO.sleep(10.millis) // Give read callback a chance to register
+      _        <- fiber.cancel
+      _        <- mVar.put(10)
       fallback = IO.sleep(100.millis) *> IO.pure(0)
       v <- IO.race(finished.get, fallback)
     } yield v

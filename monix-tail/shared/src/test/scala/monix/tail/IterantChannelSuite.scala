@@ -145,10 +145,10 @@ object IterantChannelSuite extends SimpleTestSuite {
       case (producer, stream) =>
         for {
           fiber <- consumeMany(stream).start
-          _ <- producer.awaitConsumers(consumers)
-          _ <- produce(producer)
-          _ <- producer.halt(None)
-          sum <- fiber.join
+          _     <- producer.awaitConsumers(consumers)
+          _     <- produce(producer)
+          _     <- producer.halt(None)
+          sum   <- fiber.join
         } yield {
           val perProducer = count.toLong * (count + 1) / 2
           assertEquals(sum, perProducer * producers * consumers)
