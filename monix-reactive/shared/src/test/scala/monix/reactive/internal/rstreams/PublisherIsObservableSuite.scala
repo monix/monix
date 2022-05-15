@@ -129,7 +129,7 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable): Unit =
           throw ex
         def onComplete(): Unit =
-          active := false
+          active.set(false)
       })
   }
 
@@ -148,7 +148,7 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
             requested.increment(requestSize)
             if (isPublisherActive.get()) {
               s.executeTrampolined { () =>
-                for (_ <- 0 until n.toInt) 
+                for (_ <- 0 until n.toInt)
                   subscriber.onNext(1L)
               }
             }
