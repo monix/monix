@@ -28,10 +28,10 @@ import monix.execution.atomic.internal.{BoxedInt, Factory}
 final class AtomicShort private (private[this] val ref: BoxedInt) extends AtomicNumber[Short] {
   private[this] val mask = 255 + 255 * 256
 
-  def get(): Short = 
+  def get(): Short =
     (ref.volatileGet() & mask).asInstanceOf[Short]
 
-  def set(update: Short): Unit = 
+  def set(update: Short): Unit =
     ref.volatileSet(update.asInstanceOf[Int])
 
   def lazySet(update: Short): Unit =
