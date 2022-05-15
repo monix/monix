@@ -404,10 +404,14 @@ def baseSettingsAndPlugins(publishArtifacts: Boolean): Project ⇒ Project =
       case "coverage" => pr
       case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
     }
+    val isCI = sys.env.getOrElse("SBT_PROFILE", "").contains("ci") ||
+      sys.env.get("CI").exists(v => v == "true" || v == "1" || v == "yes")
+
     withCoverage
       .enablePlugins(AutomateHeaderPlugin)
       .settings(sharedSettings)
       .settings(if (publishArtifacts) Seq.empty else doNotPublishArtifactSettings)
+      .settings(scalafmtOnCompile := !isCI)
       .settings(filterOutMultipleDependenciesFromGeneratedPomXml(
         "groupId" -> "org.scoverage".r :: Nil,
         "groupId" -> "org.typelevel".r :: "artifactId" -> "simulacrum".r :: Nil,
