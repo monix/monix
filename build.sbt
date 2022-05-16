@@ -358,7 +358,14 @@ lazy val assemblyShadeSettings = Seq(
 
 lazy val unidocSettings = Seq(
   ScalaUnidoc / unidoc / unidocProjectFilter :=
-    inProjects(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM),
+    inProjects(
+      executionAtomicJVM,
+      executionJVM, 
+      catnapJVM, 
+      evalJVM, 
+      tailJVM, 
+      reactiveJVM,
+    ),
 
   // Exclude monix.*.internal from ScalaDoc
   ScalaUnidoc / unidoc / sources ~= (_.filterNot { file =>
