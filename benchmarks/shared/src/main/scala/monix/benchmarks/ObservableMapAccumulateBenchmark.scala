@@ -19,10 +19,10 @@ package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
 
-import fs2.{Stream => FS2Stream}
+import fs2.{ Stream => FS2Stream }
 import monix.reactive.Observable
 import org.openjdk.jmh.annotations._
-import zio.stream.{Stream => ZStream}
+import zio.stream.{ Stream => ZStream }
 
 /** To do comparative benchmarks between versions:
   *
@@ -49,9 +49,10 @@ class ObservableMapAccumulateBenchmark {
   def monixObservable() = {
     Observable
       .fromIterable(0 until n)
-      .mapAccumulate(0) { case (acc, i) =>
-        val added = acc + i
-        (added, added)
+      .mapAccumulate(0) {
+        case (acc, i) =>
+          val added = acc + i
+          (added, added)
       }
       .completedL
       .runSyncUnsafe()
@@ -61,9 +62,10 @@ class ObservableMapAccumulateBenchmark {
   def fs2Stream() = {
     FS2Stream
       .emits(0 until n)
-      .mapAccumulate(0) { case (acc, i) =>
-        val added = acc + i
-        (added, added)
+      .mapAccumulate(0) {
+        case (acc, i) =>
+          val added = acc + i
+          (added, added)
       }
       .compile
       .drain
@@ -73,9 +75,10 @@ class ObservableMapAccumulateBenchmark {
   def zioStream() = {
     val stream = ZStream
       .fromIterable(0 until n)
-      .mapAccum(0) { case (acc, i) =>
-        val added = acc + i
-        (added, added)
+      .mapAccum(0) {
+        case (acc, i) =>
+          val added = acc + i
+          (added, added)
       }
       .runDrain
 

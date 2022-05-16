@@ -25,19 +25,19 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 /** To do comparative benchmarks between versions:
-  *
-  *     benchmarks/run-benchmark TaskAttemptBenchmark
-  *
-  * This will generate results in `benchmarks/results`.
-  *
-  * Or to run the benchmark from within SBT:
-  *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.TaskAttemptBenchmark
-  *
-  * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
-  * Please note that benchmarks should be usually executed at least in
-  * 10 iterations (as a rule of thumb), but more is better.
-  */
+ *
+ *     benchmarks/run-benchmark TaskAttemptBenchmark
+ *
+ * This will generate results in `benchmarks/results`.
+ *
+ * Or to run the benchmark from within SBT:
+ *
+ *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.TaskAttemptBenchmark
+ *
+ * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
+ * Please note that benchmarks should be usually executed at least in
+ * 10 iterations (as a rule of thumb), but more is better.
+ */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
@@ -71,4 +71,4 @@ class TaskAttemptBenchmark {
     Await.result(loop(0).runAsync, Duration.Inf)
   }
 }
-*/
+ */

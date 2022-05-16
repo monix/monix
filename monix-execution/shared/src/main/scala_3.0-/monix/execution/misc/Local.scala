@@ -131,11 +131,10 @@ object Local extends LocalCompanionDeprecated {
   /** If `b` evaluates to `true`, execute a block of code using a current
     * state of `Local.Context` and restore the current state when complete.
     */
-  private[monix] def bindCurrentIf[R](b: Boolean)(f: => R): R = {
-    import CanBindLocals.Implicits.synchronousAsDefault
-    val r = f
-    if (!b) r else Local.isolate(r)
-  }
+  private[monix] def bindCurrentIf[R](b: Boolean)(f: => R)(implicit
+    cb: CanBindLocals[R] = CanBindLocals.synchronous[R]
+  ): R =
+    if (!b) f else Local.isolate(f)
 
   /** Represents the current state of all [[Local locals]] for a given
     * execution context.
