@@ -168,7 +168,7 @@ lazy val isDotty =
 lazy val sharedSettings = pgpSettings ++ Seq(
   organization := "io.monix",
   // Value extracted from .github/workflows/build.yml
-  scalaVersion := crossScalaVersionsFromBuildYaml.value.head.value,
+  scalaVersion := crossScalaVersionsFromBuildYaml.value.flatMap(_.filterPrefix("2.13.")).head.value,
   // Value extracted from .github/workflows/build.yml
   crossScalaVersions := crossScalaVersionsFromBuildYaml.value.toIndexedSeq.map(_.value),
   gitHubTreeTagOrHash := {
