@@ -19,3 +19,4 @@ TAGS
 metals.sbt
 .vscode
 .bsp
+*.sublime*

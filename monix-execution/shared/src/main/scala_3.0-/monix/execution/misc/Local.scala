@@ -18,9 +18,7 @@
 package monix.execution.misc
 
 import monix.execution.atomic.AtomicAny
-
 import scala.annotation.tailrec
-import scala.reflect.macros.whitebox
 
 /** @define canBindLocalsDesc The implementation uses the [[CanBindLocals]]
   *         type class because in case of asynchronous data types that
@@ -133,32 +131,10 @@ object Local extends LocalCompanionDeprecated {
   /** If `b` evaluates to `true`, execute a block of code using a current
     * state of `Local.Context` and restore the current state when complete.
     */
-  private[monix] def bindCurrentIf[R](b: Boolean)(f: => R): R =
-    macro Macros.localLetCurrentIf
-
-  /** Macros implementations for [[bind]] and [[bindClear]]. */
-  private class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
-    import c.universe._
-
-    def localLet(ctx: Tree)(f: Tree): Tree =
-      c.abort(c.macroApplication.pos, "Macro no longer implemented!")
-    def localLetClear(f: Tree): Tree =
-      c.abort(c.macroApplication.pos, "Macro no longer implemented!")
-    def isolate(f: Tree): Tree =
-      c.abort(c.macroApplication.pos, "Macro no longer implemented!")
-
-    def localLetCurrentIf(b: Tree)(f: Tree): Tree = {
-      val Local = symbolOf[Local[_]].companion
-      val CanBindLocals = symbolOf[CanBindLocals[_]].companion
-
-      resetTree(
-        q"""if (!$b) { $f } else {
-           import $CanBindLocals.Implicits.synchronousAsDefault
-           $Local.isolate($f)
-        }"""
-      )
-    }
-  }
+  private[monix] def bindCurrentIf[R](b: Boolean)(f: => R)(implicit
+    cb: CanBindLocals[R] = CanBindLocals.synchronous[R]
+  ): R =
+    if (!b) f else Local.isolate(f)
 
   /** Represents the current state of all [[Local locals]] for a given
     * execution context.

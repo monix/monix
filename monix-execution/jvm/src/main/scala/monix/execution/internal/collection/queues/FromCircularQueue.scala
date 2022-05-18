@@ -19,7 +19,7 @@ package monix.execution.internal.collection.queues
 
 import monix.execution.ChannelType
 import monix.execution.ChannelType.{ SingleConsumer, SingleProducer }
-import monix.execution.internal.atomic.UnsafeAccess
+import monix.execution.atomic.internal.UnsafeAccess
 import monix.execution.internal.collection.LowLevelConcurrentQueue
 import monix.execution.internal.jctools.queues.MessagePassingQueue
 import sun.misc.Unsafe

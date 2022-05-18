@@ -26,7 +26,7 @@ final class ThrowExceptionCursor[A](ex: Throwable) extends BatchCursor[A] { self
   def isTriggered: Boolean = triggered.get()
 
   private def triggerError(): Nothing = {
-    triggered := true
+    triggered.set(true)
     throw ex
   }
 

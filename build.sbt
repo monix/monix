@@ -168,7 +168,7 @@ lazy val isDotty =
 lazy val sharedSettings = pgpSettings ++ Seq(
   organization := "io.monix",
   // Value extracted from .github/workflows/build.yml
-  scalaVersion := crossScalaVersionsFromBuildYaml.value.head.value,
+  scalaVersion := crossScalaVersionsFromBuildYaml.value.flatMap(_.filterPrefix("2.13.")).head.value,
   // Value extracted from .github/workflows/build.yml
   crossScalaVersions := crossScalaVersionsFromBuildYaml.value.toIndexedSeq.map(_.value),
   gitHubTreeTagOrHash := {
@@ -358,7 +358,14 @@ lazy val assemblyShadeSettings = Seq(
 
 lazy val unidocSettings = Seq(
   ScalaUnidoc / unidoc / unidocProjectFilter :=
-    inProjects(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM),
+    inProjects(
+      executionAtomicJVM,
+      executionJVM, 
+      catnapJVM, 
+      evalJVM, 
+      tailJVM, 
+      reactiveJVM,
+    ),
 
   // Exclude monix.*.internal from ScalaDoc
   ScalaUnidoc / unidoc / sources ~= (_.filterNot { file =>
@@ -398,11 +405,12 @@ lazy val sharedJSSettings = Seq(
 )
 
 def mimaSettings(projectName: String) = Seq(
-  mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_3_0,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_4_0
+  ThisBuild / mimaFailOnNoPrevious := false,
+  // mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
+  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
+  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0,
+  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_3_0,
+  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_4_0
 )
 
 lazy val doctestTestSettings = Seq(
@@ -580,6 +588,25 @@ lazy val executionShadedJCTools = project
   )
 
 // --------------------------------------------
+// monix-execution-atomic
+
+lazy val executionAtomicProfile =
+  crossModule(
+    projectName = "monix-execution-atomic",
+    withDocTests = false,
+    crossSettings = Seq(
+      description := "Sub-module of Monix, exposing low-level atomic references. See: https://monix.io",
+    ))
+
+lazy val executionAtomicJVM = project.in(file("monix-execution/atomic/jvm"))
+  .configure(executionAtomicProfile.jvm)
+  .settings(macroDependencies)
+
+lazy val executionAtomicJS = project.in(file("monix-execution/atomic/js"))
+  .configure(executionProfile.js)
+  .settings(macroDependencies)
+
+// --------------------------------------------
 // monix-execution
 
 lazy val executionProfile =
@@ -597,12 +624,16 @@ lazy val executionJVM = project
   .configure(executionProfile.jvm)
   .settings(macroDependencies)
   .dependsOn(executionShadedJCTools)
+  .aggregate(executionAtomicJVM)
+  .dependsOn(executionAtomicJVM)
   .settings(libraryDependencies += reactiveStreamsLib)
 
 lazy val executionJS = project
   .in(file("monix-execution/js"))
   .configure(executionProfile.js)
   .settings(macroDependencies)
+  .aggregate(executionAtomicJS)
+  .dependsOn(executionAtomicJS)
 
 // --------------------------------------------
 // monix-catnap

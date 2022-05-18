@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import monix.execution.{ BufferCapacity, ChannelType }
 import monix.execution.ChannelType.{ MPMC, MPSC, SPMC, SPSC }
 import monix.execution.internal.Platform
-import monix.execution.internal.atomic.UnsafeAccess
+import monix.execution.atomic.internal.UnsafeAccess
 import monix.execution.internal.collection.LowLevelConcurrentQueue
 import monix.execution.internal.jctools.queues._
 import monix.execution.internal.jctools.queues.atomic._

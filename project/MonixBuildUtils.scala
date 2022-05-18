@@ -11,7 +11,11 @@ import scala.xml.Elem
 import scala.xml.transform.{ RewriteRule, RuleTransformer }
 
 final case class MonixScalaVersion(value: String) {
-  lazy val parts = value.split("[.]").filter(_.nonEmpty).toList
+  lazy val parts = 
+    value.split("[.]").filter(_.nonEmpty).toList
+  
+  def filterPrefix(prefix: String): Option[MonixScalaVersion] =
+    if (value.startsWith(prefix)) Some(this) else None
 }
 
 object MonixScalaVersion {
