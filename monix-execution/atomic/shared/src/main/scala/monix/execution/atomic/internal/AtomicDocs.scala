@@ -38,13 +38,11 @@ package internal
   *  This is an atomic operation that's equivalent to:
   *  {{{
   *   import monix.execution.atomic._
-  *   import scala.annotation.tailrec
   * 
-  *   &#x40;tailrec 
   *   def getAndSet[A](ref: Atomic[A], update: A): A = {
   *    val current = ref.get()
   *    if (!compareAndSet(current, update))
-  *      getAndSet(ref, update)
+  *      getAndSet(ref, update) // update failed, repeat!
   *    else
   *      current
   *   }
