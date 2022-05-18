@@ -20,71 +20,40 @@ package monix.execution.atomic
 /**
   * Base trait of all atomic references, no matter the type.
   */
-abstract class Atomic[A] extends Serializable {
-  /** Get the current value persisted by this Atomic. */
+abstract class Atomic[A] extends Serializable with internal.AtomicDocs {
+  /** $atomicGetDesc */
   def get(): A
 
-  /** Updates the current value.
-    *
-    * @param update will be the new value returned by `get()`
-    */
+  /** $atomicSetDesc */
   def set(update: A): Unit
 
-  /** Does a compare-and-set operation on the current value. For more info, checkout the related
-    * [[https://en.wikipedia.org/wiki/Compare-and-swap Compare-and-swap Wikipedia page]].
+  /** $compareAndSetDesc
+    * 
+    * $atomicBestPractices 
     *
-    * It's an atomic, worry free operation.
-    *
-    * @param expect is the value you expect to be persisted when the operation happens
-    * @param update will be the new value, should the check for `expect` succeeds
-    * @return either true in case the operation succeeded or false otherwise
+    * @param expect $atomicCASExpectParam
+    * @param update $atomicCASUpdateParam
+    * @return $atomicCASReturn $atomicCASReturn
     */
   def compareAndSet(expect: A, update: A): Boolean
 
-  /** Sets the persisted value to `update` and returns the old value that was in place.
-    * It's an atomic, worry free operation.
+  /** $atomicGetAndSetDesc 
+    * 
+    * @param update $atomicGetAndSetParam
+    * @return $atomicGetAndSetReturn
     */
   def getAndSet(update: A): A
 
-  /** Eventually sets to the given value.
-    * Has weaker visibility guarantees than the normal `set()`.
-    */
+  /** $atomicLazySetDesc */
   def lazySet(update: A): Unit
 
-  /** Abstracts over `compareAndSet`. You specify a transformation by
-    * specifying a function to be executed, a function that transforms the
-    * current value. This method will loop until the transaction succeeds in
-    * replacing the current value with the one produced by your
-    * transformation.
-    * 
-    * Sample: {{{
-    *   import monix.execution.atomic._
-    *   import scala.collection.immutable.Queue
-    * 
-    *   final class ConcurrentQueue[A] private (state: AtomicRef[Queue[A]]) {
-    *     def enqueue(value: A): Unit = 
-    *       state.transform(_.enqueue(value))
-    * 
-    *     def dequeue(): Option[A] =
-    *       state.transformAndExtract { queue =>
-    *         if (queue.isEmpty)
-    *           (None, queue)
-    *         else
-    *           (Some(queue.dequeue), queue)
-    *       }
-    *   }
-    * }}}
+  /** $atomicTransformExtractDesc
     *
-    * Note that the function will be executed on each iteration of the loop,
-    * so it can be called multiple times - don't do destructive I/O or
-    * operations that mutate global state in it.
+    * $atomicTransformBestPractices 
     *
-    * @param f is a function that receives the current value as input and
-    *  returns a tuple that specifies the update + what should this method
-    *  return when the operation succeeds.
+    * @param f $atomicTransformExtractParamF
     * 
-    * @return whatever was extracted by your function, once the operation
-    *  succeeds
+    * @return $atomicTransformExtractReturn   
     */
   inline final def transformAndExtract[U](inline f: A => (U, A)): U = {
     var current = get()
@@ -103,19 +72,13 @@ abstract class Atomic[A] extends Serializable {
     result
   }
 
-  /** Abstracts over `compareAndSet`. You specify a transformation by
-    * specifying a function to be executed, a function that transforms the
-    * current value. This method will loop until it will succeed in replacing
-    * the current value with the one produced by the given function.
-    *
-    * Note that the callback will be executed on each iteration of the loop,
-    * so it can be called multiple times - don't do destructive I/O or
-    * operations that mutate global state in it.
-    *
-    * @param f is a function that receives the current value as input and
-    *  returns the `update` which is the new value that should be persisted.
+  /** $atomicTransformAndGetDesc
     * 
-    * @return whatever the update is, after the transaction succeeds.
+    * $atomicTransformBestPractices 
+    *
+    * @param f $atomicTransformParam
+    * 
+    * @return $atomicTransformAndGetReturn
     */
   inline final def transformAndGet(inline cb: (A) => A): A = {
     var current = get()
@@ -132,20 +95,13 @@ abstract class Atomic[A] extends Serializable {
     update
   }
 
-  /** Abstracts over `compareAndSet`. You specify a transformation by
-    * specifying a callback to be executed, a callback that transforms the
-    * current value. This method will loop until it will succeed in replacing
-    * the current value with the one produced by the given callback.
+  /** $atomicGetAndTransformDesc
     *
-    * Note that the callback will be executed on each iteration of the loop,
-    * so it can be called multiple times - don't do destructive I/O or
-    * operations that mutate global state in it.
+    * $atomicTransformBestPractices 
     *
-    * @param f is a callback that receives the current value as input and
-    *  returns the `update` which is the new value that should be persisted.
+    * @param f $atomicTransformParam
     * 
-    * @return the old value, just prior to when the successful update
-    *  happened.
+    * @return $atomicGetAndTransformReturn
     */
   inline final def getAndTransform(inline f: A => A): A = {
     var current = get()
@@ -161,17 +117,11 @@ abstract class Atomic[A] extends Serializable {
     current
   }
 
-  /** Abstracts over `compareAndSet`. You specify a transformation by
-    * specifying a callback to be executed, a callback that transforms the
-    * current value. This method will loop until it will succeed in replacing
-    * the current value with the one produced by the given callback.
+  /** $atomicTransformDesc
     *
-    * Note that the callback will be executed on each iteration of the loop,
-    * so it can be called multiple times - don't do destructive I/O or
-    * operations that mutate global state in it.
-    *
-    * @param f is a function that receives the current value as input and
-    *  returns the `update` which is the new value that should be persisted
+    * $atomicTransformBestPractices 
+    * 
+    * @param f $atomicTransformParam
     */
   inline final def transform(inline f: A => A): Unit = {
     var continue = true
