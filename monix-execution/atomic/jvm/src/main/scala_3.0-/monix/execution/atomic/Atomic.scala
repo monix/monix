@@ -24,7 +24,7 @@ import scala.reflect.macros.whitebox
 /**
   * Base trait of all atomic references, no matter the type.
   */
-abstract class Atomic[A] extends Serializable {
+abstract class Atomic[A] extends Serializable with internal.AtomicDocs {
   /** $atomicGetDesc */
   def get(): A
 

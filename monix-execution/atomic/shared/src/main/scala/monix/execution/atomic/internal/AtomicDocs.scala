@@ -40,7 +40,8 @@ package internal
   *   import monix.execution.atomic._
   *   import scala.annotation.tailrec
   * 
-  *   @tailrec def getAndSet[A](ref: Atomic[A], update: A): A = {
+  *   &#x40;tailrec 
+  *   def getAndSet[A](ref: Atomic[A], update: A): A = {
   *    val current = ref.get()
   *    if (!compareAndSet(current, update))
   *      getAndSet(ref, update)
@@ -97,7 +98,7 @@ package internal
   *         if (!ref.compareAndSet(current, update))
   *           dequeue() // transaction failed, retry!
   *         else
-              Some(elem)
+  *           Some(elem)
   *       }
   *     }
   *   }
