@@ -41,7 +41,7 @@ package internal
   * 
   *   def getAndSet[A](ref: Atomic[A], update: A): A = {
   *    val current = ref.get()
-  *    if (!compareAndSet(current, update))
+  *    if (!ref.compareAndSet(current, update))
   *      getAndSet(ref, update) // update failed, repeat!
   *    else
   *      current
@@ -79,7 +79,7 @@ package internal
   *   import monix.execution.atomic._
   *   import scala.collection.immutable.Queue
   * 
-  *   class ConcurrentQueue[A] private (ref: Atomic[Queue[A]]) {
+  *   class ConcurrentQueue0[A] private (ref: Atomic[Queue[A]]) {
   *     def enqueue(value: A): Unit = {
   *       val current = ref.get()
   *       val update = current.enqueue(value)
@@ -141,7 +141,7 @@ package internal
   *    import monix.execution.atomic._
   *    import scala.collection.immutable.Queue
   *         
-  *    final class ConcurrentQueue[A] private (state: AtomicRef[Queue[A]]) {
+  *    final class ConcurrentQueue1[A] private (state: AtomicAny[Queue[A]]) {
   *      def enqueue(value: A): Unit = 
   *        state.transform(_.enqueue(value))
   *  
@@ -149,8 +149,10 @@ package internal
   *        state.transformAndExtract { queue =>
   *          if (queue.isEmpty)
   *            (None, queue)
-  *          else
-  *            (Some(queue.dequeue), queue)
+  *          else {
+  *            val (a, update) = queue.dequeue
+  *            (Some(a), update)
+  *          }
   *        }
   *    }
   *  }}}
@@ -190,7 +192,7 @@ package internal
   *  {{{
   *    import monix.execution.atomic._
   *         
-  *    final class CountDown private (state: AtomicLong) {
+  *    final class CountDown0 private (state: AtomicLong) {
   *      def next(): Boolean = {
   *        val n = state.transformAndGet(n => math.max(n - 1, 0))
   *        n > 0
@@ -216,7 +218,7 @@ package internal
   *  {{{
   *    import monix.execution.atomic._
   *         
-  *    final class CountDown private (state: AtomicLong, n: Int) {
+  *    final class CountDown1 private (state: AtomicLong, n: Int) {
   *      def next(): Boolean = {
   *        val i = state.getAndTransform(i => math.min(n, i + 1))
   *        i < n

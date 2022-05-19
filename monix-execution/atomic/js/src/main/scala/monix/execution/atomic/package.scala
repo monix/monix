@@ -22,10 +22,7 @@ package monix.execution
   * On top of the JVM, this means dealing with lock-free thread-safe programming. Also works on top of Javascript,
   * with Scala.js, for API compatibility purposes and because it's a useful way to box a value.
   *
-  * The backbone of Atomic references is this method:
-  * {{{
-  *   def compareAndSet(expect: T, update: T): Boolean
-  * }}}
+  * The backbone of Atomic references is [[Atomic.compareAndSet]].
   *
   * This method atomically sets a variable to the `update` value if it currently holds
   * the `expect` value, reporting `true` on success or `false` on failure. The classes in this package
@@ -35,14 +32,16 @@ package monix.execution
   * return the most specific type needed (in the following sample, that's an `AtomicDouble`,
   * inheriting from `AtomicNumber[A]`):
   * {{{
+  *   import monix.execution.atomic._
+  * 
   *   val atomicNumber = Atomic(12.2)
-  *
   *   atomicNumber.incrementAndGet()
   *   // => 13.2
   * }}}
   *
   * These also provide useful helpers for atomically mutating of values
-  * (i.e. `transform`, `transformAndGet`, `getAndTransform`, etc...) or of numbers of any kind
-  * (`incrementAndGet`, `getAndAdd`, etc...).
+  * (i.e. [[Atomic.transform]], [[Atomic.transformAndGet]], [[Atomic.transformAndExtract]], 
+  * etc.) or of numbers of any kind ([[AtomicNumber.incrementAndGet]], 
+  * [[AtomicNumber.getAndAdd]], etc.).
   */
 package object atomic

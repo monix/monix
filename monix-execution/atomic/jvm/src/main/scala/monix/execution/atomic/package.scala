@@ -28,10 +28,7 @@ import monix.execution.atomic.internal.BoxPaddingStrategy
   * for API compatibility purposes and because it's a useful way to
   * box a value.
   *
-  * The backbone of Atomic references is this method:
-  * {{{
-  *   def compareAndSet(expect: T, update: T): Boolean
-  * }}}
+  * The backbone of Atomic references is this method: [[Atomic.compareAndSet]].
   *
   * This method atomically sets a variable to the `update` value if it
   * currently holds the `expect` value, reporting `true` on success or
@@ -44,16 +41,17 @@ import monix.execution.atomic.internal.BoxPaddingStrategy
   * `AtomicNumber[A]`):
   *
   * {{{
+  *   import monix.execution.atomic._
+  * 
   *   val atomicNumber = Atomic(12.2)
-  *
   *   atomicNumber.incrementAndGet()
   *   // => 13.2
   * }}}
   *
-  * These also provide useful helpers for atomically mutating of
-  * values (i.e. `transform`, `transformAndGet`, `getAndTransform`,
-  * etc...) or of numbers of any kind (`incrementAndGet`, `getAndAdd`,
-  * etc...).
+  * These also provide useful helpers for atomically mutating of values
+  * (i.e. [[Atomic.transform]], [[Atomic.transformAndGet]], [[Atomic.transformAndExtract]], 
+  * etc.) or of numbers of any kind ([[AtomicNumber.incrementAndGet]], 
+  * [[AtomicNumber.getAndAdd]], etc.).
   */
 package object atomic {
   /** Internal utility for converting between padding strategy representations. */
