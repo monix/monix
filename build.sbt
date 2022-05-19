@@ -593,7 +593,7 @@ lazy val executionShadedJCTools = project
 lazy val executionAtomicProfile =
   crossModule(
     projectName = "monix-execution-atomic",
-    withDocTests = false,
+    withDocTests = true,
     crossSettings = Seq(
       description := "Sub-module of Monix, exposing low-level atomic references. See: https://monix.io",
     ))
@@ -603,7 +603,7 @@ lazy val executionAtomicJVM = project.in(file("monix-execution/atomic/jvm"))
   .settings(macroDependencies)
 
 lazy val executionAtomicJS = project.in(file("monix-execution/atomic/js"))
-  .configure(executionProfile.js)
+  .configure(executionAtomicProfile.js)
   .settings(macroDependencies)
 
 // --------------------------------------------
@@ -622,7 +622,6 @@ lazy val executionProfile =
 lazy val executionJVM = project
   .in(file("monix-execution/jvm"))
   .configure(executionProfile.jvm)
-  .settings(macroDependencies)
   .dependsOn(executionShadedJCTools)
   .aggregate(executionAtomicJVM)
   .dependsOn(executionAtomicJVM)
@@ -631,7 +630,6 @@ lazy val executionJVM = project
 lazy val executionJS = project
   .in(file("monix-execution/js"))
   .configure(executionProfile.js)
-  .settings(macroDependencies)
   .aggregate(executionAtomicJS)
   .dependsOn(executionAtomicJS)
 
