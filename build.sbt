@@ -39,7 +39,7 @@ addCommandAlias(
 // Dependencies - Versions
 
 val cats_Version             = "2.7.0"
-val catsEffect_Version       = "2.5.4"
+val catsEffect_Version       = "2.5.5"
 val fs2_Version              = "2.5.11"
 val jcTools_Version          = "3.3.0"
 val reactiveStreams_Version  = "1.0.3"
@@ -360,10 +360,10 @@ lazy val unidocSettings = Seq(
   ScalaUnidoc / unidoc / unidocProjectFilter :=
     inProjects(
       executionAtomicJVM,
-      executionJVM, 
-      catnapJVM, 
-      evalJVM, 
-      tailJVM, 
+      executionJVM,
+      catnapJVM,
+      evalJVM,
+      tailJVM,
       reactiveJVM,
     ),
 
@@ -592,11 +592,12 @@ lazy val executionShadedJCTools = project
 
 lazy val executionAtomicProfile =
   crossModule(
-    projectName = "monix-execution-atomic",
+    projectName  = "monix-execution-atomic",
     withDocTests = true,
     crossSettings = Seq(
       description := "Sub-module of Monix, exposing low-level atomic references. See: https://monix.io",
-    ))
+    )
+  )
 
 lazy val executionAtomicJVM = project.in(file("monix-execution/atomic/jvm"))
   .configure(executionAtomicProfile.jvm)
