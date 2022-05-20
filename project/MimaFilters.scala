@@ -104,6 +104,6 @@ object MimaFilters {
     exclude[MissingClassProblem]("monix.execution.misc.compat"),
     exclude[MissingClassProblem]("monix.execution.misc.compat$"),
     // Scala 3 / Dotty support
-    exclude[MissingClassProblem]("monix.execution.schedulers.AdaptedThreadPoolExecutorMixin"),
+    exclude[MissingClassProblem]("monix.execution.schedulers.AdaptedThreadPoolExecutorMixin")
   )
 }
