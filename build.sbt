@@ -1,5 +1,5 @@
 import sbt.Keys.version
-import sbt.{Def, Global, Tags}
+import sbt.{ Def, Global, Tags }
 
 import scala.collection.immutable.SortedSet
 import MonixBuildUtils._
@@ -23,18 +23,18 @@ addCommandAlias("ci-release", ";+publishSigned ;sonatypeBundleRelease")
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions
 
-val cats_Version = "2.7.0"
-val catsEffect_Version = "2.5.5"
-val fs2_Version = "2.5.11"
-val jcTools_Version = "3.3.0"
-val reactiveStreams_Version = "1.0.3"
+val cats_Version              = "2.7.0"
+val catsEffect_Version        = "2.5.5"
+val fs2_Version               = "2.5.11"
+val jcTools_Version           = "3.3.0"
+val reactiveStreams_Version   = "1.0.3"
 val macrotaskExecutor_Version = "1.0.0"
-val minitest_Version = "2.9.6"
-val implicitBox_Version = "0.3.4"
-val kindProjector_Version = "0.13.2"
-val betterMonadicFor_Version = "0.3.1"
-val silencer_Version = "1.7.8"
-val scalaCompat_Version = "2.7.0"
+val minitest_Version          = "2.9.6"
+val implicitBox_Version       = "0.3.4"
+val kindProjector_Version     = "0.13.2"
+val betterMonadicFor_Version  = "0.3.1"
+val silencer_Version          = "1.7.8"
+val scalaCompat_Version       = "2.7.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -101,22 +101,23 @@ lazy val betterMonadicForCompilerPlugin =
 lazy val silencerCompilerPlugin =
   ("com.github.ghik" % "silencer-plugin" % silencer_Version).cross(CrossVersion.full)
 
-lazy val macroDependencies = Seq(
-  libraryDependencies ++=
-    if (isDotty.value) 
-      Seq.empty
-    else
-      Seq(
-        scalaReflectLib.value % Provided,
-        scalaCompilerLib.value % Provided
-      )
-)
+lazy val macroDependencies =
+  Seq(
+    libraryDependencies ++= (
+      if (isDotty.value) Seq()
+      else
+        Seq(
+          scalaReflectLib.value  % Provided,
+          scalaCompilerLib.value % Provided
+        )
+    )
+  )
 
 lazy val testDependencies = Seq(
   testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
   libraryDependencies ++= Seq(
-    minitestLib.value % Test,
-    catsLawsLib.value % Test,
+    minitestLib.value       % Test,
+    catsLawsLib.value       % Test,
     catsEffectLawsLib.value % Test
   )
 )
@@ -269,14 +270,16 @@ lazy val sharedSettings = pgpSettings ++ Seq(
     ScmInfo(
       url("https://github.com/monix/monix"),
       "scm:git@github.com:monix/monix.git"
-    )),
+    )
+  ),
   developers := List(
     Developer(
-      id = "alexelcu",
-      name = "Alexandru Nedelcu",
+      id    = "alexelcu",
+      name  = "Alexandru Nedelcu",
       email = "noreply@alexn.org",
-      url = url("https://alexn.org")
-    ))
+      url   = url("https://alexn.org")
+    )
+  )
 )
 
 lazy val sharedSourcesSettings = Seq(
@@ -399,7 +402,8 @@ def baseSettingsAndPlugins(publishArtifacts: Boolean): Project ⇒ Project =
         filterOutMultipleDependenciesFromGeneratedPomXml(
           "groupId" -> "org.scoverage".r :: Nil,
           "groupId" -> "org.typelevel".r :: "artifactId" -> "simulacrum".r :: Nil
-        ))
+        )
+      )
   }
 
 def monixSubModule(
@@ -436,20 +440,21 @@ def jsProfile(projectName: String, publishArtifacts: Boolean): Project => Projec
 
 def crossModule(
   projectName: String,
-  withMimaChecks: Boolean = true,
-  withDocTests: Boolean = true,
-  publishArtifacts: Boolean = true,
-  crossSettings: Seq[sbt.Def.SettingsDefinition] = Nil): MonixCrossModule = {
+  withMimaChecks: Boolean                        = true,
+  withDocTests: Boolean                          = true,
+  publishArtifacts: Boolean                      = true,
+  crossSettings: Seq[sbt.Def.SettingsDefinition] = Nil
+): MonixCrossModule = {
 
   MonixCrossModule(
     jvm = jvmModule(
-      projectName = projectName,
-      withMimaChecks = withMimaChecks,
-      withDocTests = withDocTests,
+      projectName      = projectName,
+      withMimaChecks   = withMimaChecks,
+      withDocTests     = withDocTests,
       publishArtifacts = publishArtifacts
     ).andThen(_.settings(crossSettings: _*)),
     js = jsProfile(
-      projectName = projectName,
+      projectName      = projectName,
       publishArtifacts = publishArtifacts
     ).andThen(_.settings(crossSettings: _*))
   )
@@ -498,9 +503,9 @@ lazy val monix = project
 
 lazy val coreProfile =
   crossModule(
-    projectName = "monix",
+    projectName    = "monix",
     withMimaChecks = false,
-    withDocTests = false,
+    withDocTests   = false,
     crossSettings = Seq(
       description := "Root project for Monix, a library for asynchronous programming in Scala. See: https://monix.io"
     )
@@ -525,11 +530,12 @@ lazy val executionShadedJCTools = project
   .in(file("monix-execution/shaded/jctools"))
   .configure(
     jvmModule(
-      projectName = "monix-internal-jctools",
-      withMimaChecks = false,
-      withDocTests = false,
+      projectName      = "monix-internal-jctools",
+      withMimaChecks   = false,
+      withDocTests     = false,
       publishArtifacts = true
-    ))
+    )
+  )
   .settings(assemblyShadeSettings)
   .settings(
     description := "Monix Execution Shaded JCTools is a shaded version of JCTools library. See: https://github.com/JCTools/JCTools",
@@ -548,7 +554,7 @@ lazy val executionShadedJCTools = project
 
 lazy val executionProfile =
   crossModule(
-    projectName = "monix-execution",
+    projectName  = "monix-execution",
     withDocTests = false,
     crossSettings = Seq(
       description := "Sub-module of Monix, exposing low-level primitives for dealing with async execution. See: https://monix.io",
@@ -665,11 +671,12 @@ lazy val javaJVM = project
   .in(file("monix-java"))
   .configure(
     jvmModule(
-      projectName = "monix-java",
-      withMimaChecks = true,
-      withDocTests = true,
+      projectName      = "monix-java",
+      withMimaChecks   = true,
+      withDocTests     = true,
       publishArtifacts = true
-    ))
+    )
+  )
   .dependsOn(executionJVM % "provided->compile; test->test")
   .dependsOn(evalJVM % "provided->compile; test->test")
 
@@ -682,12 +689,14 @@ lazy val reactiveTests = project
     monixSubModule(
       "monix-reactive-tests",
       publishArtifacts = false
-    ))
+    )
+  )
   .dependsOn(reactiveJVM, tailJVM)
   .settings(
     libraryDependencies ++= Seq(
       reactiveStreamsTCKLib % Test
-    ))
+    )
+  )
 
 // --------------------------------------------
 // monix-tracing-tests (not published)
@@ -700,7 +709,8 @@ lazy val tracingTests = project
     monixSubModule(
       "monix-tracing-tests",
       publishArtifacts = false
-    ))
+    )
+  )
   .dependsOn(evalJVM % "compile->compile; test->test")
   .configs(FullTracingTest)
   .settings(testFrameworks := Seq(new TestFramework("minitest.runner.Framework")))
@@ -739,15 +749,16 @@ lazy val benchmarksPrev = project
     monixSubModule(
       "monix-benchmarks-prev",
       publishArtifacts = false
-    ))
+    )
+  )
   .settings(
     // Disable Scala 3 (Dotty)
     scalaVersion := benchmarksScalaVersions.value.head,
     crossScalaVersions := benchmarksScalaVersions.value,
     libraryDependencies ++= Seq(
-      "io.monix" %% "monix" % "3.3.0",
-      "dev.zio" %% "zio-streams" % "1.0.0",
-      "co.fs2" %% "fs2-core" % fs2_Version,
+      "io.monix"          %% "monix"       % "3.3.0",
+      "dev.zio"           %% "zio-streams" % "1.0.0",
+      "co.fs2"            %% "fs2-core"    % fs2_Version,
       "com.typesafe.akka" %% "akka-stream" % "2.6.9"
     )
   )
@@ -757,17 +768,18 @@ lazy val benchmarksNext = project
   .enablePlugins(JmhPlugin)
   .configure(
     monixSubModule(
-      projectName = "monix-benchmarks-next",
+      projectName      = "monix-benchmarks-next",
       publishArtifacts = false
-    ))
+    )
+  )
   .dependsOn(reactiveJVM, tailJVM)
   .settings(
     // Disable Scala 3 (Dotty)
     scalaVersion := benchmarksScalaVersions.value.head,
     crossScalaVersions := benchmarksScalaVersions.value,
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-streams" % "1.0.0",
-      "co.fs2" %% "fs2-core" % fs2_Version,
+      "dev.zio"           %% "zio-streams" % "1.0.0",
+      "co.fs2"            %% "fs2-core"    % fs2_Version,
       "com.typesafe.akka" %% "akka-stream" % "2.6.9"
     )
   )
