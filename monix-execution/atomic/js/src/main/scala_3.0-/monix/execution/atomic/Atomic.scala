@@ -20,7 +20,7 @@ package monix.execution.atomic
 import monix.execution.atomic.internal._
 import scala.reflect.macros.whitebox
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import scala.annotation.nowarn
+import scala.annotation.unused
 
 /**
   * Base trait of all atomic references, no matter the type.
@@ -145,8 +145,7 @@ object Atomic {
   /** Returns the builder that would be chosen to construct Atomic
     * references for the given `initialValue`.
     */
-  @nowarn("cat=unused-params")
-  def builderFor[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): AtomicBuilder[A, R] =
+  def builderFor[A, R <: Atomic[A]](@unused initialValue: A)(implicit builder: AtomicBuilder[A, R]): AtomicBuilder[A, R] =
     builder
 
   implicit final class DeprecatedExtensions[A](val self: Atomic[A]) extends AnyVal {

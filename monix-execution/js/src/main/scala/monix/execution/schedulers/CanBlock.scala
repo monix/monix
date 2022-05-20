@@ -77,5 +77,5 @@ import scala.annotation.nowarn
     "on top of JavaScript, because it cannot block threads! \n" +
     "Please use asynchronous API calls."
 )
-@nowarn("cat=unused-privates")
+@nowarn
 final class CanBlock private ()
