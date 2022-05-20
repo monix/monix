@@ -86,7 +86,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropHeadOnOverflowQueue[Int](7)
 
     assertEquals(q.capacity, 7)
-    assertEquals(q.poll(), null)
+    assertEquals(q.poll(): Any, null)
 
     assertEquals(q.offer(0), 0)
     assertEquals(q.poll(), 0)

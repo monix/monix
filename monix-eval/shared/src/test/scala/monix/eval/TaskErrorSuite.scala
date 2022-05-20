@@ -282,7 +282,7 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task.onErrorRestartIf should mirror the source onSuccess") { implicit s =>
     var tries = 0
-    val task = Task.eval { tries += 1; 1 }.onErrorRestartIf(ex => tries < 10)
+    val task = Task.eval { tries += 1; 1 }.onErrorRestartIf(_ => tries < 10)
     val f = task.runToFuture
 
     assertEquals(f.value, Some(Success(1)))

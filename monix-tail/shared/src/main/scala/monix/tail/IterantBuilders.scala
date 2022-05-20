@@ -111,6 +111,10 @@ object IterantBuilders {
     def raiseError[A](ex: Throwable): Iterant[F, A] =
       Iterant.raiseError(ex)
 
+    /** Aliased builder, see documentation for [[Iterant.suspend[F[_],A](rest* Iterant.suspend]]. */
+    def suspend[A](rest: F[Iterant[F, A]]): Iterant[F, A] =
+      Iterant.suspend(rest)
+
     // -----------------------------------------------------------------
     // -- Requiring Applicative
 
@@ -121,10 +125,6 @@ object IterantBuilders {
     /** Aliased builder, see documentation for [[Iterant.liftF]]. */
     def liftF[A](a: F[A])(implicit F: Applicative[F]): Iterant[F, A] =
       Iterant.liftF(a)
-
-    /** Aliased builder, see documentation for [[Iterant.suspend[F[_],A](rest* Iterant.suspend]]. */
-    def suspend[A](rest: F[Iterant[F, A]])(implicit F: Applicative[F]): Iterant[F, A] =
-      Iterant.suspend(rest)
 
     /** Aliased builder, see documentation for [[Iterant.fromArray]]. */
     def fromArray[A](xs: Array[A])(implicit F: Applicative[F]): Iterant[F, A] =

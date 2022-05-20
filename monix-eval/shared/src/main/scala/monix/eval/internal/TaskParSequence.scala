@@ -65,10 +65,7 @@ private[eval] object TaskParSequence {
 
       // MUST BE synchronized by `lock`!
       // MUST NOT BE called if isActive == false!
-      def maybeSignalFinal(mainConn: TaskConnection, finalCallback: Callback[Throwable, M[A]])(
-        implicit s: Scheduler
-      ): Unit = {
-
+      def maybeSignalFinal(mainConn: TaskConnection, finalCallback: Callback[Throwable, M[A]]): Unit = {
         completed += 1
         if (completed >= tasksCount) {
           isActive = false

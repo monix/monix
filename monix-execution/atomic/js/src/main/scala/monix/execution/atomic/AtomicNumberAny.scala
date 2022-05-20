@@ -17,6 +17,8 @@
 
 package monix.execution.atomic
 
+import scala.annotation.unused
+
 /** Atomic references wrapping any values implementing
   * Scala's `Numeric` type class.
   *
@@ -126,7 +128,7 @@ object AtomicNumberAny {
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
-  def withPadding[A <: AnyRef: Numeric](initialValue: A, padding: PaddingStrategy): AtomicNumberAny[A] =
+  def withPadding[A <: AnyRef: Numeric](initialValue: A, @unused padding: PaddingStrategy): AtomicNumberAny[A] =
     new AtomicNumberAny[A](initialValue)
 
   /** $createDesc
@@ -136,15 +138,13 @@ object AtomicNumberAny {
     * `getAndSet` and for `getAndAdd`.
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
-    * @param allowPlatformIntrinsics is a boolean parameter that specifies whether
-    *        the instance is allowed to use the Java 8 optimized operations
-    *        for `getAndSet` and for `getAndAdd`
+    * @param padding — NOT USED on top of JavaScript;
+    * @param allowPlatformIntrinsics — NOT USED on top of JavaScript;
     */
   def create[A <: AnyRef: Numeric](
     initialValue: A,
-    padding: PaddingStrategy,
-    allowPlatformIntrinsics: Boolean
+    @unused padding: PaddingStrategy,
+    @unused allowPlatformIntrinsics: Boolean
   ): AtomicNumberAny[A] =
     new AtomicNumberAny[A](initialValue)
 
@@ -161,8 +161,8 @@ object AtomicNumberAny {
     * recommended, because the "safe" atomic instances have overhead.
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
+    * @param padding — NOT USED on top of JavaScript;
     */
-  def safe[A <: AnyRef: Numeric](initialValue: A, padding: PaddingStrategy): AtomicNumberAny[A] =
+  def safe[A <: AnyRef: Numeric](initialValue: A, @unused padding: PaddingStrategy): AtomicNumberAny[A] =
     new AtomicNumberAny[A](initialValue)
 }

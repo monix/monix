@@ -19,7 +19,6 @@ package monix.catnap
 
 import cats.Applicative
 import cats.effect.{ CancelToken, Sync }
-import cats.syntax.either._
 import monix.catnap.cancelables.BooleanCancelableF
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.exceptions.CompositeException
@@ -42,10 +41,6 @@ trait CancelableF[F[_]] {
 }
 
 object CancelableF {
-
-  // ensure import cats.syntax.either._ is used
-  private val dummy = ().asRight
-
   /**
     * Given a token that does not guarantee idempotency, wraps it
     * in a [[CancelableF]] value that guarantees the given token

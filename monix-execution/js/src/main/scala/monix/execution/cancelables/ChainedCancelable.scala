@@ -83,9 +83,7 @@ import monix.execution.internal.exceptions.matchError
   * [[SingleAssignCancelable]] for most purposes.
   */
 final class ChainedCancelable private (private var stateRef: AnyRef) extends AssignableCancelable {
-
   import ChainedCancelable.{ Canceled, WeakRef }
-  private type CC = ChainedCancelable
 
   // States of `state`:
   //

@@ -46,25 +46,25 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("onValue should invoke onSuccess") { implicit s =>
+  test("onValue should invoke onSuccess") { _ =>
     val callback = TestCallback()
     callback.onSuccess(1)
     assert(callback.successCalled)
   }
 
-  test("apply Success(value) should invoke onSuccess") { implicit s =>
+  test("apply Success(value) should invoke onSuccess") { _ =>
     val callback = TestCallback()
     callback(Success(1))
     assert(callback.successCalled)
   }
 
-  test("apply Failure(ex) should invoke onError") { implicit s =>
+  test("apply Failure(ex) should invoke onError") { _ =>
     val callback = TestCallback()
     callback(Failure(new IllegalStateException()))
     assert(callback.errorCalled)
   }
 
-  test("contramap should pipe onError") { implicit s =>
+  test("contramap should pipe onError") { _ =>
     var result = Option.empty[Try[Int]]
     val callback = TestCallback(
       { v =>
@@ -82,7 +82,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     assertEquals(result, Some(Failure(dummy)))
   }
 
-  test("contramap should invoke function before invoking callback") { implicit s =>
+  test("contramap should invoke function before invoking callback") { _ =>
     val callback = TestCallback()
     val stringCallback = callback.contramap[String](_.toInt)
     stringCallback.onSuccess("1")

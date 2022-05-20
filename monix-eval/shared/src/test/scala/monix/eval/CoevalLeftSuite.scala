@@ -18,7 +18,7 @@
 package monix.eval
 
 object CoevalLeftSuite extends BaseTestSuite {
-  test("Coeval.left should return a Now with a Left") { implicit s =>
+  test("Coeval.left should return a Now with a Left") { _ =>
     val t = Coeval.left[Int, String](1)
 
     t.value() match {

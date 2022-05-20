@@ -44,7 +44,7 @@ object TaskCoevalDoOnFinishSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(Some(ex))))
   }
 
-  test("Coeval.doOnFinish should work for successful values") { implicit s =>
+  test("Coeval.doOnFinish should work for successful values") { _ =>
     val p = Promise[Option[Throwable]]()
 
     val coeval = Coeval(10).doOnFinish(s => Coeval { p.success(s); () })
@@ -54,7 +54,7 @@ object TaskCoevalDoOnFinishSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(None)))
   }
 
-  test("Coeval.doOnFinish should work for failures values") { implicit s =>
+  test("Coeval.doOnFinish should work for failures values") { _ =>
     val ex = DummyException("dummy")
     val p = Promise[Option[Throwable]]()
 

@@ -18,7 +18,6 @@
 package monix.execution
 
 import java.util.concurrent.TimeoutException
-import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Future, Promise }
 import scala.util.{ Success, Try }
@@ -100,9 +99,8 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
   /** Utility that lifts a `Future[A]` into a `Future[Try[A]]`, exposing
     * error explicitly.
     */
-  def materialize[A](source: Future[A])(implicit ec: ExecutionContext): Future[Try[A]] = {
-    source.transform(t => Success(t))(immediate)
-  }
+  def materialize[A](source: Future[A])(implicit ec: ExecutionContext): Future[Try[A]] =
+    source.transform(t => Success(t))
 
   /** Given a mapping functions that operates on successful results as well as
     * errors, transforms the source by applying it.
@@ -123,9 +121,8 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
   /** Utility that transforms a `Future[Try[A]]` into a `Future[A]`,
     * hiding errors, being the opposite of [[materialize]].
     */
-  def dematerialize[A](source: Future[Try[A]])(implicit ec: ExecutionContext): Future[A] = {
-    source.map(_.get)(immediate)
-  }
+  def dematerialize[A](source: Future[Try[A]])(implicit ec: ExecutionContext): Future[A] =
+    source.map(_.get)
 
   /** Creates a future that completes with the specified `result`, but only
     * after the specified `delay`.

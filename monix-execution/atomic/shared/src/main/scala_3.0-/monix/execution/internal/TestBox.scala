@@ -35,10 +35,8 @@ private[atomic] object TestBox {
   class Macros(override val c: whitebox.Context) extends InlineMacros with HygieneUtilMacros {
     import c.universe._
 
-    def mapMacroImpl[A: c.WeakTypeTag, B: c.WeakTypeTag](f: c.Expr[A => B]): c.Expr[TestBox[B]] = {
-
+    def mapMacroImpl[A, B](f: c.Expr[A => B]): c.Expr[TestBox[B]] = {
       val selfExpr = c.Expr[TestBox[A]](c.prefix.tree)
-
       val tree =
         if (util.isClean(f)) {
           q"""
@@ -51,7 +49,6 @@ private[atomic] object TestBox {
           TestBox($fn($selfExpr.value))
           """
         }
-
       inlineAndReset[TestBox[B]](tree)
     }
   }

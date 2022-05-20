@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.rstreams
 
-import monix.execution.{ Ack, Scheduler }
+import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.SingleProducer
 import monix.execution.rstreams.SingleAssignSubscription
@@ -25,7 +25,6 @@ import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.reactive.OverflowStrategy.Unbounded
 import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
 import org.reactivestreams.{ Subscriber => RSubscriber, Subscription => RSubscription }
-
 import scala.concurrent.Future
 
 private[reactive] object SubscriberAsReactiveSubscriber {
@@ -213,8 +212,6 @@ private[reactive] final class SyncSubscriberAsReactiveSubscriber[A](target: Subs
   extends RSubscriber[A] {
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
-
-  private[this] implicit val s: Scheduler = target.scheduler
 
   private[this] var subscription = null: RSubscription
   private[this] var expectingCount = 0L

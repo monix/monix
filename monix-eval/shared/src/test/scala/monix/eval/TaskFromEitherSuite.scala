@@ -24,7 +24,7 @@ import monix.execution.internal.Platform
 import scala.util.{ Failure, Success }
 
 object TaskFromEitherSuite extends BaseTestSuite {
-  test("Task.fromEither (`E <: Throwable` version) should returns a Now with a Right") { implicit s =>
+  test("Task.fromEither (`E <: Throwable` version) should returns a Now with a Right") { _ =>
     val t = Task.fromEither(Right(10))
     assert(t.isInstanceOf[Now[_]])
   }
@@ -35,7 +35,7 @@ object TaskFromEitherSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.fromEither (`E <: Throwable` version) should returns an Error with a Left") { implicit s =>
+  test("Task.fromEither (`E <: Throwable` version) should returns an Error with a Left") { _ =>
     val dummy = DummyException("dummy")
     val t = Task.fromEither(Left(dummy))
     assert(t.isInstanceOf[Error[_]])
@@ -62,7 +62,7 @@ object TaskFromEitherSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Failure(DummyException("dummy"))))
   }
 
-  test("Task.fromEither (free `E` version) should returns a Now with a Right") { implicit s =>
+  test("Task.fromEither (free `E` version) should returns a Now with a Right") { _ =>
     val t = Task.fromEither(DummyException(_))(Right(10))
     assert(t.isInstanceOf[Now[_]])
   }
@@ -73,7 +73,7 @@ object TaskFromEitherSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.fromEither (free `E` version) should returns an Error with a Left") { implicit s =>
+  test("Task.fromEither (free `E` version) should returns an Error with a Left") { _ =>
     val t = Task.fromEither(DummyException(_))(Left("dummy"))
     assert(t.isInstanceOf[Error[_]])
   }

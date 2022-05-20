@@ -19,6 +19,7 @@ package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.atomic.internal._
+import scala.annotation.nowarn
 import scala.reflect.macros.whitebox
 
 /**
@@ -141,6 +142,7 @@ object Atomic {
   /** Returns the builder that would be chosen to construct Atomic
     * references for the given `initialValue`.
     */
+  @nowarn("cat=unused-params")
   def builderFor[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): AtomicBuilder[A, R] =
     builder
 
@@ -174,7 +176,7 @@ object Atomic {
   class Macros(override val c: whitebox.Context) extends HygieneUtilMacros with InlineMacros {
     import c.universe._
 
-    def transformMacro[A: c.WeakTypeTag](f: c.Expr[A => A]): c.Expr[Unit] = {
+    def transformMacro[A](f: c.Expr[A => A]): c.Expr[Unit] = {
       val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val self = util.name("self")
       val current = util.name("current")
@@ -214,7 +216,7 @@ object Atomic {
       inlineAndReset[Unit](tree)
     }
 
-    def transformAndGetMacro[A: c.WeakTypeTag](f: c.Expr[A => A]): c.Expr[A] = {
+    def transformAndGetMacro[A](f: c.Expr[A => A]): c.Expr[A] = {
       val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val self = util.name("self")
       val current = util.name("current")
@@ -257,7 +259,7 @@ object Atomic {
       inlineAndReset[A](tree)
     }
 
-    def getAndTransformMacro[A: c.WeakTypeTag](f: c.Expr[A => A]): c.Expr[A] = {
+    def getAndTransformMacro[A](f: c.Expr[A => A]): c.Expr[A] = {
       val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val self = util.name("self")
       val current = util.name("current")
@@ -300,7 +302,7 @@ object Atomic {
       inlineAndReset[A](tree)
     }
 
-    def transformAndExtractMacro[S: c.WeakTypeTag, A: c.WeakTypeTag](
+    def transformAndExtractMacro[S, A](
       f: c.Expr[S => (A, S)]
     ): c.Expr[A] = {
       val selfExpr = c.Expr[Atomic[S]](c.prefix.tree)
@@ -353,7 +355,7 @@ object Atomic {
       inlineAndReset[A](tree)
     }
 
-    def buildAnyMacro[A: c.WeakTypeTag, R <: Atomic[A]: c.WeakTypeTag](initialValue: c.Expr[A])(
+    def buildAnyMacro[A, R <: Atomic[A]](initialValue: c.Expr[A])(
       builder: c.Expr[AtomicBuilder[A, R]]
     ): c.Expr[R] = {
       val expr = reify {
@@ -366,7 +368,7 @@ object Atomic {
       inlineAndReset[R](expr.tree)
     }
 
-    def buildAnyWithPaddingMacro[A: c.WeakTypeTag, R <: Atomic[A]: c.WeakTypeTag](
+    def buildAnyWithPaddingMacro[A, R <: Atomic[A]](
       initialValue: c.Expr[A],
       padding: c.Expr[PaddingStrategy]
     )(builder: c.Expr[AtomicBuilder[A, R]]): c.Expr[R] = {
@@ -376,25 +378,25 @@ object Atomic {
       inlineAndReset[R](expr.tree)
     }
 
-    def applyMacro[A: c.WeakTypeTag](): c.Expr[A] = {
+    def applyMacro[A](): c.Expr[A] = {
       val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val tree = q"""$selfExpr.get()"""
       inlineAndReset[A](tree)
     }
 
-    def setMacro[A: c.WeakTypeTag](value: c.Expr[A]): c.Expr[Unit] = {
+    def setMacro[A](value: c.Expr[A]): c.Expr[Unit] = {
       val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val tree = q"""$selfExpr.set($value)"""
       inlineAndReset[Unit](tree)
     }
 
-    def addMacro[A: c.WeakTypeTag](value: c.Expr[A]): c.Expr[Unit] = {
+    def addMacro[A](value: c.Expr[A]): c.Expr[Unit] = {
       val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val tree = q"""$selfExpr.add($value)"""
       inlineAndReset[Unit](tree)
     }
 
-    def subtractMacro[A: c.WeakTypeTag](value: c.Expr[A]): c.Expr[Unit] = {
+    def subtractMacro[A](value: c.Expr[A]): c.Expr[Unit] = {
       val selfExpr = c.Expr[Atomic[A]](c.prefix.tree)
       val tree = q"""$selfExpr.subtract($value)"""
       inlineAndReset[Unit](tree)

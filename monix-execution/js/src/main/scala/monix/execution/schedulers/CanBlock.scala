@@ -18,6 +18,7 @@
 package monix.execution.schedulers
 
 import scala.annotation.implicitNotFound
+import scala.annotation.nowarn
 
 /** Marker for blocking operations that need to be disallowed on top of
   * JavaScript engines, or other platforms that don't support the blocking
@@ -76,4 +77,5 @@ import scala.annotation.implicitNotFound
     "on top of JavaScript, because it cannot block threads! \n" +
     "Please use asynchronous API calls."
 )
+@nowarn("cat=unused-privates")
 final class CanBlock private ()

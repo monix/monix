@@ -50,10 +50,7 @@ private[eval] object TaskMapBoth {
   private final class Register[A1, A2, R](fa1: Task[A1], fa2: Task[A2], f: (A1, A2) => R) extends ForkedRegister[R] {
 
     /* For signaling the values after the successful completion of both tasks. */
-    def sendSignal(mainConn: TaskConnection, cb: Callback[Throwable, R], a1: A1, a2: A2)(
-      implicit s: Scheduler
-    ): Unit = {
-
+    def sendSignal(mainConn: TaskConnection, cb: Callback[Throwable, R], a1: A1, a2: A2): Unit = {
       var streamErrors = true
       try {
         val r = f(a1, a2)
@@ -115,7 +112,7 @@ private[eval] object TaskMapBoth {
               case null => // null means this is the first task to complete
                 if (!state.compareAndSet(null, Left(a1))) onSuccess(a1)
               case Right(a2) => // the other task completed, so we can send
-                sendSignal(mainConn, cb, a1, a2.asInstanceOf[A2])(s)
+                sendSignal(mainConn, cb, a1, a2.asInstanceOf[A2])
               case Stop => // the other task triggered an error
                 () // do nothing
               case s @ Left(_) =>
@@ -143,7 +140,7 @@ private[eval] object TaskMapBoth {
               case null => // null means this is the first task to complete
                 if (!state.compareAndSet(null, Right(a2))) onSuccess(a2)
               case Left(a1) => // the other task completed, so we can send
-                sendSignal(mainConn, cb, a1.asInstanceOf[A1], a2)(s)
+                sendSignal(mainConn, cb, a1.asInstanceOf[A1], a2)
               case Stop => // the other task triggered an error
                 () // do nothing
               case s @ Right(_) =>

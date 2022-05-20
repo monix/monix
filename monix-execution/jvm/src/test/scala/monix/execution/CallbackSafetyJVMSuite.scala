@@ -138,42 +138,42 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
     ()
   }
 
-  test("Callback.fromAttempt is quasi-safe via onSuccess") { implicit sc =>
+  test("Callback.fromAttempt is quasi-safe via onSuccess") { _ =>
     executeQuasiSafeOnSuccessTest { cb =>
       val f = (r: Either[Throwable, Int]) => cb(r)
       Callback.fromAttempt(f)
     }
   }
 
-  test("Callback.fromAttempt is quasi-safe via onError") { implicit sc =>
+  test("Callback.fromAttempt is quasi-safe via onError") { _ =>
     executeQuasiSafeOnFailureTest { cb =>
       val f = (r: Either[Throwable, Int]) => cb(r)
       Callback.fromAttempt(f)
     }
   }
 
-  test("Callback.fromTry is quasi-safe via onSuccess") { implicit sc =>
+  test("Callback.fromTry is quasi-safe via onSuccess") { _ =>
     executeQuasiSafeOnSuccessTest { cb =>
       val f = (r: Try[Int]) => cb(r)
       Callback.fromTry(f)
     }
   }
 
-  test("Callback.fromTry is quasi-safe via onError") { implicit sc =>
+  test("Callback.fromTry is quasi-safe via onError") { _ =>
     executeQuasiSafeOnFailureTest { cb =>
       val f = (r: Try[Int]) => cb(r)
       Callback.fromTry(f)
     }
   }
 
-  test("Normal callback is not quasi-safe via onSuccess") { implicit sc =>
+  test("Normal callback is not quasi-safe via onSuccess") { _ =>
     intercept[MiniTestException] {
       executeQuasiSafeOnSuccessTest(x => x)
     }
     ()
   }
 
-  test("Normal callback is not quasi-safe via onError") { implicit sc =>
+  test("Normal callback is not quasi-safe via onError") { _ =>
     intercept[MiniTestException] {
       executeQuasiSafeOnFailureTest(x => x)
     }

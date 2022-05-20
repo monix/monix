@@ -23,6 +23,7 @@ import monix.execution.schedulers.TrampolineExecutionContext
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.Future
+import scala.annotation.unused
 
 /**
   * Type class describing how [[Local]] binding works for specific data types.
@@ -72,7 +73,7 @@ private[misc] abstract class CanIsolateInstancesLevel1 extends CanIsolateInstanc
       * Needs to be imported explicitly in scope. Will NOT override
       * other `CanBindLocals` implicits that are already visible.
       */
-    @inline implicit def synchronousAsDefault[R](implicit ev: Not[CanBindLocals[R]]): CanBindLocals[R] =
+    @inline implicit def synchronousAsDefault[R](implicit @unused ev: Not[CanBindLocals[R]]): CanBindLocals[R] =
       CanBindLocals.synchronous[R]
   }
 }

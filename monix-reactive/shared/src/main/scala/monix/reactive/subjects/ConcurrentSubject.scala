@@ -120,7 +120,7 @@ object ConcurrentSubject {
     from(BehaviorSubject[A](initial), strategy)
 
   /** Subject recipe for building [[AsyncSubject async]] subjects. */
-  def async[A](implicit s: Scheduler): ConcurrentSubject[A, A] =
+  def async[A]: ConcurrentSubject[A, A] =
     new ConcurrentAsyncSubject(AsyncSubject[A]())
 
   /** Subject recipe for building [[ReplaySubject replay]] subjects. */

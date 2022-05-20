@@ -69,7 +69,7 @@ private[reactive] final class OnCancelTriggerErrorObservable[A](source: Observab
             Stop
           }
         } else {
-          ack.onComplete(result => self.synchronized(stopStreamOnCancel(ack)))
+          ack.onComplete(_ => self.synchronized(stopStreamOnCancel(ack)))
           ack
         }
       }

@@ -35,7 +35,7 @@ import scala.util.{ Failure, Success }
 private[observers] final class SyncBufferedSubscriber[-A] private (
   out: Subscriber[A],
   queue: EvictingQueue[A],
-  onOverflow: Long => Coeval[Option[A]] = null
+  onOverflow: Long => Coeval[Option[A]] /*| Null*/,
 ) extends BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   implicit val scheduler = out.scheduler
@@ -122,7 +122,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private (
           Stop
       }
 
-    private def downstreamSignalComplete(ex: Throwable = null): Unit = {
+    private def downstreamSignalComplete(ex: Throwable /* | Null*/ ): Unit = {
       downstreamIsComplete = true
       try {
         if (ex != null) out.onError(ex)

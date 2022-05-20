@@ -17,6 +17,8 @@
 
 package monix.execution.atomic
 
+import scala.annotation.unused
+
 /** Atomic references wrapping `Int` values.
   *
   * Note that the equality test in `compareAndSet` is value based,
@@ -119,9 +121,9 @@ object AtomicInt {
   /** $createDesc
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
+    * @param padding — NOT USED on top of JavaScript;
     */
-  def withPadding(initialValue: Int, padding: PaddingStrategy): AtomicInt =
+  def withPadding(initialValue: Int, @unused padding: PaddingStrategy): AtomicInt =
     new AtomicInt(initialValue)
 
   /** $createDesc
@@ -131,12 +133,10 @@ object AtomicInt {
     * `getAndSet` and for `getAndAdd`.
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
-    * @param allowPlatformIntrinsics is a boolean parameter that specifies whether
-    *        the instance is allowed to use the Java 8 optimized operations
-    *        for `getAndSet` and for `getAndAdd`
+    * @param padding — NOT USED on top of JavaScript;
+    * @param allowPlatformIntrinsics — NOT USED on top of JavaScript;
     */
-  def create(initialValue: Int, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicInt =
+  def create(initialValue: Int, @unused padding: PaddingStrategy, @unused allowPlatformIntrinsics: Boolean): AtomicInt =
     new AtomicInt(initialValue)
 
   /** $createDesc
@@ -152,8 +152,8 @@ object AtomicInt {
     * recommended, because the "safe" atomic instances have overhead.
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
+    * @param padding — NOT USED on top of JavaScript;
     */
-  def safe(initialValue: Int, padding: PaddingStrategy): AtomicInt =
+  def safe(initialValue: Int, @unused padding: PaddingStrategy): AtomicInt =
     new AtomicInt(initialValue)
 }

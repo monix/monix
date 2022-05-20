@@ -29,7 +29,7 @@ import monix.execution._
 import monix.execution.annotations.{ UnsafeBecauseBlocking, UnsafeBecauseImpure }
 import monix.execution.internal.{ Newtype1, Platform }
 import monix.execution.misc.Local
-import monix.execution.schedulers.{ CanBlock, TracingScheduler, TrampolinedRunnable }
+import monix.execution.schedulers.{ CanBlock, TracingScheduler }
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
 import org.reactivestreams.Publisher
@@ -38,6 +38,7 @@ import scala.annotation.unchecked.{ uncheckedVariance => uV }
 import scala.concurrent.duration.{ Duration, FiniteDuration, NANOSECONDS, TimeUnit }
 import scala.concurrent.{ ExecutionContext, Future, TimeoutException }
 import scala.util.{ Failure, Success, Try }
+import scala.annotation.unused
 
 /** `Task` represents a specification for a possibly lazy or
   * asynchronous computation, which when executed will produce an `A`
@@ -1091,7 +1092,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     implicit
     s: Scheduler,
     opts: Options,
-    permit: CanBlock
+    @unused permit: CanBlock
   ): A = {
     /*_*/
     val opts2 = opts.withSchedulerFeatures

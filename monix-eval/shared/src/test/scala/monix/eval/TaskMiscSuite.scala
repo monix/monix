@@ -158,7 +158,7 @@ object TaskMiscSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "should not have tasks left to execute")
   }
 
-  test("Task.pure is an alias of now") { implicit s =>
+  test("Task.pure is an alias of now") { _ =>
     assertEquals(Task.pure(1), Task.now(1))
   }
 

@@ -46,7 +46,7 @@ object TaskToFutureSuite extends BaseTestSuite {
 
   test("Task.deferFutureAction for already completed references") { implicit s =>
     def sum(list: List[Int]): Task[Int] =
-      Task.deferFutureAction(implicit s => Future.successful(list.sum))
+      Task.deferFutureAction(_ => Future.successful(list.sum))
 
     val f = sum((0 until 100).toList).runToFuture
 
@@ -104,10 +104,10 @@ object TaskToFutureSuite extends BaseTestSuite {
     def loop(n: Int, acc: Int): Task[Int] =
       if (n > 0)
         Task
-          .deferFutureAction(implicit s => Future.successful(acc + 1))
+          .deferFutureAction(_ => Future.successful(acc + 1))
           .flatMap(loop(n - 1, _))
       else
-        Task.deferFutureAction(implicit s => Future.successful(acc))
+        Task.deferFutureAction(_ => Future.successful(acc))
 
     val f = loop(10000, 0).runToFuture; s.tick()
     assertEquals(f.value, Some(Success(10000)))
@@ -222,7 +222,7 @@ object TaskToFutureSuite extends BaseTestSuite {
 
   test("Task.deferFutureAction(cancelable)") { implicit s =>
     val f1 = Task.eval(1).delayExecution(1.second).runToFuture
-    val f2 = Task.deferFutureAction(implicit s => f1).runToFuture
+    val f2 = Task.deferFutureAction(_ => f1).runToFuture
 
     assertEquals(f2.value, None)
     s.tick(1.second)
@@ -231,7 +231,7 @@ object TaskToFutureSuite extends BaseTestSuite {
 
   test("Task.deferFutureAction(cancelable) is cancelable") { implicit s =>
     val f1 = Task.eval(1).delayExecution(1.second).runToFuture
-    val f2 = Task.deferFutureAction(implicit s => f1).runToFuture
+    val f2 = Task.deferFutureAction(_ => f1).runToFuture
 
     assertEquals(f2.value, None)
     f2.cancel()

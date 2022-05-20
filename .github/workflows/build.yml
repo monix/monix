@@ -250,12 +250,14 @@ jobs:
 
   all_tests:
     name: All Tests
+    if: always()
     needs: [ jvm-tests, js-tests, mima, scalafmt, unidoc ]
     runs-on: ubuntu-20.04
     steps:
-      - name: Ack
-        run: |
-          echo "All done."
+    - name: Validate required tests
+      uses: re-actors/alls-green@release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
 
   publish:
     name: Publish to Sonatype

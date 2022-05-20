@@ -69,7 +69,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.timer is implicit") { implicit s =>
+  test("Task.timer is implicit") { _ =>
     assertEquals(Task.timer, implicitly[Timer[Task]])
     assertEquals(Task.timer.clock, implicitly[Clock[Task]])
   }
@@ -104,7 +104,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.contextShift is implicit") { implicit s =>
+  test("Task.contextShift is implicit") { _ =>
     assertEquals(Task.contextShift, implicitly[ContextShift[Task]])
   }
 
