@@ -608,6 +608,26 @@ lazy val executionAtomicJS = project.in(file("monix-execution/atomic/js"))
   .settings(macroDependencies)
 
 // --------------------------------------------
+// monix-execution-cancelable
+
+lazy val executionCancelableProfile =
+  crossModule(
+    projectName  = "monix-execution-cancelable",
+    withDocTests = true,
+    crossSettings = Seq(
+      description := "Sub-module of Monix, exposing `Cancelable`. See: https://monix.io",
+    )
+  )
+
+lazy val executionCancelableJVM = project.in(file("monix-execution/cancelable/.jvm"))
+  .configure(executionCancelableProfile.jvm)
+  .dependsOn(executionAtomicJVM)
+
+lazy val executionCancelableJS = project.in(file("monix-execution/cancelable/.js"))
+  .configure(executionCancelableProfile.js)
+  .dependsOn(executionAtomicJS)
+
+// --------------------------------------------
 // monix-execution
 
 lazy val executionProfile =
