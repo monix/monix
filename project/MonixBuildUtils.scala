@@ -48,16 +48,14 @@ final case class MonixCrossModule(
 )
 
 object MonixBuildUtils {
-  /**
-    * Applies [[filterOutDependencyFromGeneratedPomXml]] to a list of multiple dependencies.
+  /** Applies [[filterOutDependencyFromGeneratedPomXml]] to a list of multiple dependencies.
     */
   def filterOutMultipleDependenciesFromGeneratedPomXml(list: List[(String, Regex)]*) =
     list.foldLeft(List.empty[Def.Setting[_]]) { (acc, elem) =>
       acc ++ filterOutDependencyFromGeneratedPomXml(elem: _*)
     }
 
-  /**
-    * Filter out dependencies from the generated `pom.xml`.
+  /** Filter out dependencies from the generated `pom.xml`.
     *
     * E.g. to exclude Scoverage:
     * {{{
@@ -95,8 +93,7 @@ object MonixBuildUtils {
     }
   }
 
-  /**
-    * Reads the Scala versions from `.github/workflows/build.yml`.
+  /** Reads the Scala versions from `.github/workflows/build.yml`.
     */
   def scalaVersionsFromBuildYaml(manifest: File): SortedSet[MonixScalaVersion] = {
     Using.fileInputStream(manifest) { fis =>

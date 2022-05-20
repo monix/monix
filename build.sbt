@@ -38,17 +38,18 @@ addCommandAlias(
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions
 
-val cats_Version             = "2.7.0"
-val catsEffect_Version       = "2.5.5"
-val fs2_Version              = "2.5.11"
-val jcTools_Version          = "3.3.0"
-val reactiveStreams_Version  = "1.0.3"
-val minitest_Version         = "2.9.6"
-val implicitBox_Version      = "0.3.4"
-val kindProjector_Version    = "0.13.2"
-val betterMonadicFor_Version = "0.3.1"
-val silencer_Version         = "1.7.8"
-val scalaCompat_Version      = "2.7.0"
+val cats_Version              = "2.7.0"
+val catsEffect_Version        = "2.5.5"
+val fs2_Version               = "2.5.11"
+val jcTools_Version           = "3.3.0"
+val reactiveStreams_Version   = "1.0.3"
+val macrotaskExecutor_Version = "1.0.0"
+val minitest_Version          = "2.9.6"
+val implicitBox_Version       = "0.3.4"
+val kindProjector_Version     = "0.13.2"
+val betterMonadicFor_Version  = "0.3.1"
+val silencer_Version          = "1.7.8"
+val scalaCompat_Version       = "2.7.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -91,7 +92,11 @@ lazy val reactiveStreamsLib =
 lazy val reactiveStreamsTCKLib =
   "org.reactivestreams" % "reactive-streams-tck" % reactiveStreams_Version
 
-/** [[https://github.com/typelevel/kind-projector]]  */
+/** [[https://github.com/scala-js/scala-js-macrotask-executor]] */
+lazy val macrotaskExecutorLib =
+  Def.setting { "org.scala-js" %%% "scala-js-macrotask-executor" % macrotaskExecutor_Version }
+
+/** [[https://github.com/typelevel/kind-projector]] */
 lazy val kindProjectorCompilerPlugin =
   "org.typelevel" % "kind-projector" % kindProjector_Version cross CrossVersion.full
 
@@ -631,6 +636,7 @@ lazy val executionJVM = project
 lazy val executionJS = project
   .in(file("monix-execution/js"))
   .configure(executionProfile.js)
+  .settings(libraryDependencies += macrotaskExecutorLib.value)
   .aggregate(executionAtomicJS)
   .dependsOn(executionAtomicJS)
 
