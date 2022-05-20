@@ -38,7 +38,7 @@ import scala.annotation.nowarn
 private[observers] final class DropNewBufferedSubscriber[A] private (
   out: Subscriber[A],
   bufferSize: Int,
-  @nowarn("cat=unused-privates") onOverflow: Long => Coeval[Option[A]] = null,
+  @nowarn onOverflow: Long => Coeval[Option[A]] = null,
 ) extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")

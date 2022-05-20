@@ -23,7 +23,7 @@ import monix.eval.Task
 import monix.execution.Callback
 import monix.execution.misc.Local
 import monix.execution.schedulers.TrampolinedRunnable
-import scala.annotation.nowarn
+import scala.annotation.unused
 
 private[internal] abstract class TaskRestartCallback(contextInit: Context, callback: Callback[Throwable, Any])
   extends Callback[Throwable, Any] with TrampolinedRunnable {
@@ -90,8 +90,7 @@ private[internal] abstract class TaskRestartCallback(contextInit: Context, callb
       // $COVERAGE-ON$
     }
 
-  @nowarn("cat=unused-params")
-  protected def prepareStart(task: Task.Async[_]): Unit = ()
+  protected def prepareStart(@unused task: Task.Async[_]): Unit = ()
   protected def prepareCallback: Callback[Throwable, Any] = callback
   private[this] val wrappedCallback = prepareCallback
 
