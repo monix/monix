@@ -145,7 +145,9 @@ object Atomic {
   /** Returns the builder that would be chosen to construct Atomic
     * references for the given `initialValue`.
     */
-  def builderFor[A, R <: Atomic[A]](@unused initialValue: A)(implicit builder: AtomicBuilder[A, R]): AtomicBuilder[A, R] =
+  def builderFor[A, R <: Atomic[A]](@unused initialValue: A)(implicit
+    builder: AtomicBuilder[A, R]
+  ): AtomicBuilder[A, R] =
     builder
 
   implicit final class DeprecatedExtensions[A](val self: Atomic[A]) extends AnyVal {
