@@ -1939,7 +1939,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
 
   /** Dematerializes the source's result from a `Try`. */
   final def dematerialize[B](implicit ev: A <:< Try[B]): Task[B] =
-    this.asInstanceOf[Task[Try[B]]].flatMap(fromTry)
+    this.flatMap(x => fromTry(ev(x)))
 
   /** Returns a new task that mirrors the source task for normal termination,
     * but that triggers the given error on cancellation.

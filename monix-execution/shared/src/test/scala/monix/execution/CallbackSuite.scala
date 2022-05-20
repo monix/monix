@@ -114,7 +114,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
   }
 
   test("Callback.empty reports errors") { implicit s =>
-    val empty = Callback[Throwable].empty[Int]
+    val empty = Callback.empty[Throwable, Int]
     val dummy = DummyException("dummy")
     empty.onError(dummy)
 
@@ -134,7 +134,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
         throw new IllegalStateException("onError")
     }
 
-    val safe = Callback[Throwable].safe(cb)
+    val safe = Callback.safe(cb)
     assert(safe.tryOnSuccess(1), "safe.tryOnSuccess(1)")
 
     assertEquals(effect, 1)
@@ -159,7 +159,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val safe = Callback[Throwable].safe(cb)
+    val safe = Callback.safe(cb)
     assert(safe.tryOnError(dummy2), "safe.onError(dummy2)")
 
     assertEquals(effect, 1)
@@ -188,7 +188,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
 
   test("fromAttempt success") { _ =>
     val p = Promise[Int]()
-    val cb = Callback[Throwable].fromAttempt[Int] {
+    val cb = Callback.fromAttempt[Throwable, Int] {
       case Right(a) => p.success(a); ()
       case Left(e) => p.failure(e); ()
     }
@@ -199,7 +199,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
 
   test("fromAttempt error") { _ =>
     val p = Promise[Int]()
-    val cb = Callback[Throwable].fromAttempt[Int] {
+    val cb = Callback.fromAttempt[Throwable, Int] {
       case Right(a) => p.success(a); ()
       case Left(e) => p.failure(e); ()
     }

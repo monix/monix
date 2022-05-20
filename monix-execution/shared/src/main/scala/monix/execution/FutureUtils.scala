@@ -151,7 +151,7 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
 
       /** [[FutureUtils.dematerialize]] exposed as an extension method. */
       def dematerialize[U](implicit ev: A <:< Try[U], ec: ExecutionContext): Future[U] =
-        FutureUtils.dematerialize(source.asInstanceOf[Future[Try[U]]])
+        FutureUtils.dematerialize(source.map(ev.apply))
     }
 
     /** Provides utility methods for Scala's `concurrent.Future` companion object. */
