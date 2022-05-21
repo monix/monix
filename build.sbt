@@ -252,7 +252,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
 
   //
   // Tries disabling parallel execution in tests (in the same project / task)
-  Test / logBuffered := !isCI,
+  Test / logBuffered := isCI,
   Test / parallelExecution := false,
   Test / testForkedParallel := false,
 
