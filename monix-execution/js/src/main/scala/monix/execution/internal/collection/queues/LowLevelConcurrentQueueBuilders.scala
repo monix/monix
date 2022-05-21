@@ -19,12 +19,17 @@ package monix.execution.internal.collection.queues
 
 import monix.execution.{ BufferCapacity, ChannelType }
 import monix.execution.internal.collection.{ JSArrayQueue, LowLevelConcurrentQueue }
+import scala.annotation.unused
 
 private[internal] trait LowLevelConcurrentQueueBuilders {
   /**
     * Builds a `ConcurrentQueue` reference.
     */
-  def apply[A](capacity: BufferCapacity, channelType: ChannelType, fenced: Boolean): LowLevelConcurrentQueue[A] =
+  def apply[A](
+    capacity: BufferCapacity,
+    @unused channelType: ChannelType,
+    @unused fenced: Boolean
+  ): LowLevelConcurrentQueue[A] =
     capacity match {
       case BufferCapacity.Bounded(c) => JSArrayQueue.bounded[A](c)
       case BufferCapacity.Unbounded(_) => JSArrayQueue.unbounded[A]

@@ -17,16 +17,11 @@
 
 package monix.reactive.internal.builders
 
-import cats.effect.IO
-import cats.laws._
-import cats.laws.discipline._
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
-import monix.execution.internal.Platform.recommendedBatchSize
 import monix.reactive.observers.Subscriber
 import monix.reactive.{ BaseTestSuite, Observable }
-
 import scala.concurrent.duration.MILLISECONDS
 
 object PaginateEvalObservableSuite extends BaseTestSuite {

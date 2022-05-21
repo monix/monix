@@ -186,7 +186,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assert(bc.isCanceled, "bc.isCanceled")
   }
 
-  test("pop when self is empty") { implicit s =>
+  test("pop when self is empty") { _ =>
     val sc = TaskConnection()
     assertEquals(sc.pop(), Task.unit)
   }
@@ -289,7 +289,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assert(c1.isCanceled, "c1.isCanceled")
   }
 
-  test("uncancelable ref is shared") { implicit s =>
+  test("uncancelable ref is shared") { _ =>
     val t = TaskConnection.uncancelable
     assertEquals(t, TaskConnection.uncancelable)
   }

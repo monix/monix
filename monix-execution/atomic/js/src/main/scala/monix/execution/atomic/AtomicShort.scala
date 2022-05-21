@@ -17,6 +17,8 @@
 
 package monix.execution.atomic
 
+import scala.annotation.unused
+
 /** Atomic references wrapping `Short` values.
   *
   * Note that the equality test in `compareAndSet` is value based,
@@ -122,7 +124,7 @@ object AtomicShort {
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
-  def withPadding(initialValue: Short, padding: PaddingStrategy): AtomicShort =
+  def withPadding(initialValue: Short, @unused padding: PaddingStrategy): AtomicShort =
     new AtomicShort(initialValue)
 
   /** $createDesc
@@ -137,7 +139,11 @@ object AtomicShort {
     *        the instance is allowed to use the Java 8 optimized operations
     *        for `getAndSet` and for `getAndAdd`
     */
-  def create(initialValue: Short, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicShort =
+  def create(
+    initialValue: Short,
+    @unused padding: PaddingStrategy,
+    @unused allowPlatformIntrinsics: Boolean
+  ): AtomicShort =
     new AtomicShort(initialValue)
 
   /** $createDesc
@@ -155,6 +161,6 @@ object AtomicShort {
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
-  def safe(initialValue: Short, padding: PaddingStrategy): AtomicShort =
+  def safe(initialValue: Short, @unused padding: PaddingStrategy): AtomicShort =
     new AtomicShort(initialValue)
 }

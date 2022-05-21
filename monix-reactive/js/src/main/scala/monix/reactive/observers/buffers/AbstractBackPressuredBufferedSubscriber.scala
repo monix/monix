@@ -122,7 +122,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
           Stop
       }
 
-    private def downstreamSignalComplete(ex: Throwable = null): Unit = {
+    private def downstreamSignalComplete(ex: Throwable /* | Null*/ ): Unit = {
       downstreamIsComplete = true
       try {
         if (ex != null) out.onError(ex)

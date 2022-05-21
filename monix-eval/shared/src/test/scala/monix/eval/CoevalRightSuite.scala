@@ -18,7 +18,7 @@
 package monix.eval
 
 object CoevalRightSuite extends BaseTestSuite {
-  test("Coeval.right should return a Now with a Right") { implicit s =>
+  test("Coeval.right should return a Now with a Right") { _ =>
     val t = Coeval.right[Int, String]("t")
     t.value() match {
       case Right(_: String) =>

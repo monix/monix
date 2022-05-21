@@ -19,6 +19,7 @@ package monix.execution.atomic.internal
 
 import minitest.SimpleTestSuite
 import scala.util.control.NonFatal
+import scala.annotation.unused
 
 object InlineMacrosTest extends SimpleTestSuite {
   class DummyException(msg: String) extends RuntimeException(msg)
@@ -115,7 +116,7 @@ object InlineMacrosTest extends SimpleTestSuite {
   test("Inline NonFatal clause") {
     val box = TestBox(1)
     val dummy = new DummyException("dummy")
-    def increment(x: Int): Int = throw dummy
+    def increment(@unused x: Int): Int = throw dummy
 
     val mapped = box.map { x =>
       try increment(x)

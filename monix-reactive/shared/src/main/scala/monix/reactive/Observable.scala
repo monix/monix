@@ -1169,7 +1169,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * result of [[materialize]]) back to an Observable that emits `A`.
     */
   final def dematerialize[B](implicit ev: A <:< Notification[B]): Observable[B] =
-    self.asInstanceOf[Observable[Notification[B]]].liftByOperator(new DematerializeOperator[B])
+    self.map(ev).liftByOperator(new DematerializeOperator[B])
 
   /** Suppress duplicate consecutive items emitted by the source.
     *

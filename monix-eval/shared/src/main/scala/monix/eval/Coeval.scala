@@ -724,7 +724,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * `fa.materialize.dematerialize <-> fa`
     */
   final def dematerialize[B](implicit ev: A <:< Try[B]): Coeval[B] =
-    self.asInstanceOf[Coeval[Try[B]]].flatMap(Eager.fromTry)
+    self.flatMap(x => Eager.fromTry(ev(x)))
 
   /**
     * Converts the source [[Coeval]] into any `F[_]` that implements

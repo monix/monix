@@ -59,7 +59,7 @@ object ExecutionModelSuite extends SimpleTestSuite {
       assert(em.recommendedBatchSize >= i)
 
       var index = 1
-      for (j <- 1 until em.recommendedBatchSize * 3) {
+      for (_ <- 1 until em.recommendedBatchSize * 3) {
         index = em.nextFrameIndex(index)
         assert(index >= 0 && index < em.recommendedBatchSize)
       }

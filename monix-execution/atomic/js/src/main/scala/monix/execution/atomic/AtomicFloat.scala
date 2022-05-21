@@ -17,6 +17,8 @@
 
 package monix.execution.atomic
 
+import scala.annotation.unused
+
 /** Atomic references wrapping `Float` values.
   *
   * Note that the equality test in `compareAndSet` is value based,
@@ -121,7 +123,7 @@ object AtomicFloat {
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
-  def withPadding(initialValue: Float, padding: PaddingStrategy): AtomicFloat =
+  def withPadding(initialValue: Float, @unused padding: PaddingStrategy): AtomicFloat =
     new AtomicFloat(initialValue)
 
   /** $createDesc
@@ -136,7 +138,11 @@ object AtomicFloat {
     *        the instance is allowed to use the Java 8 optimized operations
     *        for `getAndSet` and for `getAndAdd`
     */
-  def create(initialValue: Float, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicFloat =
+  def create(
+    initialValue: Float,
+    @unused padding: PaddingStrategy,
+    @unused allowPlatformIntrinsics: Boolean
+  ): AtomicFloat =
     new AtomicFloat(initialValue)
 
   /** $createDesc
@@ -151,9 +157,9 @@ object AtomicFloat {
     * supports `sun.misc.Unsafe` and if it does, then its usage is
     * recommended, because the "safe" atomic instances have overhead.
     *
-    * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
+    * @param initialValue is the initial value with which to initialize the atomic;
+    * @param padding — NOT USED on top of JavaScript;
     */
-  def safe(initialValue: Float, padding: PaddingStrategy): AtomicFloat =
+  def safe(initialValue: Float, @unused padding: PaddingStrategy): AtomicFloat =
     new AtomicFloat(initialValue)
 }

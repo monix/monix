@@ -198,17 +198,17 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
       for (f <- fun.arbitrary) yield { case (t: Throwable) => f(t.hashCode()) }
     }
 
-  implicit def arbitraryCoevalToLong[A, B](implicit A: Arbitrary[A], B: Arbitrary[B]): Arbitrary[Coeval[A] => B] =
+  implicit def arbitraryCoevalToLong[A, B](implicit B: Arbitrary[B]): Arbitrary[Coeval[A] => B] =
     Arbitrary {
       for (b <- B.arbitrary) yield (_: Coeval[A]) => b
     }
 
-  implicit def arbitraryTaskToLong[A, B](implicit A: Arbitrary[A], B: Arbitrary[B]): Arbitrary[Task[A] => B] =
+  implicit def arbitraryTaskToLong[A, B](implicit B: Arbitrary[B]): Arbitrary[Task[A] => B] =
     Arbitrary {
       for (b <- B.arbitrary) yield (_: Task[A]) => b
     }
 
-  implicit def arbitraryIOToLong[A, B](implicit A: Arbitrary[A], B: Arbitrary[B]): Arbitrary[IO[A] => B] =
+  implicit def arbitraryIOToLong[A, B](implicit B: Arbitrary[B]): Arbitrary[IO[A] => B] =
     Arbitrary {
       for (b <- B.arbitrary) yield (_: IO[A]) => b
     }

@@ -18,13 +18,13 @@
 package monix.eval
 
 object CoevalOptionSuite extends BaseTestSuite {
-  test("Coeval.none should return a Now with a None") { implicit s =>
+  test("Coeval.none should return a Now with a None") { _ =>
     val c = Coeval.none[Int]
 
     assertEquals(c.value(), None)
   }
 
-  test("Coeval.some should return a Now with a Some") { implicit s =>
+  test("Coeval.some should return a Now with a Some") { _ =>
     val c = Coeval.some[Int](1)
 
     assertEquals(c.value(), Some(1))

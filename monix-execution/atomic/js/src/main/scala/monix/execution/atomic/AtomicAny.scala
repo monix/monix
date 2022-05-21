@@ -17,6 +17,8 @@
 
 package monix.execution.atomic
 
+import scala.annotation.unused
+
 /** Atomic references wrapping `AnyRef` values.
   *
   * @tparam A is forced to be an `AnyRef` because the equality test is
@@ -71,7 +73,7 @@ object AtomicAny {
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
-  def withPadding[A <: AnyRef](initialValue: A, padding: PaddingStrategy): AtomicAny[A] =
+  def withPadding[A <: AnyRef](initialValue: A, @unused padding: PaddingStrategy): AtomicAny[A] =
     new AtomicAny(initialValue)
 
   /** $createDesc
@@ -86,7 +88,11 @@ object AtomicAny {
     *        the instance is allowed to use the Java 8 optimized operations
     *        for `getAndSet` and for `getAndAdd`
     */
-  def create[A <: AnyRef](initialValue: A, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicAny[A] =
+  def create[A <: AnyRef](
+    initialValue: A,
+    @unused padding: PaddingStrategy,
+    @unused allowPlatformIntrinsics: Boolean
+  ): AtomicAny[A] =
     new AtomicAny(initialValue)
 
   /** $createDesc
@@ -104,6 +110,6 @@ object AtomicAny {
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
-  def safe[A <: AnyRef](initialValue: A, padding: PaddingStrategy): AtomicAny[A] =
+  def safe[A <: AnyRef](initialValue: A, @unused padding: PaddingStrategy): AtomicAny[A] =
     new AtomicAny(initialValue)
 }

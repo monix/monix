@@ -182,17 +182,6 @@ abstract class Callback[-E, -A] extends (Either[E, A] => Unit) {
   *         [[monix.execution.exceptions.CallbackCalledMultipleTimesException CallbackCalledMultipleTimesException]].
   */
 object Callback {
-  /**
-    * For building [[Callback]] objects using the
-    * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type]]
-    * technique.
-    *
-    * For example these are Equivalent:
-    *
-    * `Callback[Throwable, Throwable].empty[String] <-> Callback.empty[Throwable, String]`
-    */
-  def apply[E]: Builders[E] = new Builders[E]
-
   /** Wraps any [[Callback]] into a safer implementation that
     * protects against protocol violations (e.g. `onSuccess` or `onError`
     * must be called at most once).
@@ -345,38 +334,8 @@ object Callback {
   private[monix] def signalErrorTrampolined[E, A](cb: Callback[E, A], e: E): Unit =
     TrampolineExecutionContext.immediate.execute(() => cb.onError(e))
 
-  /** Functions exposed via [[apply]]. */
-  final class Builders[E](val ev: Boolean = true) extends AnyVal {
-    /** See [[Callback.safe]]. */
-    def safe[A](cb: Callback[E, A])(implicit r: UncaughtExceptionReporter): Callback[E, A] =
-      Callback.safe(cb)
-
-    /** See [[Callback.empty]]. */
-    def empty[A](implicit r: UncaughtExceptionReporter): Callback[E, A] =
-      Callback.empty
-
-    /** See [[Callback.fromPromise]]. */
-    def fromPromise[A](p: Promise[A])(implicit ev: Throwable <:< E): Callback[Throwable, A] =
-      Callback.fromPromise(p)
-
-    /** See [[Callback.forked]]. */
-    def forked[A](cb: Callback[E, A])(implicit ec: ExecutionContext): Callback[E, A] =
-      Callback.forked(cb)
-
-    /** See [[Callback.trampolined]]. */
-    def trampolined[A](cb: Callback[E, A])(implicit ec: ExecutionContext): Callback[E, A] =
-      Callback.trampolined(cb)
-
-    /** See [[Callback.fromAttempt]]. */
-    def fromAttempt[A](cb: Either[E, A] => Unit): Callback[E, A] =
-      Callback.fromAttempt(cb)
-
-    /** See [[Callback.fromTry]]. */
-    def fromTry[A](cb: Try[A] => Unit)(implicit ev: Throwable <:< E): Callback[Throwable, A] =
-      Callback.fromTry(cb)
-  }
-
-  private final class AsyncFork[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext) extends Base[E, A](cb)(ec)
+  private final class AsyncFork[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext)
+    extends Base[E, A](cb)(ec)
 
   private final class TrampolinedCallback[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext)
     extends Base[E, A](cb)(ec) with TrampolinedRunnable

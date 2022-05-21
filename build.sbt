@@ -170,6 +170,11 @@ lazy val isDotty =
     }
   }
 
+lazy val isCI = {
+  sys.env.getOrElse("SBT_PROFILE", "").contains("ci") ||
+  sys.env.get("CI").exists(v => v == "true" || v == "1" || v == "yes")
+}
+
 lazy val sharedSettings = pgpSettings ++ Seq(
   organization := "io.monix",
   // Value extracted from .github/workflows/build.yml
@@ -184,44 +189,39 @@ lazy val sharedSettings = pgpSettings ++ Seq(
       ver
   },
 
-  /*
   // Enable this to debug warnings...
   Compile / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 13)) => Seq("-Wconf:any:warning-verbose")
+      case Some((2, 13) | (3, _)) => Seq("-Wconf:any:warning-verbose")
       case _ => Seq.empty
     }
   },
-   */
-
-  // Disabled from the sbt-tpolecat set
-  Compile / scalacOptions --= Seq(
-    "-Wunused:privates",
-    "-Ywarn-unused:privates",
-    "-Wunused:implicits",
-    "-Ywarn-unused:implicits",
-    "-Wunused:imports",
-    "-Ywarn-unused:imports",
-    "-Wunused:explicits",
-    "-Ywarn-unused:params",
-    "-Wunused:params",
-    "-Xlint:infer-any"
-  ),
 
   // Turning off fatal warnings for doc generation
   Compile / doc / tpolecatExcludeOptions ++= ScalacOptions.defaultConsoleExclude,
+  
+  // Turn off annoyances in tests
+  Test / tpolecatExcludeOptions ++= {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 12)) => 
+        ScalacOptions.defaultConsoleExclude
+      case _ => 
+        Set(
+          ScalacOptions.lintInferAny,
+          ScalacOptions.warnUnusedImplicits,
+          ScalacOptions.warnUnusedExplicits,
+          ScalacOptions.warnUnusedParams,
+          ScalacOptions.warnUnusedNoWarn,
+        )
+    }
+  },
+  
   // Silence everything in auto-generated files
   scalacOptions ++= {
     if (isDotty.value)
       Seq.empty
     else
       Seq("-P:silencer:pathFilters=.*[/]src_managed[/].*")
-  },
-  scalacOptions --= {
-    if (isDotty.value)
-      Seq("-Xfatal-warnings")
-    else
-      Seq()
   },
 
   // Syntax improvements, linting, etc.
@@ -250,12 +250,11 @@ lazy val sharedSettings = pgpSettings ++ Seq(
     file(".").getAbsolutePath.replaceAll("[.]$", "")
   ),
 
-  // Without this setting, the outcome of a test-suite will be printed all at
-  // once, instead of line by line, as tests are being completed
-  Test / logBuffered := false,
   //
   // Tries disabling parallel execution in tests (in the same project / task)
+  Test / logBuffered := isCI,
   Test / parallelExecution := false,
+  Test / testForkedParallel := false,
 
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
@@ -433,9 +432,6 @@ def baseSettingsAndPlugins(publishArtifacts: Boolean): Project ⇒ Project =
       case "coverage" => pr
       case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
     }
-    val isCI = sys.env.getOrElse("SBT_PROFILE", "").contains("ci") ||
-      sys.env.get("CI").exists(v => v == "true" || v == "1" || v == "yes")
-
     withCoverage
       .enablePlugins(AutomateHeaderPlugin)
       .settings(sharedSettings)
@@ -759,7 +755,8 @@ lazy val reactiveTests = project
   .dependsOn(reactiveJVM, tailJVM)
   .settings(
     libraryDependencies ++= Seq(
-      reactiveStreamsTCKLib % Test
+      reactiveStreamsTCKLib % Test,
+      "org.scalatestplus" %% "testng-7-5" % "3.2.12.0" % Test,
     )
   )
 

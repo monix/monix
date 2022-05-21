@@ -99,7 +99,7 @@ object CoevalCatsConversions extends BaseTestSuite {
     assertEquals(eval.value(), 1)
   }
 
-  test("Coeval.from protects against user error") { implicit s =>
+  test("Coeval.from protects against user error") { _ =>
     val dummy = DummyException("dummy")
     val eval = Coeval.from(Eval.always { throw dummy })
     assertEquals(eval.runTry(), Failure(dummy))

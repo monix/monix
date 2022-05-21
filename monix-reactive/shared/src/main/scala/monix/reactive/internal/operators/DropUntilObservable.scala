@@ -38,7 +38,7 @@ private[reactive] final class DropUntilObservable[A](source: Observable[A], trig
       private[this] var errorThrown: Throwable = null
       @volatile private[this] var shouldDrop = true
 
-      private[this] def interruptDropMode(ex: Throwable = null): Ack = {
+      private[this] def interruptDropMode(ex: Throwable /*| Null*/ ): Ack = {
         // must happen before changing shouldDrop
         errorThrown = ex
         shouldDrop = false

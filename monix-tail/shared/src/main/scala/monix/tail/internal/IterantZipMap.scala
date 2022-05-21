@@ -188,10 +188,10 @@ private[tail] object IterantZipMap {
         processPair(lhRef.item, lhRef.rest, ref.item, ref.rest)
 
       def visit(ref: NextBatch[F, B]): Iterant[F, C] =
-        processOneASeqB(lhRef, lhRef.item, lhRef.rest, ref.toNextCursor(), this)
+        processOneASeqB(lhRef.item, lhRef.rest, ref.toNextCursor(), this)
 
       def visit(ref: NextCursor[F, B]): Iterant[F, C] =
-        processOneASeqB(lhRef, lhRef.item, lhRef.rest, ref, this)
+        processOneASeqB(lhRef.item, lhRef.rest, ref, this)
 
       def visit(ref: Suspend[F, B]): Iterant[F, C] =
         Suspend(ref.rest.map(this))
@@ -359,13 +359,11 @@ private[tail] object IterantZipMap {
     }
 
     def processOneASeqB(
-      lh: Iterant[F, A],
       a: A,
       restA: F[Iterant[F, A]],
       refB: NextCursor[F, B],
       loop: Iterant.Visitor[F, B, Iterant[F, C]]
     ): Iterant[F, C] = {
-
       val NextCursor(itemsB, restB) = refB
       if (!itemsB.hasNext())
         Suspend(restB.map(loop))

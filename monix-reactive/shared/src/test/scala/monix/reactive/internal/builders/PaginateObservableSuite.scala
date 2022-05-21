@@ -17,13 +17,9 @@
 
 package monix.reactive.internal.builders
 
-import cats.laws._
-import cats.laws.discipline._
 import monix.execution.Ack.Continue
-import monix.execution.internal.Platform.recommendedBatchSize
 import monix.reactive.observers.Subscriber
 import monix.reactive.{ BaseTestSuite, Observable }
-
 import scala.concurrent.duration.MILLISECONDS
 
 object PaginateObservableSuite extends BaseTestSuite {

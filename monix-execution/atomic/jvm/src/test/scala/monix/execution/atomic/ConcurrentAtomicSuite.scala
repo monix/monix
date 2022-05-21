@@ -39,8 +39,8 @@ abstract class ConcurrentAtomicSuite[A, R <: Atomic[A]](
   test("should perform concurrent compareAndSet") {
     val r = Atomic(zero)
     val futures =
-      for (i <- 0 until 5) yield Future {
-        for (j <- 0 until 100)
+      for (_ <- 0 until 5) yield Future {
+        for (_ <- 0 until 100)
           r.transform(x => valueFromInt(valueToInt(x) + 1))
       }
 
@@ -52,7 +52,7 @@ abstract class ConcurrentAtomicSuite[A, R <: Atomic[A]](
   test("should perform concurrent getAndSet") {
     val r = Atomic(zero)
     val futures =
-      for (i <- 0 until 5) yield Future {
+      for (_ <- 0 until 5) yield Future {
         for (j <- 0 until 100)
           r.getAndSet(valueFromInt(j))
       }

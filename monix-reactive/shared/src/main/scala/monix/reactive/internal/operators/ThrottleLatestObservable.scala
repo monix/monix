@@ -24,8 +24,8 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.{ Future, Promise }
-import scala.concurrent.duration.{ FiniteDuration, MILLISECONDS }
+import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
 
 private[reactive] final class ThrottleLatestObservable[A](
   source: Observable[A],

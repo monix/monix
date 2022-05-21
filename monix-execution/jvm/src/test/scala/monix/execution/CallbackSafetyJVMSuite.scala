@@ -43,34 +43,34 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
   }
 
   test("Callback.safe is thread-safe onSuccess") { implicit sc =>
-    executeOnSuccessTest(Callback[Throwable].safe)
+    executeOnSuccessTest(Callback.safe)
   }
 
   test("Callback.safe is thread-safe onError") { implicit sc =>
-    executeOnErrorTest(Callback[Throwable].safe)
+    executeOnErrorTest(Callback.safe)
   }
 
   test("Callback.trampolined is thread-safe onSuccess") { implicit sc =>
-    executeOnSuccessTest(Callback[Throwable].trampolined)
+    executeOnSuccessTest(Callback.trampolined)
   }
 
   test("Callback.trampolined is thread-safe onError") { implicit sc =>
-    executeOnErrorTest(Callback[Throwable].trampolined)
+    executeOnErrorTest(Callback.trampolined)
   }
 
   test("Callback.forked is thread-safe onSuccess") { implicit sc =>
-    executeOnSuccessTest(Callback[Throwable].forked, isForked = true)
+    executeOnSuccessTest(Callback.forked, isForked = true)
   }
 
   test("Callback.forked is thread-safe onError") { implicit sc =>
-    executeOnErrorTest(Callback[Throwable].forked, isForked = true)
+    executeOnErrorTest(Callback.forked, isForked = true)
   }
 
   test("Callback.fromPromise is thread-safe onSuccess") { implicit sc =>
     val wrap = { (cb: Callback[Throwable, Int]) =>
       val p = Promise[Int]()
       p.future.onComplete(cb.apply)
-      Callback[Throwable].fromPromise(p)
+      Callback.fromPromise(p)
     }
     executeOnSuccessTest(wrap, isForked = true)
   }
@@ -79,7 +79,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
     val wrap = { (cb: Callback[Throwable, String]) =>
       val p = Promise[String]()
       p.future.onComplete(cb.apply)
-      Callback[Throwable].fromPromise(p)
+      Callback.fromPromise(p)
     }
     executeOnErrorTest(wrap, isForked = true)
   }
@@ -121,7 +121,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
 
     val wrap = { (cb: Callback[Throwable, Int]) =>
       val f = (r: Try[Int]) => cb(r)
-      Callback[Throwable].fromTry(f)
+      Callback.fromTry(f)
     }
     intercept[AssertionException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
     ()
@@ -132,48 +132,48 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
 
     val wrap = { (cb: Callback[Throwable, String]) =>
       val f = (r: Try[String]) => cb(r)
-      Callback[Throwable].fromTry(f)
+      Callback.fromTry(f)
     }
     intercept[AssertionException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
     ()
   }
 
-  test("Callback.fromAttempt is quasi-safe via onSuccess") { implicit sc =>
+  test("Callback.fromAttempt is quasi-safe via onSuccess") { _ =>
     executeQuasiSafeOnSuccessTest { cb =>
       val f = (r: Either[Throwable, Int]) => cb(r)
       Callback.fromAttempt(f)
     }
   }
 
-  test("Callback.fromAttempt is quasi-safe via onError") { implicit sc =>
+  test("Callback.fromAttempt is quasi-safe via onError") { _ =>
     executeQuasiSafeOnFailureTest { cb =>
       val f = (r: Either[Throwable, Int]) => cb(r)
       Callback.fromAttempt(f)
     }
   }
 
-  test("Callback.fromTry is quasi-safe via onSuccess") { implicit sc =>
+  test("Callback.fromTry is quasi-safe via onSuccess") { _ =>
     executeQuasiSafeOnSuccessTest { cb =>
       val f = (r: Try[Int]) => cb(r)
       Callback.fromTry(f)
     }
   }
 
-  test("Callback.fromTry is quasi-safe via onError") { implicit sc =>
+  test("Callback.fromTry is quasi-safe via onError") { _ =>
     executeQuasiSafeOnFailureTest { cb =>
       val f = (r: Try[Int]) => cb(r)
       Callback.fromTry(f)
     }
   }
 
-  test("Normal callback is not quasi-safe via onSuccess") { implicit sc =>
+  test("Normal callback is not quasi-safe via onSuccess") { _ =>
     intercept[MiniTestException] {
       executeQuasiSafeOnSuccessTest(x => x)
     }
     ()
   }
 
-  test("Normal callback is not quasi-safe via onError") { implicit sc =>
+  test("Normal callback is not quasi-safe via onError") { _ =>
     intercept[MiniTestException] {
       executeQuasiSafeOnFailureTest(x => x)
     }

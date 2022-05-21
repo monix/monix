@@ -54,6 +54,13 @@ jobs:
           PLATFORM: ${{ matrix.java }}
           SBT_COMMAND: ci-jvm
 
+      - name: sbt reactiveTests/test
+        run: ./.github/scripts/exec-sbt-command
+        env:
+          SCALA_VERSION: ${{ matrix.scala }}
+          PLATFORM: ${{ matrix.java }}
+          SBT_COMMAND: "reactiveTests/test"
+
   js-tests:
     name: JS / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-20.04
