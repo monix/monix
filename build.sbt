@@ -170,6 +170,11 @@ lazy val isDotty =
     }
   }
 
+lazy val isCI = {
+  sys.env.getOrElse("SBT_PROFILE", "").contains("ci") ||
+  sys.env.get("CI").exists(v => v == "true" || v == "1" || v == "yes")
+}
+
 lazy val sharedSettings = pgpSettings ++ Seq(
   organization := "io.monix",
   // Value extracted from .github/workflows/build.yml
@@ -245,12 +250,11 @@ lazy val sharedSettings = pgpSettings ++ Seq(
     file(".").getAbsolutePath.replaceAll("[.]$", "")
   ),
 
-  // Without this setting, the outcome of a test-suite will be printed all at
-  // once, instead of line by line, as tests are being completed
-  Test / logBuffered := false,
   //
   // Tries disabling parallel execution in tests (in the same project / task)
+  Test / logBuffered := !isCI,
   Test / parallelExecution := false,
+  Test / testForkedParallel := false,
 
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
@@ -428,9 +432,6 @@ def baseSettingsAndPlugins(publishArtifacts: Boolean): Project ⇒ Project =
       case "coverage" => pr
       case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
     }
-    val isCI = sys.env.getOrElse("SBT_PROFILE", "").contains("ci") ||
-      sys.env.get("CI").exists(v => v == "true" || v == "1" || v == "yes")
-
     withCoverage
       .enablePlugins(AutomateHeaderPlugin)
       .settings(sharedSettings)
