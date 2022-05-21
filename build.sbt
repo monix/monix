@@ -325,11 +325,29 @@ lazy val crossVersionSourcesSettings: Seq[Setting[_]] =
   Seq(Compile, Test).map { sc =>
     (sc / unmanagedSourceDirectories) ++= {
       (sc / unmanagedSourceDirectories).value.flatMap { dir =>
-        scalaPartV.value match {
-          case Some((2, 12)) => Seq(new File(dir.getPath + "_2.13-"), new File(dir.getPath + "_3.0-"))
-          case Some((3, _)) => Seq(new File(dir.getPath + "_3.0"))
-          case _ => Seq(new File(dir.getPath + "_2.13+"), new File(dir.getPath + "_3.0-"))
-        }
+        if (dir.getPath().endsWith("scala"))
+          scalaPartV.value match {
+            case Some((2, 12)) => 
+              Seq(
+                new File(s"${dir.getPath}-2"),
+                new File(s"${dir.getPath}-2.12"),
+              )
+            case Some((2, 13)) => 
+              Seq(
+                new File(s"${dir.getPath}-2"),
+                new File(s"${dir.getPath}-2.13"),
+                new File(s"${dir.getPath}-2.13+"),
+              )
+            case Some((3, _)) => 
+              Seq(
+                new File(s"${dir.getPath}-2.13+"),
+                new File(s"${dir.getPath}-3"),
+              )
+            case other =>
+              throw new RuntimeException(s"Unhandled Scala version: $other")
+          }
+        else
+          Seq.empty
       }
     }
   }
