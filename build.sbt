@@ -326,23 +326,12 @@ lazy val extraSourceSettings = {
     (sc / unmanagedSourceDirectories) ++= {
       (sc / unmanagedSourceDirectories).value.flatMap { dir =>
         if (dir.getPath().endsWith("scala"))
-          scalaPartV.value match {
-            case Some((2, 12)) => 
+          scalaPartV.value.toList.flatMap {
+            case (major, minor) => 
               Seq(
-                new File(s"${dir.getPath}-2"),
-                new File(s"${dir.getPath}-2.12"),
+                new File(s"${dir.getPath}-$major"),
+                new File(s"${dir.getPath}-$major.$minor"),
               )
-            case Some((2, 13)) => 
-              Seq(
-                new File(s"${dir.getPath}-2"),
-                new File(s"${dir.getPath}-2.13"),
-              )
-            case Some((3, _)) => 
-              Seq(
-                new File(s"${dir.getPath}-3"),
-              )
-            case other =>
-              throw new RuntimeException(s"Unhandled Scala version: $other")
           }
         else
           Seq.empty
