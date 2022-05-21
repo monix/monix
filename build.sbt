@@ -311,18 +311,18 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   )
 )
 
-lazy val sharedSourcesSettings = Seq(
-  Compile / unmanagedSourceDirectories += {
-    baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
-  },
-  Test / unmanagedSourceDirectories += {
-    baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
-  }
-)
-
 def scalaPartV = Def.setting(CrossVersion.partialVersion(scalaVersion.value))
-lazy val crossVersionSourcesSettings: Seq[Setting[_]] =
-  Seq(Compile, Test).map { sc =>
+lazy val extraSourceSettings = {
+  val shared = Seq(
+    Compile / unmanagedSourceDirectories += {
+      baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
+    },
+    Test / unmanagedSourceDirectories += {
+      baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+    }
+  )
+  
+  val perVersion = Seq(Compile, Test).map { sc =>
     (sc / unmanagedSourceDirectories) ++= {
       (sc / unmanagedSourceDirectories).value.flatMap { dir =>
         if (dir.getPath().endsWith("scala"))
@@ -336,11 +336,9 @@ lazy val crossVersionSourcesSettings: Seq[Setting[_]] =
               Seq(
                 new File(s"${dir.getPath}-2"),
                 new File(s"${dir.getPath}-2.13"),
-                new File(s"${dir.getPath}-2.13+"),
               )
             case Some((3, _)) => 
               Seq(
-                new File(s"${dir.getPath}-2.13+"),
                 new File(s"${dir.getPath}-3"),
               )
             case other =>
@@ -351,6 +349,9 @@ lazy val crossVersionSourcesSettings: Seq[Setting[_]] =
       }
     }
   }
+  
+  shared ++ perVersion
+}
 
 lazy val doNotPublishArtifactSettings = Seq(
   publishArtifact := false,
@@ -469,8 +470,7 @@ def monixSubModule(
 ): Project => Project = pr => {
   pr.configure(baseSettingsAndPlugins(publishArtifacts = publishArtifacts))
     .enablePlugins(ReproducibleBuildsPlugin)
-    .settings(sharedSourcesSettings)
-    .settings(crossVersionSourcesSettings)
+    .settings(extraSourceSettings)
     .settings(name := projectName)
 }
 
