@@ -195,25 +195,21 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   // Turning off fatal warnings for doc generation
   Compile / doc / tpolecatExcludeOptions ++= ScalacOptions.defaultConsoleExclude,
   
-  // Turn off fatal warnings for Scala 2.12
-  Compile / tpolecatExcludeOptions ++= {
+  // Turn off annoyances in tests
+  Test / tpolecatExcludeOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 13) | (3, _)) => Set.empty
-      case _ => ScalacOptions.defaultConsoleExclude
+      case Some((2, 12)) => 
+        ScalacOptions.defaultConsoleExclude
+      case _ => 
+        Set(
+          ScalacOptions.lintInferAny,
+          ScalacOptions.warnUnusedImplicits,
+          ScalacOptions.warnUnusedExplicits,
+          ScalacOptions.warnUnusedParams,
+          ScalacOptions.warnUnusedNoWarn,
+        )
     }
   },
-
-  // Turn off annoyances in tests
-  Test / tpolecatExcludeOptions ++= 
-    Set(
-      ScalacOptions.lintInferAny,
-      ScalacOptions.warnUnusedImplicits,
-      ScalacOptions.warnUnusedExplicits,
-      ScalacOptions.warnUnusedLocals,
-      ScalacOptions.warnUnusedParams,
-      ScalacOptions.warnUnusedPrivates,
-      ScalacOptions.warnUnusedNoWarn,
-    ),
   
   // Silence everything in auto-generated files
   scalacOptions ++= {
