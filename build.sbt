@@ -311,28 +311,36 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   )
 )
 
-lazy val sharedSourcesSettings = Seq(
-  Compile / unmanagedSourceDirectories += {
-    baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
-  },
-  Test / unmanagedSourceDirectories += {
-    baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
-  }
-)
-
 def scalaPartV = Def.setting(CrossVersion.partialVersion(scalaVersion.value))
-lazy val crossVersionSourcesSettings: Seq[Setting[_]] =
-  Seq(Compile, Test).map { sc =>
+lazy val extraSourceSettings = {
+  val shared = Seq(
+    Compile / unmanagedSourceDirectories += {
+      baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
+    },
+    Test / unmanagedSourceDirectories += {
+      baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+    }
+  )
+  
+  val perVersion = Seq(Compile, Test).map { sc =>
     (sc / unmanagedSourceDirectories) ++= {
       (sc / unmanagedSourceDirectories).value.flatMap { dir =>
-        scalaPartV.value match {
-          case Some((2, 12)) => Seq(new File(dir.getPath + "_2.13-"), new File(dir.getPath + "_3.0-"))
-          case Some((3, _)) => Seq(new File(dir.getPath + "_3.0"))
-          case _ => Seq(new File(dir.getPath + "_2.13+"), new File(dir.getPath + "_3.0-"))
-        }
+        if (dir.getPath().endsWith("scala"))
+          scalaPartV.value.toList.flatMap {
+            case (major, minor) => 
+              Seq(
+                new File(s"${dir.getPath}-$major"),
+                new File(s"${dir.getPath}-$major.$minor"),
+              )
+          }
+        else
+          Seq.empty
       }
     }
   }
+  
+  shared ++ perVersion
+}
 
 lazy val doNotPublishArtifactSettings = Seq(
   publishArtifact := false,
@@ -451,8 +459,7 @@ def monixSubModule(
 ): Project => Project = pr => {
   pr.configure(baseSettingsAndPlugins(publishArtifacts = publishArtifacts))
     .enablePlugins(ReproducibleBuildsPlugin)
-    .settings(sharedSourcesSettings)
-    .settings(crossVersionSourcesSettings)
+    .settings(extraSourceSettings)
     .settings(name := projectName)
 }
 
