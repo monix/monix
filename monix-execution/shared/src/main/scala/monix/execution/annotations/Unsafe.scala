@@ -30,7 +30,7 @@ import scala.annotation.StaticAnnotation
   *    as specified or otherwise the behavior can be undefined,
   *    see [[UnsafeProtocol]]
   */
-class Unsafe(reason: String) extends StaticAnnotation
+class Unsafe(val reason: String) extends StaticAnnotation
 
 /** An annotation meant to warn users on functions that are
   * breaking referential transparency.

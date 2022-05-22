@@ -17,6 +17,8 @@
 
 package monix.execution.atomic
 
+import scala.annotation.unused
+
 /** Atomic references wrapping `Char` values.
   *
   * Note that the equality test in `compareAndSet` is value based,
@@ -120,9 +122,9 @@ object AtomicChar {
   /** $createDesc
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
+    * @param padding — NOT USED on top of JavaScript;
     */
-  def withPadding(initialValue: Char, padding: PaddingStrategy): AtomicChar =
+  def withPadding(initialValue: Char, @unused padding: PaddingStrategy): AtomicChar =
     new AtomicChar(initialValue)
 
   /** $createDesc
@@ -132,12 +134,14 @@ object AtomicChar {
     * `getAndSet` and for `getAndAdd`.
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
-    * @param allowPlatformIntrinsics is a boolean parameter that specifies whether
-    *        the instance is allowed to use the Java 8 optimized operations
-    *        for `getAndSet` and for `getAndAdd`
+    * @param padding — NOT USED on top of JavaScript;
+    * @param allowPlatformIntrinsics — NOT USED on top of JavaScript;
     */
-  def create(initialValue: Char, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicChar =
+  def create(
+    initialValue: Char,
+    @unused padding: PaddingStrategy,
+    @unused allowPlatformIntrinsics: Boolean
+  ): AtomicChar =
     new AtomicChar(initialValue)
 
   /** $createDesc
@@ -153,8 +157,8 @@ object AtomicChar {
     * recommended, because the "safe" atomic instances have overhead.
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
+    * @param padding — NOT USED on top of JavaScript;
     */
-  def safe(initialValue: Char, padding: PaddingStrategy): AtomicChar =
+  def safe(initialValue: Char, @unused padding: PaddingStrategy): AtomicChar =
     new AtomicChar(initialValue)
 }

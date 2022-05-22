@@ -717,7 +717,7 @@ object ConcurrentChannel {
     consumersAwait: AtomicAny[CancelablePromise[Unit]],
     isFinished: () => Option[E],
     helpers: Helpers[F]
-  )(implicit F: Concurrent[F], cs: ContextShift[F]) {
+  )(implicit F: Concurrent[F]) {
 
     @tailrec
     private[this] def notifyConsumers(): Unit = {
@@ -798,7 +798,7 @@ object ConcurrentChannel {
     consumersAwait: AtomicAny[CancelablePromise[Unit]],
     isFinished: () => Option[E],
     helpers: Helpers[F]
-  )(implicit F: Concurrent[F], cs: ContextShift[F])
+  )(implicit F: Concurrent[F])
     extends ConsumerF[F, E, A] {
 
     @tailrec

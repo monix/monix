@@ -70,14 +70,3 @@ private[reactive] final class CollectWhileOperator[-A, +B](pf: PartialFunction[A
         }
     }
 }
-
-private object CollectWhileOperator extends (Any => Any) {
-  /** In the case a partial function is not defined, return a magic fallback value. */
-  def checkFallback[B]: Any => B = this.asInstanceOf[Any => B]
-
-  /** Indicates whether the result is the magic fallback value. */
-  def isDefined(result: Any): Boolean = result.asInstanceOf[AnyRef] ne this
-
-  /** Always returns `this`, used as the magic fallback value. */
-  override def apply(elem: Any): Any = this
-}

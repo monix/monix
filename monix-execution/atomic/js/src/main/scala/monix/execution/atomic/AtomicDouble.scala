@@ -17,6 +17,8 @@
 
 package monix.execution.atomic
 
+import scala.annotation.unused
+
 /** Atomic references wrapping `Double` values.
   *
   * Note that the equality test in `compareAndSet` is value based,
@@ -107,9 +109,9 @@ object AtomicDouble {
   /** $createDesc
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
+    * @param padding — NOT USED on top of JavaScript;
     */
-  def withPadding(initialValue: Double, padding: PaddingStrategy): AtomicDouble =
+  def withPadding(initialValue: Double, @unused padding: PaddingStrategy): AtomicDouble =
     new AtomicDouble(initialValue)
 
   /** $createDesc
@@ -119,12 +121,14 @@ object AtomicDouble {
     * `getAndSet` and for `getAndAdd`.
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
-    * @param allowPlatformIntrinsics is a boolean parameter that specifies whether
-    *        the instance is allowed to use the Java 8 optimized operations
-    *        for `getAndSet` and for `getAndAdd`
+    * @param padding — NOT USED on top of JavaScript;
+    * @param allowPlatformIntrinsics — NOT USED on top of JavaScript;
     */
-  def create(initialValue: Double, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicDouble =
+  def create(
+    initialValue: Double,
+    @unused padding: PaddingStrategy,
+    @unused allowPlatformIntrinsics: Boolean
+  ): AtomicDouble =
     new AtomicDouble(initialValue)
 
   /** $createDesc
@@ -140,8 +144,8 @@ object AtomicDouble {
     * recommended, because the "safe" atomic instances have overhead.
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
+    * @param padding — NOT USED on top of JavaScript;
     */
-  def safe(initialValue: Double, padding: PaddingStrategy): AtomicDouble =
+  def safe(initialValue: Double, @unused padding: PaddingStrategy): AtomicDouble =
     new AtomicDouble(initialValue)
 }

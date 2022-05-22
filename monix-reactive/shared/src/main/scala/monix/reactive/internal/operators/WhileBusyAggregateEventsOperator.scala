@@ -116,8 +116,8 @@ private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => 
         }
       }
 
-      private def emitAggregatedOnAckContinue(ack: Future[Ack]): Unit = {
-        lastAck.onComplete {
+      private def emitAggregatedOnAckContinue(ack: Future[Ack]): Unit =
+        ack.onComplete {
           case Failure(ex) =>
             onError(ex)
           case Success(Stop) =>
@@ -125,8 +125,6 @@ private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => 
           case Success(Continue) =>
             upstreamSubscriber.synchronized { emitAggregated() }
         }
-      }
-
     }
   }
 }

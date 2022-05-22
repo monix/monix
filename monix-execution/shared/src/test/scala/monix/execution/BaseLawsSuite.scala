@@ -34,8 +34,6 @@ import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionException, Future }
 import scala.util.{ Failure, Success, Try }
 
-import scala.language.implicitConversions
-
 trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstances {
   override lazy val checkConfig: Parameters =
     Parameters.default
@@ -48,15 +46,14 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
       .withMaxDiscardRatio(50.0f)
       .withMaxSize(6)
 
-  def checkAll(name: String, ruleSet: Laws#RuleSet, config: Parameters = checkConfig): Unit = {
+  def checkAll(name: String, ruleSet: Laws#RuleSet): Unit = {
     for ((id, prop: Prop) <- ruleSet.all.properties)
       test(name + "." + id) {
         check(prop)
       }
   }
 
-  def checkAllAsync(name: String, config: Parameters = checkConfig)(f: TestScheduler => Laws#RuleSet): Unit = {
-
+  def checkAllAsync(name: String)(f: TestScheduler => Laws#RuleSet): Unit = {
     val s = TestScheduler()
     val ruleSet = f(s)
 
@@ -157,7 +154,6 @@ trait ArbitraryInstancesBase extends cats.instances.AllInstances with TestUtils 
   implicit def equalityTry[A: Eq]: Eq[Try[A]] =
     new Eq[Try[A]] {
       val optA = implicitly[Eq[Option[A]]]
-      val optT = implicitly[Eq[Option[Throwable]]]
 
       def eqv(x: Try[A], y: Try[A]): Boolean =
         if (x.isSuccess) optA.eqv(x.toOption, y.toOption)

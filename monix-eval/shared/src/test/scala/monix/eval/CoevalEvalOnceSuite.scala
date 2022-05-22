@@ -24,7 +24,7 @@ import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 
 object CoevalEvalOnceSuite extends BaseTestSuite {
-  test("Coeval.evalOnce should work synchronously") { implicit s =>
+  test("Coeval.evalOnce should work synchronously") { _ =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
 
@@ -36,7 +36,7 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
     assertEquals(f, Success("result"))
   }
 
-  test("Coeval.evalOnce should protect against user code errors") { implicit s =>
+  test("Coeval.evalOnce should protect against user code errors") { s =>
     val ex = DummyException("dummy")
     val f = Coeval.evalOnce[Int](if (1 == 1) throw ex else 1).runTry()
 
@@ -44,25 +44,25 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  test("Coeval.evalOnce.flatMap should be equivalent with Coeval.evalOnce") { implicit s =>
+  test("Coeval.evalOnce.flatMap should be equivalent with Coeval.evalOnce") { _ =>
     val ex = DummyException("dummy")
     val t = Coeval.evalOnce[Int](if (1 == 1) throw ex else 1).flatMap(Coeval.now)
     check(t <-> Coeval.raiseError(ex))
   }
 
-  test("Coeval.evalOnce.flatMap should protect against user code") { implicit s =>
+  test("Coeval.evalOnce.flatMap should protect against user code") { _ =>
     val ex = DummyException("dummy")
     val t = Coeval.evalOnce(1).flatMap[Int](_ => throw ex)
     check(t <-> Coeval.raiseError(ex))
   }
 
-  test("Coeval.evalOnce.map should work") { implicit s =>
+  test("Coeval.evalOnce.map should work") { _ =>
     check1 { (a: Int) =>
       Coeval.evalOnce(a).map(_ + 1) <-> Coeval.evalOnce(a + 1)
     }
   }
 
-  test("Coeval.evalOnce.flatMap should be tail recursive") { implicit s =>
+  test("Coeval.evalOnce.flatMap should be tail recursive") { s =>
     def loop(n: Int, idx: Int): Coeval[Int] =
       Coeval.evalOnce(idx).flatMap { _ =>
         if (idx < n) loop(n, idx + 1).map(_ + 1)
@@ -76,7 +76,7 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
     assertEquals(f, Success(iterations * 2))
   }
 
-  test("Coeval.eval(error).memoize should work") { implicit s =>
+  test("Coeval.eval(error).memoize should work") { _ =>
     var effect = 0
     val dummy = DummyException("dummy")
     val task = Coeval.evalOnce[Int] { effect += 1; throw dummy }.memoize
@@ -88,20 +88,20 @@ object CoevalEvalOnceSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Coeval.evalOnce.materialize should work for success") { implicit s =>
+  test("Coeval.evalOnce.materialize should work for success") { _ =>
     val task = Coeval.evalOnce(1).materialize
     val f = task.runTry()
     assertEquals(f, Success(Success(1)))
   }
 
-  test("Coeval.evalOnce.materialize should work for failure") { implicit s =>
+  test("Coeval.evalOnce.materialize should work for failure") { _ =>
     val dummy = DummyException("dummy")
     val task = Coeval.evalOnce[Int](throw dummy).materialize
     val f = task.runTry()
     assertEquals(f, Success(Failure(dummy)))
   }
 
-  test("Coeval.evalOnce.runTry() override") { implicit s =>
+  test("Coeval.evalOnce.runTry() override") { _ =>
     val dummy = DummyException("dummy")
     val task = Coeval.evalOnce { if (1 == 1) throw dummy else 10 }
     val f = task.runTry()

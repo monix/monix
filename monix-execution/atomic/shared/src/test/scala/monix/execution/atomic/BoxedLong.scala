@@ -17,6 +17,8 @@
 
 package monix.execution.atomic
 
+import scala.annotation.nowarn
+
 case class BoxedLong(value: Long)
 
 object BoxedLong {
@@ -44,6 +46,8 @@ object BoxedLong {
       BoxedLong(x.value - y.value)
     def compare(x: BoxedLong, y: BoxedLong): Int =
       x.value.compareTo(y.value)
+
+    @nowarn
     def parseString(str: String): Option[BoxedLong] =
       try Some(BoxedLong(str.toLong))
       catch { case _: NumberFormatException => None }

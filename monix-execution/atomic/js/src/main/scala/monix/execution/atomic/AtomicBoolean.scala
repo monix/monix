@@ -17,6 +17,8 @@
 
 package monix.execution.atomic
 
+import scala.annotation.unused
+
 /** Atomic references wrapping `Boolean` values.
   *
   * Note that the equality test in `compareAndSet` is value based,
@@ -69,7 +71,7 @@ object AtomicBoolean {
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
-  def withPadding(initialValue: Boolean, padding: PaddingStrategy): AtomicBoolean =
+  def withPadding(initialValue: Boolean, @unused padding: PaddingStrategy): AtomicBoolean =
     new AtomicBoolean(initialValue)
 
   /** $createDesc
@@ -84,7 +86,11 @@ object AtomicBoolean {
     *        the instance is allowed to use the Java 8 optimized operations
     *        for `getAndSet` and for `getAndAdd`
     */
-  def create(initialValue: Boolean, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicBoolean =
+  def create(
+    initialValue: Boolean,
+    @unused padding: PaddingStrategy,
+    @unused allowPlatformIntrinsics: Boolean
+  ): AtomicBoolean =
     new AtomicBoolean(initialValue)
 
   /** $createDesc
@@ -102,6 +108,6 @@ object AtomicBoolean {
     * @param initialValue is the initial value with which to initialize the atomic
     * @param padding is the [[PaddingStrategy]] to apply
     */
-  def safe(initialValue: Boolean, padding: PaddingStrategy): AtomicBoolean =
+  def safe(initialValue: Boolean, @unused padding: PaddingStrategy): AtomicBoolean =
     new AtomicBoolean(initialValue)
 }

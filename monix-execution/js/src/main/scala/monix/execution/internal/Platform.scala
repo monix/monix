@@ -24,6 +24,7 @@ import scala.concurrent.Awaitable
 import scala.concurrent.duration.Duration
 import scala.scalajs.js
 import scala.util.control.NonFatal
+import scala.annotation.unused
 
 private[monix] object Platform {
   /**
@@ -99,7 +100,7 @@ private[monix] object Platform {
     * This operation is only supported on top of the JVM, whereas for
     * JavaScript a dummy is provided.
     */
-  def await[A](fa: Awaitable[A], timeout: Duration)(implicit permit: CanBlock): A =
+  def await[A](@unused fa: Awaitable[A], @unused timeout: Duration)(implicit @unused permit: CanBlock): A =
     throw new UnsupportedOperationException(
       "Blocking operations are not supported on top of JavaScript"
     )

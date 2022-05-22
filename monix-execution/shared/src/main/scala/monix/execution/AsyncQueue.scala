@@ -28,7 +28,6 @@ import monix.execution.internal.collection.LowLevelConcurrentQueue
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Promise
-import scala.concurrent.duration._
 
 /**
   * A high-performance, back-pressured, asynchronous queue implementation.
@@ -112,9 +111,7 @@ import scala.concurrent.duration._
 final class AsyncQueue[A] private[monix] (
   capacity: BufferCapacity,
   channelType: ChannelType,
-  retryDelay: FiniteDuration = 10.millis
 )(implicit scheduler: Scheduler) {
-
   /** Try pushing a value to the queue.
     *
     * The protocol is unsafe because usage of the "try*" methods imply an

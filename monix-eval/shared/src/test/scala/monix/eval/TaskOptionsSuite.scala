@@ -26,13 +26,13 @@ import scala.concurrent.Promise
 object TaskOptionsSuite extends SimpleTestSuite {
   implicit val opts: Options = Task.defaultOptions.enableLocalContextPropagation
 
-  def extractOptions[A](fa: Task[A]): Task[Options] =
+  def extractOptions: Task[Options] =
     Task.Async { (ctx, cb) =>
       cb.onSuccess(ctx.options)
     }
 
   testAsync("change options with future") {
-    val task = extractOptions(Task.now(1)).map { r =>
+    val task = extractOptions.map { r =>
       assertEquals(r, opts)
     }
     task.runToFutureOpt
@@ -40,7 +40,7 @@ object TaskOptionsSuite extends SimpleTestSuite {
 
   testAsync("change options with callback") {
     val p = Promise[Options]()
-    extractOptions(Task.now(1)).runAsyncOpt(Callback.fromPromise(p))
+    extractOptions.runAsyncOpt(Callback.fromPromise(p))
 
     for (r <- p.future) yield {
       assertEquals(r, opts)

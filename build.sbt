@@ -38,17 +38,18 @@ addCommandAlias(
 // ------------------------------------------------------------------------------------------------
 // Dependencies - Versions
 
-val cats_Version             = "2.7.0"
-val catsEffect_Version       = "2.5.5"
-val fs2_Version              = "2.5.11"
-val jcTools_Version          = "3.3.0"
-val reactiveStreams_Version  = "1.0.3"
-val minitest_Version         = "2.9.6"
-val implicitBox_Version      = "0.3.4"
-val kindProjector_Version    = "0.13.2"
-val betterMonadicFor_Version = "0.3.1"
-val silencer_Version         = "1.7.8"
-val scalaCompat_Version      = "2.7.0"
+val cats_Version              = "2.7.0"
+val catsEffect_Version        = "2.5.5"
+val fs2_Version               = "2.5.11"
+val jcTools_Version           = "3.3.0"
+val reactiveStreams_Version   = "1.0.3"
+val macrotaskExecutor_Version = "1.0.0"
+val minitest_Version          = "2.9.6"
+val implicitBox_Version       = "0.3.4"
+val kindProjector_Version     = "0.13.2"
+val betterMonadicFor_Version  = "0.3.1"
+val silencer_Version          = "1.7.8"
+val scalaCompat_Version       = "2.7.0"
 
 // The Monix version with which we must keep binary compatibility.
 // https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
@@ -91,7 +92,11 @@ lazy val reactiveStreamsLib =
 lazy val reactiveStreamsTCKLib =
   "org.reactivestreams" % "reactive-streams-tck" % reactiveStreams_Version
 
-/** [[https://github.com/typelevel/kind-projector]]  */
+/** [[https://github.com/scala-js/scala-js-macrotask-executor]] */
+lazy val macrotaskExecutorLib =
+  Def.setting { "org.scala-js" %%% "scala-js-macrotask-executor" % macrotaskExecutor_Version }
+
+/** [[https://github.com/typelevel/kind-projector]] */
 lazy val kindProjectorCompilerPlugin =
   "org.typelevel" % "kind-projector" % kindProjector_Version cross CrossVersion.full
 
@@ -165,6 +170,11 @@ lazy val isDotty =
     }
   }
 
+lazy val isCI = {
+  sys.env.getOrElse("SBT_PROFILE", "").contains("ci") ||
+  sys.env.get("CI").exists(v => v == "true" || v == "1" || v == "yes")
+}
+
 lazy val sharedSettings = pgpSettings ++ Seq(
   organization := "io.monix",
   // Value extracted from .github/workflows/build.yml
@@ -179,44 +189,39 @@ lazy val sharedSettings = pgpSettings ++ Seq(
       ver
   },
 
-  /*
   // Enable this to debug warnings...
   Compile / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 13)) => Seq("-Wconf:any:warning-verbose")
+      case Some((2, 13) | (3, _)) => Seq("-Wconf:any:warning-verbose")
       case _ => Seq.empty
     }
   },
-   */
-
-  // Disabled from the sbt-tpolecat set
-  Compile / scalacOptions --= Seq(
-    "-Wunused:privates",
-    "-Ywarn-unused:privates",
-    "-Wunused:implicits",
-    "-Ywarn-unused:implicits",
-    "-Wunused:imports",
-    "-Ywarn-unused:imports",
-    "-Wunused:explicits",
-    "-Ywarn-unused:params",
-    "-Wunused:params",
-    "-Xlint:infer-any"
-  ),
 
   // Turning off fatal warnings for doc generation
   Compile / doc / tpolecatExcludeOptions ++= ScalacOptions.defaultConsoleExclude,
+  
+  // Turn off annoyances in tests
+  Test / tpolecatExcludeOptions ++= {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 12)) => 
+        ScalacOptions.defaultConsoleExclude
+      case _ => 
+        Set(
+          ScalacOptions.lintInferAny,
+          ScalacOptions.warnUnusedImplicits,
+          ScalacOptions.warnUnusedExplicits,
+          ScalacOptions.warnUnusedParams,
+          ScalacOptions.warnUnusedNoWarn,
+        )
+    }
+  },
+  
   // Silence everything in auto-generated files
   scalacOptions ++= {
     if (isDotty.value)
       Seq.empty
     else
       Seq("-P:silencer:pathFilters=.*[/]src_managed[/].*")
-  },
-  scalacOptions --= {
-    if (isDotty.value)
-      Seq("-Xfatal-warnings")
-    else
-      Seq()
   },
 
   // Syntax improvements, linting, etc.
@@ -245,12 +250,11 @@ lazy val sharedSettings = pgpSettings ++ Seq(
     file(".").getAbsolutePath.replaceAll("[.]$", "")
   ),
 
-  // Without this setting, the outcome of a test-suite will be printed all at
-  // once, instead of line by line, as tests are being completed
-  Test / logBuffered := false,
   //
   // Tries disabling parallel execution in tests (in the same project / task)
+  Test / logBuffered := isCI,
   Test / parallelExecution := false,
+  Test / testForkedParallel := false,
 
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
@@ -307,28 +311,36 @@ lazy val sharedSettings = pgpSettings ++ Seq(
   )
 )
 
-lazy val sharedSourcesSettings = Seq(
-  Compile / unmanagedSourceDirectories += {
-    baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
-  },
-  Test / unmanagedSourceDirectories += {
-    baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
-  }
-)
-
 def scalaPartV = Def.setting(CrossVersion.partialVersion(scalaVersion.value))
-lazy val crossVersionSourcesSettings: Seq[Setting[_]] =
-  Seq(Compile, Test).map { sc =>
+lazy val extraSourceSettings = {
+  val shared = Seq(
+    Compile / unmanagedSourceDirectories += {
+      baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
+    },
+    Test / unmanagedSourceDirectories += {
+      baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+    }
+  )
+  
+  val perVersion = Seq(Compile, Test).map { sc =>
     (sc / unmanagedSourceDirectories) ++= {
       (sc / unmanagedSourceDirectories).value.flatMap { dir =>
-        scalaPartV.value match {
-          case Some((2, 12)) => Seq(new File(dir.getPath + "_2.13-"), new File(dir.getPath + "_3.0-"))
-          case Some((3, _)) => Seq(new File(dir.getPath + "_3.0"))
-          case _ => Seq(new File(dir.getPath + "_2.13+"), new File(dir.getPath + "_3.0-"))
-        }
+        if (dir.getPath().endsWith("scala"))
+          scalaPartV.value.toList.flatMap {
+            case (major, minor) => 
+              Seq(
+                new File(s"${dir.getPath}-$major"),
+                new File(s"${dir.getPath}-$major.$minor"),
+              )
+          }
+        else
+          Seq.empty
       }
     }
   }
+  
+  shared ++ perVersion
+}
 
 lazy val doNotPublishArtifactSettings = Seq(
   publishArtifact := false,
@@ -428,9 +440,6 @@ def baseSettingsAndPlugins(publishArtifacts: Boolean): Project ⇒ Project =
       case "coverage" => pr
       case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
     }
-    val isCI = sys.env.getOrElse("SBT_PROFILE", "").contains("ci") ||
-      sys.env.get("CI").exists(v => v == "true" || v == "1" || v == "yes")
-
     withCoverage
       .enablePlugins(AutomateHeaderPlugin)
       .settings(sharedSettings)
@@ -450,8 +459,7 @@ def monixSubModule(
 ): Project => Project = pr => {
   pr.configure(baseSettingsAndPlugins(publishArtifacts = publishArtifacts))
     .enablePlugins(ReproducibleBuildsPlugin)
-    .settings(sharedSourcesSettings)
-    .settings(crossVersionSourcesSettings)
+    .settings(extraSourceSettings)
     .settings(name := projectName)
 }
 
@@ -651,6 +659,7 @@ lazy val executionJVM = project
 lazy val executionJS = project
   .in(file("monix-execution/js"))
   .configure(executionProfile.js)
+  .settings(libraryDependencies += macrotaskExecutorLib.value)
   .aggregate(executionAtomicJS)
   .dependsOn(executionAtomicJS)
 
@@ -773,7 +782,8 @@ lazy val reactiveTests = project
   .dependsOn(reactiveJVM, tailJVM)
   .settings(
     libraryDependencies ++= Seq(
-      reactiveStreamsTCKLib % Test
+      reactiveStreamsTCKLib % Test,
+      "org.scalatestplus" %% "testng-7-5" % "3.2.12.0" % Test,
     )
   )
 

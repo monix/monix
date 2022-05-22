@@ -17,6 +17,8 @@
 
 package monix.execution.atomic
 
+import scala.annotation.unused
+
 /** Atomic references wrapping `Byte` values.
   *
   * Note that the equality test in `compareAndSet` is value based,
@@ -116,10 +118,11 @@ object AtomicByte {
 
   /** $createDesc
     *
-    * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
+    * @param initialValue is the initial value with which to initialize the atomic;
+    * @param padding is the [[PaddingStrategy]] to apply — NOT USED on top of JavaScript,
+    *        this being provided only for backwards compatibility with the JVM;
     */
-  def withPadding(initialValue: Byte, padding: PaddingStrategy): AtomicByte =
+  def withPadding(initialValue: Byte, @unused padding: PaddingStrategy): AtomicByte =
     new AtomicByte(initialValue)
 
   /** $createDesc
@@ -129,12 +132,16 @@ object AtomicByte {
     * `getAndSet` and for `getAndAdd`.
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
-    * @param allowPlatformIntrinsics is a boolean parameter that specifies whether
-    *        the instance is allowed to use the Java 8 optimized operations
-    *        for `getAndSet` and for `getAndAdd`
+    * @param padding is the [[PaddingStrategy]] to apply — NOT USED on top of JavaScript,
+    *        this being provided only for backwards compatibility with the JVM;
+    * @param allowPlatformIntrinsics — NOT USED on top of JavaScript, this 
+    *        being provided only for backwards compatibility with the JVM;
     */
-  def create(initialValue: Byte, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicByte =
+  def create(
+    initialValue: Byte,
+    @unused padding: PaddingStrategy,
+    @unused allowPlatformIntrinsics: Boolean
+  ): AtomicByte =
     new AtomicByte(initialValue)
 
   /** $createDesc
@@ -150,8 +157,10 @@ object AtomicByte {
     * recommended, because the "safe" atomic instances have overhead.
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
+    * @param padding is the [[PaddingStrategy]] to apply — NOT USED on top 
+    *        of JavaScript, this being provided only for backwards compatibility 
+    *        with the JVM;
     */
-  def safe(initialValue: Byte, padding: PaddingStrategy): AtomicByte =
+  def safe(initialValue: Byte, @unused padding: PaddingStrategy): AtomicByte =
     new AtomicByte(initialValue)
 }

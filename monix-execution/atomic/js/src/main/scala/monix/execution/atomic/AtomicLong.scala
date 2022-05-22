@@ -17,6 +17,8 @@
 
 package monix.execution.atomic
 
+import scala.annotation.unused
+
 /** Atomic references wrapping `Long` values.
   *
   * Note that the equality test in `compareAndSet` is value based,
@@ -119,9 +121,9 @@ object AtomicLong {
   /** $createDesc
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
+    * @param padding  — NOT USED on top of JavaScript;
     */
-  def withPadding(initialValue: Long, padding: PaddingStrategy): AtomicLong =
+  def withPadding(initialValue: Long, @unused padding: PaddingStrategy): AtomicLong =
     new AtomicLong(initialValue)
 
   /** $createDesc
@@ -131,12 +133,14 @@ object AtomicLong {
     * `getAndSet` and for `getAndAdd`.
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
-    * @param allowPlatformIntrinsics is a boolean parameter that specifies whether
-    *        the instance is allowed to use the Java 8 optimized operations
-    *        for `getAndSet` and for `getAndAdd`
+    * @param padding — NOT USED on top of JavaScript;
+    * @param allowPlatformIntrinsics — NOT USED on top of JavaScript;
     */
-  def create(initialValue: Long, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean): AtomicLong =
+  def create(
+    initialValue: Long,
+    @unused padding: PaddingStrategy,
+    @unused allowPlatformIntrinsics: Boolean
+  ): AtomicLong =
     new AtomicLong(initialValue)
 
   /** $createDesc
@@ -152,8 +156,8 @@ object AtomicLong {
     * recommended, because the "safe" atomic instances have overhead.
     *
     * @param initialValue is the initial value with which to initialize the atomic
-    * @param padding is the [[PaddingStrategy]] to apply
+    * @param padding — NOT USED on top of JavaScript;
     */
-  def safe(initialValue: Long, padding: PaddingStrategy): AtomicLong =
+  def safe(initialValue: Long, @unused padding: PaddingStrategy): AtomicLong =
     new AtomicLong(initialValue)
 }
