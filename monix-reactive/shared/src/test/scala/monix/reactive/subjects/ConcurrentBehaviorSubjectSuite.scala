@@ -18,7 +18,7 @@
 package monix.reactive.subjects
 
 import monix.execution.Scheduler
-import monix.reactive.{MulticastStrategy, OverflowStrategy}
+import monix.reactive.{ MulticastStrategy, OverflowStrategy }
 import OverflowStrategy.Unbounded
 
 object ConcurrentBehaviorSubjectSuite extends BaseConcurrentSubjectSuite {

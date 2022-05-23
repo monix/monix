@@ -17,7 +17,7 @@
 
 package monix.catnap
 
-import cats.effect.{Async, ExitCase, IO, Sync}
+import cats.effect.{ Async, ExitCase, IO, Sync }
 
 object Overrides {
 

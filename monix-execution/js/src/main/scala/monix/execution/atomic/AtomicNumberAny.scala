@@ -144,7 +144,8 @@ object AtomicNumberAny {
   def create[A <: AnyRef: Numeric](
     initialValue: A,
     padding: PaddingStrategy,
-    allowPlatformIntrinsics: Boolean): AtomicNumberAny[A] =
+    allowPlatformIntrinsics: Boolean
+  ): AtomicNumberAny[A] =
     new AtomicNumberAny[A](initialValue)
 
   /** $createDesc

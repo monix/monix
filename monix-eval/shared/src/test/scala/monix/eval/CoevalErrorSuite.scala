@@ -19,7 +19,7 @@ package monix.eval
 
 import monix.execution.exceptions.DummyException
 import scala.concurrent.TimeoutException
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object CoevalErrorSuite extends BaseTestSuite {
   test("Coeval.attempt should expose error") { implicit s =>

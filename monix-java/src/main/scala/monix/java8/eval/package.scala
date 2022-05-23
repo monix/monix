@@ -17,11 +17,11 @@
 
 package monix.java8
 
-import java.util.concurrent.{CancellationException, CompletableFuture, CompletionException}
+import java.util.concurrent.{ CancellationException, CompletableFuture, CompletionException }
 import java.util.function.BiFunction
 import monix.eval.Task
-import monix.execution.{Cancelable, Scheduler}
-import scala.util.{Failure, Success}
+import monix.execution.{ Cancelable, Scheduler }
+import scala.util.{ Failure, Success }
 
 /**
   * DEPRECATED — switch to Scala 2.12+ and [[monix.eval.Task.from Task.from]].

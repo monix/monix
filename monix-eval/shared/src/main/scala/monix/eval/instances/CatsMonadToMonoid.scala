@@ -17,7 +17,7 @@
 
 package monix.eval.instances
 
-import cats.{Monad, Monoid, Semigroup}
+import cats.{ Monad, Monoid, Semigroup }
 
 /** Given that `A` has a `cats.Semigroup` implementation, this
   * builds a `Semigroup[F[A]]` instance for any `F[_]` data type

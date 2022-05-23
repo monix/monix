@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.Task
-import monix.eval.Task.{Context, ContextSwitch, Options}
+import monix.eval.Task.{ Context, ContextSwitch, Options }
 
 private[eval] object TaskExecuteWithOptions {
   /**

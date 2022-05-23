@@ -21,7 +21,7 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Task
 import monix.execution.exceptions.DummyException
-import monix.reactive.{BaseTestSuite, Consumer, Observable}
+import monix.reactive.{ BaseTestSuite, Consumer, Observable }
 import scala.util.Failure
 
 object MapTaskConsumerSuite extends BaseTestSuite {
@@ -106,7 +106,9 @@ object MapTaskConsumerSuite extends BaseTestSuite {
               .never[Int]
               .doOnCancel(Task {
                 taskCancelled = true
-              })))
+              })
+          )
+      )
       .runToFuture
 
     s.tick()

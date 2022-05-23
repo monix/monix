@@ -23,12 +23,12 @@ import cats.syntax.foldable._
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
-import monix.execution.{ExecutionModel, Scheduler}
+import monix.execution.{ ExecutionModel, Scheduler }
 import monix.execution.misc.Local
 import monix.execution.schedulers.TracingScheduler
 import monix.execution.cancelableFutureCatsInstances
 
-import scala.concurrent.{Await, ExecutionContext, Future, Promise}
+import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 import scala.concurrent.duration._
 
 object TaskLocalJVMSuite extends SimpleTestSuite {
@@ -476,7 +476,8 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     val local = Local(0)
 
     for {
-      _  <- Task(local.update(1)).flatMap(_ => Task.raiseError(DummyException("boom"))).runToFuture.recover{ case _ => ()}
+      _ <-
+        Task(local.update(1)).flatMap(_ => Task.raiseError(DummyException("boom"))).runToFuture.recover { case _ => () }
       i1 <- Future(local.get)
       i2 <- Local.isolate {
         Future(local.update(i1 + 1))
@@ -545,7 +546,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
 
     val t1 = for {
       i1 <- Task(local.get)
-      _ <- Task.sleep(10.millis)
+      _  <- Task.sleep(10.millis)
       i2 <- Task(local.get)
     } yield assertEquals(i1, i2)
 

@@ -21,7 +21,7 @@ import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 
 object EvalAlwaysObservableSuite extends TestSuite[TestScheduler] {

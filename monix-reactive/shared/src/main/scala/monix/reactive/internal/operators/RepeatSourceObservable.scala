@@ -18,11 +18,11 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.execution.cancelables.{CompositeCancelable, OrderedCancelable}
-import monix.execution.{Ack, Cancelable}
+import monix.execution.cancelables.{ CompositeCancelable, OrderedCancelable }
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import monix.reactive.subjects.{ReplaySubject, Subject}
+import monix.reactive.subjects.{ ReplaySubject, Subject }
 import scala.concurrent.Future
 import scala.util.Success
 

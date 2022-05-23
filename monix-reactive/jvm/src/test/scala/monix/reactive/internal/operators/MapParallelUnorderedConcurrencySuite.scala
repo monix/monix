@@ -21,7 +21,7 @@ import cats.laws._
 import cats.laws.discipline._
 
 import monix.eval.Task
-import monix.reactive.{BaseConcurrencySuite, Observable}
+import monix.reactive.{ BaseConcurrencySuite, Observable }
 
 object MapParallelUnorderedConcurrencySuite extends BaseConcurrencySuite {
   test("mapParallelUnordered works concurrently") { implicit s =>

@@ -18,7 +18,7 @@
 package monix.reactive.internal.util
 
 import monix.execution.atomic.Atomic
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 /**
   * Represents a Promise that completes with `value` after

@@ -19,10 +19,10 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.tail.batches.{ Batch, BatchCursor }
 import scala.util.Failure
 
 object IterantFoldLeftSuite extends BaseTestSuite {
@@ -90,7 +90,8 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val stream = Iterant[Task]
       .nextS(
         1,
-        Task.evalAsync(Iterant[Task].nextCursorS(BatchCursor(2, 3), Task.now(Iterant[Task].empty[Int])).guarantee(c)))
+        Task.evalAsync(Iterant[Task].nextCursorS(BatchCursor(2, 3), Task.now(Iterant[Task].empty[Int])).guarantee(c))
+      )
       .guarantee(c)
       .mapEval(x => Task.evalAsync(x))
 
@@ -192,7 +193,8 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     val stream = Iterant[Coeval]
       .nextS(
         1,
-        Coeval(Iterant[Coeval].nextCursorS(BatchCursor(2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(c)))
+        Coeval(Iterant[Coeval].nextCursorS(BatchCursor(2, 3), Coeval.now(Iterant[Coeval].empty[Int])).guarantee(c))
+      )
       .guarantee(c)
       .mapEval(x => Coeval(x))
 
@@ -276,12 +278,15 @@ object IterantFoldLeftSuite extends BaseTestSuite {
       (_, _) => Coeval(triggered.set(true))
     )
 
-    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
-      if (!triggered.getAndSet(true))
-        Iterant[Coeval].raiseError[Int](fail)
-      else
-        Iterant[Coeval].empty[Int]
-    })
+    val stream = Iterant[Coeval].concatS(
+      Coeval(lh),
+      Coeval {
+        if (!triggered.getAndSet(true))
+          Iterant[Coeval].raiseError[Int](fail)
+        else
+          Iterant[Coeval].empty[Int]
+      }
+    )
 
     assertEquals(stream.toListL.value(), List(1))
   }

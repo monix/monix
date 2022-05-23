@@ -17,7 +17,7 @@
 
 package monix.execution.internal
 
-import monix.execution.atomic.{AtomicAny, PaddingStrategy}
+import monix.execution.atomic.{ AtomicAny, PaddingStrategy }
 import monix.execution.internal.collection.LinkedMap
 import scala.annotation.tailrec
 
@@ -276,8 +276,8 @@ private[monix] object GenericVar {
     */
   private final case class WaitForPut[A](
     reads: LinkedMap[Id, Either[Nothing, A] => Unit],
-    takes: LinkedMap[Id, Either[Nothing, A] => Unit])
-    extends State[A]
+    takes: LinkedMap[Id, Either[Nothing, A] => Unit]
+  ) extends State[A]
 
   /** `AsyncVar` state signaling it has one or more values enqueued,
     * to be signaled on the next `take`.

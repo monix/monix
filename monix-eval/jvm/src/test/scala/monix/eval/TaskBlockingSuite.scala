@@ -20,7 +20,7 @@ package monix.eval
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler.Implicits.global
 
-import scala.concurrent.{Await, TimeoutException}
+import scala.concurrent.{ Await, TimeoutException }
 import scala.concurrent.duration._
 
 object TaskBlockingSuite extends SimpleTestSuite {

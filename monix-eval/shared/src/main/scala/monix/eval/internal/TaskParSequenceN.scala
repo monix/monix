@@ -21,7 +21,7 @@ import cats.effect.ExitCase
 import cats.effect.concurrent.Deferred
 import monix.catnap.ConcurrentQueue
 import monix.eval.Task
-import monix.execution.{BufferCapacity, ChannelType}
+import monix.execution.{ BufferCapacity, ChannelType }
 
 private[eval] object TaskParSequenceN {
   /**

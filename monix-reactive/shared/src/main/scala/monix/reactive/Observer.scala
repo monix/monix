@@ -19,15 +19,15 @@ package monix.reactive
 
 import java.io.PrintStream
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution._
 import monix.execution.cancelables.BooleanCancelable
 import monix.reactive.internal.rstreams._
 import monix.reactive.observers.Subscriber
-import org.reactivestreams.{Subscriber => RSubscriber}
+import org.reactivestreams.{ Subscriber => RSubscriber }
 
 import scala.annotation.tailrec
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 import scala.util.control.NonFatal
 
@@ -123,7 +123,8 @@ object Observer {
     * Monix Rx implementation.
     */
   def fromReactiveSubscriber[A](subscriber: RSubscriber[A], subscription: Cancelable)(
-    implicit s: Scheduler): Observer[A] =
+    implicit s: Scheduler
+  ): Observer[A] =
     ReactiveSubscriberAsMonixSubscriber(subscriber, subscription)
 
   /** Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
@@ -164,7 +165,8 @@ object Observer {
     * @param iterable is the collection of items to push downstream
     */
   def feed[A](target: Observer[A], subscription: BooleanCancelable, iterable: Iterable[A])(
-    implicit s: Scheduler): Future[Ack] = {
+    implicit s: Scheduler
+  ): Future[Ack] = {
 
     try feed(target, subscription, iterable.iterator)
     catch {
@@ -189,7 +191,8 @@ object Observer {
     * @param iterator is the collection of items to push downstream
     */
   def feed[A](target: Observer[A], subscription: BooleanCancelable, iterator: Iterator[A])(
-    implicit s: Scheduler): Future[Ack] = {
+    implicit s: Scheduler
+  ): Future[Ack] = {
 
     def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[A]): Future[Ack] = {
       s.execute(new Runnable {

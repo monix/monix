@@ -20,17 +20,17 @@ package monix.reactive.internal.operators
 import cats.effect.ExitCase
 import monix.execution.Callback
 import monix.eval.Task
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.atomic.{Atomic, AtomicBoolean}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.atomic.{ Atomic, AtomicBoolean }
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.execution.schedulers.TrampolinedRunnable
-import monix.execution.{Ack, Cancelable, FutureUtils, Scheduler}
+import monix.execution.{ Ack, Cancelable, FutureUtils, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 private[reactive] class GuaranteeCaseObservable[A](source: Observable[A], f: ExitCase[Throwable] => Task[Unit])
   extends Observable[A] {

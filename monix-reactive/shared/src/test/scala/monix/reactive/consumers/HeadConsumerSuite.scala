@@ -21,9 +21,9 @@ import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
-import monix.reactive.{Consumer, Observable}
+import monix.reactive.{ Consumer, Observable }
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object HeadConsumerSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
@@ -62,7 +62,8 @@ object HeadConsumerSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted, "wasCompleted")
     assert(
       f.value.isDefined && f.value.get.isFailure &&
-        f.value.get.failed.get.isInstanceOf[NoSuchElementException])
+        f.value.get.failed.get.isInstanceOf[NoSuchElementException]
+    )
   }
 
   test("on error") { implicit s =>

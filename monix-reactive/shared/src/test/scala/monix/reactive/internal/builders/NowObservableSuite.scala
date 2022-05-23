@@ -19,10 +19,10 @@ package monix.reactive.internal.builders
 
 import minitest.TestSuite
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.{Observable, Observer}
-import scala.concurrent.{Future, Promise}
+import monix.reactive.{ Observable, Observer }
+import scala.concurrent.{ Future, Promise }
 
 object NowObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()

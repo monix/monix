@@ -122,7 +122,7 @@ private[eval] object CoevalTrace {
   private def demangleMethod(methodName: String): String =
     anonfunRegex.findFirstMatchIn(methodName) match {
       case Some(mat) => mat.group(1)
-      case None      => methodName
+      case None => methodName
     }
 
   private[this] val anonfunRegex = "^\\$+anonfun\\$+(.+)\\$+\\d+$".r

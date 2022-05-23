@@ -19,7 +19,7 @@ package monix.eval
 package internal
 
 import cats.Eval
-import cats.effect.{IO, SyncIO}
+import cats.effect.{ IO, SyncIO }
 
 /**
   * Extension methods describing deprecated `Task` operations.

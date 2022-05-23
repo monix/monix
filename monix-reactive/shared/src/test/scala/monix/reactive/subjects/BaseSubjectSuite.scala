@@ -19,10 +19,10 @@ package monix.reactive.subjects
 
 import minitest.TestSuite
 import monix.eval.Task
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 
 import scala.util.Random
 

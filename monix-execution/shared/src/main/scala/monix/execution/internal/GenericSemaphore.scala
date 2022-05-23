@@ -230,7 +230,8 @@ private[monix] object GenericSemaphore {
   private final case class State(
     available: Long,
     awaitPermits: Queue[(Long, Listener[Unit])],
-    awaitReleases: List[(Long, Listener[Unit])]) {
+    awaitReleases: List[(Long, Listener[Unit])]
+  ) {
 
     def count: Long = {
       if (available > 0) available

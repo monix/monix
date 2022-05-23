@@ -18,7 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.internal.atomic.{BoxedInt, Factory}
+import monix.execution.internal.atomic.{ BoxedInt, Factory }
 
 /** Atomic references wrapping `Boolean` values.
   *
@@ -97,7 +97,9 @@ object AtomicBoolean {
         if (initialValue) 1 else 0,
         boxStrategyToPaddingStrategy(padding),
         true, // allowUnsafe
-        allowPlatformIntrinsics))
+        allowPlatformIntrinsics
+      )
+    )
   }
 
   /** $createDesc
@@ -122,6 +124,7 @@ object AtomicBoolean {
         boxStrategyToPaddingStrategy(padding),
         false, // allowUnsafe
         false // allowJava8Intrinsics
-      ))
+      )
+    )
   }
 }

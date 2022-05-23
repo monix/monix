@@ -23,7 +23,7 @@ import cats.effect.Sync
 import monix.eval.Coeval
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object IterantFoldRightSuite extends BaseTestSuite {
   def exists(ref: Iterant[Coeval, Int], p: Int => Boolean): Coeval[Boolean] =

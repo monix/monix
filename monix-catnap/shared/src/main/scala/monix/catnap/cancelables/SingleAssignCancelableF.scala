@@ -17,7 +17,7 @@
 
 package monix.catnap.cancelables
 
-import cats.effect.{CancelToken, Sync}
+import cats.effect.{ CancelToken, Sync }
 import monix.catnap.CancelableF
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.atomic.Atomic
@@ -87,7 +87,8 @@ final class SingleAssignCancelableF[F[_]] private (extra: CancelableF[F])(implic
   private def raiseError: F[Unit] = F.raiseError {
     new IllegalStateException(
       "Cannot assign to SingleAssignmentCancelableF " +
-        "as it was already assigned once")
+        "as it was already assigned once"
+    )
   }
 }
 

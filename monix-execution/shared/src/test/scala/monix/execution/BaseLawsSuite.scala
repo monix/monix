@@ -27,12 +27,12 @@ import monix.execution.exceptions.DummyException
 import org.scalacheck.Test.Parameters
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
+import org.scalacheck.{ Arbitrary, Cogen, Gen, Prop }
 import org.typelevel.discipline.Laws
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionException, Future}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ ExecutionException, Future }
+import scala.util.{ Failure, Success, Try }
 
 import scala.language.implicitConversions
 

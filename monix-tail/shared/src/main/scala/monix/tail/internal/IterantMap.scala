@@ -20,7 +20,7 @@ package monix.tail.internal
 import cats.syntax.all._
 import cats.effect.Sync
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 
 private[tail] object IterantMap {
   /**

@@ -18,7 +18,7 @@
 package monix.execution.misc
 
 import minitest.SimpleTestSuite
-import monix.execution.{Cancelable, CancelableFuture, Scheduler}
+import monix.execution.{ Cancelable, CancelableFuture, Scheduler }
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TracingScheduler
 import scala.concurrent.Future
@@ -50,9 +50,12 @@ object LocalJVMSuite extends SimpleTestSuite {
     val f = for {
       _ <- CancelableFuture(Future { local := 50 }, Cancelable())
       _ <- Local.isolate {
-        CancelableFuture(Future {
-          local := 100
-        }, Cancelable())
+        CancelableFuture(
+          Future {
+            local := 100
+          },
+          Cancelable()
+        )
       }
       v <- CancelableFuture(Future { local() }, Cancelable())
     } yield v
@@ -85,9 +88,12 @@ object LocalJVMSuite extends SimpleTestSuite {
 
     val f = for {
       _ <- Future { local := 50 }
-      _ <- Local.bindCurrentIf(true)(CancelableFuture(Future {
-        local := 100
-      }, Cancelable.empty))
+      _ <- Local.bindCurrentIf(true)(CancelableFuture(
+        Future {
+          local := 100
+        },
+        Cancelable.empty
+      ))
       v <- Future { local() }
     } yield v
 

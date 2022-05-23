@@ -21,7 +21,7 @@ import cats.effect.IO
 import monix.execution.Cancelable
 import monix.execution.exceptions.DummyException
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 import scala.concurrent.duration._
 
 object TaskCreateSuite extends BaseTestSuite {

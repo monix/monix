@@ -17,13 +17,13 @@
 
 package monix.eval
 
-import cats.effect.{ContextShift, IO}
+import cats.effect.{ ContextShift, IO }
 import cats.effect.laws.discipline._
 import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.{ApplicativeTests, CoflatMapTests, ParallelTests}
-import cats.{Applicative, Eq}
+import cats.laws.discipline.{ ApplicativeTests, CoflatMapTests, ParallelTests }
+import cats.{ Applicative, Eq }
 import monix.eval.instances.CatsParallelForTask
-import monix.execution.{Scheduler, TestUtils, UncaughtExceptionReporter}
+import monix.execution.{ Scheduler, TestUtils, UncaughtExceptionReporter }
 
 import scala.concurrent.ExecutionContext.global
 import scala.concurrent.duration._

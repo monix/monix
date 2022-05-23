@@ -21,7 +21,7 @@ import cats.Eval
 import cats.effect.IO
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object CoevalCatsConversions extends BaseTestSuite {
   test("Coeval.now(value).to[Eval]") { _ =>

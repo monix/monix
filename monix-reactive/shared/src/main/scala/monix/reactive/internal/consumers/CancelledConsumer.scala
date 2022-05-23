@@ -19,7 +19,7 @@ package monix.reactive.internal.consumers
 
 import monix.execution.Callback
 import monix.execution.Ack.Stop
-import monix.execution.{Ack, Scheduler}
+import monix.execution.{ Ack, Scheduler }
 import monix.execution.cancelables.AssignableCancelable
 import monix.reactive.Consumer
 import monix.reactive.observers.Subscriber

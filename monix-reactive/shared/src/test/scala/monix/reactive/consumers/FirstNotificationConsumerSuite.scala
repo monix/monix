@@ -21,8 +21,8 @@ import cats.effect.IO
 import minitest.TestSuite
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.Notification.{OnComplete, OnError, OnNext}
-import monix.reactive.{Consumer, Observable}
+import monix.reactive.Notification.{ OnComplete, OnError, OnNext }
+import monix.reactive.{ Consumer, Observable }
 import scala.util.Success
 
 object FirstNotificationConsumerSuite extends TestSuite[TestScheduler] {

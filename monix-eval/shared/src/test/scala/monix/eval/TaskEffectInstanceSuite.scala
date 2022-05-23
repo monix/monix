@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.effect.{Effect, IO}
+import cats.effect.{ Effect, IO }
 import monix.execution.schedulers.TracingScheduler
 
 import scala.concurrent.duration._

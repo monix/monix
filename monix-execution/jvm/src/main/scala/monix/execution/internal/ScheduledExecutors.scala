@@ -19,7 +19,7 @@ package monix.execution.internal
 
 import java.util.concurrent.ScheduledExecutorService
 import monix.execution.schedulers.ShiftedRunnable
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{ Cancelable, Scheduler }
 import scala.concurrent.duration.TimeUnit
 
 private[execution] object ScheduledExecutors {

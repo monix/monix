@@ -17,14 +17,14 @@
 
 package monix.reactive.internal.rstreams
 
-import monix.execution.{Ack, Scheduler}
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.{ Ack, Scheduler }
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.SingleProducer
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.reactive.OverflowStrategy.Unbounded
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
-import org.reactivestreams.{Subscriber => RSubscriber, Subscription => RSubscription}
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
+import org.reactivestreams.{ Subscriber => RSubscriber, Subscription => RSubscription }
 
 import scala.concurrent.Future
 
@@ -134,7 +134,8 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A](target: Sub
               err => {
                 stop()
                 err
-              })(immediate)
+              }
+            )(immediate)
         }
 
       def onNext(elem: A): Future[Ack] = {

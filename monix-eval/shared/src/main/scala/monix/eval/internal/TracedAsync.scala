@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.Task
-import monix.eval.internal.TracingPlatform.{isCachedStackTracing, isFullStackTracing}
+import monix.eval.internal.TracingPlatform.{ isCachedStackTracing, isFullStackTracing }
 import monix.execution.Callback
 
 /**
@@ -33,7 +33,8 @@ private[eval] object TracedAsync {
     trampolineBefore: Boolean = false,
     trampolineAfter: Boolean = false,
     restoreLocals: Boolean = true,
-    traceKey: AnyRef): Task[A] = {
+    traceKey: AnyRef
+  ): Task[A] = {
 
     val trace = if (isCachedStackTracing) {
       TaskTracing.cached(traceKey.getClass)

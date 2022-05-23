@@ -17,7 +17,7 @@
 
 package monix.tail
 
-import cats.effect.laws.discipline.{Parameters => EffectParameters}
+import cats.effect.laws.discipline.{ Parameters => EffectParameters }
 import minitest.SimpleTestSuite
 import minitest.api.IgnoredException
 import minitest.laws.Checkers

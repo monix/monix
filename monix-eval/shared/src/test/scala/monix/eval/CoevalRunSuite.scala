@@ -18,7 +18,7 @@
 package monix.eval
 
 import monix.execution.exceptions.DummyException
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 object CoevalRunSuite extends BaseTestSuite {
   def testRun(build: (() => Int) => Coeval[Int]): Unit = {

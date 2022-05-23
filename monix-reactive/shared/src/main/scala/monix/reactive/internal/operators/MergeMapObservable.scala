@@ -17,13 +17,13 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.MultiProducer
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.execution.cancelables._
 import monix.execution.exceptions.CompositeException
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
-import monix.reactive.{Observable, OverflowStrategy}
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
+import monix.reactive.{ Observable, OverflowStrategy }
 import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
 import scala.collection.mutable
@@ -32,8 +32,8 @@ private[reactive] final class MergeMapObservable[A, B](
   source: Observable[A],
   f: A => Observable[B],
   overflowStrategy: OverflowStrategy[B],
-  delayErrors: Boolean)
-  extends Observable[B] {
+  delayErrors: Boolean
+) extends Observable[B] {
 
   def unsafeSubscribeFn(downstream: Subscriber[B]): Cancelable = {
     val composite = CompositeCancelable()
@@ -57,7 +57,8 @@ private[reactive] final class MergeMapObservable[A, B](
                 subscriberB.onError(CompositeException(errors.toSeq))
               else
                 subscriberB.onComplete()
-            } else {
+            }
+          else {
             subscriberB.onComplete()
           }
         }
@@ -93,7 +94,8 @@ private[reactive] final class MergeMapObservable[A, B](
               if (delayErrors) errors.synchronized {
                 errors += ex
                 refID.cancel()
-              } else if (!upstreamIsDone.getAndSet(true)) {
+              }
+              else if (!upstreamIsDone.getAndSet(true)) {
                 try subscriberB.onError(ex)
                 finally composite.cancel()
               }
@@ -121,7 +123,8 @@ private[reactive] final class MergeMapObservable[A, B](
         if (delayErrors) errors.synchronized {
           errors += ex
           onComplete()
-        } else if (!upstreamIsDone.getAndSet(true)) {
+        }
+        else if (!upstreamIsDone.getAndSet(true)) {
           // oops, error happened on main thread,
           // piping that along should cancel everything
           composite.cancel()

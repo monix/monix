@@ -17,7 +17,7 @@
 
 package monix.execution.internal
 
-import scala.math.{ceil, round}
+import scala.math.{ ceil, round }
 
 private[monix] object math {
   /** Natural log of 2 */

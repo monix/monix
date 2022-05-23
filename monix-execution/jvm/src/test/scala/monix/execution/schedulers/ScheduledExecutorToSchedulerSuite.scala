@@ -23,10 +23,10 @@ import minitest.TestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.{Features, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import monix.execution.{ ExecutionModel => ExecModel, Features, UncaughtExceptionReporter }
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Promise}
+import scala.concurrent.{ Await, Promise }
 
 object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
   val lastError = Atomic(null: Throwable)
@@ -39,7 +39,8 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
         "ExecutorSchedulerSuite",
         reporter,
         daemonic = true
-      ))
+      )
+    )
 
     ExecutorScheduler(executor, reporter, ExecModel.Default, Features.empty)
   }

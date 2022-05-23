@@ -20,7 +20,7 @@ package monix.eval
 import cats.laws._
 import cats.laws.discipline._
 import monix.execution.internal.Platform
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskMapBothSuite extends BaseTestSuite {
   test("if both tasks are synchronous, then mapBoth forks") { implicit s =>

@@ -18,11 +18,11 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Cancelable
-import monix.execution.cancelables.{AssignableCancelable, MultiAssignCancelable}
+import monix.execution.cancelables.{ AssignableCancelable, MultiAssignCancelable }
 import scala.util.control.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observables.ChainedObservable
-import monix.reactive.observables.ChainedObservable.{subscribe => chain}
+import monix.reactive.observables.ChainedObservable.{ subscribe => chain }
 import monix.reactive.observers.Subscriber
 
 private[reactive] final class DeferObservable[+A](factory: () => Observable[A]) extends ChainedObservable[A] {

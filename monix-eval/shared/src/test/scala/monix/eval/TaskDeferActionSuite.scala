@@ -20,7 +20,7 @@ package monix.eval
 import monix.execution.exceptions.DummyException
 
 import concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskDeferActionSuite extends BaseTestSuite {
   test("Task.deferAction works") { implicit s =>

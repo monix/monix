@@ -37,7 +37,8 @@ object BufferSlidingOverlapSuite extends BaseOperatorSuite {
       val count = 8 + (divBy4 - 8) * 2
       val sum = (count / 4) * 6
       Sample(o, count, sum.toLong, waitFirst, waitNext)
-    } else
+    }
+    else
       Some {
         val o = Observable
           .now(1L)

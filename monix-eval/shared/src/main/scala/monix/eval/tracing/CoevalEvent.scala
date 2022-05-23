@@ -27,4 +27,3 @@ object CoevalEvent {
   final case class StackTrace(stackTrace: List[StackTraceElement]) extends CoevalEvent
 
 }
-

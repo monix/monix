@@ -19,11 +19,11 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.exceptions.DummyException
 import monix.tail.batches.BatchCursor
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object IterantFlatMapSuite extends BaseTestSuite {
   test("Iterant[Task].flatMap equivalence with List.flatMap") { implicit s =>

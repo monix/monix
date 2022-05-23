@@ -17,11 +17,11 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.internal.util.PromiseCounter
-import monix.reactive.observers.{ConnectableSubscriber, Subscriber}
+import monix.reactive.observers.{ ConnectableSubscriber, Subscriber }
 import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
 
@@ -186,7 +186,8 @@ object BehaviorSubject {
     cached: A,
     subscribers: Set[ConnectableSubscriber[A]] = Set.empty[ConnectableSubscriber[A]],
     isDone: Boolean = false,
-    errorThrown: Throwable = null) {
+    errorThrown: Throwable = null
+  ) {
 
     def cacheElem(elem: A): State[A] = {
       copy(cached = elem)

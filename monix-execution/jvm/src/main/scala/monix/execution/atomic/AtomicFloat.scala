@@ -19,8 +19,8 @@ package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import scala.annotation.tailrec
-import java.lang.Float.{floatToIntBits, intBitsToFloat}
-import monix.execution.internal.atomic.{BoxedInt, Factory}
+import java.lang.Float.{ floatToIntBits, intBitsToFloat }
+import monix.execution.internal.atomic.{ BoxedInt, Factory }
 
 /** Atomic references wrapping `Float` values.
   *
@@ -183,7 +183,8 @@ object AtomicFloat {
         boxStrategyToPaddingStrategy(padding),
         true, // allowUnsafe
         allowPlatformIntrinsics
-      ))
+      )
+    )
   }
 
   /** $createDesc
@@ -208,6 +209,7 @@ object AtomicFloat {
         boxStrategyToPaddingStrategy(padding),
         false, // allowUnsafe
         false // allowJava8Intrinsics
-      ))
+      )
+    )
   }
 }

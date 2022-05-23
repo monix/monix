@@ -19,7 +19,7 @@ package monix.eval
 
 import monix.execution.exceptions.DummyException
 import concurrent.duration._
-import scala.util.{Failure, Random, Success}
+import scala.util.{ Failure, Random, Success }
 
 object TaskParZipSuite extends BaseTestSuite {
   test("Task.parZip2 should work if source finishes first") { implicit s =>

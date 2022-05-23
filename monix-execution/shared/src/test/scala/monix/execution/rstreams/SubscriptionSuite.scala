@@ -18,7 +18,7 @@
 package monix.execution.rstreams
 
 import minitest.SimpleTestSuite
-import org.reactivestreams.{Subscription => RSubscription}
+import org.reactivestreams.{ Subscription => RSubscription }
 
 object SubscriptionSuite extends SimpleTestSuite {
   test("wraps any subscription reference") {

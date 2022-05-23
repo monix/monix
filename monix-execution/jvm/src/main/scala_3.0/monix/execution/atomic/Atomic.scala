@@ -209,7 +209,8 @@ object Atomic {
     *        best reference possible, based on our `initialValue`
     */
   inline def withPadding[A, R <: Atomic[A]](initialValue: A, padding: PaddingStrategy)(
-    implicit builder: AtomicBuilder[A, R]): R =
+    implicit builder: AtomicBuilder[A, R]
+  ): R =
     builder.buildInstance(initialValue, padding, allowPlatformIntrinsics = true)
 
   /** Returns the builder that would be chosen to construct Atomic

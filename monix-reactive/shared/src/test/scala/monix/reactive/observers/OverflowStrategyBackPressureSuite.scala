@@ -19,12 +19,12 @@ package monix.reactive.observers
 
 import minitest.TestSuite
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.OverflowStrategy.BackPressure
 import monix.execution.exceptions.DummyException
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -133,7 +133,8 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
       if (n > 0)
         s.execute { () =>
           buffer.onNext(n); loop(n - 1)
-        } else
+        }
+      else
         buffer.onComplete()
 
     loop(10000)
@@ -171,7 +172,8 @@ object OverflowStrategyBackPressureSuite extends TestSuite[TestScheduler] {
       if (n > 0)
         s.execute { () =>
           buffer.onNext(n); loop(n - 1)
-        } else
+        }
+      else
         buffer.onComplete()
 
     loop(10000)

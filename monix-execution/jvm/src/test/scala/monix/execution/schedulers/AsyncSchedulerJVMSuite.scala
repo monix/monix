@@ -17,14 +17,14 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
+import java.util.concurrent.{ CountDownLatch, TimeUnit, TimeoutException }
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.{Cancelable, Scheduler}
-import monix.execution.{ExecutionModel => ExecModel}
+import monix.execution.{ Cancelable, Scheduler }
+import monix.execution.{ ExecutionModel => ExecModel }
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.{ Await, Future, Promise }
 
 object AsyncSchedulerJVMSuite extends SimpleTestSuite {
   val s: Scheduler = monix.execution.Scheduler.global
@@ -78,7 +78,8 @@ object AsyncSchedulerJVMSuite extends SimpleTestSuite {
         } else if (value < 4) {
           value += 1
         }
-      })
+      }
+    )
 
     assert(Await.result(p.future, 5.second) == 4)
   }
@@ -101,7 +102,8 @@ object AsyncSchedulerJVMSuite extends SimpleTestSuite {
         } else if (value < 4) {
           value += 1
         }
-      })
+      }
+    )
 
     assert(Await.result(p.future, 5.second) == 4)
   }

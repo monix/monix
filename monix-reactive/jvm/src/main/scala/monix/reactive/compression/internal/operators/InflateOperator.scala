@@ -17,11 +17,11 @@
 
 package monix.reactive.compression.internal.operators
 
-import java.util.zip.{DataFormatException, Inflater}
-import java.{util => ju}
+import java.util.zip.{ DataFormatException, Inflater }
+import java.{ util => ju }
 
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.reactive.Observable.Operator
 import monix.reactive.compression.CompressionException
 import monix.reactive.observers.Subscriber

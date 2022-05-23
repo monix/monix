@@ -19,9 +19,9 @@ package monix.eval.internal
 
 import monix.execution.Callback
 import monix.eval.Task
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.{ Async, Context }
 import monix.execution.ExecutionModel
-import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
+import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, BatchedExecution, SynchronousExecution }
 
 private[eval] object TaskExecuteWithModel {
   /**

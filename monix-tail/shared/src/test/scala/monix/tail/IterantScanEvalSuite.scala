@@ -63,7 +63,8 @@ object IterantScanEvalSuite extends BaseTestSuite {
         .map(ls =>
           ls.take(19)
             .map(x => requestPersonDetails(x).value())
-            .collect { case Some(p) => p.name })
+            .collect { case Some(p) => p.name }
+        )
 
       fa <-> expected
     }

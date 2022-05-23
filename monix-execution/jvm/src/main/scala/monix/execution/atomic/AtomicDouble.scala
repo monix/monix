@@ -19,8 +19,8 @@ package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import scala.annotation.tailrec
-import java.lang.Double.{doubleToLongBits, longBitsToDouble}
-import monix.execution.internal.atomic.{BoxedLong, Factory}
+import java.lang.Double.{ doubleToLongBits, longBitsToDouble }
+import monix.execution.internal.atomic.{ BoxedLong, Factory }
 
 /** Atomic references wrapping `Double` values.
   *
@@ -183,7 +183,8 @@ object AtomicDouble {
         boxStrategyToPaddingStrategy(padding),
         true, // allowIntrinsics
         allowPlatformIntrinsics
-      ))
+      )
+    )
   }
 
   /** $createDesc
@@ -208,6 +209,7 @@ object AtomicDouble {
         boxStrategyToPaddingStrategy(padding),
         false, // allowUnsafe
         false // allowJava8Intrinsics
-      ))
+      )
+    )
   }
 }

@@ -28,7 +28,7 @@ import monix.reactive.Observable
 object CombineObservable extends Newtype1[Observable] {
 
   implicit val combineObservableApplicative: Apply[CombineObservable.Type] = new Apply[CombineObservable.Type] {
-    import CombineObservable.{apply => wrap}
+    import CombineObservable.{ apply => wrap }
 
     override def ap[A, B](ff: CombineObservable.Type[(A) => B])(fa: CombineObservable.Type[A]) =
       wrap(unwrap(ff).combineLatestMap(unwrap(fa))((f, a) => f(a)))
@@ -37,12 +37,14 @@ object CombineObservable extends Newtype1[Observable] {
       wrap(unwrap(fa).map(f))
 
     override def map2[A, B, C](fa: CombineObservable.Type[A], fb: CombineObservable.Type[B])(
-      f: (A, B) => C): CombineObservable.Type[C] =
+      f: (A, B) => C
+    ): CombineObservable.Type[C] =
       wrap(unwrap(fa).combineLatestMap(unwrap(fb))(f))
 
     override def product[A, B](
       fa: CombineObservable.Type[A],
-      fb: CombineObservable.Type[B]): CombineObservable.Type[(A, B)] =
+      fb: CombineObservable.Type[B]
+    ): CombineObservable.Type[(A, B)] =
       wrap(unwrap(fa).combineLatest(unwrap(fb)))
   }
 }

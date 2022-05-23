@@ -21,7 +21,7 @@ import cats.effect.CancelToken
 import monix.catnap.CancelableF
 import monix.execution.Callback
 import monix.eval.Task
-import monix.execution.atomic.{Atomic, PaddingStrategy}
+import monix.execution.atomic.{ Atomic, PaddingStrategy }
 
 private[eval] object TaskRaceList {
   /**

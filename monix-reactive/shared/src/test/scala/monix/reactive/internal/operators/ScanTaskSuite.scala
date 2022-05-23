@@ -208,9 +208,13 @@ object ScanTaskSuite extends BaseOperatorSuite {
   test("error in task after user cancelled") { implicit s =>
     def delay[A](ex: Throwable): Task[A] =
       Task.async0 { (sc, cb) =>
-        sc.scheduleOnce(1, TimeUnit.SECONDS, new Runnable {
-          def run() = cb.onError(ex)
-        })
+        sc.scheduleOnce(
+          1,
+          TimeUnit.SECONDS,
+          new Runnable {
+            def run() = cb.onError(ex)
+          }
+        )
         ()
       }
 

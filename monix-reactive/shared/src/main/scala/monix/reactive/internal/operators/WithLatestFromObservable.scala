@@ -17,10 +17,10 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.CompositeCancelable
 import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -29,8 +29,8 @@ import scala.concurrent.Future
 private[reactive] final class WithLatestFromObservable[A, B, +R](
   source: Observable[A],
   other: Observable[B],
-  f: (A, B) => R)
-  extends Observable[R] {
+  f: (A, B) => R
+) extends Observable[R] {
 
   def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
     val connection = CompositeCancelable()

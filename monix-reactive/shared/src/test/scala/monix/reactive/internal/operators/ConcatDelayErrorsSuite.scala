@@ -18,8 +18,8 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.execution.exceptions.{CompositeException, DummyException}
-import monix.reactive.{BaseTestSuite, Observable, Observer}
+import monix.execution.exceptions.{ CompositeException, DummyException }
+import monix.reactive.{ BaseTestSuite, Observable, Observer }
 import scala.concurrent.Future
 
 object ConcatDelayErrorsSuite extends BaseTestSuite {
@@ -28,7 +28,8 @@ object ConcatDelayErrorsSuite extends BaseTestSuite {
       .range(0, 100)
       .flatMapDelayErrors(x =>
         Observable(x, x, x)
-          .endWithError(DummyException(x.toString)))
+          .endWithError(DummyException(x.toString))
+      )
 
     var result = 0L
     var errorThrown: Throwable = null

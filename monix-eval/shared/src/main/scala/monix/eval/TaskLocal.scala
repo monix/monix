@@ -283,7 +283,8 @@ object TaskLocal {
       if (!ctx.options.localContextPropagation) {
         throw new APIContractViolationException(
           "Support for TaskLocal usage isn't active! " +
-            "See documentation at: https://monix.io/api/current/monix/eval/TaskLocal.html")
+            "See documentation at: https://monix.io/api/current/monix/eval/TaskLocal.html"
+        )
       }
       ctx
     }

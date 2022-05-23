@@ -18,7 +18,7 @@
 package monix.execution
 
 import minitest.SimpleTestSuite
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration

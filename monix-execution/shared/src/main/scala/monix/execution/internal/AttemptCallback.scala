@@ -19,7 +19,7 @@ package monix.execution.internal
 
 import monix.execution.UncaughtExceptionReporter
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /** Internal API — some utilities for working with cats-effect
   * callbacks.

@@ -28,7 +28,7 @@ import monix.execution.atomic.Atomic
 import monix.reactive.Observable
 
 import scala.concurrent.duration._
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
 object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {

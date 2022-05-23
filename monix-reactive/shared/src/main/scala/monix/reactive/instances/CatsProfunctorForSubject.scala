@@ -19,7 +19,7 @@ package monix.reactive.instances
 
 import cats.arrow.Profunctor
 import monix.execution.Ack.Stop
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.Subject
 

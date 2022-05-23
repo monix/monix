@@ -19,7 +19,7 @@ package monix.reactive.compression
 
 import java.io.ByteArrayInputStream
 import java.util.Arrays
-import java.util.zip.{Deflater, DeflaterInputStream, Inflater, InflaterInputStream}
+import java.util.zip.{ Deflater, DeflaterInputStream, Inflater, InflaterInputStream }
 
 import monix.reactive.Observable
 

@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.{~>, Eval}
+import cats.{ ~>, Eval }
 import cats.effect._
 import scala.annotation.implicitNotFound
 

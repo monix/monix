@@ -19,7 +19,7 @@ package monix.reactive.internal.builders
 
 import cats.Eval
 import cats.effect.IO
-import monix.reactive.{BaseTestSuite, Observable}
+import monix.reactive.{ BaseTestSuite, Observable }
 import scala.util.Success
 
 object CatsConversionsSuite extends BaseTestSuite {

@@ -18,7 +18,7 @@
 package monix.execution
 
 import monix.execution.internal.Platform
-import java.io.{ByteArrayOutputStream, PrintStream}
+import java.io.{ ByteArrayOutputStream, PrintStream }
 import scala.util.control.NonFatal
 
 /**

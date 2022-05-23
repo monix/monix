@@ -19,11 +19,11 @@ package monix.reactive.internal.operators
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Task, TaskLike}
+import monix.eval.{ Task, TaskLike }
 import monix.reactive.Observable
 
 import concurrent.duration._
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
 object TakeUntilObservableSuite extends BaseOperatorSuite {

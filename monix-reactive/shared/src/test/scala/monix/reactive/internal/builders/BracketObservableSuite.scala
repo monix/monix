@@ -23,7 +23,7 @@ import cats.effect.concurrent.Deferred
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.reactive.observers.Subscriber
-import monix.reactive.{BaseTestSuite, Observable}
+import monix.reactive.{ BaseTestSuite, Observable }
 
 import scala.concurrent.duration._
 import scala.util.Success
