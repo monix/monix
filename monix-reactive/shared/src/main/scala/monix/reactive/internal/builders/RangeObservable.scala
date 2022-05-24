@@ -39,7 +39,7 @@ private[reactive] final class RangeObservable(from: Long, until: Long, step: Lon
       Cancelable.empty
     } else {
       val cancelable = BooleanCancelable()
-      loop(cancelable, subscriber, s.executionModel, from, 0)(s)
+      loop(cancelable, subscriber, s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), from, 0)(s)
       cancelable
     }
   }

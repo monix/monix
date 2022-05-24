@@ -21,6 +21,7 @@ import java.util.concurrent.Executor
 
 import monix.execution.internal.RunnableAction
 import monix.execution.schedulers.SchedulerCompanionImpl
+import monix.newtypes.TypeInfo
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
@@ -200,42 +201,6 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
   /** Reports that an asynchronous computation failed. */
   def reportFailure(t: Throwable): Unit
 
-  /** The [[ExecutionModel]] is a specification of how run-loops
-    * and producers should behave in regards to executing tasks
-    * either synchronously or asynchronously.
-    */
-  def executionModel: ExecutionModel
-
-  /** Given a function that will receive the underlying
-    * [[monix.execution.ExecutionModel ExecutionModel]],
-    * returns a new [[Scheduler]] reference, based on the source,
-    * that exposes the transformed `ExecutionModel`
-    * when queried by means of the [[executionModel]] property.
-    *
-    * This method enables reusing global scheduler references in
-    * a local scope, but with a slightly modified
-    * [[monix.execution.ExecutionModel execution model]]
-    * to inject.
-    *
-    * The contract of this method (things you can rely on):
-    *
-    *  1. the source `Scheduler` must not be modified in any way
-    *  1. the implementation should wrap the source efficiently, such that the
-    *     result mirrors the source `Scheduler` in every way except for
-    *     the execution model
-    *
-    * Sample:
-    * {{{
-    *   import monix.execution.Scheduler.global
-    *
-    *   implicit val scheduler = {
-    *     val em = global.executionModel
-    *     global.withExecutionModel(em.withAutoCancelableLoops(true))
-    *   }
-    * }}}
-    */
-  def withExecutionModel(em: ExecutionModel): Scheduler
-
   /**
     * Returns a new `Scheduler` that piggybacks on this, but uses
     * the given exception reporter for reporting uncaught errors.
@@ -369,6 +334,12 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
     */
   final def executeTrampolined(cb: schedulers.TrampolinedRunnable): Unit =
     execute(cb)
+    
+  
+  // New in 4.0
+  def properties: Properties
+  def withProperties(properties: Properties): Scheduler
+  def withProperty[A: TypeInfo](a: A): Scheduler = withProperties(properties.withProperty(a))
 }
 
 private[monix] trait SchedulerCompanion {

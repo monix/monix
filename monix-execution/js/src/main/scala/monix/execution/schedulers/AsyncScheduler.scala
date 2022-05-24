@@ -31,7 +31,7 @@ import monix.execution.internal.InterceptRunnable
   */
 final class AsyncScheduler private (
   context: ExecutionContext,
-  override val executionModel: ExecModel,
+  override val properties: Properties,
   reporter: UncaughtExceptionReporter
 ) extends ReferenceScheduler with BatchingScheduler {
 
@@ -54,8 +54,8 @@ final class AsyncScheduler private (
     if (reporter eq null) context.reportFailure(t)
     else reporter.reportFailure(t)
 
-  override def withExecutionModel(em: ExecModel): AsyncScheduler =
-    new AsyncScheduler(context, em, reporter)
+  override def withProperties(properties: Properties): AsyncScheduler =
+    new AsyncScheduler(context, properties, reporter)
 
   override val features: Features =
     Features(Scheduler.BATCHING)
@@ -76,5 +76,5 @@ object AsyncScheduler {
     executionModel: ExecModel,
     r: UncaughtExceptionReporter = null
   ): AsyncScheduler =
-    new AsyncScheduler(context, executionModel, r)
+    new AsyncScheduler(context, Properties(executionModel), r)
 }

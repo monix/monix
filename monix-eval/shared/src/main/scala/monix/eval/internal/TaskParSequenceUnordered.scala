@@ -19,9 +19,8 @@ package monix.eval.internal
 
 import cats.effect.CancelToken
 import monix.eval.Task.{Async, Context}
-import monix.execution.Callback
+import monix.execution.{Callback, ExecutionModel, Scheduler}
 import monix.eval.Task
-import monix.execution.Scheduler
 import monix.execution.atomic.{Atomic, AtomicAny}
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.compat.internal.toIterator
@@ -121,7 +120,7 @@ private[eval] object TaskParSequenceUnordered {
         // cancelables one by one in our `CompositeCancelable` is
         // expensive, so we do it at the end
         val allCancelables = ListBuffer.empty[CancelToken[Task]]
-        val batchSize = s.executionModel.recommendedBatchSize
+        val batchSize = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize
         val cursor = toIterator(in)
 
         var continue = true

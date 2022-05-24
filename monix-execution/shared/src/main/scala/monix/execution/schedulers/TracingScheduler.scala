@@ -18,7 +18,8 @@
 package monix.execution.schedulers
 
 import scala.concurrent.duration.TimeUnit
-import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import monix.execution.{Cancelable, Features, Properties, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+
 import scala.concurrent.ExecutionContext
 
 /** The `TracingScheduler` is a [[monix.execution.Scheduler Scheduler]]
@@ -30,8 +31,8 @@ import scala.concurrent.ExecutionContext
   *        in charge of the actual execution and scheduling
   */
 final class TracingScheduler private (underlying: Scheduler) extends TracingScheduler.Base(underlying) {
-  override def withExecutionModel(em: ExecModel): TracingScheduler =
-    new TracingScheduler(underlying.withExecutionModel(em))
+  override def withProperties(properties: Properties): TracingScheduler =
+    new TracingScheduler(underlying.withProperties(properties))
   override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
     new TracingScheduler(underlying.withUncaughtExceptionReporter(r))
 }
@@ -65,8 +66,8 @@ object TracingScheduler {
       underlying.clockRealTime(unit)
     override def clockMonotonic(unit: TimeUnit): Long =
       underlying.clockMonotonic(unit)
-    override final def executionModel: ExecModel =
-      underlying.executionModel
+    override final def properties: Properties =
+      underlying.properties
     override final val features: Features =
       underlying.features + Scheduler.TRACING
   }

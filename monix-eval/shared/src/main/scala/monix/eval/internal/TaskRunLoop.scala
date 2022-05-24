@@ -62,7 +62,7 @@ private[eval] object TaskRunLoop {
 
     // Can change due to ContextSwitch
     var context = contextInit
-    var em = context.scheduler.executionModel
+    var em = context.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
 
     while (true) {
       if (currentIndex != 0) {
@@ -144,7 +144,7 @@ private[eval] object TaskRunLoop {
               catchError = false
               current = next
               if (context ne old) {
-                em = context.scheduler.executionModel
+                em = context.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
                 if (rcb ne null) rcb.contextSwitch(context)
                 if (restore ne null) {
                   /*_*/
@@ -267,7 +267,7 @@ private[eval] object TaskRunLoop {
     var hasUnboxed: Boolean = false
     var unboxed: AnyRef = null
     // Keeps track of the current frame, used for forced async boundaries
-    val em = scheduler.executionModel
+    val em = scheduler.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
     var frameIndex = frameStart(em)
 
     // we might not need to initialize full Task.Context
@@ -418,7 +418,7 @@ private[eval] object TaskRunLoop {
     var hasUnboxed: Boolean = false
     var unboxed: AnyRef = null
     // Keeps track of the current frame, used for forced async boundaries
-    val em = scheduler.executionModel
+    val em = scheduler.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
     var frameIndex = frameStart(em)
 
     // we might not need to initialize full Task.Context
@@ -548,7 +548,7 @@ private[eval] object TaskRunLoop {
     var hasUnboxed: Boolean = false
     var unboxed: AnyRef = null
     // Keeps track of the current frame, used for forced async boundaries
-    val em = scheduler.executionModel
+    val em = scheduler.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
     var frameIndex = frameStart(em)
 
     // we might not need to initialize full Task.Context

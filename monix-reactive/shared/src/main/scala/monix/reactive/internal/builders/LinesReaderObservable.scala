@@ -50,7 +50,7 @@ private[reactive] final class LinesReaderObservable(reader: Reader) extends Obse
     } else {
       // A token that will be checked for cancellation
       val cancelable = BooleanCancelable()
-      val em = out.scheduler.executionModel
+      val em = out.scheduler.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
       // Schedule first cycle
       reschedule(Continue, out, cancelable, em)(out.scheduler)
 

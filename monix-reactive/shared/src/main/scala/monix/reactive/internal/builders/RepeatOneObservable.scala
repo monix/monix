@@ -31,7 +31,7 @@ private[reactive] final class RepeatOneObservable[A](elem: A) extends Observable
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val s = subscriber.scheduler
     val cancelable = BooleanCancelable()
-    fastLoop(subscriber, cancelable, s.executionModel, 0)(s)
+    fastLoop(subscriber, cancelable, s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), 0)(s)
     cancelable
   }
 

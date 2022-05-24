@@ -127,7 +127,7 @@ import scala.util.Random
   */
 final class TestScheduler private (
   private[this] val stateRef: AtomicAny[State],
-  override val executionModel: ExecutionModel)
+  override val properties: Properties)
   extends ReferenceScheduler with BatchingScheduler {
 
   /**
@@ -168,8 +168,8 @@ final class TestScheduler private (
     if (!stateRef.compareAndSet(current, update)) reportFailure(t)
   }
 
-  override def withExecutionModel(em: ExecutionModel): TestScheduler =
-    new TestScheduler(stateRef, em)
+  override def withProperties(properties: Properties): TestScheduler =
+    new TestScheduler(stateRef, properties)
 
   override val features: Features =
     Features(Scheduler.BATCHING)
@@ -328,10 +328,14 @@ final class TestScheduler private (
 object TestScheduler {
   /** Builder for [[TestScheduler]]. */
   def apply(): TestScheduler =
-    apply(ExecutionModel.Default)
+    apply(Properties(ExecutionModel.Default))
 
-  /** Builder for [[TestScheduler]]. */
   def apply(executionModel: ExecutionModel): TestScheduler = {
+    apply(Properties(executionModel))
+  }
+  
+  /** Builder for [[TestScheduler]]. */
+  def apply(properties: Properties): TestScheduler = {
     val state = AtomicAny(
       State(
         lastID = 0,
@@ -340,7 +344,7 @@ object TestScheduler {
         lastReportedError = null
       ))
 
-    new TestScheduler(state, executionModel)
+    new TestScheduler(state, properties)
   }
 
   /** Used internally by [[TestScheduler]], represents a

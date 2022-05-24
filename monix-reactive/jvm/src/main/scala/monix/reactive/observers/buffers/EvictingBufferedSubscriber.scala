@@ -18,7 +18,7 @@
 package monix.reactive.observers.buffers
 
 import monix.eval.Coeval
-import monix.execution.Ack
+import monix.execution.{Ack, ExecutionModel}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.atomic.PaddingStrategy.{LeftRight128, LeftRight256}
 import monix.execution.atomic.{Atomic, AtomicAny, AtomicInt}
@@ -113,7 +113,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
   require(strategy.bufferSize > 0, "bufferSize must be a strictly positive number")
 
   implicit val scheduler = out.scheduler
-  private[this] val em = out.scheduler.executionModel
+  private[this] val em = out.scheduler.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
 
   private[this] val droppedCount: AtomicInt =
     if (onOverflow != null) AtomicInt.withPadding(0, LeftRight128)

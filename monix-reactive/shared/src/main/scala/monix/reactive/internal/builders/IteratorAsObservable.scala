@@ -58,7 +58,7 @@ private[reactive] final class IteratorAsObservable[A](iterator: Iterator[A]) ext
       } else {
         // Starting the synchronous loop
         val cancelable = BooleanCancelable()
-        fastLoop(iterator, subscriber, cancelable, s.executionModel, 0)(s)
+        fastLoop(iterator, subscriber, cancelable, s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), 0)(s)
         cancelable
       }
     } catch {

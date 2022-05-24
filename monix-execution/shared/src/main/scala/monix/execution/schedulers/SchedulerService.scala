@@ -17,9 +17,10 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import monix.execution.{Properties, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.{FiniteDuration, TimeUnit}
 
@@ -94,7 +95,7 @@ trait SchedulerService extends Scheduler {
   def awaitTermination(timeout: Long, unit: TimeUnit, awaitOn: ExecutionContext): Future[Boolean]
 
   // Overriding the return type
-  override def withExecutionModel(em: ExecModel): SchedulerService
+  override def withProperties(properties: Properties): SchedulerService
 
   // Overriding the return type
   override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): SchedulerService

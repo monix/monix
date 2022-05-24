@@ -19,7 +19,7 @@ package monix.reactive.internal.builders
 
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{Ack, Cancelable, ExecutionModel}
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -51,7 +51,7 @@ private[reactive] final class UnfoldObservable[S, A](seed: => S, f: S => Option[
     import o.{scheduler => s}
 
     private[this] var seed = initialSeed
-    private[this] val em = s.executionModel
+    private[this] val em = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
 
     private[this] val asyncReschedule: Try[Ack] => Unit = {
       case Continue.AsSuccess =>

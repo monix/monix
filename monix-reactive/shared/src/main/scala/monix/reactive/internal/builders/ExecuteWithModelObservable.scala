@@ -30,7 +30,7 @@ private[reactive] final class ExecuteWithModelObservable[A](source: Observable[A
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     var streamErrors = true
     try {
-      val newS = out.scheduler.withExecutionModel(em)
+      val newS = out.scheduler.withProperty(em)
       streamErrors = false
 
       source.unsafeSubscribeFn(new Subscriber[A] {

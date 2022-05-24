@@ -131,7 +131,8 @@ object Observer {
     * specification.
     */
   def toReactiveSubscriber[A](observer: Observer[A])(implicit s: Scheduler): RSubscriber[A] = {
-    toReactiveSubscriber(observer, s.executionModel.recommendedBatchSize)(s)
+    toReactiveSubscriber(observer, s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
+      .recommendedBatchSize)(s)
   }
 
   /** Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
@@ -193,7 +194,7 @@ object Observer {
 
     def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[A]): Future[Ack] = {
       s.execute(new Runnable {
-        private[this] val em = s.executionModel
+        private[this] val em = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
 
         @tailrec
         def fastLoop(syncIndex: Int): Unit = {

@@ -24,7 +24,7 @@ import monix.eval.tracing.TaskEvent
 import monix.eval.internal.TracingPlatform.{enhancedExceptions, isStackTracing}
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.misc.Local
-import monix.execution.{Callback, CancelableFuture, Scheduler}
+import monix.execution.{Callback, CancelableFuture, ExecutionModel, Scheduler}
 
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
@@ -44,7 +44,7 @@ private[eval] object TaskRunToFutureWithLocal {
     var hasUnboxed: Boolean = false
     var unboxed: AnyRef = null
     // Keeps track of the current frame, used for forced async boundaries
-    val em = scheduler.executionModel
+    val em = scheduler.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
     var frameIndex = frameStart(em)
 
     // we might not need to initialize full Task.Context

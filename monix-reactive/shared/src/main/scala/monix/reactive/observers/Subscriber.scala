@@ -20,10 +20,11 @@ package monix.reactive.observers
 import java.io.PrintStream
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{Ack, Cancelable, ExecutionModel, Scheduler}
 import monix.reactive.Observer
 import monix.reactive.internal.rstreams._
 import org.reactivestreams.{Subscriber => RSubscriber}
+
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
@@ -116,7 +117,7 @@ object Subscriber {
     * specification.
     */
   def toReactiveSubscriber[A](subscriber: Subscriber[A]): RSubscriber[A] =
-    toReactiveSubscriber(subscriber, subscriber.scheduler.executionModel.recommendedBatchSize)
+    toReactiveSubscriber(subscriber, subscriber.scheduler.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize)
 
   /** Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]

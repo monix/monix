@@ -49,7 +49,7 @@ private[reactive] final class CharsReaderObservable(in: Reader, chunkSize: Int) 
       val buffer = new Array[Char](chunkSize)
       // A token that will be checked for cancellation
       val cancelable = BooleanCancelable()
-      val em = out.scheduler.executionModel
+      val em = out.scheduler.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
       // Schedule first cycle
       reschedule(Continue, buffer, out, cancelable, em)(out.scheduler)
       cancelable

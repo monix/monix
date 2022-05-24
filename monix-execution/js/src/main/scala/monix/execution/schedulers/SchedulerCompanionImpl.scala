@@ -17,7 +17,8 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{Scheduler, SchedulerCompanion, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import monix.execution.{Properties, Scheduler, SchedulerCompanion, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+
 import scala.concurrent.ExecutionContext
 
 private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
@@ -51,7 +52,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     *         for the default.
     */
   def trampoline(underlying: Scheduler = Implicits.global, executionModel: ExecModel = ExecModel.Default): Scheduler =
-    TrampolineScheduler(underlying, executionModel)
+    TrampolineScheduler(underlying, Properties(executionModel))
 
   /** The explicit global `Scheduler`. Invoke `global` when you want
     * to provide the global `Scheduler` explicitly.

@@ -70,6 +70,10 @@ lazy val implicitBoxLib =
 lazy val jcToolsLib =
   "org.jctools" % "jctools-core" % jcTools_Version
 
+/** [[https://github.com/monix/newtypes]] */
+lazy val newtypesLib =
+  Def.setting { "io.monix" %%% "newtypes-core" % "0.2.1" }
+
 /** [[https://github.com/reactive-streams/reactive-streams-jvm]] */
 lazy val reactiveStreamsLib =
   "org.reactivestreams" % "reactive-streams" % reactiveStreams_Version
@@ -556,7 +560,7 @@ lazy val executionProfile =
     withDocTests = false,
     crossSettings = Seq(
       description := "Sub-module of Monix, exposing low-level primitives for dealing with async execution. See: https://monix.io",
-      libraryDependencies += implicitBoxLib.value
+      libraryDependencies ++= Seq(implicitBoxLib.value, newtypesLib.value)
     ))
 
 lazy val executionJVM = project.in(file("monix-execution/jvm"))

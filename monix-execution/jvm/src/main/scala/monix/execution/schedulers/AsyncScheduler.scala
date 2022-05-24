@@ -18,8 +18,7 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
-
-import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import monix.execution.{Cancelable, Features, Properties, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
 
 import scala.concurrent.ExecutionContext
 import monix.execution.internal.{InterceptRunnable, ScheduledExecutors}
@@ -31,7 +30,7 @@ import monix.execution.internal.{InterceptRunnable, ScheduledExecutors}
 final class AsyncScheduler private (
   scheduler: ScheduledExecutorService,
   ec: ExecutionContext,
-  val executionModel: ExecModel,
+  val properties: Properties,
   r: UncaughtExceptionReporter)
   extends ReferenceScheduler with BatchingScheduler {
 
@@ -47,8 +46,8 @@ final class AsyncScheduler private (
     if (r eq null) ec.reportFailure(t)
     else r.reportFailure(t)
 
-  override def withExecutionModel(em: ExecModel): AsyncScheduler =
-    new AsyncScheduler(scheduler, ec, em, r)
+  override def withProperties(properties: Properties): AsyncScheduler =
+    new AsyncScheduler(scheduler, ec, properties, r)
 
   override val features: Features =
     Features(Scheduler.BATCHING)
@@ -70,5 +69,5 @@ object AsyncScheduler {
     ec: ExecutionContext,
     executionModel: ExecModel,
     reporter: UncaughtExceptionReporter = null): AsyncScheduler =
-    new AsyncScheduler(schedulerService, ec, executionModel, reporter)
+    new AsyncScheduler(schedulerService, ec, Properties(executionModel), reporter)
 }

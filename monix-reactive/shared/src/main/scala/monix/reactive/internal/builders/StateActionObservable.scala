@@ -18,8 +18,9 @@
 package monix.reactive.internal.builders
 
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{Ack, Cancelable, ExecutionModel}
 import monix.execution.Ack.{Continue, Stop}
+
 import scala.util.control.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -49,7 +50,7 @@ private[reactive] final class StateActionObservable[S, A](seed: => S, f: S => (A
 
     import o.{scheduler => s}
     private[this] var seed = initialSeed
-    private[this] val em = s.executionModel
+    private[this] val em = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
 
     private[this] val asyncReschedule: Try[Ack] => Unit = {
       case Continue.AsSuccess =>

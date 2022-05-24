@@ -19,7 +19,8 @@ package monix.execution.schedulers
 
 import monix.execution.cancelables.OrderedCancelable
 import monix.execution.schedulers.ReferenceScheduler.WrappedScheduler
-import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{Cancelable, Features, Properties, Scheduler, UncaughtExceptionReporter}
+
 import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
 import monix.execution.internal.InterceptRunnable
 // Prevents conflict with the deprecated symbol
@@ -92,11 +93,8 @@ trait ReferenceScheduler extends Scheduler {
     sub
   }
 
-  override def withExecutionModel(em: ExecModel): Scheduler =
-    WrappedScheduler(this, em)
-
   override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
-    WrappedScheduler(this, executionModel, r)
+    WrappedScheduler(this, properties, r)
 }
 
 object ReferenceScheduler {
@@ -105,7 +103,7 @@ object ReferenceScheduler {
     */
   private final case class WrappedScheduler(
     s: Scheduler,
-    override val executionModel: ExecModel,
+    override val properties: Properties,
     reporter: UncaughtExceptionReporter = null
   ) extends Scheduler {
     private[this] val reporterRef = if (reporter eq null) s else reporter
@@ -124,8 +122,8 @@ object ReferenceScheduler {
       s.clockRealTime(unit)
     override def clockMonotonic(unit: TimeUnit): Long =
       s.clockMonotonic(unit)
-    override def withExecutionModel(em: ExecModel): Scheduler =
-      copy(s, em)
+    override def withProperties(properties: Properties): Scheduler =
+      copy(s, properties)
     override def features: Features =
       s.features
     override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =

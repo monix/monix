@@ -18,7 +18,7 @@
 package monix.reactive.observers.buffers
 
 import monix.eval.Coeval
-import monix.execution.Ack
+import monix.execution.{Ack, ExecutionModel}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.internal.collection.{JSArrayQueue, _}
 
@@ -52,7 +52,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private (
   // last acknowledgement received by consumer loop
   private[this] var lastIterationAck: Future[Ack] = Continue
   // Used on the consumer side to split big synchronous workloads in batches
-  private[this] val em = scheduler.executionModel
+  private[this] val em = scheduler.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
 
   def onNext(elem: A): Ack = {
     if (!upstreamIsComplete && !downstreamIsComplete) {

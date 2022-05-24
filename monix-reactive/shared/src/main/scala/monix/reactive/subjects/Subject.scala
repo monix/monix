@@ -18,7 +18,7 @@
 package monix.reactive.subjects
 
 import cats.arrow.Profunctor
-import monix.execution.Scheduler
+import monix.execution.{ExecutionModel, Scheduler}
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.reactive.instances.CatsProfunctorForSubject
 import monix.reactive.observers.Subscriber
@@ -48,7 +48,7 @@ abstract class Subject[I, +O] extends Observable[O] with Observer[I] { self =>
   def size: Int
 
   final def toReactiveProcessor[U >: O](implicit s: Scheduler): RProcessor[I, U] =
-    toReactiveProcessor(s.executionModel.recommendedBatchSize)
+    toReactiveProcessor(s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize)
   final def toReactiveProcessor[U >: O](bufferSize: Int)(implicit s: Scheduler): RProcessor[I, U] =
     Subject.toReactiveProcessor(this, bufferSize)
 }

@@ -17,10 +17,11 @@
 
 package monix.reactive.observers.buffers
 
-import monix.execution.Ack
+import monix.execution.{Ack, ExecutionModel}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.internal.collection.JSArrayQueue
 import monix.execution.internal.math.nextPowerOf2
+
 import scala.util.control.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
 
@@ -36,7 +37,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
   require(_size > 0, "bufferSize must be a strictly positive number")
   private[this] val bufferSize = nextPowerOf2(_size)
 
-  private[this] val em = out.scheduler.executionModel
+  private[this] val em = out.scheduler.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
   implicit final val scheduler = out.scheduler
 
   private[this] var upstreamIsComplete = false

@@ -17,7 +17,8 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{ExecutionModel, UncaughtExceptionReporter}
+import monix.execution.{ExecutionModel, Properties, UncaughtExceptionReporter}
+
 import scala.concurrent.duration.TimeUnit
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -43,8 +44,8 @@ final class TracingSchedulerService(underlying: SchedulerService)
     underlying.shutdown()
   override def awaitTermination(timeout: Long, unit: TimeUnit, awaitOn: ExecutionContext): Future[Boolean] =
     underlying.awaitTermination(timeout, unit, awaitOn)
-  override def withExecutionModel(em: ExecutionModel): TracingSchedulerService =
-    new TracingSchedulerService(underlying.withExecutionModel(em))
+  override def withProperties(properties: Properties): TracingSchedulerService =
+    new TracingSchedulerService(underlying.withProperties(properties))
   override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): TracingSchedulerService =
     new TracingSchedulerService(underlying.withUncaughtExceptionReporter(r))
 }

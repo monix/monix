@@ -17,14 +17,14 @@
 
 package monix.reactive.observers.buffers
 
-import monix.execution.{Ack, ChannelType}
+import monix.execution.{Ack, ChannelType, ExecutionModel}
 import monix.execution.Ack.{Continue, Stop}
 import monix.execution.BufferCapacity.Unbounded
 import monix.execution.ChannelType._
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight256
 import monix.execution.internal.collection.LowLevelConcurrentQueue
-import monix.execution.internal.{math, Platform}
+import monix.execution.internal.{Platform, math}
 
 import scala.util.control.NonFatal
 import monix.reactive.observers.{BufferedSubscriber, Subscriber}
@@ -45,7 +45,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
   require(_bufferSize > 0, "bufferSize must be a strictly positive number")
 
   private[this] val bufferSize = math.nextPowerOf2(_bufferSize)
-  private[this] val em = out.scheduler.executionModel
+  private[this] val em = out.scheduler.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
   implicit final val scheduler = out.scheduler
 
   protected final val queue: LowLevelConcurrentQueue[A] =

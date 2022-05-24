@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
-import monix.execution.{Cancelable, Features, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{Cancelable, Features, Properties, Scheduler, UncaughtExceptionReporter}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ExecutionModel => ExecModel}
 
@@ -53,7 +53,7 @@ import monix.execution.{ExecutionModel => ExecModel}
   * @param underlying is the `ExecutionContext` to which the it defers
   *        to in case real asynchronous is needed
   */
-final class TrampolineScheduler(underlying: Scheduler, override val executionModel: ExecModel) extends Scheduler {
+final class TrampolineScheduler(underlying: Scheduler, override val properties: Properties) extends Scheduler {
   self =>
 
   private[this] val trampoline =
@@ -73,10 +73,10 @@ final class TrampolineScheduler(underlying: Scheduler, override val executionMod
     underlying.clockRealTime(unit)
   override def clockMonotonic(unit: TimeUnit): Long =
     underlying.clockMonotonic(unit)
-  override def withExecutionModel(em: ExecModel): TrampolineScheduler =
-    new TrampolineScheduler(underlying, em)
+  override def withProperties(properties: Properties): TrampolineScheduler =
+    new TrampolineScheduler(underlying, properties)
   override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): TrampolineScheduler =
-    new TrampolineScheduler(underlying.withUncaughtExceptionReporter(r), executionModel)
+    new TrampolineScheduler(underlying.withUncaughtExceptionReporter(r), properties)
   override def features: Features =
     underlying.features
 }
@@ -93,6 +93,6 @@ object TrampolineScheduler {
     *         [[monix.execution.ExecutionModel.Default ExecutionModel.Default]]
     *         for the default.
     */
-  def apply(underlying: Scheduler, em: ExecModel): TrampolineScheduler =
-    new TrampolineScheduler(underlying, em)
+  def apply(underlying: Scheduler, properties: Properties): TrampolineScheduler =
+    new TrampolineScheduler(underlying, properties)
 }

@@ -4594,14 +4594,14 @@ object Task extends TaskInstancesLevel1 {
       options.autoCancelableRunLoops &&
         connection.isCanceled
 
-    def executionModel: ExecutionModel =
-      schedulerRef.executionModel
+    def properties: Properties =
+      schedulerRef.properties
 
     def withScheduler(s: Scheduler): Context =
       new Context(s, options, connection, frameRef, stackTracedContext)
 
     def withExecutionModel(em: ExecutionModel): Context =
-      new Context(schedulerRef.withExecutionModel(em), options, connection, frameRef, stackTracedContext)
+      new Context(schedulerRef.withProperty(em), options, connection, frameRef, stackTracedContext)
 
     def withOptions(opts: Options): Context =
       new Context(schedulerRef, opts, connection, frameRef, stackTracedContext)
@@ -4616,7 +4616,7 @@ object Task extends TaskInstancesLevel1 {
       apply(scheduler, options, TaskConnection(), new StackTracedContext)
 
     def apply(scheduler: Scheduler, options: Options, connection: TaskConnection, stackTracedContext: StackTracedContext): Context = {
-      val em = scheduler.executionModel
+      val em = scheduler.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
       val frameRef = FrameIndexRef(em)
       new Context(scheduler, options, connection, frameRef, stackTracedContext)
     }
@@ -4627,7 +4627,7 @@ object Task extends TaskInstancesLevel1 {
     // Optimization to avoid the run-loop
     override def runAsyncOptF(
       cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): CancelToken[Task] = {
-      if (s.executionModel != AlwaysAsyncExecution) {
+      if (!s.properties.get[ExecutionModel].contains(AlwaysAsyncExecution)) {
         Callback.callSuccess(cb, value)
         Task.unit
       } else {
@@ -4642,7 +4642,7 @@ object Task extends TaskInstancesLevel1 {
 
     // Optimization to avoid the run-loop
     override def runAsyncOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable = {
-      if (s.executionModel != AlwaysAsyncExecution) {
+      if (!s.properties.get[ExecutionModel].contains(AlwaysAsyncExecution)) {
         Callback.callSuccess(cb, value)
         Cancelable.empty
       } else {
@@ -4655,7 +4655,7 @@ object Task extends TaskInstancesLevel1 {
       implicit s: Scheduler,
       opts: Options
     ): Unit = {
-      if (s.executionModel != AlwaysAsyncExecution)
+      if (!s.properties.get[ExecutionModel].contains(AlwaysAsyncExecution))
         Callback.callSuccess(cb, value)
       else
         super.runAsyncUncancelableOpt(cb)(s, opts)
@@ -4671,7 +4671,7 @@ object Task extends TaskInstancesLevel1 {
     // Optimization to avoid the run-loop
     override def runAsyncOptF(
       cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): CancelToken[Task] = {
-      if (s.executionModel != AlwaysAsyncExecution) {
+      if (!s.properties.get[ExecutionModel].contains(AlwaysAsyncExecution)) {
         Callback.callError(cb, e)
         Task.unit
       } else {
@@ -4686,7 +4686,7 @@ object Task extends TaskInstancesLevel1 {
 
     // Optimization to avoid the run-loop
     override def runAsyncOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Options): Cancelable = {
-      if (s.executionModel != AlwaysAsyncExecution) {
+      if (!s.properties.get[ExecutionModel].contains(AlwaysAsyncExecution)) {
         Callback.callError(cb, e)
         Cancelable.empty
       } else {
@@ -4703,7 +4703,7 @@ object Task extends TaskInstancesLevel1 {
       implicit s: Scheduler,
       opts: Options
     ): Unit = {
-      if (s.executionModel != AlwaysAsyncExecution)
+      if (!s.properties.get[ExecutionModel].contains(AlwaysAsyncExecution))
         Callback.callError(cb, e)
       else
         super.runAsyncUncancelableOpt(cb)(s, opts)
