@@ -22,8 +22,6 @@ import monix.execution.schedulers.ReferenceScheduler.WrappedScheduler
 import monix.execution.{ Cancelable, Features, Properties, Scheduler, UncaughtExceptionReporter }
 import scala.concurrent.duration.{ MILLISECONDS, NANOSECONDS, TimeUnit }
 import monix.execution.internal.InterceptRunnable
-// Prevents conflict with the deprecated symbol
-import monix.execution.{ ExecutionModel => ExecModel }
 
 /** Helper for building a [[Scheduler]].
   *

@@ -17,7 +17,7 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{ ExecutionModel, Properties, UncaughtExceptionReporter }
+import monix.execution.{ Properties, UncaughtExceptionReporter }
 import scala.concurrent.duration.TimeUnit
 import scala.concurrent.{ ExecutionContext, Future }
 

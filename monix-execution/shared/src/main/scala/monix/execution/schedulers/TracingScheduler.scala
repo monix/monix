@@ -18,14 +18,7 @@
 package monix.execution.schedulers
 
 import scala.concurrent.duration.TimeUnit
-import monix.execution.{
-  Cancelable,
-  ExecutionModel => ExecModel,
-  Features,
-  Properties,
-  Scheduler,
-  UncaughtExceptionReporter
-}
+import monix.execution.{ Cancelable, Features, Properties, Scheduler, UncaughtExceptionReporter }
 import scala.concurrent.ExecutionContext
 
 /** The `TracingScheduler` is a [[monix.execution.Scheduler Scheduler]]

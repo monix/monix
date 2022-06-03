@@ -19,7 +19,14 @@ package monix.execution.schedulers
 
 import java.util.concurrent.{ ScheduledExecutorService, TimeUnit }
 
-import monix.execution.{ Cancelable, ExecutionModel => ExecModel, Features, Scheduler, UncaughtExceptionReporter }
+import monix.execution.{
+  Cancelable,
+  ExecutionModel => ExecModel,
+  Features,
+  Properties,
+  Scheduler,
+  UncaughtExceptionReporter
+}
 
 import scala.concurrent.ExecutionContext
 import monix.execution.internal.{ InterceptRunnable, ScheduledExecutors }
@@ -32,7 +39,6 @@ final class AsyncScheduler private (
   scheduler: ScheduledExecutorService,
   ec: ExecutionContext,
   val properties: Properties,
-  val executionModel: ExecModel,
   r: UncaughtExceptionReporter
 ) extends ReferenceScheduler with BatchingScheduler {
 
