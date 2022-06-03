@@ -20,17 +20,17 @@ package monix.benchmarks
 import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Keep, RunnableGraph, Sink => AkkaSink, Source => AkkaSource}
-import fs2.{Stream => FS2Stream}
-import monix.eval.{Task => MonixTask}
-import monix.reactive.{Observable => MonixObservable}
+import akka.stream.scaladsl.{ Keep, RunnableGraph, Sink => AkkaSink, Source => AkkaSource }
+import fs2.{ Stream => FS2Stream }
+import monix.eval.{ Task => MonixTask }
+import monix.reactive.{ Observable => MonixObservable }
 import org.openjdk.jmh.annotations._
-import zio.stream.{Stream => ZStream}
-import zio.{Chunk, UIO}
+import zio.stream.{ Stream => ZStream }
+import zio.{ Chunk, UIO }
 
 import scala.collection.immutable.IndexedSeq
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ Await, Future }
 
 /**
   * Benchmark designed to execute these operations:

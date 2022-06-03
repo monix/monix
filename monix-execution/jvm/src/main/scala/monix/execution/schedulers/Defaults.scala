@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{ScheduledExecutorService, ScheduledThreadPoolExecutor}
+import java.util.concurrent.{ ScheduledExecutorService, ScheduledThreadPoolExecutor }
 
 import monix.execution.UncaughtExceptionReporter
 
@@ -28,7 +28,8 @@ private[schedulers] object Defaults {
   lazy val scheduledExecutor: ScheduledExecutorService = {
     val tp = new ScheduledThreadPoolExecutor(
       1,
-      ThreadFactoryBuilder("monix-scheduler", UncaughtExceptionReporter.default, daemonic = true))
+      ThreadFactoryBuilder("monix-scheduler", UncaughtExceptionReporter.default, daemonic = true)
+    )
     tp.setRemoveOnCancelPolicy(true)
     tp
   }

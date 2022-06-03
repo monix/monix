@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,13 +21,15 @@ import monix.execution.ChannelType
 import monix.execution.ChannelType.MultiProducer
 import monix.reactive.OverflowStrategy
 import monix.reactive.OverflowStrategy._
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
+import scala.annotation.unused
 
 private[observers] trait BuildersImpl { self: BufferedSubscriber.type =>
   def apply[A](
     subscriber: Subscriber[A],
     bufferPolicy: OverflowStrategy[A],
-    producerType: ChannelType.ProducerSide = MultiProducer): Subscriber[A] = {
+    @unused producerType: ChannelType.ProducerSide = MultiProducer
+  ): Subscriber[A] = {
     bufferPolicy match {
       case Unbounded =>
         SyncBufferedSubscriber.unbounded(subscriber)
@@ -56,7 +58,8 @@ private[observers] trait BuildersImpl { self: BufferedSubscriber.type =>
   def synchronous[A](
     subscriber: Subscriber[A],
     bufferPolicy: OverflowStrategy.Synchronous[A],
-    producerType: ChannelType.ProducerSide = MultiProducer): Subscriber.Sync[A] = {
+    @unused producerType: ChannelType.ProducerSide = MultiProducer
+  ): Subscriber.Sync[A] = {
     bufferPolicy match {
       case Unbounded =>
         SyncBufferedSubscriber.unbounded(subscriber)
@@ -83,6 +86,7 @@ private[observers] trait BuildersImpl { self: BufferedSubscriber.type =>
   def batched[A](
     underlying: Subscriber[List[A]],
     bufferSize: Int,
-    producerType: ChannelType.ProducerSide = MultiProducer): Subscriber[A] =
+    @unused producerType: ChannelType.ProducerSide = MultiProducer
+  ): Subscriber[A] =
     BatchedBufferedSubscriber(underlying, bufferSize)
 }

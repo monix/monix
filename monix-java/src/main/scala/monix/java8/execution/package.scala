@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,11 @@
 
 package monix.java8
 
-import java.util.concurrent.{CancellationException, CompletableFuture, CompletionException}
+import java.util.concurrent.{ CancellationException, CompletableFuture, CompletionException }
 import java.util.function.BiFunction
-import monix.execution.{Cancelable, CancelableFuture}
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import monix.execution.{ Cancelable, CancelableFuture }
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.{ Failure, Success }
 
 /**
   * DEPRECATED — switch to Scala 2.12+ and [[monix.execution.FutureUtils]].

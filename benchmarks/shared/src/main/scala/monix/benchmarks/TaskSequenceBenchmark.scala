@@ -92,14 +92,12 @@ class TaskSequenceBenchmark {
     result.runSyncUnsafe()
   }
 
-
   @Benchmark
   def monixParSequence(): Long = {
     val tasks = (0 until count).map(_ => Task.eval(1)).toList
     val result = Task.parSequence(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
   }
-
 
   @Benchmark
   def monixParSequenceUnordered(): Long = {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@ import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import scala.concurrent.Promise
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 import concurrent.duration._
 
 object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
@@ -56,7 +56,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Task.memoizeOnSuccess should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task.evalAsync(1)
-    for (i <- 0 until count) task = task.memoizeOnSuccess
+    for (_ <- 0 until count) task = task.memoizeOnSuccess
 
     val f = task.runToFuture
     assertEquals(f.value, None)
@@ -68,7 +68,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task.evalAsync(1)
 
-    for (i <- 0 until count) {
+    for (_ <- 0 until count) {
       task = task.memoizeOnSuccess.flatMap(x => Task.now(x))
     }
 
@@ -81,7 +81,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Task.flatMap.memoizeOnSuccess should be stack safe, test 2") { implicit s =>
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task.evalAsync(1)
-    for (i <- 0 until count) {
+    for (_ <- 0 until count) {
       task = task.memoizeOnSuccess.flatMap(x => Task.evalAsync(x))
     }
 
@@ -171,7 +171,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Task.eval.memoizeOnSuccess should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task.eval(1)
-    for (i <- 0 until count)
+    for (_ <- 0 until count)
       task = task.memoizeOnSuccess
 
     val f = task.runToFuture; s.tick()
@@ -181,7 +181,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Task.eval.flatMap.memoizeOnSuccess should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task.eval(1)
-    for (i <- 0 until count) {
+    for (_ <- 0 until count) {
       task = task.memoizeOnSuccess.flatMap(x => Task.eval(x))
     }
 
@@ -242,7 +242,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Task.evalOnce.memoizeOnSuccess should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task.eval(1)
-    for (i <- 0 until count) {
+    for (_ <- 0 until count) {
       task = task.memoizeOnSuccess
     }
 
@@ -253,7 +253,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Task.evalOnce.flatMap.memoizeOnSuccess should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task.eval(1)
-    for (i <- 0 until count) {
+    for (_ <- 0 until count) {
       task = task.memoizeOnSuccess.flatMap(x => Task.evalOnce(x))
     }
 
@@ -297,7 +297,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Task.now.memoizeOnSuccess should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task.now(1)
-    for (i <- 0 until count) {
+    for (_ <- 0 until count) {
       task = task.memoizeOnSuccess
     }
 
@@ -308,7 +308,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Task.now.flatMap.memoizeOnSuccess should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task.now(1)
-    for (i <- 0 until count) {
+    for (_ <- 0 until count) {
       task = task.memoizeOnSuccess.flatMap(x => Task.now(x))
     }
 
@@ -321,7 +321,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Task.suspend.memoizeOnSuccess should be stack safe") { implicit s =>
     val count = if (Platform.isJVM) 50000 else 5000
     var task = Task.defer(Task.now(1))
-    for (i <- 0 until count) {
+    for (_ <- 0 until count) {
       task = task.memoizeOnSuccess.map(x => x)
     }
 
@@ -616,32 +616,32 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     assertEquals(effect, 2)
   }
 
-  test("Task.evalOnce eq Task.evalOnce.memoizeOnSuccess") { implicit s =>
+  test("Task.evalOnce eq Task.evalOnce.memoizeOnSuccess") { _ =>
     val task = Task.evalOnce(1)
     assertEquals(task, task.memoizeOnSuccess)
   }
 
-  test("Task.eval.memoizeOnSuccess eq Task.eval.memoizeOnSuccess.memoizeOnSuccess") { implicit s =>
+  test("Task.eval.memoizeOnSuccess eq Task.eval.memoizeOnSuccess.memoizeOnSuccess") { _ =>
     val task = Task.eval(1).memoizeOnSuccess
     assertEquals(task, task.memoizeOnSuccess)
   }
 
-  test("Task.eval.memoize eq Task.eval.memoize.memoizeOnSuccess") { implicit s =>
+  test("Task.eval.memoize eq Task.eval.memoize.memoizeOnSuccess") { _ =>
     val task = Task.eval(1).memoize
     assertEquals(task, task.memoizeOnSuccess)
   }
 
-  test("Task.eval.map.memoize eq Task.eval.map.memoize.memoizeOnSuccess") { implicit s =>
+  test("Task.eval.map.memoize eq Task.eval.map.memoize.memoizeOnSuccess") { _ =>
     val task = Task.eval(1).map(_ + 1).memoize
     assertEquals(task, task.memoizeOnSuccess)
   }
 
-  test("Task.now.memoizeOnSuccess eq Task.now") { implicit s =>
+  test("Task.now.memoizeOnSuccess eq Task.now") { _ =>
     val task = Task.now(1)
     assertEquals(task, task.memoizeOnSuccess)
   }
 
-  test("Task.raiseError.memoizeOnSuccess eq Task.raiseError") { implicit s =>
+  test("Task.raiseError.memoizeOnSuccess eq Task.raiseError") { _ =>
     val task = Task.raiseError(DummyException("dummy"))
     assertEquals(task, task.memoizeOnSuccess)
   }

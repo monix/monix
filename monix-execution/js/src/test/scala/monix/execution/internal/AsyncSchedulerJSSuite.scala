@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,28 +18,16 @@
 package monix.execution.internal
 
 import minitest.TestSuite
-import monix.execution.atomic.Atomic
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.schedulers.{AsyncScheduler, StandardContext}
-import monix.execution.{ExecutionModel, Scheduler, TestUtils, UncaughtExceptionReporter}
-
+import monix.execution.schedulers.AsyncScheduler
+import monix.execution.{ ExecutionModel, Scheduler, TestUtils }
+import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 
 object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
-  val lastReported = Atomic(null: Throwable)
-  val reporter = new StandardContext(new UncaughtExceptionReporter {
-    def reportFailure(ex: Throwable): Unit =
-      lastReported set ex
-  })
-
-  def setup(): Scheduler = {
-    lastReported.set(null)
-    AsyncScheduler(reporter, ExecutionModel.Default)
-  }
-
-  def tearDown(env: Scheduler): Unit =
-    lastReported.set(null)
+  def setup() = AsyncScheduler(MacrotaskExecutor, ExecutionModel.Default)
+  def tearDown(env: Scheduler): Unit = ()
 
   testAsync("execute async should work") { implicit s =>
     var effect = 0

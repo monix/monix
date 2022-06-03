@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@ import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.schedulers.TrampolinedRunnable
-import org.reactivestreams.{Publisher, Subscriber}
+import org.reactivestreams.{ Publisher, Subscriber }
 import monix.execution.rstreams.SingleAssignSubscription
 
 import scala.util.control.NonFatal
@@ -159,7 +159,7 @@ private[eval] object TaskConversions {
         implicit val sc = ctx.scheduler
         val conn = ctx.connection
         val cancelable = TaskConnectionRef()
-        conn push cancelable.cancel
+        conn.push(cancelable.cancel)
 
         val syncIO = F.runCancelable(fa)(new CreateCallback[A](conn, cb))
         cancelable := fromEffect(syncIO.unsafeRunSync(): F[Unit])

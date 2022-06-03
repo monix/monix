@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,7 +29,8 @@ private[eval] object CoevalBracket {
   def either[A, B](
     acquire: Coeval[A],
     use: A => Coeval[B],
-    release: (A, Either[Throwable, B]) => Coeval[Unit]): Coeval[B] = {
+    release: (A, Either[Throwable, B]) => Coeval[Unit]
+  ): Coeval[B] = {
 
     acquire.flatMap { a =>
       val next =
@@ -45,7 +46,8 @@ private[eval] object CoevalBracket {
   def exitCase[A, B](
     acquire: Coeval[A],
     use: A => Coeval[B],
-    release: (A, ExitCase[Throwable]) => Coeval[Unit]): Coeval[B] = {
+    release: (A, ExitCase[Throwable]) => Coeval[Unit]
+  ): Coeval[B] = {
 
     acquire.flatMap { a =>
       val next =

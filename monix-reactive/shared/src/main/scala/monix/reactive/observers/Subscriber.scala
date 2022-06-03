@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,13 +18,12 @@
 package monix.reactive.observers
 
 import java.io.PrintStream
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Ack, Cancelable, ExecutionModel, Scheduler}
+import monix.execution.{ Ack, Cancelable, ExecutionModel, Scheduler }
 import monix.reactive.Observer
 import monix.reactive.internal.rstreams._
-import org.reactivestreams.{Subscriber => RSubscriber}
-
+import org.reactivestreams.{ Subscriber => RSubscriber }
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
@@ -109,7 +108,8 @@ object Subscriber {
     * Monix Rx implementation.
     */
   def fromReactiveSubscriber[A](subscriber: RSubscriber[A], subscription: Cancelable)(
-    implicit s: Scheduler): Subscriber[A] =
+    implicit s: Scheduler
+  ): Subscriber[A] =
     ReactiveSubscriberAsMonixSubscriber(subscriber, subscription)
 
   /** Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
@@ -117,7 +117,10 @@ object Subscriber {
     * specification.
     */
   def toReactiveSubscriber[A](subscriber: Subscriber[A]): RSubscriber[A] =
-    toReactiveSubscriber(subscriber, subscriber.scheduler.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize)
+    toReactiveSubscriber(
+      subscriber,
+      subscriber.scheduler.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize
+    )
 
   /** Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]

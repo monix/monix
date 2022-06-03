@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@ import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
 import scala.concurrent.Promise
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 import concurrent.duration._
 
 object TaskMemoizeSuite extends BaseTestSuite {
@@ -620,32 +620,32 @@ object TaskMemoizeSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Task.evalOnce eq Task.evalOnce.memoize") { implicit s =>
+  test("Task.evalOnce eq Task.evalOnce.memoize") { _ =>
     val task = Task.evalOnce(1)
     assertEquals(task, task.memoize)
   }
 
-  test("Task.eval.memoize eq Task.eval.memoize.memoize") { implicit s =>
+  test("Task.eval.memoize eq Task.eval.memoize.memoize") { _ =>
     val task = Task.eval(1).memoize
     assertEquals(task, task.memoize)
   }
 
-  test("Task.eval.map.memoize eq Task.eval.map.memoize.memoize") { implicit s =>
+  test("Task.eval.map.memoize eq Task.eval.map.memoize.memoize") { _ =>
     val task = Task.eval(1).map(_ + 1).memoize
     assertEquals(task, task.memoize)
   }
 
-  test("Task.now.memoize eq Task.now") { implicit s =>
+  test("Task.now.memoize eq Task.now") { _ =>
     val task = Task.now(1)
     assertEquals(task, task.memoize)
   }
 
-  test("Task.raiseError.memoize eq Task.raiseError") { implicit s =>
+  test("Task.raiseError.memoize eq Task.raiseError") { _ =>
     val task = Task.raiseError(DummyException("dummy"))
     assertEquals(task, task.memoize)
   }
 
-  test("Task.eval.memoizeOnSuccess.memoize !== Task.eval.memoizeOnSuccess") { implicit s =>
+  test("Task.eval.memoizeOnSuccess.memoize !== Task.eval.memoizeOnSuccess") { _ =>
     val task = Task.eval(1).memoizeOnSuccess
     assert(task != task.memoize, "task != task.memoize")
   }

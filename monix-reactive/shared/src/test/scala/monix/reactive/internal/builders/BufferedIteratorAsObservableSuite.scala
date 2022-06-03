@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,9 +21,9 @@ import cats.effect.Resource
 import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
-import monix.execution.exceptions.{APIContractViolationException, DummyException}
+import monix.execution.exceptions.{ APIContractViolationException, DummyException }
 import monix.execution.schedulers.TestScheduler
-import monix.execution.{Ack, ExecutionModel, Scheduler}
+import monix.execution.{ Ack, ExecutionModel, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -362,7 +362,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     val seq = 0 until n * 4
     val obs = Observable
       .fromIteratorBufferedUnsafe(seq.iterator, n)
-        .delayOnNext(1.millis)
+      .delayOnNext(1.millis)
 
     obs.executeAsync.unsafeSubscribeFn(new Subscriber[Seq[Int]] {
       implicit val scheduler: Scheduler = sc
@@ -394,10 +394,12 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     val seq = 0 to 10
     val f = Observable
       .fromIteratorBufferedUnsafe(seq.iterator, 4)
-        .toListL
-        .runToFuture
+      .toListL
+      .runToFuture
 
-    val expected = List(Seq(0, 1, 2, 3), Seq(4, 5, 6, 7), Seq(8, 9, 10)).map(seq => toSeq(seq.map(_.asInstanceOf[AnyRef]).toArray[AnyRef]))
+    val expected = List(Seq(0, 1, 2, 3), Seq(4, 5, 6, 7), Seq(8, 9, 10)).map(seq =>
+      toSeq(seq.map(_.asInstanceOf[AnyRef]).toArray[AnyRef])
+    )
 
     s.tick()
 

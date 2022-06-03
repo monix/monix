@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +17,12 @@
 
 package monix.reactive.observers
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.{Ack, CancelableFuture}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.{ Ack, CancelableFuture }
 import monix.reactive.Observable
 import scala.collection.mutable
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ Future, Promise }
+import scala.util.{ Failure, Success }
 
 /** Wraps an `underlying` [[Subscriber]] into an implementation that caches
   * all events until the call to `connect()` happens. After being connected,
@@ -163,7 +163,8 @@ final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) 
 
         connectedFuture
       }
-    } else if (!wasCanceled) {
+    }
+    else if (!wasCanceled) {
       // taking fast path :-)
       downstream.onNext(elem)
     } else {

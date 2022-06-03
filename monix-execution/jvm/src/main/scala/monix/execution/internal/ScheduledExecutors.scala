@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.execution.internal
 
 import java.util.concurrent.ScheduledExecutorService
 import monix.execution.schedulers.ShiftedRunnable
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{ Cancelable, Scheduler }
 import scala.concurrent.duration.TimeUnit
 
 private[execution] object ScheduledExecutors {

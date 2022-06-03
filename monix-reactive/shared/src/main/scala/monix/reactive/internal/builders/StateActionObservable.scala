@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,15 +18,14 @@
 package monix.reactive.internal.builders
 
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Ack, Cancelable, ExecutionModel}
-import monix.execution.Ack.{Continue, Stop}
-
+import monix.execution.{ Ack, Cancelable, ExecutionModel }
+import monix.execution.Ack.{ Continue, Stop }
 import scala.util.control.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Try}
+import scala.util.{ Failure, Try }
 
 private[reactive] final class StateActionObservable[S, A](seed: => S, f: S => (A, S)) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
@@ -48,7 +47,7 @@ private[reactive] final class StateActionObservable[S, A](seed: => S, f: S => (A
   private[this] final class StateRunLoop(o: Subscriber[A], c: BooleanCancelable, initialSeed: S, f: S => (A, S))
     extends Runnable { self =>
 
-    import o.{scheduler => s}
+    import o.{ scheduler => s }
     private[this] var seed = initialSeed
     private[this] val em = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
 

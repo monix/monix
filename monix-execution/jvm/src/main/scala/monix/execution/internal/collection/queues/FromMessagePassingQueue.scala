@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +18,8 @@
 package monix.execution.internal.collection.queues
 
 import monix.execution.ChannelType
-import monix.execution.ChannelType.{SingleConsumer, SingleProducer}
-import monix.execution.internal.atomic.UnsafeAccess
+import monix.execution.ChannelType.{ SingleConsumer, SingleProducer }
+import monix.execution.atomic.internal.UnsafeAccess
 import monix.execution.internal.collection.LowLevelConcurrentQueue
 import monix.execution.internal.jctools.queues.MessagePassingQueue
 import sun.misc.Unsafe

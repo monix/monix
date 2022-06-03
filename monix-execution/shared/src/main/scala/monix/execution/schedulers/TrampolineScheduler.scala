@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +18,9 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
-import monix.execution.{Cancelable, Features, Properties, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{ Cancelable, Features, Properties, Scheduler, UncaughtExceptionReporter }
 // Prevents conflict with the deprecated symbol
-import monix.execution.{ExecutionModel => ExecModel}
+import monix.execution.{ ExecutionModel => ExecModel }
 
 /** A [[monix.execution.Scheduler Scheduler]] implementation
   * that executes runnables immediately, on the current thread,

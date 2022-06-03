@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,7 +39,8 @@ object DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
         assertEquals(
           list.flatten,
           jdkDeflate(Array.empty, new Deflater(-1, false)).toList
-        ))
+        )
+      )
       .runToFuture
   }
   testAsync("deflates same as JDK") { _ =>
@@ -95,7 +96,8 @@ object DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
           .take(sourceCount.toLong - 1)
           .transform(deflate())
           .map(_ => 1L),
-        ex)
+        ex
+      )
       Sample(o, sourceCount, sourceCount, Zero, Zero)
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,8 +20,8 @@ package monix.execution
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent.duration.Duration
-import scala.concurrent.{CanAwait, ExecutionContext, Future, Promise}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ CanAwait, ExecutionContext, Future, Promise }
+import scala.util.{ Failure, Success, Try }
 
 /** Represents an acknowledgement of processing that a consumer
   * sends back upstream. Useful to implement back-pressure.
@@ -35,7 +35,9 @@ sealed abstract class Ack extends Future[Ack] with Serializable {
     onComplete(r =>
       p.complete(
         try f(r)
-        catch { case t if NonFatal(t) => Failure(t) }))
+        catch { case t if NonFatal(t) => Failure(t) }
+      )
+    )
     p.future
   }
 
@@ -45,7 +47,9 @@ sealed abstract class Ack extends Future[Ack] with Serializable {
     onComplete(r =>
       p.completeWith(
         try f(r)
-        catch { case t if NonFatal(t) => Future.failed(t) }))
+        catch { case t if NonFatal(t) => Future.failed(t) }
+      )
+    )
     p.future
   }
 
@@ -145,10 +149,11 @@ object Ack {
       else if (source ne Continue)
         source.onComplete { ack =>
           try ack match {
-            case Success(Stop) => cb(None)
-            case Failure(e) => cb(Some(e))
-            case _ => ()
-          } catch {
+              case Success(Stop) => cb(None)
+              case Failure(e) => cb(Some(e))
+              case _ => ()
+            }
+          catch {
             case e if NonFatal(e) => r.reportFailure(e)
           }
         }(immediate)

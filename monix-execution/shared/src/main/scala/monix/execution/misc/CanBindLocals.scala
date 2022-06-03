@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,11 +18,12 @@
 package monix.execution.misc
 
 import implicitbox.Not
-import monix.execution.{CancelableFuture, FutureUtils}
+import monix.execution.{ CancelableFuture, FutureUtils }
 import monix.execution.schedulers.TrampolineExecutionContext
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.Future
+import scala.annotation.unused
 
 /**
   * Type class describing how [[Local]] binding works for specific data types.
@@ -72,7 +73,7 @@ private[misc] abstract class CanIsolateInstancesLevel1 extends CanIsolateInstanc
       * Needs to be imported explicitly in scope. Will NOT override
       * other `CanBindLocals` implicits that are already visible.
       */
-    @inline implicit def synchronousAsDefault[R](implicit ev: Not[CanBindLocals[R]]): CanBindLocals[R] =
+    @inline implicit def synchronousAsDefault[R](implicit @unused ev: Not[CanBindLocals[R]]): CanBindLocals[R] =
       CanBindLocals.synchronous[R]
   }
 }
@@ -142,10 +143,13 @@ private[misc] abstract class CanIsolateInstancesLevel0 {
 
       try {
         FutureUtils
-          .transform[Any, Any](f, result => {
-            Local.setContext(prev)
-            result
-          })(TrampolineExecutionContext.immediate)
+          .transform[Any, Any](
+            f,
+            result => {
+              Local.setContext(prev)
+              result
+            }
+          )(TrampolineExecutionContext.immediate)
       } finally {
         Local.setContext(prev)
       }

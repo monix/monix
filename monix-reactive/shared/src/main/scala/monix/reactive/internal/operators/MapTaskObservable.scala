@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@ import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -351,7 +351,8 @@ private[reactive] final class MapTaskObservable[A, B](source: Observable[A], f: 
           s"State $state in the Monix MapTask.$method implementation is invalid, " +
             "due to either a broken Subscriber implementation, or a bug, " +
             "please open an issue, see: https://monix.io"
-        ))
+        )
+      )
       // $COVERAGE-ON$
     }
   }

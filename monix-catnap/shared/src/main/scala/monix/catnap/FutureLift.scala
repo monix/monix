@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,11 +18,11 @@
 package monix.catnap
 
 import cats.~>
-import cats.effect.{Async, Concurrent}
+import cats.effect.{ Async, Concurrent }
 import monix.execution.CancelableFuture
 import monix.execution.internal.AttemptCallback
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import scala.concurrent.{Future => ScalaFuture}
+import scala.concurrent.{ Future => ScalaFuture }
 
 /**
   * A type class for conversions from [[scala.concurrent.Future]] or
@@ -145,7 +145,8 @@ object FutureLift extends internal.FutureLiftForPlatform {
     * if the given `Future` is such an instance.
     */
   def scalaToConcurrentOrAsync[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])(
-    implicit F: Concurrent[F] OrElse Async[F]): F[A] = {
+    implicit F: Concurrent[F] OrElse Async[F]
+  ): F[A] = {
 
     F.unify match {
       case ref: Concurrent[F] @unchecked =>
@@ -161,7 +162,8 @@ object FutureLift extends internal.FutureLiftForPlatform {
     * any `Concurrent` or `Async` data type.
     */
   implicit def scalaFutureLiftForConcurrentOrAsync[F[_], MF[T] <: ScalaFuture[T]](
-    implicit F: Concurrent[F] OrElse Async[F]): FutureLift[F, MF] = {
+    implicit F: Concurrent[F] OrElse Async[F]
+  ): FutureLift[F, MF] = {
 
     F.unify match {
       case ref: Concurrent[F] @unchecked =>

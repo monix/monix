@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform.recommendedBatchSize
 import monix.tail.Iterant.NextBatch
@@ -63,7 +63,7 @@ object IterantFromStateActionSuite extends BaseTestSuite {
   test("Iterant.fromStateActionL should evolve state") { implicit s =>
     check3 { (seed: Int, f: Int => (Int, Int), i: Int) =>
       val n = i % (recommendedBatchSize * 2)
-      val stream = Iterant[Task].fromStateActionL[Int, Int](f andThen Task.now)(Task.now(seed))
+      val stream = Iterant[Task].fromStateActionL[Int, Int](f.andThen(Task.now))(Task.now(seed))
       val expected = Iterator
         .continually(0)
         .scanLeft(f(seed)) { case ((_, newSeed), _) => f(newSeed) }
@@ -79,7 +79,7 @@ object IterantFromStateActionSuite extends BaseTestSuite {
     check3 { (seed: Int, f: Int => (Int, Int), i: Int) =>
       val n = i % (recommendedBatchSize * 2)
       val stream = Iterant[Task].fromStateAction[Int, Int](f)(seed)
-      val streamL = Iterant[Task].fromStateActionL[Int, Int](f andThen Task.now)(Task.now(seed))
+      val streamL = Iterant[Task].fromStateActionL[Int, Int](f.andThen(Task.now))(Task.now(seed))
 
       stream.take(n) <-> streamL.take(n)
     }

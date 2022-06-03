@@ -19,10 +19,10 @@ package monix.execution
 
 import monix.newtypes.TypeInfo
 
-final case class Properties private(private val attributes: Map[TypeInfo[_], Any]) {
-  
+final case class Properties private (private val attributes: Map[TypeInfo[_], Any]) {
+
   def get[A: TypeInfo]: Option[A] = attributes.get(implicitly[TypeInfo[A]]) match {
-    case Some(o) => 
+    case Some(o) =>
       // forced asInstanceOf since the only way to insert in attributes is through withProperty
       Some(o.asInstanceOf[A])
     case _ => None
@@ -35,14 +35,14 @@ final case class Properties private(private val attributes: Map[TypeInfo[_], Any
 }
 
 object Properties {
-  val empty : Properties = Properties(Map())
-  def apply[A: TypeInfo](a: A): Properties = 
+  val empty: Properties = Properties(Map())
+  def apply[A: TypeInfo](a: A): Properties =
     empty.withProperty(a)
-  def apply[A: TypeInfo, B: TypeInfo](a: A, b: B): Properties = 
+  def apply[A: TypeInfo, B: TypeInfo](a: A, b: B): Properties =
     empty.withProperty(a).withProperty(b)
-  def apply[A: TypeInfo, B: TypeInfo, C: TypeInfo](a: A, b: B, c: C): Properties = 
+  def apply[A: TypeInfo, B: TypeInfo, C: TypeInfo](a: A, b: B, c: C): Properties =
     empty.withProperty(a).withProperty(b).withProperty(c)
-  def apply[A: TypeInfo, B: TypeInfo, C: TypeInfo, D: TypeInfo](a: A, b: B, c: C, d: D): Properties = 
+  def apply[A: TypeInfo, B: TypeInfo, C: TypeInfo, D: TypeInfo](a: A, b: B, c: C, d: D): Properties =
     empty.withProperty(a).withProperty(b).withProperty(c).withProperty(d)
   def apply[A: TypeInfo, B: TypeInfo, C: TypeInfo, D: TypeInfo, E: TypeInfo](a: A, b: B, c: C, d: D, e: E): Properties =
     empty.withProperty(a).withProperty(b).withProperty(c).withProperty(d).withProperty(e)

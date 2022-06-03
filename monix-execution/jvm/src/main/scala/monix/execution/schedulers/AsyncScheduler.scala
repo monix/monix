@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,12 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
-import monix.execution.{Cancelable, Features, Properties, Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import java.util.concurrent.{ ScheduledExecutorService, TimeUnit }
+
+import monix.execution.{ Cancelable, ExecutionModel => ExecModel, Features, Scheduler, UncaughtExceptionReporter }
 
 import scala.concurrent.ExecutionContext
-import monix.execution.internal.{InterceptRunnable, ScheduledExecutors}
+import monix.execution.internal.{ InterceptRunnable, ScheduledExecutors }
 
 /** An `AsyncScheduler` schedules tasks to happen in the future with the
   * given `ScheduledExecutorService` and the tasks themselves are executed on
@@ -31,8 +32,9 @@ final class AsyncScheduler private (
   scheduler: ScheduledExecutorService,
   ec: ExecutionContext,
   val properties: Properties,
-  r: UncaughtExceptionReporter)
-  extends ReferenceScheduler with BatchingScheduler {
+  val executionModel: ExecModel,
+  r: UncaughtExceptionReporter
+) extends ReferenceScheduler with BatchingScheduler {
 
   protected def executeAsync(runnable: Runnable): Unit = {
     if (((r: AnyRef) eq ec) || (r eq null)) ec.execute(runnable)
@@ -68,6 +70,7 @@ object AsyncScheduler {
     schedulerService: ScheduledExecutorService,
     ec: ExecutionContext,
     executionModel: ExecModel,
-    reporter: UncaughtExceptionReporter = null): AsyncScheduler =
+    reporter: UncaughtExceptionReporter = null
+  ): AsyncScheduler =
     new AsyncScheduler(schedulerService, ec, Properties(executionModel), reporter)
 }

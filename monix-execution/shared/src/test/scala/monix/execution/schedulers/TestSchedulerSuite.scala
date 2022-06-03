@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{TimeUnit, TimeoutException}
+import java.util.concurrent.{ TimeUnit, TimeoutException }
 
 import minitest.TestSuite
 import monix.execution.Scheduler
@@ -25,8 +25,8 @@ import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
 import scala.concurrent.duration._
-import scala.concurrent.{Future, Promise}
-import scala.util.{Success, Try}
+import scala.concurrent.{ Future, Promise }
+import scala.util.{ Success, Try }
 
 object TestSchedulerSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -87,9 +87,11 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
           TimeUnit.SECONDS,
           action {
             firstBatch += 1
-          })
+          }
+        )
         ()
-      })
+      }
+    )
 
     s.scheduleOnce(
       20,
@@ -102,9 +104,11 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
           TimeUnit.SECONDS,
           action {
             secondBatch += 1
-          })
+          }
+        )
         ()
-      })
+      }
+    )
 
     s.tick()
     assert(firstBatch == 0 && secondBatch == 0)

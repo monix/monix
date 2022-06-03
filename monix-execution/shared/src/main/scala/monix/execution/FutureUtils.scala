@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,10 +18,9 @@
 package monix.execution
 
 import java.util.concurrent.TimeoutException
-import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.util.{Success, Try}
+import scala.concurrent.{ ExecutionContext, Future, Promise }
+import scala.util.{ Success, Try }
 
 /** Utilities for Scala's standard `concurrent.Future`. */
 object FutureUtils extends internal.FutureUtilsForPlatform {
@@ -38,10 +37,13 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
   def timeout[A](source: Future[A], atMost: FiniteDuration)(implicit s: Scheduler): Future[A] = {
     val err = new TimeoutException
     val promise = Promise[A]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit,
+    val task = s.scheduleOnce(
+      atMost.length,
+      atMost.unit,
       () => {
         promise.tryFailure(err); ()
-      })
+      }
+    )
 
     source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks
@@ -66,13 +68,17 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
     *         source or with the fallback in case the timeout is reached
     */
   def timeoutTo[A](source: Future[A], atMost: FiniteDuration, fallback: => Future[A])(
-    implicit s: Scheduler): Future[A] = {
+    implicit s: Scheduler
+  ): Future[A] = {
 
     val promise = Promise[Option[Try[A]]]()
-    val task = s.scheduleOnce(atMost.length, atMost.unit,
+    val task = s.scheduleOnce(
+      atMost.length,
+      atMost.unit,
       () => {
         promise.trySuccess(None); ()
-      })
+      }
+    )
 
     source.onComplete { r =>
       // canceling task to prevent waisted CPU resources and memory leaks
@@ -93,9 +99,8 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
   /** Utility that lifts a `Future[A]` into a `Future[Try[A]]`, exposing
     * error explicitly.
     */
-  def materialize[A](source: Future[A])(implicit ec: ExecutionContext): Future[Try[A]] = {
-    source.transform(t => Success(t))(immediate)
-  }
+  def materialize[A](source: Future[A])(implicit ec: ExecutionContext): Future[Try[A]] =
+    source.transform(t => Success(t))
 
   /** Given a mapping functions that operates on successful results as well as
     * errors, transforms the source by applying it.
@@ -116,9 +121,8 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
   /** Utility that transforms a `Future[Try[A]]` into a `Future[A]`,
     * hiding errors, being the opposite of [[materialize]].
     */
-  def dematerialize[A](source: Future[Try[A]])(implicit ec: ExecutionContext): Future[A] = {
-    source.map(_.get)(immediate)
-  }
+  def dematerialize[A](source: Future[Try[A]])(implicit ec: ExecutionContext): Future[A] =
+    source.map(_.get)
 
   /** Creates a future that completes with the specified `result`, but only
     * after the specified `delay`.
@@ -147,7 +151,7 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
 
       /** [[FutureUtils.dematerialize]] exposed as an extension method. */
       def dematerialize[U](implicit ev: A <:< Try[U], ec: ExecutionContext): Future[U] =
-        FutureUtils.dematerialize(source.asInstanceOf[Future[Try[U]]])
+        FutureUtils.dematerialize(source.map(ev.apply))
     }
 
     /** Provides utility methods for Scala's `concurrent.Future` companion object. */

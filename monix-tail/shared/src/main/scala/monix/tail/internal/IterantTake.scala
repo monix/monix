@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 import monix.tail.batches.BatchCursor
 import scala.collection.mutable.ArrayBuffer
 
@@ -85,12 +85,15 @@ private[tail] object IterantTake {
       Suspend(ref.rest.map(this))
 
     def visit(ref: Concat[F, A]): Iterant[F, A] =
-      Concat(ref.lh.map(this), F.defer {
-        if (this.toTake > 0)
-          ref.rh.map(this)
-        else
-          F.pure(Iterant.empty)
-      })
+      Concat(
+        ref.lh.map(this),
+        F.defer {
+          if (this.toTake > 0)
+            ref.rh.map(this)
+          else
+            F.pure(Iterant.empty)
+        }
+      )
 
     def visit[R](ref: Scope[F, R, A]): Iterant[F, A] =
       ref.runMap(this)

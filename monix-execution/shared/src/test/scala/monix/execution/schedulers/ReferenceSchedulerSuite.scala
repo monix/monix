@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,8 +19,8 @@ package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
 import minitest.SimpleTestSuite
-import monix.execution.{Cancelable, Features}
-import monix.execution.ExecutionModel.{AlwaysAsyncExecution, SynchronousExecution}
+import monix.execution.{ Cancelable, Features }
+import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, SynchronousExecution }
 import scala.concurrent.duration._
 
 object ReferenceSchedulerSuite extends SimpleTestSuite {

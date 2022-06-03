@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,13 +19,13 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import cats.{Applicative, Parallel}
+import cats.{ Applicative, Parallel }
 import monix.execution.internal.Platform
 import monix.catnap.internal.ParallelApplicative
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
+import monix.tail.batches.{ Batch, BatchCursor }
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -42,8 +42,10 @@ private[tail] object IterantZipMap {
     * Implementation for `Iterant#parZipMap`
     */
   def par[F[_], G[_], A, B, C](lh: Iterant[F, A], rh: Iterant[F, B], f: (A, B) => C)(
-    implicit F: Sync[F],
-    P: Parallel[F]): Iterant[F, C] = {
+    implicit
+    F: Sync[F],
+    P: Parallel[F]
+  ): Iterant[F, C] = {
 
     val A = ParallelApplicative(P)
     Suspend(F.delay(new Loop[F, A, B, C](f)(F, A).apply(lh, rh)))
@@ -55,7 +57,7 @@ private[tail] object IterantZipMap {
     def apply(lh: Iterant[F, A], rh: Iterant[F, B]): Iterant[F, C] =
       lhLoop.visit(lh, rh)
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used by Concat:
 
     private[this] var _lhStack: ChunkedArrayStack[F[Iterant[F, A]]] = _
@@ -79,7 +81,7 @@ private[tail] object IterantZipMap {
       if (_rhStack == null) null.asInstanceOf[F[Iterant[F, B]]]
       else _rhStack.pop()
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     private[this] val lhLoop = new LHLoop
 
@@ -107,7 +109,7 @@ private[tail] object IterantZipMap {
       _rhLastLoop
     }
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     private final class LHLoop extends Iterant.Visitor[F, A, Iterant[F, C]] {
       protected var rhRef: Iterant[F, B] = _
@@ -186,10 +188,10 @@ private[tail] object IterantZipMap {
         processPair(lhRef.item, lhRef.rest, ref.item, ref.rest)
 
       def visit(ref: NextBatch[F, B]): Iterant[F, C] =
-        processOneASeqB(lhRef, lhRef.item, lhRef.rest, ref.toNextCursor(), this)
+        processOneASeqB(lhRef.item, lhRef.rest, ref.toNextCursor(), this)
 
       def visit(ref: NextCursor[F, B]): Iterant[F, C] =
-        processOneASeqB(lhRef, lhRef.item, lhRef.rest, ref, this)
+        processOneASeqB(lhRef.item, lhRef.rest, ref, this)
 
       def visit(ref: Suspend[F, B]): Iterant[F, C] =
         Suspend(ref.rest.map(this))
@@ -349,7 +351,7 @@ private[tail] object IterantZipMap {
         Iterant.raiseError(e)
     }
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def processPair(a: A, restA: F[Iterant[F, A]], b: B, restB: F[Iterant[F, B]]) = {
       val rest = A.map2(restA, restB)(loop)
@@ -357,12 +359,11 @@ private[tail] object IterantZipMap {
     }
 
     def processOneASeqB(
-      lh: Iterant[F, A],
       a: A,
       restA: F[Iterant[F, A]],
       refB: NextCursor[F, B],
-      loop: Iterant.Visitor[F, B, Iterant[F, C]]): Iterant[F, C] = {
-
+      loop: Iterant.Visitor[F, B, Iterant[F, C]]
+    ): Iterant[F, C] = {
       val NextCursor(itemsB, restB) = refB
       if (!itemsB.hasNext())
         Suspend(restB.map(loop))
@@ -383,7 +384,8 @@ private[tail] object IterantZipMap {
       refA: Last[F, A],
       itemsB: BatchCursor[B],
       restB: F[Iterant[F, B]],
-      loop: Iterant.Visitor[F, B, Iterant[F, C]]): Iterant[F, C] = {
+      loop: Iterant.Visitor[F, B, Iterant[F, C]]
+    ): Iterant[F, C] = {
 
       if (!itemsB.hasNext())
         Suspend(restB.map(loop))

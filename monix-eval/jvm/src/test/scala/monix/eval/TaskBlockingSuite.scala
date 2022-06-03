@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.eval
 import minitest.SimpleTestSuite
 import monix.execution.Scheduler.Implicits.global
 
-import scala.concurrent.{Await, TimeoutException}
+import scala.concurrent.{ Await, TimeoutException }
 import scala.concurrent.duration._
 
 object TaskBlockingSuite extends SimpleTestSuite {

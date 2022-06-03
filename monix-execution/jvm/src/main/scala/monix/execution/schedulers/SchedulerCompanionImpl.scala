@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +18,10 @@
 package monix.execution.schedulers
 
 import java.util.concurrent._
-import monix.execution.{Features, Properties, Scheduler, SchedulerCompanion, UncaughtExceptionReporter}
+
+import monix.execution.{ Features, Properties, Scheduler, SchedulerCompanion, UncaughtExceptionReporter }
 // Prevents conflict with the deprecated symbol
-import monix.execution.{ExecutionModel => ExecModel}
+import monix.execution.{ ExecutionModel => ExecModel }
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -76,7 +77,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     executor: ScheduledExecutorService,
     ec: ExecutionContext,
     reporter: UncaughtExceptionReporter,
-    executionModel: ExecModel): Scheduler =
+    executionModel: ExecModel
+  ): Scheduler =
     AsyncScheduler(executor, ec, executionModel, reporter)
 
   /** [[monix.execution.Scheduler Scheduler]] builder.
@@ -123,7 +125,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
   def apply(
     executor: ExecutorService,
     reporter: UncaughtExceptionReporter,
-    executionModel: ExecModel): SchedulerService = {
+    executionModel: ExecModel
+  ): SchedulerService = {
 
     ExecutorScheduler(executor, reporter, executionModel, Features.empty)
   }
@@ -234,7 +237,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     name: String = "monix-computation",
     daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
-    executionModel: ExecModel = ExecModel.Default): SchedulerService = {
+    executionModel: ExecModel = ExecModel.Default
+  ): SchedulerService = {
 
     ExecutorScheduler.forkJoinStatic(name, parallelism, daemonic, reporter, executionModel)
   }
@@ -262,7 +266,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     name: String = "monix-forkjoin",
     daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
-    executionModel: ExecModel = ExecModel.Default): SchedulerService = {
+    executionModel: ExecModel = ExecModel.Default
+  ): SchedulerService = {
 
     ExecutorScheduler.forkJoinDynamic(name, parallelism, maxThreads, daemonic, reporter, executionModel)
   }
@@ -286,7 +291,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     name: String = "monix-io",
     daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
-    executionModel: ExecModel = ExecModel.Default): SchedulerService = {
+    executionModel: ExecModel = ExecModel.Default
+  ): SchedulerService = {
 
     val threadFactory = ThreadFactoryBuilder(name, reporter, daemonic)
     val executor = new ThreadPoolExecutor(
@@ -295,7 +301,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       60,
       TimeUnit.SECONDS,
       new SynchronousQueue[Runnable](false),
-      threadFactory)
+      threadFactory
+    )
 
     ExecutorScheduler(executor, reporter, executionModel, Features.empty)
   }
@@ -323,7 +330,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     keepAliveTime: FiniteDuration = 60.seconds,
     daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
-    executionModel: ExecModel = ExecModel.Default): SchedulerService = {
+    executionModel: ExecModel = ExecModel.Default
+  ): SchedulerService = {
 
     require(minThreads >= 0, "minThreads >= 0")
     require(maxThreads > 0, "maxThreads > 0")
@@ -337,7 +345,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
       keepAliveTime.toMillis,
       TimeUnit.MILLISECONDS,
       new SynchronousQueue[Runnable](false),
-      threadFactory)
+      threadFactory
+    )
 
     ExecutorScheduler(executor, reporter, executionModel, Features.empty)
   }
@@ -361,7 +370,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     name: String,
     daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
-    executionModel: ExecModel = ExecModel.Default): SchedulerService = {
+    executionModel: ExecModel = ExecModel.Default
+  ): SchedulerService = {
 
     val factory = ThreadFactoryBuilder(name, reporter, daemonic)
     val executor = new AdaptedThreadPoolExecutor(1, factory) {
@@ -390,7 +400,8 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     poolSize: Int,
     daemonic: Boolean = true,
     reporter: UncaughtExceptionReporter = UncaughtExceptionReporter.default,
-    executionModel: ExecModel = ExecModel.Default): SchedulerService = {
+    executionModel: ExecModel = ExecModel.Default
+  ): SchedulerService = {
 
     val factory = ThreadFactoryBuilder(name, reporter, daemonic)
     val executor = new AdaptedThreadPoolExecutor(poolSize, factory) {

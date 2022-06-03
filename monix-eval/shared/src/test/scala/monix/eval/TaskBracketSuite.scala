@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,10 +21,10 @@ import cats.effect.concurrent.Deferred
 import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
-import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskBracketSuite extends BaseTestSuite {
   test("equivalence with onErrorHandleWith") { implicit sc =>
@@ -241,10 +241,10 @@ object TaskBracketSuite extends BaseTestSuite {
   test("cancel should wait for already started finalizers on success") { implicit sc =>
 
     val fa = for {
-      pa <- Deferred[Task, Unit]
+      pa    <- Deferred[Task, Unit]
       fiber <- Task.unit.guarantee(pa.complete(()) >> Task.sleep(1.second)).start
-      _ <- pa.get
-      _ <- fiber.cancel
+      _     <- pa.get
+      _     <- fiber.cancel
     } yield ()
 
     val f = fa.runToFuture
@@ -260,10 +260,10 @@ object TaskBracketSuite extends BaseTestSuite {
     val dummy = new RuntimeException("dummy")
 
     val fa = for {
-      pa <- Deferred[Task, Unit]
+      pa    <- Deferred[Task, Unit]
       fiber <- Task.unit.guarantee(pa.complete(()) >> Task.sleep(1.second) >> Task.raiseError(dummy)).start
-      _ <- pa.get
-      _ <- fiber.cancel
+      _     <- pa.get
+      _     <- fiber.cancel
     } yield ()
 
     val f = fa.runToFuture
@@ -280,9 +280,7 @@ object TaskBracketSuite extends BaseTestSuite {
     val fa = for {
       pa <- Deferred[Task, Unit]
       fibA <- Task.unit
-        .bracket(
-          _ => Task.unit.guarantee(pa.complete(()) >> Task.sleep(2.second))
-        )(_ => Task.unit)
+        .bracket(_ => Task.unit.guarantee(pa.complete(()) >> Task.sleep(2.second)))(_ => Task.unit)
         .start
       _ <- pa.get
       _ <- fibA.cancel
@@ -302,9 +300,7 @@ object TaskBracketSuite extends BaseTestSuite {
     val fa = for {
       pa <- Deferred[Task, Unit]
       fiber <- Task.unit
-        .bracket(
-          _ => (pa.complete(()) >> Task.never).guarantee(Task.sleep(2.second))
-        )(_ => Task.unit)
+        .bracket(_ => (pa.complete(()) >> Task.never).guarantee(Task.sleep(2.second)))(_ => Task.unit)
         .start
       _ <- pa.get
       _ <- Task.race(fiber.cancel, fiber.cancel)
@@ -367,8 +363,8 @@ object TaskBracketSuite extends BaseTestSuite {
 
     val fa = for {
       fiber <- Task.sleep(1.second).start
-      _ <- fiber.cancel
-      _ <- fiber.cancel
+      _     <- fiber.cancel
+      _     <- fiber.cancel
     } yield ()
 
     val f = fa.runToFuture

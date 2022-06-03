@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,16 +17,16 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
+import java.util.concurrent.{ CountDownLatch, TimeUnit, TimeoutException }
 
 import minitest.TestSuite
-import monix.execution.ExecutionModel.{AlwaysAsyncExecution, Default => DefaultExecutionModel}
+import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, Default => DefaultExecutionModel }
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.exceptions.DummyException
-import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{ Cancelable, Scheduler, UncaughtExceptionReporter }
 
 import scala.concurrent.duration._
-import scala.concurrent.{blocking, Await, Promise}
+import scala.concurrent.{ blocking, Await, Promise }
 
 abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self =>
   var lastReportedFailure = null: Throwable
@@ -101,7 +101,8 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
         } else if (value < 4) {
           value += 1
         }
-      })
+      }
+    )
 
     assert(Await.result(p.future, 5.second) == 4)
   }
@@ -124,7 +125,8 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
         } else if (value < 4) {
           value += 1
         }
-      })
+      }
+    )
 
     assert(Await.result(p.future, 5.second) == 4)
   }
@@ -184,7 +186,8 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
       scheduler.scheduleOnce(
         1,
         TimeUnit.MILLISECONDS,
-        () => throw ex)
+        () => throw ex
+      )
 
       assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
       self.synchronized(assertEquals(lastReportedFailure, ex))

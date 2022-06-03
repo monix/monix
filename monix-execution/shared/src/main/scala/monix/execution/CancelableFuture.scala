@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,15 +18,15 @@
 package monix.execution
 
 import monix.execution.Cancelable.IsDummy
-import monix.execution.CancelableFuture.{Async, Never, Pure}
-import monix.execution.cancelables.{ChainedCancelable, SingleAssignCancelable}
+import monix.execution.CancelableFuture.{ Async, Never, Pure }
+import monix.execution.cancelables.{ ChainedCancelable, SingleAssignCancelable }
 import monix.execution.misc.Local
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent._
 import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 import scala.util.control.NonFatal
 
 /** Represents an asynchronous computation that can be canceled
@@ -53,7 +53,8 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
   }
 
   override final def transform[S](s: (A) => S, f: (Throwable) => Throwable)(implicit
-    executor: ExecutionContext): CancelableFuture[S] =
+    executor: ExecutionContext
+  ): CancelableFuture[S] =
     transform {
       case Success(a) => Success(s(a))
       case Failure(e) => Failure(f(e))
@@ -84,7 +85,8 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
     }
 
   override final def recover[U >: A](pf: PartialFunction[Throwable, U])(implicit
-    executor: ExecutionContext): CancelableFuture[U] =
+    executor: ExecutionContext
+  ): CancelableFuture[U] =
     transform {
       case ref @ Success(_) => ref
       case Failure(e) =>
@@ -93,7 +95,8 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
     }
 
   override final def recoverWith[U >: A](pf: PartialFunction[Throwable, Future[U]])(implicit
-    executor: ExecutionContext): CancelableFuture[U] =
+    executor: ExecutionContext
+  ): CancelableFuture[U] =
     transformWith {
       case Success(_) => this
       case Failure(e) =>
@@ -126,7 +129,8 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
   }
 
   override final def andThen[U](pf: PartialFunction[Try[A], U])(implicit
-    executor: ExecutionContext): CancelableFuture[A] =
+    executor: ExecutionContext
+  ): CancelableFuture[A] =
     transformWith { r =>
       if (pf.isDefinedAt(r)) pf(r)
       this
@@ -154,37 +158,40 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
 
     // FutureUtils will use a polyfill for Scala 2.11 and will
     // use the real `transformWith` on Scala 2.12
-    val f2 = FutureUtils.transformWith(underlying, { (result: Try[A]) =>
-      if (isolatedCtx ne null) Local.setContext(isolatedCtx)
-      val nextRef: Future[S] =
-        try f(result)
-        catch { case e if NonFatal(e) => Future.failed(e) }
+    val f2 = FutureUtils.transformWith(
+      underlying,
+      { (result: Try[A]) =>
+        if (isolatedCtx ne null) Local.setContext(isolatedCtx)
+        val nextRef: Future[S] =
+          try f(result)
+          catch { case e if NonFatal(e) => Future.failed(e) }
 
-      // Checking to see if we are dealing with a "flatMap"
-      // future, in which case we need to chain the cancelable
-      // reference in order to not create a memory leak
-      nextRef match {
-        case ref: CancelableFuture[_] if ref ne Never =>
-          val cf = ref.asInstanceOf[CancelableFuture[S]]
-          // If the resulting Future is completed, there's no reason
-          // to chain cancelable tokens
-          if (!cf.isCompleted)
-            cf.cancelable match {
-              case cRef2: ChainedCancelable =>
-                // Chaining ensures we don't leak
-                cRef2.forwardTo(cRef)
-              case cRef2 =>
-                if (!cRef2.isInstanceOf[IsDummy]) cRef := cRef2
-            }
+        // Checking to see if we are dealing with a "flatMap"
+        // future, in which case we need to chain the cancelable
+        // reference in order to not create a memory leak
+        nextRef match {
+          case ref: CancelableFuture[_] if ref ne Never =>
+            val cf = ref.asInstanceOf[CancelableFuture[S]]
+            // If the resulting Future is completed, there's no reason
+            // to chain cancelable tokens
+            if (!cf.isCompleted)
+              cf.cancelable match {
+                case cRef2: ChainedCancelable =>
+                  // Chaining ensures we don't leak
+                  cRef2.forwardTo(cRef)
+                case cRef2 =>
+                  if (!cRef2.isInstanceOf[IsDummy]) cRef := cRef2
+              }
 
-          // Returning underlying b/c otherwise we leak memory in
-          // infinite loops
-          cf.underlying
+            // Returning underlying b/c otherwise we leak memory in
+            // infinite loops
+            cf.underlying
 
-        case _ =>
-          nextRef
+          case _ =>
+            nextRef
+        }
       }
-    })
+    )
     CancelableFuture.applyWithLocal(f2, cRef, isolatedCtx)
   }
 }
@@ -304,7 +311,11 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
   private[monix] def successfulWithLocal[A](value: A, isolatedCtx: Local.Context): CancelableFuture[A] =
     new Pure[A](Success(value), isolatedCtx)
 
-  private[monix] def applyWithLocal[A](underlying: Future[A], cancelable: Cancelable, isolatedCtx: Local.Context): CancelableFuture[A] =
+  private[monix] def applyWithLocal[A](
+    underlying: Future[A],
+    cancelable: Cancelable,
+    isolatedCtx: Local.Context
+  ): CancelableFuture[A] =
     new Async[A](underlying, cancelable, isolatedCtx)
 
   /** A [[CancelableFuture]] instance that will never complete. */
@@ -332,12 +343,14 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     override def transform[S](f: (Try[Nothing]) => Try[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
       this
     override def transformWith[S](f: (Try[Nothing]) => Future[S])(implicit
-      executor: ExecutionContext): CancelableFuture[S] =
+      executor: ExecutionContext
+    ): CancelableFuture[S] =
       this
   }
 
   /** An internal [[CancelableFuture]] implementation. */
-  private[execution] final class Pure[+A](immediate: Try[A], override val isolatedCtx: Local.Context = null) extends CancelableFuture[A] {
+  private[execution] final class Pure[+A](immediate: Try[A], override val isolatedCtx: Local.Context = null)
+    extends CancelableFuture[A] {
     def ready(atMost: Duration)(implicit permit: CanAwait): this.type = this
     def result(atMost: Duration)(implicit permit: CanAwait): A = immediate.get
 
@@ -355,8 +368,11 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
   }
 
   /** An actual [[CancelableFuture]] implementation; internal. */
-  private[execution] final case class Async[+A](underlying: Future[A], cancelable: Cancelable, override val isolatedCtx: Local.Context = null)
-    extends CancelableFuture[A] {
+  private[execution] final case class Async[+A](
+    underlying: Future[A],
+    cancelable: Cancelable,
+    override val isolatedCtx: Local.Context = null
+  ) extends CancelableFuture[A] {
 
     override def onComplete[U](f: (Try[A]) => U)(implicit executor: ExecutionContext): Unit = {
       underlying.onComplete(f)(executor)

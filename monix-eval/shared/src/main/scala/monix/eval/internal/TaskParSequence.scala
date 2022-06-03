@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import cats.effect.CancelToken
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.{ Async, Context }
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Scheduler
@@ -46,8 +46,8 @@ private[eval] object TaskParSequence {
   // a full async boundary!
   private final class Register[A, M[X] <: Iterable[X]](
     in: Iterable[Task[A]],
-    makeBuilder: () => mutable.Builder[A, M[A]])
-    extends ForkedRegister[M[A]] {
+    makeBuilder: () => mutable.Builder[A, M[A]]
+  ) extends ForkedRegister[M[A]] {
 
     def apply(context: Context, finalCallback: Callback[Throwable, M[A]]): Unit = {
       // We need a monitor to synchronize on, per evaluation!
@@ -65,9 +65,7 @@ private[eval] object TaskParSequence {
 
       // MUST BE synchronized by `lock`!
       // MUST NOT BE called if isActive == false!
-      def maybeSignalFinal(mainConn: TaskConnection, finalCallback: Callback[Throwable, M[A]])(
-        implicit s: Scheduler): Unit = {
-
+      def maybeSignalFinal(mainConn: TaskConnection, finalCallback: Callback[Throwable, M[A]]): Unit = {
         completed += 1
         if (completed >= tasksCount) {
           isActive = false

@@ -16,6 +16,9 @@ jobs:
   publish:
     name: Publish to Sonatype (Request)
 
+    env:
+      CI: true
+
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2

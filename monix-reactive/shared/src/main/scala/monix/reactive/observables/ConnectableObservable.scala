@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,11 @@
 
 package monix.reactive.observables
 
-import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
-import monix.execution.{Cancelable, Scheduler}
-import monix.reactive.observers.{CacheUntilConnectSubscriber, Subscriber}
+import monix.execution.annotations.{ UnsafeBecauseImpure, UnsafeProtocol }
+import monix.execution.{ Cancelable, Scheduler }
+import monix.reactive.observers.{ CacheUntilConnectSubscriber, Subscriber }
 import monix.reactive.subjects.Subject
-import monix.reactive.{Observable, Pipe}
+import monix.reactive.{ Observable, Pipe }
 
 /** Represents an [[monix.reactive.Observable Observable]] that waits for
   * the call to `connect()` before
@@ -51,7 +51,8 @@ object ConnectableObservable {
   @UnsafeProtocol
   @UnsafeBecauseImpure
   def unsafeMulticast[A, B](source: Observable[A], subject: Subject[A, B])(
-    implicit s: Scheduler): ConnectableObservable[B] = {
+    implicit s: Scheduler
+  ): ConnectableObservable[B] = {
 
     new ConnectableObservable[B] {
       private[this] lazy val connection: Cancelable =
@@ -92,7 +93,8 @@ object ConnectableObservable {
     */
   @UnsafeBecauseImpure
   def cacheUntilConnect[A, B](source: Observable[A], subject: Subject[A, B])(
-    implicit s: Scheduler): ConnectableObservable[B] = {
+    implicit s: Scheduler
+  ): ConnectableObservable[B] = {
 
     new ConnectableObservable[B] {
       private[this] val (connectable, cancelRef) = {

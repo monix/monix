@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,12 +19,12 @@ package monix.catnap
 
 import java.util.concurrent.atomic.AtomicLong
 
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.{ ContextShift, IO, Timer }
 import cats.implicits._
 import minitest.TestSuite
-import monix.execution.BufferCapacity.{Bounded, Unbounded}
-import monix.execution.ChannelType.{MPMC, MPSC, SPMC, SPSC}
-import monix.execution.{BufferCapacity, ChannelType, Scheduler}
+import monix.execution.BufferCapacity.{ Bounded, Unbounded }
+import monix.execution.ChannelType.{ MPMC, MPSC, SPMC, SPSC }
+import monix.execution.{ BufferCapacity, ChannelType, Scheduler }
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 
@@ -128,7 +128,7 @@ abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
       if (n > 0)
         queue.poll.flatMap { a =>
           consumer(n - 1, acc.enqueue(a))
-        } 
+        }
       else
         IO.pure(acc.foldLeft(0L)(_ + _))
 

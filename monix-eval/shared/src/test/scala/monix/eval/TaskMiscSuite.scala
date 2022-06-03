@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,10 +19,10 @@ package monix.eval
 
 import monix.execution.Callback
 import monix.execution.exceptions.DummyException
-import org.reactivestreams.{Subscriber, Subscription}
+import org.reactivestreams.{ Subscriber, Subscription }
 
 import scala.concurrent.Promise
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskMiscSuite extends BaseTestSuite {
   test("Task.attempt should succeed") { implicit s =>
@@ -158,7 +158,7 @@ object TaskMiscSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "should not have tasks left to execute")
   }
 
-  test("Task.pure is an alias of now") { implicit s =>
+  test("Task.pure is an alias of now") { _ =>
     assertEquals(Task.pure(1), Task.now(1))
   }
 

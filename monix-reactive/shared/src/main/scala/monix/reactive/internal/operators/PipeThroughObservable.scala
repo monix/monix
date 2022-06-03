@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +18,9 @@
 package monix.reactive.internal.operators
 
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.observers.Subscriber
-import monix.reactive.{Observable, Pipe}
+import monix.reactive.{ Observable, Pipe }
 import scala.concurrent.Future
 
 private[reactive] final class PipeThroughObservable[A, B](source: Observable[A], pipe: Pipe[A, B])

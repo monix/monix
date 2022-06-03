@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,11 +24,11 @@ import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
 import monix.execution.exceptions.DummyException
-import monix.reactive.{Observable, Observer, OverflowStrategy}
+import monix.reactive.{ Observable, Observer, OverflowStrategy }
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._
-import scala.util.{Failure, Random}
+import scala.util.{ Failure, Random }
 
 object MapParallelUnorderedSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
@@ -335,7 +335,8 @@ object MapParallelUnorderedSuite extends BaseOperatorSuite {
       .range(0, totalCount.toLong)
       .doOnNext(_ => Task { initiated += 1 })
       .mapParallelUnordered(parallelism = 4)(x => Task.evalAsync(x))(
-        OverflowStrategy.DropNew(Platform.recommendedBatchSize))
+        OverflowStrategy.DropNew(Platform.recommendedBatchSize)
+      )
       .unsafeSubscribeFn(new Observer[Long] {
         def onNext(elem: Long) = {
           received += 1

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,8 +17,8 @@
 
 package tracing
 
-import monix.eval.tracing.{TaskEvent, TaskTrace}
-import monix.eval.{BaseTestSuite, Task}
+import monix.eval.tracing.{ TaskEvent, TaskTrace }
+import monix.eval.{ BaseTestSuite, Task }
 
 /**
   * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
@@ -36,7 +36,8 @@ object CachedStackTracingSuite extends BaseTestSuite {
         assertEquals(r.captured, 4)
         assertEquals(
           r.events.collect { case e: TaskEvent.StackTrace => e }.count(_.stackTrace.exists(_.getMethodName == "map")),
-          3)
+          3
+        )
       }
 
     test.runToFuture
@@ -66,7 +67,8 @@ object CachedStackTracingSuite extends BaseTestSuite {
         assertEquals(r.captured, 5)
         assertEquals(
           r.events.collect { case e: TaskEvent.StackTrace => e }.count(_.stackTrace.exists(_.getMethodName == "async")),
-          1)
+          1
+        )
       }
 
     test.runToFuture
@@ -81,7 +83,8 @@ object CachedStackTracingSuite extends BaseTestSuite {
         assertEquals(
           r.events.collect { case e: TaskEvent.StackTrace => e }
             .count(_.stackTrace.exists(_.getMethodName == "bracket")),
-          1)
+          1
+        )
       }
 
     test.runToFuture
@@ -97,7 +100,8 @@ object CachedStackTracingSuite extends BaseTestSuite {
         assertEquals(
           r.events.collect { case e: TaskEvent.StackTrace => e }
             .count(_.stackTrace.exists(_.getMethodName == "bracketCase")),
-          1)
+          1
+        )
       }
 
     test.runToFuture

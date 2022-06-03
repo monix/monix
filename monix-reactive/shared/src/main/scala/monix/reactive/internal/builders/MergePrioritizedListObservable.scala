@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,14 +17,14 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.CompositeCancelable
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.collection.mutable
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
 /** Given a sequence of priority/observable pairs, combines them into a new
@@ -44,8 +44,8 @@ import scala.util.Success
   * given source will be in flight at a time.
   */
 private[reactive] final class MergePrioritizedListObservable[A](
-    sources: Seq[(Int, Observable[A])])
-    extends Observable[A] {
+  sources: Seq[(Int, Observable[A])]
+) extends Observable[A] {
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     import out.scheduler
@@ -88,12 +88,12 @@ private[reactive] final class MergePrioritizedListObservable[A](
     def signalOnNext(): Future[Ack] = {
       lastAck = lastAck match {
         case Continue => processNext()
-        case Stop     => Stop
+        case Stop => Stop
         case async =>
           async.flatMap {
             // async execution, we have to re-sync
             case Continue => lock.synchronized(processNext())
-            case Stop     => Stop
+            case Stop => Stop
           }
       }
       lastAck

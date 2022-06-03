@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import cats.arrow.FunctionK
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 
 private[tail] object IterantLiftMap {
   /** Implementation for `Iterant#liftMap`. */
@@ -52,7 +52,8 @@ private[tail] object IterantLiftMap {
       Scope[G, S, A](
         f(ref.acquire),
         s => G.defer(f(ref.use(s)).map(this)),
-        (s, exitCase) => f(ref.release(s, exitCase)))
+        (s, exitCase) => f(ref.release(s, exitCase))
+      )
 
     def visit(ref: Last[F, A]): Iterant[G, A] =
       ref.asInstanceOf[Iterant[G, A]]

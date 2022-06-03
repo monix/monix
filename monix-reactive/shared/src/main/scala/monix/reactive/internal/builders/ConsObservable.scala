@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,16 +18,16 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Cancelable
-import monix.execution.cancelables.{AssignableCancelable, MultiAssignCancelable, SingleAssignCancelable}
+import monix.execution.cancelables.{ AssignableCancelable, MultiAssignCancelable, SingleAssignCancelable }
 import monix.reactive.Observable
 import monix.reactive.observables.ChainedObservable
-import monix.reactive.observables.ChainedObservable.{subscribe => chain}
+import monix.reactive.observables.ChainedObservable.{ subscribe => chain }
 import monix.reactive.observers.Subscriber
 
 private[reactive] final class ConsObservable[+A](head: A, tail: Observable[A]) extends ChainedObservable[A] {
 
   def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
-    import out.{scheduler => s}
+    import out.{ scheduler => s }
     out.onNext(head).syncOnContinue(chain(tail, conn, out))(s)
     ()
   }

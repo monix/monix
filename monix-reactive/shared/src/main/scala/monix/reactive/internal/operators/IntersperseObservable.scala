@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -28,8 +28,8 @@ private[reactive] final class IntersperseObservable[+A](
   source: Observable[A],
   start: Option[A],
   separator: A,
-  end: Option[A])
-  extends Observable[A] { self =>
+  end: Option[A]
+) extends Observable[A] { self =>
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val upstream = source.unsafeSubscribeFn(new Subscriber[A] {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,15 +17,15 @@
 
 package monix.catnap
 
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.{ ContextShift, IO, Timer }
 import cats.implicits._
 import minitest.TestSuite
-import monix.execution.BufferCapacity.{Bounded, Unbounded}
-import monix.execution.ChannelType.{MPMC, MPSC, SPMC, SPSC}
+import monix.execution.BufferCapacity.{ Bounded, Unbounded }
+import monix.execution.ChannelType.{ MPMC, MPSC, SPMC, SPSC }
 import monix.execution.exceptions.APIContractViolationException
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import monix.execution.{BufferCapacity, Scheduler, TestUtils}
+import monix.execution.{ BufferCapacity, Scheduler, TestUtils }
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
@@ -395,7 +395,8 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
   }
 
   testIO(
-    s"concurrent sum via consumer.pull; MPMC; producers=4, consumers=4, workers=4, capacity=$boundedConfigForConcurrentSum") {
+    s"concurrent sum via consumer.pull; MPMC; producers=4, consumers=4, workers=4, capacity=$boundedConfigForConcurrentSum"
+  ) {
     implicit ec =>
       testConcurrentSum(
         producers = 4,
@@ -420,7 +421,8 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
   }
 
   testIO(
-    s"concurrent sum via consumer.pull; SPMC; producers=1, consumers=4, workers=4, capacity=$boundedConfigForConcurrentSum") {
+    s"concurrent sum via consumer.pull; SPMC; producers=1, consumers=4, workers=4, capacity=$boundedConfigForConcurrentSum"
+  ) {
     implicit ec =>
       testConcurrentSum(
         producers = 1,
@@ -445,7 +447,8 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
   }
 
   testIO(
-    s"concurrent sum via consumer.pull; MPMC; producers=4, consumers=1, workers=4, capacity=$boundedConfigForConcurrentSum") {
+    s"concurrent sum via consumer.pull; MPMC; producers=4, consumers=1, workers=4, capacity=$boundedConfigForConcurrentSum"
+  ) {
     implicit ec =>
       testConcurrentSum(
         producers = 4,
@@ -470,7 +473,8 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
   }
 
   testIO(
-    s"concurrent sum via consumer.pull; MPSC; producers=4, consumers=4, workers=1, capacity=$boundedConfigForConcurrentSum") {
+    s"concurrent sum via consumer.pull; MPSC; producers=4, consumers=4, workers=1, capacity=$boundedConfigForConcurrentSum"
+  ) {
     implicit ec =>
       testConcurrentSum(
         producers = 4,
@@ -495,7 +499,8 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
   }
 
   testIO(
-    s"concurrent sum via consumer.pull; SPSC; producers=1, consumers=1, workers=1, capacity=$boundedConfigForConcurrentSum") {
+    s"concurrent sum via consumer.pull; SPSC; producers=1, consumers=1, workers=1, capacity=$boundedConfigForConcurrentSum"
+  ) {
     implicit ec =>
       testConcurrentSum(
         producers = 1,
@@ -520,7 +525,8 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
   }
 
   testIO(
-    s"concurrent sum via consumer.pullMany; MPMC; producers=4, consumers=4, workers=4, capacity=$boundedConfigForConcurrentSum") {
+    s"concurrent sum via consumer.pullMany; MPMC; producers=4, consumers=4, workers=4, capacity=$boundedConfigForConcurrentSum"
+  ) {
     implicit ec =>
       testConcurrentSum(
         producers = 4,
@@ -545,7 +551,8 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
   }
 
   testIO(
-    s"concurrent sum via consumer.pullMany; SPMC; producers=1, consumers=4, workers=4, capacity=$boundedConfigForConcurrentSum") {
+    s"concurrent sum via consumer.pullMany; SPMC; producers=1, consumers=4, workers=4, capacity=$boundedConfigForConcurrentSum"
+  ) {
     implicit ec =>
       testConcurrentSum(
         producers = 1,
@@ -570,7 +577,8 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
   }
 
   testIO(
-    s"concurrent sum via consumer.pullMany; MPMC; producers=4, consumers=1, workers=4, capacity=$boundedConfigForConcurrentSum") {
+    s"concurrent sum via consumer.pullMany; MPMC; producers=4, consumers=1, workers=4, capacity=$boundedConfigForConcurrentSum"
+  ) {
     implicit ec =>
       testConcurrentSum(
         producers = 4,
@@ -595,7 +603,8 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
   }
 
   testIO(
-    s"concurrent sum via consumer.pullMany; MPSC; producers=4, consumers=4, workers=1, capacity=$boundedConfigForConcurrentSum") {
+    s"concurrent sum via consumer.pullMany; MPSC; producers=4, consumers=4, workers=1, capacity=$boundedConfigForConcurrentSum"
+  ) {
     implicit ec =>
       testConcurrentSum(
         producers = 4,
@@ -620,7 +629,8 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
   }
 
   testIO(
-    s"concurrent sum via consumer.pullMany; SPSC; producers=1, consumers=1, workers=1, capacity=$boundedConfigForConcurrentSum") {
+    s"concurrent sum via consumer.pullMany; SPSC; producers=1, consumers=1, workers=1, capacity=$boundedConfigForConcurrentSum"
+  ) {
     implicit ec =>
       testConcurrentSum(
         producers = 1,
@@ -650,7 +660,8 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
     workersPerConsumer: Int,
     capacity: BufferCapacity,
     count: Int,
-    pullMany: Boolean)(implicit ec: Scheduler): IO[Unit] = {
+    pullMany: Boolean
+  )(implicit ec: Scheduler): IO[Unit] = {
 
     val channelType =
       if (producers > 1) {

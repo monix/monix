@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,10 +22,10 @@ import java.util.concurrent.CountDownLatch
 import minitest.TestSuite
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.SchedulerService
-import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
+import monix.execution.{ Cancelable, CancelableFuture, ExecutionModel, Scheduler }
 
 import scala.concurrent.duration._
-import scala.concurrent.{blocking, ExecutionContext, Future}
+import scala.concurrent.{ blocking, ExecutionContext, Future }
 
 object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
   private val ThreadName = "test-thread"
@@ -872,7 +872,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  ///...
+  /// ...
   testAsync("Task.asyncF(register) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 

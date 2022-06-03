@@ -155,4 +155,4 @@ Submit a PR ❤️
 ## License
 
 All code in this repository is licensed under the Apache License,
-Version 2.0.  See [LICENCE.txt](./LICENSE.txt).
+Version 2.0.  See [LICENSE](./LICENSE.txt).
