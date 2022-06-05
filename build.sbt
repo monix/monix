@@ -561,13 +561,31 @@ lazy val coreJVM = project
   .in(file("monix/jvm"))
   .configure(coreProfile.jvm)
   .dependsOn(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
-  .aggregate(executionShadedJCTools, executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+  .aggregate(
+    executionShadedJCTools, 
+    executionExceptionsJVM,
+    executionCancelableJVM, 
+    executionJVM, 
+    catnapJVM, 
+    evalJVM, 
+    tailJVM, 
+    reactiveJVM, 
+    javaJVM,
+  )
 
 lazy val coreJS = project
   .in(file("monix/js"))
   .configure(coreProfile.js)
   .dependsOn(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
-  .aggregate(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
+  .aggregate(
+    executionExceptionsJS,
+    executionCancelableJS,
+    executionJS, 
+    catnapJS, 
+    evalJS, 
+    tailJS, 
+    reactiveJS,
+  )
 
 // --------------------------------------------
 // monix-internal-jctools (shaded lib)
@@ -616,6 +634,24 @@ lazy val executionAtomicJS = project.in(file("monix-execution/atomic/js"))
   .settings(macroDependencies)
 
 // --------------------------------------------
+// monix-execution-exceptions
+
+lazy val executionExceptionsProfile =
+  crossModule(
+    projectName  = "monix-execution-exceptions",
+    withDocTests = true,
+    crossSettings = Seq(
+      description := "Sub-module of Monix, exposing `Throwable` definitions and utilities. See: https://monix.io",
+    )
+  )
+
+lazy val executionExceptionsJVM = project.in(file("monix-execution/exceptions/jvm"))
+  .configure(executionExceptionsProfile.jvm)
+
+lazy val executionExceptionsJS = project.in(file("monix-execution/exceptions/js"))
+  .configure(executionExceptionsProfile.js)
+
+// --------------------------------------------
 // monix-execution-cancelable
 
 lazy val executionCancelableProfile =
@@ -630,10 +666,12 @@ lazy val executionCancelableProfile =
 lazy val executionCancelableJVM = project.in(file("monix-execution/cancelable/.jvm"))
   .configure(executionCancelableProfile.jvm)
   .dependsOn(executionAtomicJVM)
+  .dependsOn(executionExceptionsJVM)
 
 lazy val executionCancelableJS = project.in(file("monix-execution/cancelable/.js"))
   .configure(executionCancelableProfile.js)
   .dependsOn(executionAtomicJS)
+  .dependsOn(executionExceptionsJS)
 
 // --------------------------------------------
 // monix-execution

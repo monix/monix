@@ -17,21 +17,13 @@
 
 package monix.execution.exceptions
 
-/** Used in testing to trigger dummy exceptions.
-  *
-  * Not to be used for anything except in testing, since
-  * this exception type implements structural equality.
-  *
-  * This means that these 2 exceptions are considered equal,
-  * even if they have different stack-traces:
-  * {{{
-  *   val dummy1 = DummyException("dummy")
-  *   val dummy2 = DummyException("dummy")
-  *
-  *   dummy == dummy2
-  *   //=> true
-  * }}}
+/** An exception emitted on buffer overflows, like when using
+  * [[monix.reactive.OverflowStrategy.Fail OverflowStrategy.Fail]].
   */
-final case class DummyException(message: String) extends RuntimeException(message) with Serializable {
-  def this() = this(null)
+class BufferOverflowException(val message: String) extends RuntimeException(message) with Serializable
+
+object BufferOverflowException {
+  /** Builder for [[BufferOverflowException]]. */
+  def apply(message: String): BufferOverflowException =
+    new BufferOverflowException(message)
 }

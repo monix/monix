@@ -24,26 +24,26 @@ import scala.annotation.tailrec
 /** Represents a composite of multiple cancelables. In case it is canceled, all
   * contained cancelables will be canceled too, e.g...
   * {{{
-  *   val s = CompositeCancelable()
+  *   val s1 = CompositeCancelable()
   *
-  *   s += c1
-  *   s += c2
-  *   s += c3
+  *   s1 += c1
+  *   s1 += c2
+  *   s1 += c3
   *
   *   // c1, c2, c3 will also be canceled
-  *   s.cancel()
+  *   s1.cancel()
   * }}}
   *
   * Additionally, once canceled, on appending of new cancelable references, those
   * references will automatically get canceled too:
   * {{{
-  *   val s = CompositeCancelable()
-  *   s.cancel()
+  *   val s2 = CompositeCancelable()
+  *   s2.cancel()
   *
   *   // c1 gets canceled, because s is already canceled
-  *   s += c1
+  *   s2 += c1
   *   // c2 gets canceled, because s is already canceled
-  *   s += c2
+  *   s2 += c2
   * }}}
   *
   * Adding and removing references from this composite is thread-safe.

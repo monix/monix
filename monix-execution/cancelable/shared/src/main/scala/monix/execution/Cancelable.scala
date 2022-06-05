@@ -18,9 +18,6 @@
 package monix.execution
 
 import monix.execution.atomic.AtomicAny
-import monix.execution.internal.Platform
-import monix.execution.schedulers.TrampolinedRunnable
-import scala.collection.mutable.ListBuffer
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
 
@@ -31,10 +28,11 @@ import scala.util.control.NonFatal
   * It is equivalent to `java.io.Closeable`, but without the I/O focus, or
   * to `IDisposable` in Microsoft .NET, or to `akka.actor.Cancellable`.
   */
+@FunctionalInterface
 trait Cancelable extends Serializable {
   /** Cancels the unit of work represented by this reference.
     *
-    * Guaranteed idempotency - calling it multiple times should have
+    * Guaranteed to be idempotent - calling it multiple times should have
     * the same side-effect as calling it only once. Implementations
     * of this method should also be thread-safe.
     */
@@ -49,8 +47,8 @@ object Cancelable {
   /** Builds a [[monix.execution.Cancelable Cancelable]] that executes the given
     * `callback` when calling [[Cancelable.cancel cancel]].
     */
-  def apply(callback: () => Unit): Cancelable =
-    new CancelableTask(callback)
+  def apply(fn: => Unit): Cancelable =
+    new CancelableTask(() => fn)
 
   /** Returns a dummy [[Cancelable]] that doesn't do anything. */
   val empty: Cancelable =
@@ -69,23 +67,7 @@ object Cancelable {
     * cancelling everything on `cancel`.
     */
   def collection(seq: Iterable[Cancelable]): Cancelable =
-    apply { () =>
-      cancelAll(seq)
-    }
-
-  /** Wraps a collection of cancelable references into a `Cancelable`
-    * that will cancel them all by triggering a trampolined async
-    * boundary first, in order to prevent stack overflows.
-    */
-  def trampolined(refs: Cancelable*)(implicit s: Scheduler): Cancelable =
-    trampolined(refs)
-
-  /** Wraps a collection of cancelable references into a `Cancelable`
-    * that will cancel them all by triggering a trampolined async
-    * boundary first, in order to prevent stack overflows.
-    */
-  def trampolined(seq: Iterable[Cancelable])(implicit s: Scheduler): Cancelable =
-    new CollectionTrampolined(seq, s)
+    apply(cancelAll(seq))
 
   /** Builds a [[Cancelable]] out of a Scala `Promise`, completing the
     * promise with the given `Throwable` on cancel.
@@ -104,18 +86,21 @@ object Cancelable {
     *  - for JS they are wrapped in a `CompositeException`
     */
   def cancelAll(seq: Iterable[Cancelable]): Unit = {
-    val errors = ListBuffer.empty[Throwable]
+    var errors = List.empty[Throwable]
     val cursor = seq.iterator
     while (cursor.hasNext) {
-      try cursor.next().cancel()
-      catch { case ex if NonFatal(ex) => errors += ex }
+      try
+        cursor.next().cancel()
+      catch {
+        case ex if NonFatal(ex) =>
+          errors = ex :: errors
+      }
     }
 
-    errors.toList match {
-      case one :: Nil =>
-        throw one
+    errors match {
       case first :: rest =>
-        throw Platform.composeErrors(first, rest: _*)
+        for (e <- rest) { first.addSuppressed(e) }
+        throw first
       case _ =>
         () // Nothing
     }
@@ -127,33 +112,16 @@ object Cancelable {
   /** Marker for cancelables that are dummies that can be ignored. */
   trait IsDummy { self: Cancelable => }
 
-  private final class CancelableTask(cb: () => Unit) extends Cancelable {
-
-    private[this] val callbackRef = /*_*/ AtomicAny(cb) /*_*/
+  private final class CancelableTask(fn: () => Unit) extends Cancelable {
+    private[this] val ref = /*_*/ AtomicAny(fn) /*_*/
 
     def cancel(): Unit = {
       // Setting the callback to null with a `getAndSet` is solving
       // two problems: `cancel` is idempotent, plus we allow the garbage
       // collector to collect the task.
       /*_*/
-      val callback = callbackRef.getAndSet(null)
-      if (callback != null) callback()
-      /*_*/
-    }
-  }
-
-  private final class CollectionTrampolined(refs: Iterable[Cancelable], sc: Scheduler)
-    extends Cancelable with TrampolinedRunnable {
-
-    private[this] val atomic = /*_*/ AtomicAny(refs) /*_*/
-
-    def cancel(): Unit =
-      sc.execute(this)
-
-    def run(): Unit = {
-      /*_*/
-      val refs = atomic.getAndSet(null)
-      if (refs ne null) cancelAll(refs)
+      val fn = ref.getAndSet(null)
+      if (fn != null) fn()
       /*_*/
     }
   }

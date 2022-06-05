@@ -17,15 +17,20 @@
 
 package monix.execution.exceptions
 
-import scala.runtime.AbstractFunction1
+import minitest.SimpleTestSuite
 
-/** An exception emitted on buffer overflows, like when using
-  * [[monix.reactive.OverflowStrategy.Fail OverflowStrategy.Fail]].
-  */
-class BufferOverflowException(val message: String) extends RuntimeException(message) with Serializable
+object ExceptionsTest extends SimpleTestSuite {
+  test("platform capabilities — suppressed exceptions") {
+    val s0 = new RuntimeException("s0")
+    val s1 = new RuntimeException("s1")
+    val s2 = new RuntimeException("s2")
 
-object BufferOverflowException extends AbstractFunction1[String, BufferOverflowException] {
-  /** Builder for [[BufferOverflowException]]. */
-  def apply(message: String): BufferOverflowException =
-    new BufferOverflowException(message)
+    s0.addSuppressed(s1)
+    s0.addSuppressed(s2)
+
+    assertEquals(
+      s0.getSuppressed().toList,
+      List(s1, s2)
+    )
+  }
 }
