@@ -19,7 +19,7 @@ package monix.execution
 
 import monix.newtypes.TypeInfo
 
-final case class Properties private (private val attributes: Map[TypeInfo[_], Any]) {
+class Properties private (private val attributes: Map[TypeInfo[_], Any]) {
 
   def get[A: TypeInfo]: Option[A] = attributes.get(implicitly[TypeInfo[A]]) match {
     case Some(o) =>
@@ -32,10 +32,24 @@ final case class Properties private (private val attributes: Map[TypeInfo[_], An
     .asInstanceOf[A]
 
   def withProperty[A: TypeInfo](value: A): Properties = Properties(attributes + (implicitly[TypeInfo[A]] -> value))
+
+  def canEqual(other: Any): Boolean = other.isInstanceOf[Properties]
+
+  override def equals(other: Any): Boolean = other match {
+    case that: Properties =>
+      that.canEqual(this) &&
+      attributes == that.attributes
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val state = Seq(attributes)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+  }
 }
 
 object Properties {
-  val empty: Properties = Properties(Map())
+  val empty: Properties = new Properties(Map())
   def apply[A: TypeInfo](a: A): Properties =
     empty.withProperty(a)
   def apply[A: TypeInfo, B: TypeInfo](a: A, b: B): Properties =
