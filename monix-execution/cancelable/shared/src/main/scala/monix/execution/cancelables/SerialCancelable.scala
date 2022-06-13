@@ -17,7 +17,6 @@
 
 package monix.execution.cancelables
 
-import monix.execution.Cancelable
 import monix.execution.atomic.{ AtomicAny, PaddingStrategy }
 import scala.annotation.tailrec
 
@@ -27,8 +26,6 @@ import scala.annotation.tailrec
   *
   * Example:
   * {{{
-  *   import monix.execution.Cancelable
-  * 
   *   val s = SerialCancelable()
   *   // sets the underlying cancelable to #1
   *   s := Cancelable(() => println("cancel #1")) 

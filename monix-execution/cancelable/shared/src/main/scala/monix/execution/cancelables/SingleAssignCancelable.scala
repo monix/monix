@@ -20,7 +20,6 @@ package monix.execution.cancelables
 import monix.execution.cancelables.SingleAssignCancelable.State
 import monix.execution.atomic.AtomicAny
 import scala.annotation.tailrec
-import monix.execution.Cancelable
 
 /** Represents a [[monix.execution.Cancelable]] that can be assigned only
   * once to another cancelable reference.
@@ -127,8 +126,6 @@ object SingleAssignCancelable {
     * along with whatever underlying reference we have.
     *
     * {{{
-    *   import monix.execution.Cancelable
-    * 
     *   val c = {
     *     val extra = Cancelable(() => println("extra canceled"))
     *     SingleAssignCancelable.plusOne(extra)

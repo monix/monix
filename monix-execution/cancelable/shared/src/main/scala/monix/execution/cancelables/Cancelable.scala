@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package monix.execution
+package monix.execution.cancelables
 
 import monix.execution.atomic.AtomicAny
 import scala.concurrent.Promise

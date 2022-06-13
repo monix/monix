@@ -17,7 +17,6 @@
 
 package monix.execution.cancelables
 
-import monix.execution.Cancelable
 import monix.execution.atomic.{ AtomicAny, PaddingStrategy }
 import scala.annotation.tailrec
 
@@ -27,8 +26,6 @@ import scala.annotation.tailrec
   *
   * For the most part it's very similar with [[MultiAssignCancelable]]:
   * {{{
-  *   import monix.execution.Cancelable
-  * 
   *   val s1 = OrderedCancelable()
   *   s1 := Cancelable(() => println("cancel 1")) 
   *   s1 := Cancelable(() => println("cancel 2"))

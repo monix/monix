@@ -17,9 +17,8 @@
 
 package monix.execution.cancelables
 
-import monix.execution.Cancelable
-import monix.execution.Cancelable.Empty
 import monix.execution.atomic.AtomicAny
+import monix.execution.cancelables.Cancelable.Empty
 
 /**
   * Represents a Cancelable that can be queried for the canceled status.

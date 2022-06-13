@@ -18,7 +18,6 @@
 package monix.execution.cancelables
 
 import monix.execution.atomic.AtomicAny
-import monix.execution.Cancelable
 import scala.annotation.tailrec
 
 /** Represents a `Cancelable` that only executes the canceling logic when all

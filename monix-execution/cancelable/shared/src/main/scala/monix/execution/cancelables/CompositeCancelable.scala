@@ -17,15 +17,12 @@
 
 package monix.execution.cancelables
 
-import monix.execution.Cancelable
 import monix.execution.atomic.{ AtomicAny, PaddingStrategy }
 import scala.annotation.tailrec
 
 /** Represents a composite of multiple cancelables. In case it is canceled, all
   * contained cancelables will be canceled too, e.g...
   * {{{
-  *   import monix.execution.Cancelable
-  * 
   *   val s1 = CompositeCancelable()
   *
   *   s1 += Cancelable(() => println("cancel 1"))
