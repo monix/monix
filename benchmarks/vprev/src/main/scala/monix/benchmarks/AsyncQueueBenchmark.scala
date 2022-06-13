@@ -1,3 +1,5 @@
+package monix.benchmarks
+
 /*
  * Copyright (c) 2014-2021 by The Monix Project Developers.
  * See the project homepage at: https://monix.io

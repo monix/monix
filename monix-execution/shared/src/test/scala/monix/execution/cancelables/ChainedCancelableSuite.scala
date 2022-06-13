@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import minitest.SimpleTestSuite
-import monix.execution.Cancelable
+import monix.execution.cancelables.Cancelable
 
 object ChainedCancelableSuite extends SimpleTestSuite {
   test("cancel()") {

@@ -23,7 +23,7 @@ import cats.effect.ExitCase
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack.{ Continue, Stop }
-import monix.execution.Cancelable
+import monix.execution.cancelables.Cancelable
 import monix.execution.cancelables.AssignableCancelable
 import monix.reactive.observables.ChainedObservable
 import monix.reactive.observers.Subscriber

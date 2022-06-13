@@ -18,9 +18,12 @@
 package monix.execution.cancelables
 
 import minitest.SimpleTestSuite
-import monix.execution.TestUtils
+import monix.execution.internal.Platform
 
-object ChainedCancelableJVMSuite extends SimpleTestSuite with TestUtils {
+object ChainedCancelableSuite extends SimpleTestSuite {
+  lazy val isCI =
+    Platform.getEnv("CI").map(_.toLowerCase).contains("true")
+
   test("chain strong reference") {
     val source = ChainedCancelable()
     val child = ChainedCancelable()
@@ -34,6 +37,7 @@ object ChainedCancelableJVMSuite extends SimpleTestSuite with TestUtils {
   }
 
   test("chain weak reference") {
+    if (!Platform.isJVM) ignore("Only available on JVM") 
     if (isCI) ignore("Test is flaky, ignoring on top of CI")
 
     def setupForward(child: ChainedCancelable): Unit = {
@@ -75,6 +79,8 @@ object ChainedCancelableJVMSuite extends SimpleTestSuite with TestUtils {
   }
 
   test("chain second time after weak reference is collected") {
+    if (!Platform.isJVM) ignore("Only available on JVM") 
+    
     def setupForward(child: ChainedCancelable): Unit = {
       val source1 = ChainedCancelable()
       child.forwardTo(source1)
@@ -106,6 +112,8 @@ object ChainedCancelableJVMSuite extends SimpleTestSuite with TestUtils {
   }
 
   test("chain of weak references") {
+    if (!Platform.isJVM) ignore("Only available on JVM") 
+
     def setupForward(child: ChainedCancelable): Unit = {
       val source1 = ChainedCancelable()
       child.forwardTo(source1)

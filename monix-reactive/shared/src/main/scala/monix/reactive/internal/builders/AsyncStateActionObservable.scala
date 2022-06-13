@@ -20,7 +20,7 @@ package monix.reactive.internal.builders
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack.{ Continue, Stop }
-import monix.execution.Cancelable
+import monix.execution.cancelables.Cancelable
 import scala.util.control.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber

@@ -19,7 +19,7 @@ package monix.execution.cancelables
 
 import minitest.SimpleTestSuite
 import minitest.laws.Checkers
-import monix.execution.Cancelable
+import monix.execution.cancelables.Cancelable
 import monix.execution.atomic.PaddingStrategy.LeftRight256
 
 import scala.collection.mutable.ListBuffer

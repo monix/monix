@@ -18,7 +18,7 @@
 package monix.reactive.internal.builders
 
 import minitest.TestSuite
-import monix.execution.Cancelable
+import monix.execution.cancelables.Cancelable
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.OverflowStrategy.Unbounded

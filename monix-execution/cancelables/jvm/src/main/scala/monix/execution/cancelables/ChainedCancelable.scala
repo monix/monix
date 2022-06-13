@@ -17,9 +17,10 @@
 
 package monix.execution.cancelables
 
-import monix.execution.Cancelable
-import monix.execution.Cancelable.IsDummy
-import monix.execution.internal.exceptions.matchError
+import java.lang.ref.WeakReference
+import monix.execution.cancelables.Cancelable
+import monix.execution.cancelables.Cancelable.IsDummy
+import monix.execution.atomic.{ AtomicAny, PaddingStrategy }
 
 /** Represents a [[monix.execution.Cancelable]] whose underlying
   * cancelable reference can be swapped for another. It can
@@ -30,12 +31,15 @@ import monix.execution.internal.exceptions.matchError
   *
   * {{{
   *   val s = ChainedCancelable()
-  *   s := c1 // sets the underlying cancelable to c1
-  *   s := c2 // swaps the underlying cancelable to c2
+  *   // sets the underlying cancelable to #1
+  *   s := Cancelable(() => println("#1"))
+  *   // swaps the underlying cancelable to #2
+  *   s := Cancelable(() => println("#2")) 
   *
-  *   s.cancel() // also cancels c2
+  *   s.cancel() // also cancels #2
   *
-  *   s := c3 // also cancels c3, because s is already canceled
+  *   // also cancels #3, because s is already canceled
+  *   s := Cancelable(() => println("#3")) 
   * }}}
   *
   * However it can also be linked to another `ChainedCancelable`
@@ -47,20 +51,20 @@ import monix.execution.internal.exceptions.matchError
   *   val child2 = ChainedCancelable()
   *
   *   // Hence forth forwards all operations on `child1` to `source`
-  *   child1.chainTo(source)
+  *   child1.forwardTo(source)
   *
   *   // Also forwarding all `child2` operations to `source`.
   *   // This happens because `child1` was linked to `source` first
   *   // but order matters, as `child2` will be linked directly
   *   // to `source` and not to `child1`, in order for `child1` to
   *   // be garbage collected if it goes out of scope ;-)
-  *   child2.chainTo(child1)
+  *   child2.forwardTo(child1)
   *
   *   // Source will be updated with a new Cancelable ref
-  *   child1 := Cancelable(() => println("Cancelling (1)"))
+  *   child1 := Cancelable(() => println("#1"))
   *
   *   // Source will be updated with another Cancelable ref
-  *   child2 := Cancelable(() => println("Cancelling (2)"))
+  *   child2 := Cancelable(() => println("#2"))
   *
   *   source.cancel()
   *   //=> Cancelling (2)
@@ -78,12 +82,19 @@ import monix.execution.internal.exceptions.matchError
   * implementation is used for
   * [[monix.execution.CancelableFuture CancelableFuture]].
   *
+  * The implementation is also relaxed about the thread-safety of
+  * the [[forwardTo]] operation, treating it like a semi-final state and
+  * using Java 8 `getAndSet` platform intrinsics for performance
+  * reasons.
+  *
   * If unsure about what to use, then you probably don't need
   * [[ChainedCancelable]]. Use [[OrderedCancelable]] or
   * [[SingleAssignCancelable]] for most purposes.
   */
-final class ChainedCancelable private (private var stateRef: AnyRef) extends AssignableCancelable {
-  import ChainedCancelable.{ Canceled, WeakRef }
+final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) extends AssignableCancelable {
+
+  import ChainedCancelable.Canceled
+  private type CC = ChainedCancelable
 
   // States of `state`:
   //
@@ -91,31 +102,43 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
   //  - Cancelled: if it was cancelled
   //  - _: WeakReference[ChainedCancelable]: in case it was chained
   //  - _: Cancelable: in case it has an underlying reference
-  override def cancel(): Unit = {
-    val prevRef = stateRef
-    stateRef = Canceled
 
-    prevRef match {
+  override def cancel(): Unit = {
+    // Using getAndSet, which on Java 8 should be faster than
+    // a compare-and-set.
+    state.getAndSet(Canceled) match {
       case null | Canceled => ()
       case ref: Cancelable => ref.cancel()
-      case WeakRef(cc) =>
+      case wr: WeakReference[_] =>
+        val cc = wr.get.asInstanceOf[CC]
         if (cc != null) cc.cancel()
       case other =>
         // $COVERAGE-OFF$
-        matchError(other)
+        throw new scala.MatchError(other)
       // $COVERAGE-ON$
     }
   }
 
-  override def `:=`(value: Cancelable): this.type = {
-    stateRef match {
-      case Canceled =>
-        value.cancel()
-      case WeakRef(cc) =>
-        if (cc != null) cc := value
-      case _ =>
-        stateRef = value
+  private def update(value: Cancelable): Unit = {
+    val state = this.state
+
+    while (true) {
+      state.get() match {
+        case Canceled =>
+          value.cancel()
+          return
+        case wr: WeakReference[_] =>
+          val cc = wr.get.asInstanceOf[CC]
+          if (cc != null) cc.update(value)
+          return
+        case current =>
+          if (state.compareAndSet(current, value)) return
+      }
     }
+  }
+
+  override def `:=`(value: Cancelable): this.type = {
+    update(value)
     this
   }
 
@@ -128,12 +151,12 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
     *   val child2 = ChainedCancelable()
     *
     *   // Hence forth forwards all operations on `child1` to `source`
-    *   child1.chainTo(source)
+    *   child1.forwardTo(source)
     *
     *   // Also forwarding all `child2` operations to `source`
     *   // (this happens because `child1` was linked to `source` first
     *   // but order matters ;-))
-    *   child2.chainTo(child1)
+    *   child2.forwardTo(child1)
     *
     *   // Source will be updated with a new Cancelable ref
     *   child1 := Cancelable(() => println("Cancelling (1)"))
@@ -146,6 +169,8 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
     * }}}
     */
   def forwardTo(other: ChainedCancelable): Unit = {
+    type CC = ChainedCancelable
+
     // Short-circuit in case we have the same reference
     val newRoot = {
       var cursor = other
@@ -154,10 +179,13 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
       while (continue) {
         // Short-circuit if we discover a cycle
         if (cursor eq this) return
-        cursor.stateRef match {
-          case WeakRef(ref2) =>
-            cursor = ref2
-            continue = cursor ne null
+        cursor.state.get() match {
+          case ref2: WeakReference[_] =>
+            cursor = ref2.get.asInstanceOf[CC]
+            if (cursor eq null) {
+              cursor = null
+              continue = false
+            }
           case ref2 =>
             if (ref2 eq Canceled) {
               cancel(); return
@@ -169,21 +197,21 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
     }
 
     if (newRoot != null) {
-      val prevRef = stateRef
-      stateRef = WeakRef(newRoot)
-
-      prevRef match {
+      // Using Java 8 platform intrinsics, should be faster than
+      // normal getAndSet, while introducing unsafety; but in case a
+      // concurrent cancellation happened, then we say sorry
+      state.getAndSet(new WeakReference(newRoot)) match {
         case null => ()
         case Canceled => cancel()
         case _: IsDummy => ()
-        case WeakRef(cc) =>
-          if (cc != null) { cc := newRoot; () }
+        case w: WeakReference[_] =>
+          val cc = w.get
+          if (cc != null) cc.asInstanceOf[CC].update(newRoot)
         case prev: Cancelable =>
-          newRoot := prev
-          ()
+          newRoot.update(prev)
         case other =>
           // $COVERAGE-OFF$
-          matchError(other)
+          throw new scala.MatchError(other)
         // $COVERAGE-ON$
       }
     }
@@ -194,14 +222,13 @@ object ChainedCancelable {
   def apply(): ChainedCancelable =
     apply(null)
 
-  def apply(ref: Cancelable): ChainedCancelable =
-    new ChainedCancelable(ref)
+  def apply(ref: Cancelable): ChainedCancelable = {
+    val state = AtomicAny.withPadding[AnyRef](ref, PaddingStrategy.LeftRight128)
+    new ChainedCancelable(state)
+  }
 
   /** Internal marker to use for chained cancellables that
     * have been cancelled.
     */
   private object Canceled
-
-  /** To use instead of a weak reference. */
-  private case class WeakRef(ref: ChainedCancelable)
 }

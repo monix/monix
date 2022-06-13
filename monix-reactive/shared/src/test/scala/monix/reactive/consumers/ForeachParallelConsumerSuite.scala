@@ -20,7 +20,7 @@ package monix.reactive.consumers
 import minitest.TestSuite
 import monix.execution.Callback
 import monix.execution.Ack.Continue
-import monix.execution.Cancelable
+import monix.execution.cancelables.Cancelable
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler

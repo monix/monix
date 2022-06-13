@@ -25,15 +25,16 @@ object PlatformSuite extends SimpleTestSuite {
     assert(Platform.isJS, "isJS")
   }
 
-  test("recommendedBatchSize default ") {
-    assertEquals(Platform.recommendedBatchSize, 512)
+  test("getEnv") {
+    val home = Platform.getEnv("HOME")
+    assert(home.isDefined, "HOME should be defined")
   }
-
-  test("autoCancelableRunLoops") {
-    assert(Platform.autoCancelableRunLoops)
-  }
-
-  test("localContextPropagation") {
-    assert(!Platform.localContextPropagation)
+  
+  test("getMonixSystemProperty") {
+    val r = Platform.getMonixSystemProperty(
+      propertyKey = "user.home",
+      orEnvironmentKey = "HOME",
+    )
+    assertEquals(r, Platform.getEnv("HOME"))
   }
 }

@@ -17,7 +17,7 @@
 
 package monix.execution.rstreams
 
-import monix.execution.Cancelable
+import monix.execution.cancelables.Cancelable
 
 /** The `Subscription` represents a cross between the
   * Monix [[monix.execution.Cancelable Cancelable]] and
