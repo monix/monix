@@ -35,10 +35,8 @@ sealed abstract class StackedCancelable extends BooleanCancelable {
     * atomic operation.
     *
     * This operation is the atomic equivalent of doing:
-    * {{{
-    *   sc.pop()
-    *   sc.pushList(list)
-    * }}}
+    *  1. `sc.pop()`
+    *  2. `sc.pushList(list)`
     *
     * @param list is the list to prepend to the cancelable stack
     * @return the cancelable reference that was popped from the stack
@@ -49,10 +47,8 @@ sealed abstract class StackedCancelable extends BooleanCancelable {
     * an atomic operation.
     *
     * This operation is the atomic equivalent of doing:
-    * {{{
-    *   sc.pop()
-    *   sc.push(value)
-    * }}}
+    *  1. `sc.pop()`
+    *  2. `sc.push(value)`
     *
     * @param value is the cancelable reference to push on the stack
     * @return the cancelable reference that was popped from the stack
@@ -62,9 +58,8 @@ sealed abstract class StackedCancelable extends BooleanCancelable {
   /** Pushes a whole list of cancelable references on the stack.
     *
     * This operation is the atomic equivalent of doing:
-    * {{{
-    *   for (c <- list.reverse) sc.push(c)
-    * }}}
+    *
+    * `for (c <- list.reverse) sc.push(c)`
     *
     * @param list is the list to prepend to the cancelable stack
     */

@@ -47,8 +47,8 @@ object Cancelable {
   /** Builds a [[monix.execution.Cancelable Cancelable]] that executes the given
     * `callback` when calling [[Cancelable.cancel cancel]].
     */
-  def apply(fn: => Unit): Cancelable =
-    new CancelableTask(() => fn)
+  def apply(fn: () => Unit): Cancelable =
+    new CancelableTask(fn)
 
   /** Returns a dummy [[Cancelable]] that doesn't do anything. */
   val empty: Cancelable =
@@ -67,7 +67,7 @@ object Cancelable {
     * cancelling everything on `cancel`.
     */
   def collection(seq: Iterable[Cancelable]): Cancelable =
-    apply(cancelAll(seq))
+    apply(() => cancelAll(seq))
 
   /** Builds a [[Cancelable]] out of a Scala `Promise`, completing the
     * promise with the given `Throwable` on cancel.

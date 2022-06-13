@@ -24,13 +24,15 @@ import scala.annotation.tailrec
 /** Represents a composite of multiple cancelables. In case it is canceled, all
   * contained cancelables will be canceled too, e.g...
   * {{{
+  *   import monix.execution.Cancelable
+  * 
   *   val s1 = CompositeCancelable()
   *
-  *   s1 += c1
-  *   s1 += c2
-  *   s1 += c3
+  *   s1 += Cancelable(() => println("cancel 1"))
+  *   s1 += Cancelable(() => println("cancel 2"))
+  *   s1 += Cancelable(() => println("cancel 3"))
   *
-  *   // c1, c2, c3 will also be canceled
+  *   // everything will get canceled
   *   s1.cancel()
   * }}}
   *
@@ -40,10 +42,10 @@ import scala.annotation.tailrec
   *   val s2 = CompositeCancelable()
   *   s2.cancel()
   *
-  *   // c1 gets canceled, because s is already canceled
-  *   s2 += c1
-  *   // c2 gets canceled, because s is already canceled
-  *   s2 += c2
+  *   // gets canceled, because s is already canceled
+  *   s2 += Cancelable(() => println("cancel 1"))
+  *   // gets canceled, because s is already canceled
+  *   s2 += Cancelable(() => println("cancel 2"))
   * }}}
   *
   * Adding and removing references from this composite is thread-safe.

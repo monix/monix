@@ -19,36 +19,5 @@ package monix.execution
 
 /** Cancelables represent asynchronous units of work or other things scheduled for
   * execution and whose execution can be canceled.
-  *
-  * One use-case is the scheduling done by [[monix.execution.Scheduler]], in which
-  * the scheduling methods return a `Cancelable`, allowing the canceling of the
-  * scheduling.
-  *
-  * Example:
-  * {{{
-  *   val s = ConcurrentScheduler()
-  *   val task = s.scheduleRepeated(10.seconds, 50.seconds, {
-  *     doSomething()
-  *   })
-  *
-  *   // later, cancels the scheduling ...
-  *   task.cancel()
-  * }}}
   */
-package object cancelables {
-  /** DEPRECATED — renamed to [[OrderedCancelable]]. */
-  @deprecated("Renamed to OrderedCancelable", "3.0.0")
-  type MultiAssignmentCancelable = OrderedCancelable
-
-  /** DEPRECATED — renamed to [[OrderedCancelable]]. */
-  @deprecated("Renamed to OrderedCancelable", "3.0.0")
-  val MultiAssignmentCancelable = OrderedCancelable
-
-  /** DEPRECATED — renamed to [[SingleAssignCancelable]]. */
-  @deprecated("Renamed to SingleAssignCancelable", "3.0.0")
-  type SingleAssignmentCancelable = SingleAssignCancelable
-
-  /** DEPRECATED — renamed to [[SingleAssignCancelable]]. */
-  @deprecated("Renamed to SingleAssignCancelable", "3.0.0")
-  val SingleAssignmentCancelable = SingleAssignCancelable
-}
+package object cancelables {}

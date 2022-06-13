@@ -27,13 +27,18 @@ import scala.annotation.tailrec
   *
   * Example:
   * {{{
+  *   import monix.execution.Cancelable
+  * 
   *   val s = SerialCancelable()
-  *   s := c1 // sets the underlying cancelable to c1
-  *   s := c2 // cancels c1 and swaps the underlying cancelable to c2
+  *   // sets the underlying cancelable to #1
+  *   s := Cancelable(() => println("cancel #1")) 
+  *   // cancels c1 and swaps the underlying cancelable to #2
+  *   s := Cancelable(() => println("cancel #2"))
   *
   *   s.cancel() // also cancels c2
   *
-  *   s := c3 // also cancels c3, because s is already canceled
+  *   // also cancels #3, because s is already canceled
+  *   s := Cancelable(() => println("cancel #3"))
   * }}}
   *
   * Also see [[OrderedCancelable]], which is similar, but doesn't cancel
@@ -41,9 +46,8 @@ import scala.annotation.tailrec
   */
 final class SerialCancelable private (initial: Cancelable) extends AssignableCancelable.Multi {
 
-  private[this] val state = {
+  private[this] val state =
     AtomicAny.withPadding(initial, PaddingStrategy.LeftRight128)
-  }
 
   override def isCanceled: Boolean =
     state.get() match {

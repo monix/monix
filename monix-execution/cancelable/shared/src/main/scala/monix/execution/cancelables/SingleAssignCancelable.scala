@@ -127,9 +127,11 @@ object SingleAssignCancelable {
     * along with whatever underlying reference we have.
     *
     * {{{
+    *   import monix.execution.Cancelable
+    * 
     *   val c = {
     *     val extra = Cancelable(() => println("extra canceled"))
-    *     SingleAssignmentCancelable.plusOne(extra)
+    *     SingleAssignCancelable.plusOne(extra)
     *   }
     *
     *   c := Cancelable(() => println("main canceled"))

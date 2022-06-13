@@ -28,13 +28,18 @@ import scala.annotation.tailrec
   *
   * Example:
   * {{{
-  *   val s = MultiAssignmentCancelable()
-  *   s := c1 // sets the underlying cancelable to c1
-  *   s := c2 // swaps the underlying cancelable to c2
+  *   import monix.execution.Cancelable
+  * 
+  *   val s = MultiAssignCancelable()
+  *   // sets the underlying cancelable
+  *   s := Cancelable(() => println("cancel 1")) 
+  *   // sets the underlying cancelable, forgetting about previous one
+  *   s := Cancelable(() => println("cancel 2"))
   *
-  *   s.cancel() // also cancels c2
+  *   s.cancel() // also cancels no.2
   *
-  *   s := c3 // also cancels c3, because s is already canceled
+  *   // also cancels no.3, because `s` is already canceled
+  *   s := Cancelable(() => println("cancel 3")) 
   * }}}
   *
   * Also see:
@@ -87,10 +92,7 @@ final class MultiAssignCancelable private (initial: Cancelable) extends Assignab
   /** Clears the underlying reference, setting it to a
     * [[Cancelable.empty]] (if not cancelled).
     *
-    * This is equivalent with:
-    * {{{
-    *   ref := Cancelable.empty
-    * }}}
+    * This is equivalent with: `ref := Cancelable.empty`
     *
     * The purpose of this method is to release any underlying
     * reference for GC purposes, however if the underlying reference

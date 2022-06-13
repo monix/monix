@@ -27,29 +27,34 @@ import scala.annotation.tailrec
   *
   * For the most part it's very similar with [[MultiAssignCancelable]]:
   * {{{
-  *   val s = OrderedCancelable()
-  *   s := c1 // sets the underlying cancelable to c1
-  *   s := c2 // swaps the underlying cancelable to c2
+  *   import monix.execution.Cancelable
+  * 
+  *   val s1 = OrderedCancelable()
+  *   s1 := Cancelable(() => println("cancel 1")) 
+  *   s1 := Cancelable(() => println("cancel 2"))
   *
-  *   s.cancel() // also cancels c2
-  *
-  *   s := c3 // also cancels c3, because s is already canceled
+  *   s1.cancel() // also cancels no.2
+  *   // also cancels no.3:
+  *   s1 := Cancelable(() => println("cancel 2"))
   * }}}
   *
   * However it also has the capability of doing
   * [[OrderedCancelable#orderedUpdate orderedUpdate]]:
   * {{{
-  *   val s = OrderedCancelable()
+  *   import scala.concurrent.ExecutionContext.{global => ec}
+  * 
+  *   val s2 = OrderedCancelable()
   *
-  *   ec.execute(new Runnable {
-  *     def run() =
-  *       s.orderedUpdate(ref2, 2)
+  *   ec.execute(() => {
+  *     val ref2 = Cancelable(() => println("cancel 2"))
+  *     s2.orderedUpdate(ref2, 2)
   *   })
   *
   *   // The ordered updates are guarding against reversed ordering
   *   // due to the created thread being able to execute before the
   *   // following update
-  *   s.orderedUpdate(ref1, 1)
+  *   val ref1 = Cancelable(() => println("cancel 1"))
+  *   s2.orderedUpdate(ref1, 1)
   * }}}
   *
   * Also see:
