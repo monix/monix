@@ -28,7 +28,7 @@ object PlatformSuite extends SimpleTestSuite {
   test("getEnv") {
     assertEquals(Platform.getEnv("MONIX_TEST"), Some("true"))
   }
-  
+
   test("getMonixSystemProperty") {
     val r = Platform.getMonixSystemProperty(
       propertyKey = "monix.test.system.property",

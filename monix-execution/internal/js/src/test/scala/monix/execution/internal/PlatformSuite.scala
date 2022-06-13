@@ -29,7 +29,7 @@ object PlatformSuite extends SimpleTestSuite {
     val home = Platform.getEnv("HOME")
     assert(home.isDefined, "HOME should be defined")
   }
-  
+
   test("getMonixSystemProperty") {
     val r = Platform.getMonixSystemProperty(
       propertyKey = "user.home",

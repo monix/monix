@@ -52,7 +52,7 @@ private[monix] object Platform {
       case NonFatal(_) => None
     }
   }
-  
+
   /**
     * Reads a Monix system property.
     * 

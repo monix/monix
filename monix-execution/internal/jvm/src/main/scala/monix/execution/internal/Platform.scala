@@ -35,7 +35,7 @@ private[monix] object Platform {
     */
   def getEnv(key: String): Option[String] =
     Option(System.getenv(key)).map(_.trim).filter(_.nonEmpty)
-    
+
   /**
     * Reads a Monix system property, either from the JVM's system
     * properties, or from environment values (also available on Node.js).

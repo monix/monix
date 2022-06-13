@@ -18,129 +18,197 @@
 package monix.execution.cancelables
 
 import minitest.SimpleTestSuite
-import monix.execution.internal.Platform
+import monix.execution.cancelables.Cancelable
 
 object ChainedCancelableSuite extends SimpleTestSuite {
-  lazy val isCI =
-    Platform.getEnv("CI").map(_.toLowerCase).contains("true")
+  test("cancel()") {
+    var effect = 0
+    val sub = BooleanCancelable(() => effect += 1)
+    val mSub = ChainedCancelable(sub)
 
-  test("chain strong reference") {
+    assert(effect == 0)
+    assert(!sub.isCanceled)
+
+    mSub.cancel()
+    assert(sub.isCanceled, "sub.isCanceled")
+    assert(effect == 1)
+
+    mSub.cancel()
+    assert(sub.isCanceled, "sub.isCanceled")
+    assert(effect == 1)
+  }
+
+  test("cancel() after second assignment") {
+    var effect = 0
+    val sub = BooleanCancelable(() => effect += 1)
+    val mSub = ChainedCancelable(sub)
+    val sub2 = BooleanCancelable(() => effect += 10)
+    mSub := sub2
+
+    assert(effect == 0)
+    assert(!sub.isCanceled && !sub2.isCanceled, "!sub.isCanceled && !sub2.isCanceled")
+
+    mSub.cancel()
+    assert(sub2.isCanceled && !sub.isCanceled)
+    assert(effect == 10)
+  }
+
+  test("automatically cancel assigned") {
+    val mSub = ChainedCancelable()
+    mSub.cancel()
+
+    var effect = 0
+    val sub = BooleanCancelable(() => effect += 1)
+
+    assert(effect == 0)
+    assert(!sub.isCanceled, "!sub.isCanceled")
+
+    mSub := sub
+    assert(effect == 1)
+    assert(sub.isCanceled)
+  }
+
+  test(":= does not throw on null") {
+    val c = ChainedCancelable()
+    c := null
+    c := Cancelable.empty
+    c := null
+    c.cancel()
+  }
+
+  test("chain once") {
+    val c1 = BooleanCancelable()
+    val c2 = BooleanCancelable()
+
     val source = ChainedCancelable()
-    val child = ChainedCancelable()
-    val b = BooleanCancelable()
+    val child1 = ChainedCancelable()
 
-    child.forwardTo(source)
+    child1.forwardTo(source)
+    child1 := c1
+    assert(!c1.isCanceled, "!c1.isCanceled")
+
     source.cancel()
-    child := b
+    assert(c1.isCanceled, "c1.isCanceled")
 
-    assert(b.isCanceled)
+    child1 := c2
+    assert(c2.isCanceled, "c2.isCanceled")
   }
 
-  test("chain weak reference") {
-    if (!Platform.isJVM) ignore("Only available on JVM") 
-    if (isCI) ignore("Test is flaky, ignoring on top of CI")
+  test("chain twice") {
+    val c1 = BooleanCancelable()
+    val c2 = BooleanCancelable()
 
-    def setupForward(child: ChainedCancelable): Unit = {
-      val source = ChainedCancelable()
-      child.forwardTo(source)
-      source.cancel()
-    }
+    val source = ChainedCancelable()
+    val child1 = ChainedCancelable()
+    val child2 = ChainedCancelable()
 
-    var tries = 0
-    var success = false
+    child1.forwardTo(source)
+    child2.forwardTo(child1)
 
-    while (tries < 10 && !success) {
-      val b = BooleanCancelable()
-      val child = ChainedCancelable()
-      setupForward(child)
+    child2 := c1
+    assert(!c1.isCanceled, "!c1.isCanceled")
 
-      Runtime.getRuntime.gc()
-      child := b
-      success = !b.isCanceled
-      tries += 1
-    }
+    source.cancel()
+    assert(c1.isCanceled, "c1.isCanceled")
 
-    assert(success)
+    child2 := c2
+    assert(c2.isCanceled, "c2.isCanceled")
   }
 
-  test("chain second time before weak reference is collected") {
-    val source1 = ChainedCancelable()
+  test("chain after source cancel") {
+    val c1 = BooleanCancelable()
+    val c2 = BooleanCancelable()
+
+    val source = ChainedCancelable(c1)
+    val child1 = ChainedCancelable()
+
+    source.cancel()
+    assert(c1.isCanceled, "c1.isCanceled")
+
+    child1.forwardTo(source)
+
+    child1 := c2
+    assert(c2.isCanceled, "c2.isCanceled")
+  }
+
+  test("chain after child cancel") {
+    val c1 = BooleanCancelable()
+    val c2 = BooleanCancelable()
+
+    val source1 = ChainedCancelable(c1)
     val source2 = ChainedCancelable()
-
     val child = ChainedCancelable()
-    val b = BooleanCancelable()
+
+    child.cancel()
+    assert(!c1.isCanceled, "!c1.isCanceled")
 
     child.forwardTo(source1)
-    source1.cancel()
+    assert(c1.isCanceled, "c1.isCanceled")
+
+    child := c2
+    assert(c2.isCanceled, "c2.isCanceled")
+
     child.forwardTo(source2)
-    child := b
-
-    assert(b.isCanceled)
   }
 
-  test("chain second time after weak reference is collected") {
-    if (!Platform.isJVM) ignore("Only available on JVM") 
-    
-    def setupForward(child: ChainedCancelable): Unit = {
-      val source1 = ChainedCancelable()
-      child.forwardTo(source1)
-      source1.cancel()
-    }
+  test("chained twice, test 1") {
+    val cc1 = ChainedCancelable()
+    val cc2 = ChainedCancelable()
 
-    var tries = 0
-    var success = false
+    val one = ChainedCancelable()
+    one.forwardTo(cc1)
+    one.forwardTo(cc2)
 
-    while (tries < 10 && !success) {
-      val source2 = ChainedCancelable()
+    val c = BooleanCancelable()
+    one := c
 
-      val child = ChainedCancelable()
-      val b = BooleanCancelable()
-
-      setupForward(child)
-      Runtime.getRuntime.gc()
-
-      child.forwardTo(source2)
-      child := b
-
-      success = !b.isCanceled
-      source2.cancel()
-      success = success && b.isCanceled
-      tries += 1
-    }
-
-    assert(success)
+    assert(!c.isCanceled, "!c.isCanceled")
+    cc1.cancel()
+    assert(c.isCanceled, "c.isCanceled")
   }
 
-  test("chain of weak references") {
-    if (!Platform.isJVM) ignore("Only available on JVM") 
+  test("chained twice, test 2") {
+    val cc1 = ChainedCancelable()
+    val cc2 = ChainedCancelable()
 
-    def setupForward(child: ChainedCancelable): Unit = {
-      val source1 = ChainedCancelable()
-      child.forwardTo(source1)
-      source1.cancel()
-    }
+    val one = ChainedCancelable()
+    one.forwardTo(cc1)
+    one.forwardTo(cc2)
 
-    var tries = 0
-    var success = false
+    val c = BooleanCancelable()
+    one := c
 
-    while (tries < 10 && !success) {
-      val source = ChainedCancelable()
-      setupForward(source)
+    assert(!c.isCanceled, "!c.isCanceled")
+    cc2.cancel()
+    assert(c.isCanceled, "c.isCanceled")
+  }
 
-      val child = ChainedCancelable()
-      val b = BooleanCancelable()
+  test("self.forwardTo(self)") {
+    val cc = ChainedCancelable()
+    cc.forwardTo(cc)
 
-      System.gc()
-      child.forwardTo(source)
-      child := b
+    val c = BooleanCancelable()
+    cc := c
 
-      success = !b.isCanceled
-      source.cancel()
-      success = success && !b.isCanceled
+    assert(!c.isCanceled)
+    cc.cancel()
+    assert(c.isCanceled)
+  }
 
-      tries += 1
-    }
+  test("self.forwardTo(other.forwardTo(self))") {
+    val cc1 = ChainedCancelable()
+    val cc2 = ChainedCancelable()
+    val cc3 = ChainedCancelable()
 
-    assert(success)
+    cc1.forwardTo(cc2)
+    cc2.forwardTo(cc3)
+    cc3.forwardTo(cc1)
+
+    val c = BooleanCancelable()
+    cc3 := c
+
+    assert(!c.isCanceled)
+    cc1.cancel()
+    assert(c.isCanceled)
   }
 }
