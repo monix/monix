@@ -19,14 +19,26 @@ package monix.execution.internal.forkJoin
 
 import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent.ForkJoinPool.ForkJoinWorkerThreadFactory
-import java.util.concurrent.{ForkJoinPool, ForkJoinTask, ForkJoinWorkerThread}
+import java.util.concurrent.{ForkJoinPool, ForkJoinTask, ForkJoinWorkerThread, TimeUnit}
 
 private[monix] final class AdaptedForkJoinPool(
   parallelism: Int,
+  maxThreads: Int,
   factory: ForkJoinWorkerThreadFactory,
   handler: UncaughtExceptionHandler,
   asyncMode: Boolean)
-  extends ForkJoinPool(parallelism, factory, handler, asyncMode) {
+  extends ForkJoinPool(
+    parallelism,
+    factory,
+    handler,
+    asyncMode,
+    0,
+    maxThreads,
+    1,
+    (_: ForkJoinPool) => true,
+    AdaptedForkJoinPool.DefaultKeepAliveMillis,
+    TimeUnit.MILLISECONDS
+  ) {
 
   override def execute(runnable: Runnable): Unit = {
     val fjt: ForkJoinTask[_] = runnable match {
@@ -41,4 +53,8 @@ private[monix] final class AdaptedForkJoinPool(
         super.execute(fjt)
     }
   }
+}
+private[monix] object AdaptedForkJoinPool {
+  // the same as ForkJoinPool.DEFAULT_KEEPALIVE (which is private)
+  final val DefaultKeepAliveMillis = 60_000L
 }
