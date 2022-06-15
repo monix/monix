@@ -56,5 +56,5 @@ private[monix] final class AdaptedForkJoinPool(
 }
 private[monix] object AdaptedForkJoinPool {
   // the same as ForkJoinPool.DEFAULT_KEEPALIVE (which is private)
-  final val DefaultKeepAliveMillis = 60_000L
+  final val DefaultKeepAliveMillis = 60000L
 }
