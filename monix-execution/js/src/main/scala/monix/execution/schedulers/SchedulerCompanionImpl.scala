@@ -18,6 +18,7 @@
 package monix.execution.schedulers
 
 import monix.execution.{Scheduler, SchedulerCompanion, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 import scala.concurrent.ExecutionContext
 
 private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
@@ -30,14 +31,14 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     *        [[monix.execution.ExecutionModel ExecutionModel]],
     *        a guideline for run-loops and producers of data.
     */
-  def apply(context: ExecutionContext = StandardContext, executionModel: ExecModel = ExecModel.Default): Scheduler =
+  def apply(context: ExecutionContext = MacrotaskExecutor, executionModel: ExecModel = ExecModel.Default): Scheduler =
     AsyncScheduler(context, executionModel)
 
   def apply(ec: ExecutionContext, reporter: UncaughtExceptionReporter): Scheduler =
     AsyncScheduler(ec, ExecModel.Default, reporter)
 
   def apply(reporter: UncaughtExceptionReporter, execModel: ExecModel): Scheduler =
-    AsyncScheduler(StandardContext, execModel, reporter)
+    AsyncScheduler(MacrotaskExecutor, execModel, reporter)
   /** Builds a [[monix.execution.schedulers.TrampolineScheduler TrampolineScheduler]].
     *
     * @param underlying is the [[monix.execution.Scheduler Scheduler]]

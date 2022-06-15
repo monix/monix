@@ -378,7 +378,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     def asyncF[A](k: ((Either[Throwable, A]) => Unit) => IO[Unit]): IO[A] =
       IO.asyncF(k)
     def suspend[A](thunk: => IO[A]): IO[A] =
-      IO.suspend(thunk)
+      IO.defer(thunk)
     def flatMap[A, B](fa: IO[A])(f: (A) => IO[B]): IO[B] =
       fa.flatMap(f)
     def tailRecM[A, B](a: A)(f: (A) => IO[Either[A, B]]): IO[B] =
