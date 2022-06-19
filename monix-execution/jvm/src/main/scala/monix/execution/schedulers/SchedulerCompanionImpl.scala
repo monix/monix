@@ -19,7 +19,7 @@ package monix.execution.schedulers
 
 import java.util.concurrent._
 
-import monix.execution.{ Features, Properties, Scheduler, SchedulerCompanion, UncaughtExceptionReporter }
+import monix.execution.{ Features, Scheduler, SchedulerCompanion, UncaughtExceptionReporter }
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ ExecutionModel => ExecModel }
 
@@ -214,7 +214,7 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     *         for the default.
     */
   def trampoline(underlying: Scheduler = Implicits.global, executionModel: ExecModel = ExecModel.Default): Scheduler =
-    TrampolineScheduler(underlying, Properties(executionModel))
+    TrampolineScheduler(underlying, executionModel)
 
   /** Creates a [[monix.execution.Scheduler Scheduler]] meant for
     * computationally heavy CPU-bound tasks.

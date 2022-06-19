@@ -21,6 +21,7 @@ import cats.effect.IO
 import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
+import monix.execution.ExecutionModel
 import monix.execution.internal.Platform
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
@@ -97,7 +98,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     cancelable.cancel()
     s.tick()
 
-    assertEquals(sum, s.executionModel.recommendedBatchSize / 2)
+    assertEquals(sum, s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize / 2)
     assert(!wasCompleted)
   }
 
@@ -110,7 +111,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
   }
 
   test("should respect the ExecutionModel") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s = scheduler.withProperties(scheduler.properties.withProperty[ExecutionModel](AlwaysAsyncExecution))
 
     var received = 0
     val cancelable = Observable

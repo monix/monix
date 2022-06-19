@@ -19,9 +19,10 @@ package monix.eval
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.execution.Callback
+import monix.execution.{ Callback, ExecutionModel }
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
+
 import scala.util.{ Failure, Success, Try }
 
 object TaskNowSuite extends BaseTestSuite {
@@ -36,7 +37,7 @@ object TaskNowSuite extends BaseTestSuite {
   }
 
   test("Task.now.runAsync: CancelableFuture should be synchronous for AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
 
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
@@ -61,7 +62,7 @@ object TaskNowSuite extends BaseTestSuite {
   }
 
   test("Task.now.runAsync(callback) should be asynchronous for AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperties(s.properties.withProperty[ExecutionModel](AlwaysAsyncExecution))
 
     var result = Option.empty[Try[String]]
     var wasTriggered = false
@@ -88,7 +89,7 @@ object TaskNowSuite extends BaseTestSuite {
   }
 
   test("Task.raiseError.runAsync: CancelableFuture should be synchronous for AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperties(s.properties.withProperty[ExecutionModel](AlwaysAsyncExecution))
 
     val dummy = DummyException("dummy")
     var wasTriggered = false
@@ -115,7 +116,7 @@ object TaskNowSuite extends BaseTestSuite {
   }
 
   test("Task.raiseError.runAsync(callback) should be asynchronous for AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperties(s.properties.withProperty[ExecutionModel](AlwaysAsyncExecution))
 
     val dummy = DummyException("dummy")
     var result = Option.empty[Try[String]]
@@ -174,7 +175,7 @@ object TaskNowSuite extends BaseTestSuite {
           Task.now(idx)
       }
 
-    val iterations = s.executionModel.recommendedBatchSize * 20
+    val iterations = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 20
     val f = loop(iterations, 0).runToFuture
 
     s.tickOne()

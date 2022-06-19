@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.subscribers
 
+import monix.execution.ExecutionModel
 import monix.execution.ExecutionModel.SynchronousExecution
 import monix.execution.exceptions.DummyException
 import monix.reactive.{ BaseTestSuite, Observable }
@@ -25,7 +26,7 @@ import scala.util.{ Failure, Success }
 
 object ObservableForeachSuite extends BaseTestSuite {
   test("foreach subscribes immediately") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(SynchronousExecution)
+    implicit val s = scheduler.withProperty[ExecutionModel](SynchronousExecution)
 
     var sum = 0
     val f = Observable.fromIterable(0 until 1000).foreach(x => sum += x)
@@ -35,7 +36,7 @@ object ObservableForeachSuite extends BaseTestSuite {
   }
 
   test("foreachL subscribes immediately") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(SynchronousExecution)
+    implicit val s = scheduler.withProperty[ExecutionModel](SynchronousExecution)
 
     var sum = 0
     val f = Observable.fromIterable(0 until 1000).foreachL(x => sum += x).runToFuture

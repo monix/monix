@@ -23,10 +23,9 @@ import cats.syntax.foldable._
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
-import monix.execution.{ ExecutionModel, Scheduler }
+import monix.execution.{ cancelableFutureCatsInstances, ExecutionModel, Properties, Scheduler }
 import monix.execution.misc.Local
 import monix.execution.schedulers.TracingScheduler
-import monix.execution.cancelableFutureCatsInstances
 
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 import scala.concurrent.duration._
@@ -204,7 +203,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
 
   testAsync("local state is encapsulated by Task run loop on single thread") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
-      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+      .withProperties(Properties[ExecutionModel](ExecutionModel.AlwaysAsyncExecution))
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
     def runAssertion(run: Task[Unit] => Any, method: String): Future[Unit] = {
@@ -236,7 +235,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
 
   testAsync("TaskLocal.isolate should properly isolate during async boundaries") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
-      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+      .withProperties(Properties[ExecutionModel](ExecutionModel.AlwaysAsyncExecution))
 
     val local = Local(0)
     val test = for {
@@ -253,7 +252,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
 
   testAsync("TaskLocal.isolate should properly isolate during async boundaries on error") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
-      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+      .withProperties(Properties[ExecutionModel](ExecutionModel.AlwaysAsyncExecution))
 
     val local = Local(0)
     val test = for {
@@ -270,7 +269,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
 
   testAsync("TaskLocal.isolate should properly isolate during async boundaries on cancelation") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
-      .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
+      .withProperties(Properties[ExecutionModel](ExecutionModel.AlwaysAsyncExecution))
 
     val local = Local(0)
     val test = for {

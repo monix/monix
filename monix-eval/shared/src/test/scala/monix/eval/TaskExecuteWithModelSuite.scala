@@ -23,10 +23,10 @@ import scala.util.Success
 
 object TaskExecuteWithModelSuite extends BaseTestSuite {
   def readModel: Task[ExecutionModel] =
-    Task.deferAction(s => Task.now(s.executionModel))
+    Task.deferAction(s => Task.now(s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)))
 
   test("executeWithModel works") { implicit sc =>
-    assertEquals(sc.executionModel, ExecutionModel.Default)
+    assertEquals(sc.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), ExecutionModel.Default)
 
     val f1 = readModel.executeWithModel(SynchronousExecution).runToFuture
     assertEquals(f1.value, Some(Success(SynchronousExecution)))

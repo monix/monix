@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import monix.execution.Callback
+import monix.execution.{ Callback, ExecutionModel }
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
 
@@ -52,7 +52,7 @@ object TaskRunAsyncSuite extends BaseTestSuite {
   }
 
   test("runAsync for Task.now(x) with AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
     val f = Task.now(1).runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
@@ -64,7 +64,7 @@ object TaskRunAsyncSuite extends BaseTestSuite {
   }
 
   test("runAsync for Task.raiseError(x) with AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
     val dummy = DummyException("dummy")
     val f = Task.raiseError(dummy).runToFuture
     assertEquals(f.value, Some(Failure(dummy)))
@@ -100,7 +100,7 @@ object TaskRunAsyncSuite extends BaseTestSuite {
   }
 
   test("runAsync(Callback) for Task.now(x) with AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
     val p = Promise[Int]()
 
     Task.now(1).runAsync(Callback.fromPromise(p))
@@ -118,7 +118,7 @@ object TaskRunAsyncSuite extends BaseTestSuite {
   }
 
   test("runAsync(Callback) for Task.raiseError(x) with AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
 
@@ -159,7 +159,7 @@ object TaskRunAsyncSuite extends BaseTestSuite {
   }
 
   test("runAsyncF(Callback) for Task.now(x) with AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
     val p = Promise[Int]()
 
     Task.now(1).runAsyncF(Callback.fromPromise(p))
@@ -177,7 +177,7 @@ object TaskRunAsyncSuite extends BaseTestSuite {
   }
 
   test("runAsyncF(Callback) for Task.raiseError(x) with AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
 
@@ -204,7 +204,7 @@ object TaskRunAsyncSuite extends BaseTestSuite {
   }
 
   test("runAsyncUncancelable(Callback) for Task.now(x) with AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
     val p = Promise[Int]()
 
     Task.now(1).runAsyncUncancelable(Callback.fromPromise(p))
@@ -222,7 +222,7 @@ object TaskRunAsyncSuite extends BaseTestSuite {
   }
 
   test("runAsyncUncancelable(Callback) for Task.raiseError(x) with AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
 

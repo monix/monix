@@ -18,12 +18,11 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{ CountDownLatch, TimeUnit, TimeoutException }
-
 import minitest.TestSuite
 import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, Default => DefaultExecutionModel }
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.exceptions.DummyException
-import monix.execution.{ Cancelable, Scheduler, UncaughtExceptionReporter }
+import monix.execution.{ Cancelable, ExecutionModel, Scheduler, UncaughtExceptionReporter }
 
 import scala.concurrent.duration._
 import scala.concurrent.{ blocking, Await, Promise }
@@ -146,10 +145,10 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
 
   test("change execution model") { scheduler =>
     val s: Scheduler = scheduler
-    assertEquals(s.executionModel, DefaultExecutionModel)
-    val s2 = s.withExecutionModel(AlwaysAsyncExecution)
-    assertEquals(s.executionModel, DefaultExecutionModel)
-    assertEquals(s2.executionModel, AlwaysAsyncExecution)
+    assertEquals(s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), DefaultExecutionModel)
+    val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
+    assertEquals(s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), DefaultExecutionModel)
+    assertEquals(s2.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), AlwaysAsyncExecution)
   }
 
   test("reports errors on execute") { scheduler =>

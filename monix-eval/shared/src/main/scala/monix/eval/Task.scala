@@ -1242,7 +1242,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *   import monix.execution.ExecutionModel.SynchronousExecution
     *   import monix.execution.Scheduler
     *
-    *   val s = Scheduler.singleThread("example-scheduler").withExecutionModel(SynchronousExecution)
+    *   val s = Scheduler.singleThread("example-scheduler").withProperty[ExecutionModel](SynchronousExecution)
     *
     *   val source1 = Task(println("task 1")).loopForever
     *   val source2 = Task(println("task 2")).loopForever
@@ -4617,7 +4617,7 @@ object Task extends TaskInstancesLevel1 {
       new Context(s, options, connection, frameRef, stackTracedContext)
 
     def withExecutionModel(em: ExecutionModel): Context =
-      new Context(schedulerRef.withProperty(em), options, connection, frameRef, stackTracedContext)
+      new Context(schedulerRef.withProperty[ExecutionModel](em), options, connection, frameRef, stackTracedContext)
 
     def withOptions(opts: Options): Context =
       new Context(schedulerRef, opts, connection, frameRef, stackTracedContext)

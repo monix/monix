@@ -20,7 +20,7 @@ package monix.execution.schedulers
 import minitest.TestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.ExecutionModel.{ Default => DefaultExecModel }
-import monix.execution.Scheduler
+import monix.execution.{ ExecutionModel, Scheduler }
 import monix.execution.internal.Platform
 import scala.concurrent.Promise
 
@@ -130,10 +130,10 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
   test("withExecutionModel") {
     case (s, _) =>
       val em = AlwaysAsyncExecution
-      val s2 = s.withExecutionModel(em)
+      val s2 = s.withProperty[ExecutionModel](em)
 
       assert(s2.isInstanceOf[TrampolineScheduler], "s2.isInstanceOf[TrampolineScheduler]")
-      assertEquals(s2.executionModel, em)
+      assertEquals(s2.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), em)
   }
 
   test("on blocking it should fork") {

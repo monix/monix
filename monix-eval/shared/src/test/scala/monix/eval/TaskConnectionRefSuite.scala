@@ -21,6 +21,7 @@ import monix.catnap.CancelableF
 import monix.catnap.cancelables.BooleanCancelableF
 import monix.execution.cancelables.BooleanCancelable
 import monix.eval.internal.TaskConnectionRef
+import monix.execution.ExecutionModel
 import monix.execution.ExecutionModel.SynchronousExecution
 
 object TaskConnectionRefSuite extends BaseTestSuite {
@@ -93,7 +94,7 @@ object TaskConnectionRefSuite extends BaseTestSuite {
   }
 
   test("cancel a CancelableF on single assignment") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(SynchronousExecution)
+    implicit val s = scheduler.withProperties(scheduler.properties.withProperty[ExecutionModel](SynchronousExecution))
 
     val cr = TaskConnectionRef()
     cr.cancel.runAsyncAndForget; s.tick()

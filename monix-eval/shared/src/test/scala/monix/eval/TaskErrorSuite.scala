@@ -17,6 +17,7 @@
 
 package monix.eval
 
+import monix.execution.ExecutionModel
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import scala.concurrent.TimeoutException
@@ -270,7 +271,9 @@ object TaskErrorSuite extends BaseTestSuite {
 
   test("Task.onErrorRestart should be cancelable if ExecutionModel permits") { implicit s =>
     val task = Task[Int](throw DummyException("dummy"))
-      .onErrorRestart(s.executionModel.recommendedBatchSize.toLong * 2)
+      .onErrorRestart(
+        s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize.toLong * 2
+      )
 
     val f = task.executeWithOptions(_.enableAutoCancelableRunLoops).runToFuture
     assertEquals(f.value, None)

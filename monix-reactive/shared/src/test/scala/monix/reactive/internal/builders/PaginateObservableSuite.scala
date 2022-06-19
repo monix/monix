@@ -18,8 +18,10 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Ack.Continue
+import monix.execution.ExecutionModel
 import monix.reactive.observers.Subscriber
 import monix.reactive.{ BaseTestSuite, Observable }
+
 import scala.concurrent.duration.MILLISECONDS
 
 object PaginateObservableSuite extends BaseTestSuite {
@@ -71,7 +73,7 @@ object PaginateObservableSuite extends BaseTestSuite {
 
     s.tick()
 
-    assertEquals(sum, s.executionModel.recommendedBatchSize * 2)
+    assertEquals(sum, s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 2)
     assert(!wasCompleted)
   }
 

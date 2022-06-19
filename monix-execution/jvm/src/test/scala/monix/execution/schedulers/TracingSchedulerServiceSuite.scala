@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
-import monix.execution.Scheduler
+import monix.execution.{ ExecutionModel, Scheduler }
 import monix.execution.misc.Local
 
 import scala.concurrent.Future
@@ -71,9 +71,12 @@ object TracingSchedulerServiceSuite extends SimpleTestSuite {
     val ec: SchedulerService = Scheduler.singleThread("test")
     val traced = TracingSchedulerService(ec)
     try {
-      assertEquals(traced.executionModel, ec.executionModel)
-      val traced2 = traced.withExecutionModel(AlwaysAsyncExecution)
-      assertEquals(traced2.executionModel, AlwaysAsyncExecution)
+      assertEquals(
+        traced.properties.getWithDefault[ExecutionModel](ExecutionModel.Default),
+        ec.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
+      )
+      val traced2 = traced.withProperty[ExecutionModel](AlwaysAsyncExecution)
+      assertEquals(traced2.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), AlwaysAsyncExecution)
     } finally {
       traced.shutdown()
     }

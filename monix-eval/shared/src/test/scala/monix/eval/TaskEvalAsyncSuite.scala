@@ -19,7 +19,9 @@ package monix.eval
 
 import cats.laws._
 import cats.laws.discipline._
+import monix.execution.ExecutionModel
 import monix.execution.exceptions.DummyException
+
 import scala.util.{ Failure, Success }
 
 object TaskEvalAsyncSuite extends BaseTestSuite {
@@ -94,7 +96,7 @@ object TaskEvalAsyncSuite extends BaseTestSuite {
           Task.evalAsync(idx)
       }
 
-    val iterations = s.executionModel.recommendedBatchSize * 20
+    val iterations = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 20
     val f = loop(iterations, 0).runToFuture
 
     s.tick()

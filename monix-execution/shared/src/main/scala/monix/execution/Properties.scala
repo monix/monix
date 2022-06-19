@@ -31,7 +31,7 @@ class Properties private (private val attributes: Map[TypeInfo[_], Any]) {
   def getWithDefault[A: TypeInfo](default: A): A = attributes.getOrElse(implicitly[TypeInfo[A]], default)
     .asInstanceOf[A]
 
-  def withProperty[A: TypeInfo](value: A): Properties = Properties(attributes + (implicitly[TypeInfo[A]] -> value))
+  def withProperty[A: TypeInfo](value: A): Properties = new Properties(attributes + (implicitly[TypeInfo[A]] -> value))
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[Properties]
 

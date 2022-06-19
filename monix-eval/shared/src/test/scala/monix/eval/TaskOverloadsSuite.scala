@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import monix.execution.Callback
+import monix.execution.{ Callback, ExecutionModel }
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
 import scala.concurrent.Promise
@@ -38,7 +38,7 @@ object TaskOverloadsSuite extends BaseTestSuite {
   }
 
   test("Now.runAsync(callback) for AlwaysAsyncExecution") { s =>
-    val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    val s2 = s.withProperties(s.properties.withProperty[ExecutionModel](AlwaysAsyncExecution))
     val task = Task.now(1)
     val p = Promise[Int]()
 
@@ -78,7 +78,7 @@ object TaskOverloadsSuite extends BaseTestSuite {
   }
 
   test("Error.runAsync(callback) for AlwaysAsyncExecution") { s =>
-    val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    val s2 = s.withProperties(s.properties.withProperty[ExecutionModel](AlwaysAsyncExecution))
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy)
     val p = Promise[Int]()

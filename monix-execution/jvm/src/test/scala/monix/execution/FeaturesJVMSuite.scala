@@ -126,8 +126,8 @@ object FeaturesJVMSuite extends SimpleTestSuite with Checkers {
         ec.scheduleOnce(initialDelay, unit, r)
       override def reportFailure(t: Throwable): Unit =
         ec.reportFailure(t)
-      override def executionModel: ExecutionModel =
-        ec.executionModel
+      override def properties: Properties =
+        ec.properties
       override def features: Features =
         ec.features
     }

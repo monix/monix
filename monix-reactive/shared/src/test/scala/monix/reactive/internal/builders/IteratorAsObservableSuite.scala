@@ -22,11 +22,12 @@ import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.APIContractViolationException
-import monix.execution.{ Ack, Scheduler }
+import monix.execution.{ Ack, ExecutionModel, Scheduler }
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -60,7 +61,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var onCompleteCalled = 0
     var sum = 0
 
-    val n = s.executionModel.recommendedBatchSize * 4
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 4
     val seq = 0 until n
     val obs = Observable
       .fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
@@ -90,7 +91,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var onCompleteCalled = 0
     var sum = 0
 
-    val n = s.executionModel.recommendedBatchSize * 4
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 4
     val seq = 0 until n
     val obs = Observable
       .fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
@@ -117,7 +118,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var onErrorCalled: Throwable = null
     var sum = 0
 
-    val n = s.executionModel.recommendedBatchSize * 4
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 4
     val seq = 0 until n
     val obs = Observable
       .fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
@@ -144,7 +145,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var onCompleteCalled = 0
     var sum = 0
 
-    val n = s.executionModel.recommendedBatchSize * 4
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 4
     val seq = 0 until (n * 2)
     val obs = Observable
       .fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
@@ -170,7 +171,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var onCompleteCalled = 0
     var received = 0
 
-    val n = s.executionModel.recommendedBatchSize
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize
     val seq = 0 until (n * 4)
     val obs = Observable.fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
 
@@ -197,7 +198,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     var wasThrown: Throwable = null
 
-    val n = s.executionModel.recommendedBatchSize
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize
     val seq = 0 until (n * 4)
     val obs = Observable.fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
 
@@ -228,7 +229,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     var wasThrown: Throwable = null
 
-    val n = s.executionModel.recommendedBatchSize
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize
     val seq = 0 until (n * 4)
     val obs = Observable.fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
 
@@ -259,7 +260,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     var wasThrown: Throwable = null
 
-    val n = s.executionModel.recommendedBatchSize
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize
     val seq = 0 until (n * 4)
     val obs = Observable.fromIterator(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }))
 
@@ -291,7 +292,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
     var sum = 0
 
-    val n = s.executionModel.recommendedBatchSize * 4
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 4
     val seq = 0 until n
     val obs = Observable
       .fromIterator(Resource.make(Task(seq.iterator))(_ => Task.raiseError(ex)))
@@ -323,7 +324,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var onCompleteCalled = 0
     var received = 0
 
-    val n = s.executionModel.recommendedBatchSize
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize
     val seq = 0 until (n * 4)
     val obs = Observable
       .fromIterator(Resource.make(Task(seq.iterator))(_ => Task.raiseError(ex)))

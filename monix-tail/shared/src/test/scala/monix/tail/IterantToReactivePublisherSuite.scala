@@ -21,6 +21,7 @@ import cats.effect._
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Task
+import monix.execution.ExecutionModel
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
@@ -28,6 +29,7 @@ import monix.execution.internal.Platform
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.tail.batches.Batch
 import org.reactivestreams.{ Subscriber, Subscription }
+
 import scala.util.{ Failure, Success }
 
 object IterantToReactivePublisherSuite extends BaseTestSuite {
@@ -155,7 +157,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   }
 
   test("long batch is cancelable in flight") { s =>
-    implicit val ec = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val ec = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
 
     val count = 1000
     var effect = 0

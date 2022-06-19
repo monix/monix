@@ -18,9 +18,10 @@
 package monix.eval
 
 import minitest.SimpleTestSuite
-import monix.execution.{ ExecutionModel, Scheduler }
+import monix.execution.{ ExecutionModel, Properties, Scheduler }
 import monix.execution.schedulers.SchedulerService
 import monix.execution.misc.Local
+
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -38,7 +39,7 @@ object TaskIssue993Suite extends SimpleTestSuite {
     implicit val sc: SchedulerService =
       Scheduler
         .computation(parallelism = 4)
-        .withExecutionModel(ExecutionModel.BatchedExecution(128))
+        .withProperties(Properties[ExecutionModel](ExecutionModel.BatchedExecution(128)))
 
     try {
       val loopWithAsyncBoundaries = loop(Task(1), 0) { (a, sum, continue) =>

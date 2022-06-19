@@ -19,12 +19,14 @@ package monix.reactive.internal.builders
 
 import minitest.TestSuite
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.ExecutionModel
 import monix.execution.FutureUtils.extensions._
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.{ Observable, Observer }
 import monix.reactive.observers.Subscriber
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -330,7 +332,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     cancelable.cancel()
     s.tick()
 
-    assertEquals(sum, s.executionModel.recommendedBatchSize * 2)
+    assertEquals(sum, s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 2)
     assert(!wasCompleted)
   }
 }

@@ -336,9 +336,50 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
   final def executeTrampolined(cb: schedulers.TrampolinedRunnable): Unit =
     execute(cb)
 
-  // New in 4.0
+  /** [[Properties]] is the "environment" exposed by the Scheduler.
+    * 
+    * Can be used for dependency-injection, like configuration options that can influence the runtime-behavior.
+    * For example: ExecutionModel
+    * {{{
+    *   import monix.execution.Scheduler.global
+    *   val executionModel = global.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
+    * }}}
+    */
   def properties: Properties
+
+  /** [[Properties]] is the "environment" exposed by the Scheduler.
+    *
+    * Returns a new [[Scheduler]] reference, based on the source,
+    * that exposes the transformed environment
+    * when queried by means of its [[properties]].
+    *
+    * This method enables reusing global scheduler references in
+    * a local scope, but with modified [[Properties environment]].
+    *
+    * The contract of this method (things you can rely on):
+    *
+    *  1. the source `Scheduler` must not be modified in any way
+    *  1. the implementation should wrap the source efficiently, such that the
+    *     result mirrors the source `Scheduler` in every way except for
+    *     the [[Properties environment]] model
+    *
+    * {{{
+    *   import monix.execution.Scheduler.global
+    *   implicit val scheduler = global.withProperties(Properties[ExecutionModel](SynchronousExecution))
+    * }}}
+    */
   def withProperties(properties: Properties): Scheduler
+
+  /** [[Properties]] is the "environment" exposed by the Scheduler.
+    *
+    * Returns a new [[Scheduler]] reference, based on the source,
+    * with a single modification to the environment.
+    *
+    * {{{
+    *   import monix.execution.Scheduler.global
+    *   implicit val scheduler = global.withProperty[ExecutionModel](SynchronousExecution)
+    * }}}
+    */
   def withProperty[A: TypeInfo](a: A): Scheduler = withProperties(properties.withProperty(a))
 }
 

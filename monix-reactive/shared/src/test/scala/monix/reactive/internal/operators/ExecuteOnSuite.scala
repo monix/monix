@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
-import monix.execution.{ Ack, Scheduler }
+import monix.execution.{ Ack, ExecutionModel, Scheduler }
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.OverflowStrategy.Unbounded
@@ -36,7 +36,7 @@ object ExecuteOnSuite extends TestSuite[TestScheduler] {
 
   test("it works") { implicit s =>
     val other = TestScheduler()
-    val nr = s.executionModel.recommendedBatchSize * 2
+    val nr = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 2
     val expectedSum = nr.toLong * (nr - 1) / 2
     var receivedOnNext: Long = 0
     var finallyReceived: Long = 0

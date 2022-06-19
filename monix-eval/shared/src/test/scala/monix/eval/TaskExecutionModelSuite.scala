@@ -17,7 +17,9 @@
 
 package monix.eval
 
+import monix.execution.ExecutionModel
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
+
 import scala.util.Success
 
 object TaskExecutionModelSuite extends BaseTestSuite {
@@ -30,7 +32,7 @@ object TaskExecutionModelSuite extends BaseTestSuite {
   }
 
   test("Task.now.runAsync (CancelableFuture) should not be async with AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
     val task = Task.now(1)
     val f = task.runToFuture
     assertEquals(f.value, Some(Success(1)))
@@ -46,7 +48,7 @@ object TaskExecutionModelSuite extends BaseTestSuite {
   }
 
   test("Task.eval should be async with AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
     val task = Task.eval(1)
     val f = task.runToFuture
 
@@ -56,7 +58,7 @@ object TaskExecutionModelSuite extends BaseTestSuite {
   }
 
   test("Task.now.flatMap loops should work with AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
 
     def loop(count: Int): Task[Int] =
       Task.now(count).flatMap { nr =>
@@ -73,7 +75,7 @@ object TaskExecutionModelSuite extends BaseTestSuite {
   }
 
   test("Task.eval.flatMap loops should work with AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
 
     def loop(count: Int): Task[Int] =
       Task.eval(count).flatMap { nr =>
@@ -90,7 +92,7 @@ object TaskExecutionModelSuite extends BaseTestSuite {
   }
 
   test("Task.flatMap loops should work with AlwaysAsyncExecution") { s =>
-    implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
+    implicit val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
 
     def loop(count: Int): Task[Int] =
       Task.evalAsync(count).flatMap { nr =>

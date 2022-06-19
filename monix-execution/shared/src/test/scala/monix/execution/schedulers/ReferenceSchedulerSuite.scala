@@ -19,14 +19,15 @@ package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
 import minitest.SimpleTestSuite
-import monix.execution.{ Cancelable, Features }
+import monix.execution.{ Cancelable, ExecutionModel, Features, Properties }
 import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, SynchronousExecution }
+
 import scala.concurrent.duration._
 
 object ReferenceSchedulerSuite extends SimpleTestSuite {
   class DummyScheduler(val underlying: TestScheduler = TestScheduler()) extends ReferenceScheduler {
 
-    def executionModel = monix.execution.ExecutionModel.Default
+    def properties = Properties[ExecutionModel](ExecutionModel.Default)
     def tick(time: FiniteDuration = Duration.Zero) = underlying.tick(time)
     def execute(runnable: Runnable): Unit = underlying.execute(runnable)
     def reportFailure(t: Throwable): Unit = underlying.reportFailure(t)
@@ -43,19 +44,19 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
 
   test("clockRealTime") {
     val s = new DummyScheduler
-    val ws = s.withExecutionModel(SynchronousExecution)
+    val ws = s.withProperties(Properties[ExecutionModel](SynchronousExecution))
     assert(ws.clockRealTime(MILLISECONDS) > 0)
   }
 
   test("clockMonotonic") {
     val s = new DummyScheduler
-    val ws = s.withExecutionModel(SynchronousExecution)
+    val ws = s.withProperties(Properties[ExecutionModel](SynchronousExecution))
     assert(ws.clockMonotonic(MILLISECONDS) > 0)
   }
 
   test("schedule with fixed delay") {
     val s = new DummyScheduler
-    val ws = s.withExecutionModel(SynchronousExecution)
+    val ws = s.withProperties(Properties[ExecutionModel](SynchronousExecution))
     var effect = 0
 
     val task = ws.scheduleWithFixedDelay(1.second, 2.seconds) { effect += 1 }
@@ -76,7 +77,7 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
 
   test("schedule at fixed rate") {
     val s = new DummyTimeScheduler
-    val ws = s.withExecutionModel(SynchronousExecution)
+    val ws = s.withProperties(Properties[ExecutionModel](SynchronousExecution))
 
     var effect = 0
     val task = ws.scheduleAtFixedRate(1.second, 2.seconds) { effect += 1 }
@@ -96,13 +97,13 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
   }
 
   test("change ExecutionModel") {
-    val s = (new DummyScheduler).withExecutionModel(AlwaysAsyncExecution)
-    assertEquals(s.executionModel, AlwaysAsyncExecution)
+    val s = (new DummyScheduler).withProperties(Properties[ExecutionModel](AlwaysAsyncExecution))
+    assertEquals(s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), AlwaysAsyncExecution)
   }
 
   test("changed em triggers execution") {
     val s = new DummyScheduler
-    val ws = s.withExecutionModel(AlwaysAsyncExecution)
+    val ws = s.withProperties(Properties[ExecutionModel](AlwaysAsyncExecution))
 
     var effect = 0
     ws.execute { () =>
@@ -116,14 +117,14 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
 
   test("can change em multiple times") {
     val s = new DummyScheduler
-    var ws = s.withExecutionModel(AlwaysAsyncExecution)
-    for (_ <- 0 until 10000) ws = ws.withExecutionModel(AlwaysAsyncExecution)
-    assertEquals(ws.executionModel, AlwaysAsyncExecution)
+    var ws = s.withProperties(Properties[ExecutionModel](AlwaysAsyncExecution))
+    for (_ <- 0 until 10000) ws = ws.withProperties(Properties[ExecutionModel](AlwaysAsyncExecution))
+    assertEquals(ws.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), AlwaysAsyncExecution)
   }
 
   test("changed em triggers execution with delay") {
     val s = new DummyScheduler
-    val ws = s.withExecutionModel(AlwaysAsyncExecution)
+    val ws = s.withProperties(Properties[ExecutionModel](AlwaysAsyncExecution))
 
     var effect = 0
     ws.scheduleOnce(1.second) { effect += 1 }
@@ -135,7 +136,7 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
 
   test("changed em error reporting") {
     val s = new DummyScheduler
-    val ws = s.withExecutionModel(AlwaysAsyncExecution)
+    val ws = s.withProperties(Properties[ExecutionModel](AlwaysAsyncExecution))
 
     val dummy = new RuntimeException("dummy")
     ws.execute { () =>

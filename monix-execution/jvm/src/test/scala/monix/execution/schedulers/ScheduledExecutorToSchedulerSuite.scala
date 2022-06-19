@@ -18,12 +18,11 @@
 package monix.execution.schedulers
 
 import java.util.concurrent._
-
 import minitest.TestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.{ ExecutionModel => ExecModel, Features, UncaughtExceptionReporter }
+import monix.execution.{ ExecutionModel, Features, UncaughtExceptionReporter }
 
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Promise }
@@ -42,7 +41,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
       )
     )
 
-    ExecutorScheduler(executor, reporter, ExecModel.Default, Features.empty)
+    ExecutorScheduler(executor, reporter, ExecutionModel.Default, Features.empty)
   }
 
   override def tearDown(scheduler: ExecutorScheduler): Unit = {
@@ -146,9 +145,9 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
   }
 
   test("change execution model") { implicit s =>
-    assertEquals(s.executionModel, ExecModel.Default)
-    val s2 = s.withExecutionModel(AlwaysAsyncExecution)
-    assertEquals(s.executionModel, ExecModel.Default)
-    assertEquals(s2.executionModel, AlwaysAsyncExecution)
+    assertEquals(s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), ExecutionModel.Default)
+    val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
+    assertEquals(s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), ExecutionModel.Default)
+    assertEquals(s2.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), AlwaysAsyncExecution)
   }
 }

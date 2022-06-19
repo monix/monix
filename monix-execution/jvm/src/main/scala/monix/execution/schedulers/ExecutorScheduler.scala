@@ -25,7 +25,6 @@ import monix.execution.internal.forkJoin.{
 }
 import monix.execution.internal.{ InterceptRunnable, Platform, ScheduledExecutors }
 import monix.execution.{ Cancelable, Features, Properties, Scheduler, UncaughtExceptionReporter }
-import monix.execution.{ Features, Scheduler }
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ ExecutionModel => ExecModel }
 import scala.concurrent.{ blocking, ExecutionContext, Future, Promise }

@@ -23,7 +23,7 @@ import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.misc.Local
 import monix.execution.FutureUtils.extensions._
-import monix.execution.{ Cancelable, Scheduler }
+import monix.execution.{ Cancelable, ExecutionModel, Scheduler }
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.exceptions.DummyException
 
@@ -202,10 +202,13 @@ object TracingSchedulerSuite extends SimpleTestSuite {
   test("executionModel") {
     val ec = TestScheduler()
     val traced = TracingScheduler(ec)
-    assertEquals(traced.executionModel, ec.executionModel)
+    assertEquals(
+      traced.properties.getWithDefault[ExecutionModel](ExecutionModel.Default),
+      ec.properties.getWithDefault[ExecutionModel](ExecutionModel.Default)
+    )
 
-    implicit val traced2 = traced.withExecutionModel(AlwaysAsyncExecution)
-    assertEquals(traced2.executionModel, AlwaysAsyncExecution)
+    implicit val traced2 = traced.withProperty[ExecutionModel](AlwaysAsyncExecution)
+    assertEquals(traced2.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), AlwaysAsyncExecution)
 
     val f = Future(true)
     assertEquals(f.value, None)

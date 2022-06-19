@@ -21,8 +21,8 @@ import java.util.concurrent.{ CountDownLatch, TimeUnit, TimeoutException }
 import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.{ Cancelable, Scheduler }
-import monix.execution.{ ExecutionModel => ExecModel }
+import monix.execution.{ Cancelable, ExecutionModel, Scheduler }
+
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Future, Promise }
 
@@ -113,7 +113,7 @@ object AsyncSchedulerJVMSuite extends SimpleTestSuite {
     import monix.execution.Scheduler
 
     val s: Scheduler = Scheduler(AlwaysAsyncExecution)
-    assertEquals(s.executionModel, AlwaysAsyncExecution)
+    assertEquals(s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), AlwaysAsyncExecution)
 
     val latch = new CountDownLatch(1)
     s.execute(() => latch.countDown())
@@ -136,10 +136,10 @@ object AsyncSchedulerJVMSuite extends SimpleTestSuite {
 
   test("change execution model") {
     val s: Scheduler = monix.execution.Scheduler.global
-    assertEquals(s.executionModel, ExecModel.Default)
-    val s2 = s.withExecutionModel(AlwaysAsyncExecution)
-    assertEquals(s.executionModel, ExecModel.Default)
-    assertEquals(s2.executionModel, AlwaysAsyncExecution)
+    assertEquals(s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), ExecutionModel.Default)
+    val s2 = s.withProperty[ExecutionModel](AlwaysAsyncExecution)
+    assertEquals(s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), ExecutionModel.Default)
+    assertEquals(s2.properties.getWithDefault[ExecutionModel](ExecutionModel.Default), AlwaysAsyncExecution)
   }
 
   test("Scheduler.cached") {

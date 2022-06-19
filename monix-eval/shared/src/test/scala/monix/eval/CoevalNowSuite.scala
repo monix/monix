@@ -19,8 +19,9 @@ package monix.eval
 
 import cats.laws._
 import cats.laws.discipline._
-
+import monix.execution.ExecutionModel
 import monix.execution.exceptions.DummyException
+
 import scala.util.{ Failure, Success }
 
 object CoevalNowSuite extends BaseTestSuite {
@@ -93,7 +94,7 @@ object CoevalNowSuite extends BaseTestSuite {
           Coeval.now(idx)
       }
 
-    val iterations = s.executionModel.recommendedBatchSize * 20
+    val iterations = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 20
     val r = loop(iterations, 0).runTry()
     assertEquals(r, Success(iterations * 2))
   }

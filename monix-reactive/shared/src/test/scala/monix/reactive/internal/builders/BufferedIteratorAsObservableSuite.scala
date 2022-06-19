@@ -61,7 +61,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var onCompleteCalled = 0
     var sum = 0
 
-    val n = s.executionModel.recommendedBatchSize * 4
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 4
     val seq = 0 until n
     val obs = Observable
       .fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }), 4)
@@ -91,7 +91,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var onCompleteCalled = 0
     var sum = 0
 
-    val n = s.executionModel.recommendedBatchSize * 4
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 4
     val seq = 0 until n
     val obs = Observable
       .fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }), 4)
@@ -118,7 +118,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var onErrorCalled: Throwable = null
     var sum = 0
 
-    val n = s.executionModel.recommendedBatchSize * 4
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 4
     val seq = 0 until n
     val obs = Observable
       .fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }), 4)
@@ -145,7 +145,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var onCompleteCalled = 0
     var sum = 0
 
-    val n = s.executionModel.recommendedBatchSize * 4
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 4
     val seq = 0 until (n * 2)
     val obs = Observable
       .fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }), 1)
@@ -171,7 +171,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var onCompleteCalled = 0
     var received = 0
 
-    val n = s.executionModel.recommendedBatchSize
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize
     val seq = 0 until (n * 4)
     val obs = Observable.fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }), 1)
 
@@ -198,7 +198,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     var wasThrown: Throwable = null
 
-    val n = s.executionModel.recommendedBatchSize
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize
     val seq = 0 until (n * 4)
     val obs = Observable.fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }), 1)
 
@@ -229,7 +229,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     var wasThrown: Throwable = null
 
-    val n = s.executionModel.recommendedBatchSize
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize
     val seq = 0 until (n * 4)
     val obs = Observable.fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }), 1)
 
@@ -260,7 +260,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var received = 0
     var wasThrown: Throwable = null
 
-    val n = s.executionModel.recommendedBatchSize
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize
     val seq = 0 until (n * 4)
     val obs = Observable.fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task { onFinishCalled += 1 }), 1)
 
@@ -292,7 +292,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var wasThrown: Throwable = null
     var sum = 0
 
-    val n = s.executionModel.recommendedBatchSize * 4
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 4
     val seq = 0 until n
     val obs = Observable
       .fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task.raiseError(ex)), 1)
@@ -324,7 +324,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     var onCompleteCalled = 0
     var received = 0
 
-    val n = s.executionModel.recommendedBatchSize
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize
     val seq = 0 until (n * 4)
     val obs = Observable
       .fromIteratorBuffered(Resource.make(Task(seq.iterator))(_ => Task.raiseError(ex)), 1)
@@ -353,12 +353,12 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
   }
 
   test("fromIteratorBufferedUnsafe insert asynchronous boundaries in BatchedExecution") { s =>
-    implicit val sc = s.withExecutionModel(ExecutionModel.Default)
+    implicit val sc = s.withProperty[ExecutionModel](ExecutionModel.Default)
 
     var onCompleteCalled = 0
     var count = 0
 
-    val n = s.executionModel.recommendedBatchSize
+    val n = s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize
     val seq = 0 until n * 4
     val obs = Observable
       .fromIteratorBufferedUnsafe(seq.iterator, n)

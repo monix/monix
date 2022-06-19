@@ -19,6 +19,7 @@ package monix.reactive.internal.builders
 
 import minitest.TestSuite
 import monix.execution.Ack.Continue
+import monix.execution.ExecutionModel
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
@@ -72,7 +73,7 @@ object RepeatEvalObservableSuite extends TestSuite[TestScheduler] {
     cancelable.cancel()
     s.tick()
 
-    assertEquals(sum, s.executionModel.recommendedBatchSize * 2)
+    assertEquals(sum, s.properties.getWithDefault[ExecutionModel](ExecutionModel.Default).recommendedBatchSize * 2)
     assert(!wasCompleted)
   }
 }

@@ -91,6 +91,9 @@ trait ReferenceScheduler extends Scheduler {
     sub
   }
 
+  override def withProperties(p: Properties): Scheduler =
+    WrappedScheduler(this, p)
+
   override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): Scheduler =
     WrappedScheduler(this, properties, r)
 }

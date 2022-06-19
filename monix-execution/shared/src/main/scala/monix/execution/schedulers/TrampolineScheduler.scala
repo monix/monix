@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
-import monix.execution.{ Cancelable, Features, Properties, Scheduler, UncaughtExceptionReporter }
+import monix.execution.{ Cancelable, ExecutionModel, Features, Properties, Scheduler, UncaughtExceptionReporter }
 
 /** A [[monix.execution.Scheduler Scheduler]] implementation
   * that executes runnables immediately, on the current thread,
@@ -91,6 +91,6 @@ object TrampolineScheduler {
     *         [[monix.execution.ExecutionModel.Default ExecutionModel.Default]]
     *         for the default.
     */
-  def apply(underlying: Scheduler, properties: Properties): TrampolineScheduler =
-    new TrampolineScheduler(underlying, properties)
+  def apply(underlying: Scheduler, executionModel: ExecutionModel): TrampolineScheduler =
+    new TrampolineScheduler(underlying, Properties(executionModel))
 }

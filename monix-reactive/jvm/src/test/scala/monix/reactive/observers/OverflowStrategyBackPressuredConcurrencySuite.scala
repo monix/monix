@@ -18,8 +18,7 @@
 package monix.reactive.observers
 
 import java.util.concurrent.{ CountDownLatch, TimeUnit }
-
-import monix.execution.Ack
+import monix.execution.{ Ack, ExecutionModel }
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ExecutionModel.BatchedExecution
 import monix.execution.exceptions.DummyException
@@ -32,7 +31,7 @@ import scala.util.Random
 
 object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite {
   test("merge test should work") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(BatchedExecution(1024))
+    implicit val s = scheduler.withProperty[ExecutionModel](BatchedExecution(1024))
 
     val num = 100000
     val source = Observable.repeat(1L).take(num.toLong)
@@ -96,7 +95,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
   }
 
   test("should not lose events, test 1") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+    implicit val s = scheduler.withProperty[ExecutionModel](BatchedExecution(128))
 
     // Repeating due to problems
     for (_ <- 0 until 10) {
@@ -129,7 +128,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
   }
 
   test("should not lose events, test 2") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+    implicit val s = scheduler.withProperty[ExecutionModel](BatchedExecution(128))
     val totalCount = 10000
 
     var number = 0
@@ -165,7 +164,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
   }
 
   test("should not lose events with async subscriber from one publisher (with sufficient buffer)") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+    implicit val s = scheduler.withProperty[ExecutionModel](BatchedExecution(128))
 
     // Repeating because of possible problems
     for (_ <- 0 until 10) {
@@ -213,7 +212,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
   }
 
   test("should not lose events with async subscriber from one publisher (with small buffer)") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+    implicit val s = scheduler.withProperty[ExecutionModel](BatchedExecution(128))
 
     // Repeating because of possible problems
     for (_ <- 0 until 10) {
@@ -391,7 +390,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
   }
 
   test("should do onComplete only after all the queue was drained") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+    implicit val s = scheduler.withProperty[ExecutionModel](BatchedExecution(128))
     val totalCount = 10000
 
     var sum = 0L
@@ -420,7 +419,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
   }
 
   test("should do onComplete only after all the queue was drained, test2") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+    implicit val s = scheduler.withProperty[ExecutionModel](BatchedExecution(128))
 
     val totalCount = 10000
     var sum = 0L
@@ -447,7 +446,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
   }
 
   test("should do onError only after the queue was drained") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+    implicit val s = scheduler.withProperty[ExecutionModel](BatchedExecution(128))
 
     val totalCount = 10000
     var sum = 0L
@@ -476,7 +475,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
   }
 
   test("should do onError only after all the queue was drained, test2") { scheduler =>
-    implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
+    implicit val s = scheduler.withProperty[ExecutionModel](BatchedExecution(128))
     val totalCount = 10000
 
     var sum = 0L
