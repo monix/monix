@@ -92,5 +92,5 @@ object TrampolineScheduler {
     *         for the default.
     */
   def apply(underlying: Scheduler, executionModel: ExecutionModel): TrampolineScheduler =
-    new TrampolineScheduler(underlying, Properties(executionModel))
+    new TrampolineScheduler(underlying, Properties[ExecutionModel](executionModel))
 }

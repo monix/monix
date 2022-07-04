@@ -1239,6 +1239,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     * Consider the following example:
     *
     * {{{
+    *   import monix.execution.ExecutionModel
     *   import monix.execution.ExecutionModel.SynchronousExecution
     *   import monix.execution.Scheduler
     *

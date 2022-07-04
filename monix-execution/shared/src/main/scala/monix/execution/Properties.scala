@@ -17,8 +17,8 @@
 
 package monix.execution
 
+import monix.execution.internal.TypeInfoExtractor
 import monix.newtypes.TypeInfo
-
 class Properties private (private val attributes: Map[TypeInfo[_], Any]) {
 
   def get[A: TypeInfo]: Option[A] = attributes.get(implicitly[TypeInfo[A]]) match {
@@ -31,7 +31,7 @@ class Properties private (private val attributes: Map[TypeInfo[_], Any]) {
   def getWithDefault[A: TypeInfo](default: A): A = attributes.getOrElse(implicitly[TypeInfo[A]], default)
     .asInstanceOf[A]
 
-  def withProperty[A: TypeInfo](value: A): Properties = new Properties(attributes + (implicitly[TypeInfo[A]] -> value))
+  def withProperty[A]: Properties.ApplyBuilder1[A] = new Properties.ApplyBuilder1(this)
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[Properties]
 
@@ -50,14 +50,16 @@ class Properties private (private val attributes: Map[TypeInfo[_], Any]) {
 
 object Properties {
   val empty: Properties = new Properties(Map())
-  def apply[A: TypeInfo](a: A): Properties =
-    empty.withProperty(a)
-  def apply[A: TypeInfo, B: TypeInfo](a: A, b: B): Properties =
-    empty.withProperty(a).withProperty(b)
-  def apply[A: TypeInfo, B: TypeInfo, C: TypeInfo](a: A, b: B, c: C): Properties =
-    empty.withProperty(a).withProperty(b).withProperty(c)
-  def apply[A: TypeInfo, B: TypeInfo, C: TypeInfo, D: TypeInfo](a: A, b: B, c: C, d: D): Properties =
-    empty.withProperty(a).withProperty(b).withProperty(c).withProperty(d)
-  def apply[A: TypeInfo, B: TypeInfo, C: TypeInfo, D: TypeInfo, E: TypeInfo](a: A, b: B, c: C, d: D, e: E): Properties =
-    empty.withProperty(a).withProperty(b).withProperty(c).withProperty(d).withProperty(e)
+
+  def apply[A]: ApplyBuilder1[A] = new ApplyBuilder1[A](empty)
+
+  class ApplyBuilder1[A](val previousProperties: Properties) {}
+
+  implicit class ApplyBuilder1Ext[A](applyBuilder1: ApplyBuilder1[A])(implicit t: TypeInfoExtractor[A]) {
+    def apply(value: A): Properties =
+      new Properties(
+        applyBuilder1.previousProperties.attributes + (t.getTypeInfo -> value)
+      )
+  }
+
 }

@@ -105,10 +105,10 @@ object ExecutorScheduler {
     val ft = features + Scheduler.BATCHING
     service match {
       case ref: ScheduledExecutorService =>
-        new FromScheduledExecutor(ref, reporter, Properties(executionModel), ft)
+        new FromScheduledExecutor(ref, reporter, Properties[ExecModel](executionModel), ft)
       case _ =>
         val s = Defaults.scheduledExecutor
-        new FromSimpleExecutor(s, service, reporter, Properties(executionModel), ft)
+        new FromSimpleExecutor(s, service, reporter, Properties[ExecModel](executionModel), ft)
     }
   }
 
@@ -196,7 +196,7 @@ object ExecutorScheduler {
       executionModel: ExecModel
     ) = {
       // $COVERAGE-OFF$
-      this(scheduler, executor, r, Properties(executionModel), Features.empty)
+      this(scheduler, executor, r, Properties[ExecModel](executionModel), Features.empty)
       // $COVERAGE-ON$
     }
 
@@ -221,7 +221,7 @@ object ExecutorScheduler {
     @deprecated("Provided for backwards compatibility", "3.0.0")
     def this(scheduler: ScheduledExecutorService, r: UncaughtExceptionReporter, executionModel: ExecModel) = {
       // $COVERAGE-OFF$
-      this(scheduler, r, Properties(executionModel), Features.empty)
+      this(scheduler, r, Properties[ExecModel](executionModel), Features.empty)
       // $COVERAGE-ON$
     }
 

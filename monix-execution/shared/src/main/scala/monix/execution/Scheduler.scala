@@ -18,10 +18,9 @@
 package monix.execution
 
 import java.util.concurrent.Executor
-
 import monix.execution.internal.RunnableAction
 import monix.execution.schedulers.SchedulerCompanionImpl
-import monix.newtypes.TypeInfo
+import monix.execution.internal.TypeInfoExtractor
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
@@ -380,7 +379,7 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
     *   implicit val scheduler = global.withProperty[ExecutionModel](SynchronousExecution)
     * }}}
     */
-  def withProperty[A: TypeInfo](a: A): Scheduler = withProperties(properties.withProperty(a))
+  def withProperty[A]: Scheduler.ApplyBuilder1[A] = new Scheduler.ApplyBuilder1[A](this)
 }
 
 private[monix] trait SchedulerCompanion {
@@ -445,4 +444,12 @@ object Scheduler extends SchedulerCompanionImpl {
       // $COVERAGE-ON$
     }
   }
+
+  class ApplyBuilder1[A](val scheduler: Scheduler) {}
+
+  implicit class ApplyBuilder1Ext[A](applyBuilder1: ApplyBuilder1[A])(implicit t: TypeInfoExtractor[A]) {
+    def apply(value: A): Scheduler =
+      applyBuilder1.scheduler.withProperties(applyBuilder1.scheduler.properties.withProperty[A](value))
+  }
+
 }

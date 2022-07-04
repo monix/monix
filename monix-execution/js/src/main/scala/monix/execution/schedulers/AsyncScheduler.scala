@@ -76,5 +76,5 @@ object AsyncScheduler {
     executionModel: ExecModel,
     r: UncaughtExceptionReporter = null
   ): AsyncScheduler =
-    new AsyncScheduler(context, Properties(executionModel), r)
+    new AsyncScheduler(context, Properties[ExecModel](executionModel), r)
 }

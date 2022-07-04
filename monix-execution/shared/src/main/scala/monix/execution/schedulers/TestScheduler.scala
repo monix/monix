@@ -328,10 +328,10 @@ final class TestScheduler private (
 object TestScheduler {
   /** Builder for [[TestScheduler]]. */
   def apply(): TestScheduler =
-    apply(Properties(ExecutionModel.Default))
+    apply(Properties[ExecutionModel](ExecutionModel.Default))
 
   def apply(executionModel: ExecutionModel): TestScheduler = {
-    apply(Properties(executionModel))
+    apply(Properties[ExecutionModel](executionModel))
   }
 
   /** Builder for [[TestScheduler]]. */
