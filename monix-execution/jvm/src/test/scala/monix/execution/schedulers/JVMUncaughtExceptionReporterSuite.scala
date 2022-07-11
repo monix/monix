@@ -17,7 +17,7 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{Scheduler, UncaughtExceptionReporter}
+import monix.execution.{ Scheduler, UncaughtExceptionReporter }
 import java.util.concurrent.Executors
 
 import monix.execution.exceptions.DummyException

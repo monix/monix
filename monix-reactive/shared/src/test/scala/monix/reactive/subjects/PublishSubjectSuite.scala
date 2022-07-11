@@ -20,7 +20,7 @@ package monix.reactive.subjects
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
-import monix.reactive.{Observable, Observer, OverflowStrategy}
+import monix.reactive.{ Observable, Observer, OverflowStrategy }
 
 import scala.concurrent.Future
 import scala.util.Success

@@ -68,7 +68,7 @@ object InflateOperatorSuite extends BaseDecompressionSuite with DeflateTestUtils
         .repeatEval(jdkDeflate(longText, new Deflater(-1, true)))
         .take(sourceCount.toLong)
         .transform(inflate(noWrap = true)) ++ Observable
-        .repeatEval(longText) //corrupted payload
+        .repeatEval(longText) // corrupted payload
         .transform(inflate(noWrap = true)))
         .map(_ => 1L)
         .onErrorFallbackTo(Observable.raiseError(ex))

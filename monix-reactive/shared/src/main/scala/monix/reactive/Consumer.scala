@@ -19,9 +19,9 @@ package monix.reactive
 
 import cats.Contravariant
 import cats.arrow.Profunctor
-import monix.eval.{Task, TaskLike}
+import monix.eval.{ Task, TaskLike }
 import monix.execution.cancelables.AssignableCancelable
-import monix.execution.{Callback, Cancelable, Scheduler}
+import monix.execution.{ Callback, Cancelable, Scheduler }
 import monix.reactive.internal.consumers._
 import monix.reactive.observers.Subscriber
 

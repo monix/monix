@@ -17,8 +17,8 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.PublishSubject.State
 import monix.execution.atomic.Atomic

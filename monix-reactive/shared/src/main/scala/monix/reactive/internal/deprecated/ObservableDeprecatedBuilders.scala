@@ -20,7 +20,7 @@ package monix.reactive.internal.deprecated
 import cats.Eval
 import cats.effect.IO
 import monix.execution.Scheduler
-import monix.reactive.{Observable, OverflowStrategy}
+import monix.reactive.{ Observable, OverflowStrategy }
 
 private[reactive] trait ObservableDeprecatedBuilders extends Any {
   /** DEPRECATED — please use [[Observable!.executeAsync .executeAsync]].
@@ -104,7 +104,8 @@ private[reactive] trait ObservableDeprecatedBuilders extends Any {
     */
   @deprecated("Switch to Observable(list).merge", "3.0.0")
   def mergeDelayError[A](sources: Observable[A]*)(
-    implicit os: OverflowStrategy[A] = OverflowStrategy.Default): Observable[A] = {
+    implicit os: OverflowStrategy[A] = OverflowStrategy.Default
+  ): Observable[A] = {
     // $COVERAGE-OFF$
     Observable.fromIterable(sources).mergeMapDelayErrors(identity)(os)
     // $COVERAGE-ON$

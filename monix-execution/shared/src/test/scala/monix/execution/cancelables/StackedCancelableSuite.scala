@@ -33,7 +33,7 @@ object StackedCancelableSuite extends SimpleTestSuite {
     var effect = 0
     val initial = Cancelable(() => effect += 1)
     val c = StackedCancelable()
-    c push initial
+    c.push(initial)
     c.cancel()
     assertEquals(effect, 1)
   }
@@ -43,7 +43,7 @@ object StackedCancelableSuite extends SimpleTestSuite {
     val initial = Cancelable(() => effect += 1)
     val c = StackedCancelable()
     c.cancel()
-    c push initial
+    c.push(initial)
     assertEquals(effect, 1)
   }
 
@@ -145,7 +145,7 @@ object StackedCancelableSuite extends SimpleTestSuite {
     val d4 = Cancelable(() => effect += 20)
 
     val c2 = StackedCancelable(d3)
-    c2 push d4
+    c2.push(d4)
 
     assertEquals(c2.popAndPushList(List(d1, d2)), d4)
     c2.cancel()

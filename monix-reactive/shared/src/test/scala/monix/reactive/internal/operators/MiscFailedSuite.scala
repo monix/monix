@@ -21,7 +21,7 @@ import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Promise
 
 object MiscFailedSuite extends TestSuite[TestScheduler] {

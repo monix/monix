@@ -21,10 +21,10 @@ import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
 import monix.reactive.observers.Subscriber
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 
 import scala.concurrent.duration._
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
 object BufferTimedSuite extends BaseOperatorSuite {
@@ -59,7 +59,8 @@ object BufferTimedSuite extends BaseOperatorSuite {
         Observable
           .intervalAtFixedRate(100.millis, 100.millis)
           .take(sourceCount.toLong),
-        ex)
+        ex
+      )
         .bufferTimed(1.second)
         .map(_.sum)
 

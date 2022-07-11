@@ -20,7 +20,7 @@ package internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 
 private[tail] object IterantRetryIfEmpty {
   /**

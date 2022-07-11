@@ -20,10 +20,10 @@ package monix.reactive.internal.operators
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 
 import scala.concurrent.duration.Duration.Zero
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.concurrent.duration._
 
 object MapSuite extends BaseOperatorSuite {

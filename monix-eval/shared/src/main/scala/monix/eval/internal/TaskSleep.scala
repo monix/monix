@@ -19,7 +19,7 @@ package monix.eval.internal
 
 import java.util.concurrent.RejectedExecutionException
 
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.{ Async, Context }
 import monix.execution.Callback
 import monix.eval.Task
 

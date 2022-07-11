@@ -18,8 +18,8 @@
 package monix.reactive.internal.consumers
 
 import monix.execution.Callback
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.{Ack, Scheduler}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.{ Ack, Scheduler }
 import monix.execution.cancelables.AssignableCancelable
 import scala.util.control.NonFatal
 import monix.reactive.Consumer

@@ -20,7 +20,7 @@ package monix.reactive
 import java.time.Instant
 import java.util.zip.Deflater
 
-import monix.reactive.compression.internal.operators.{DeflateOperator, GunzipOperator, GzipOperator, InflateOperator}
+import monix.reactive.compression.internal.operators.{ DeflateOperator, GunzipOperator, GzipOperator, InflateOperator }
 
 // From https://github.com/typelevel/fs2/blob/main/core/jvm/src/main/scala/fs2/compression.scala
 package object compression {

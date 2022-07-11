@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import monix.execution.atomic.{AtomicAny, PaddingStrategy}
+import monix.execution.atomic.{ AtomicAny, PaddingStrategy }
 import scala.annotation.tailrec
 
 /** Represents a composite of multiple cancelables. In case it is canceled, all
@@ -74,7 +74,7 @@ import scala.annotation.tailrec
 final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable.State]) extends BooleanCancelable {
   self =>
 
-  import CompositeCancelable.{Active, Cancelled}
+  import CompositeCancelable.{ Active, Cancelled }
 
   override def isCanceled: Boolean =
     stateRef.get() eq Cancelled

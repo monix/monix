@@ -18,7 +18,7 @@
 package monix.eval
 package instances
 
-import cats.effect.{Async, CancelToken, Concurrent, ExitCase}
+import cats.effect.{ Async, CancelToken, Concurrent, ExitCase }
 import monix.eval.internal.TaskCreate
 
 /** Cats type class instance of [[monix.eval.Task Task]]
@@ -40,7 +40,8 @@ class CatsAsyncForTask extends CatsBaseForTask with Async[Task] {
   override def bracket[A, B](acquire: Task[A])(use: A => Task[B])(release: A => Task[Unit]): Task[B] =
     acquire.bracket(use)(release)
   override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(
-    release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
+    release: (A, ExitCase[Throwable]) => Task[Unit]
+  ): Task[B] =
     acquire.bracketCase(use)(release)
   override def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
     Task.asyncF(k)

@@ -39,7 +39,8 @@ object DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
         assertEquals(
           list.flatten,
           jdkDeflate(Array.empty, new Deflater(-1, false)).toList
-        ))
+        )
+      )
       .runToFuture
   }
   testAsync("deflates same as JDK") { _ =>
@@ -95,7 +96,8 @@ object DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
           .take(sourceCount.toLong - 1)
           .transform(deflate())
           .map(_ => 1L),
-        ex)
+        ex
+      )
       Sample(o, sourceCount, sourceCount, Zero, Zero)
     }
 

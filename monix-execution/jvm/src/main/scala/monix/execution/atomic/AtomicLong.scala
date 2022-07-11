@@ -18,7 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.internal.atomic.{BoxedLong, Factory}
+import monix.execution.internal.atomic.{ BoxedLong, Factory }
 
 /** Atomic references wrapping `Long` values.
   *
@@ -70,16 +70,16 @@ final class AtomicLong private (private[this] val ref: BoxedLong) extends Atomic
   def subtractAndGet(v: Long): Long =
     addAndGet(-v)
 
-  def decrement(v: Int = 1): Unit = 
+  def decrement(v: Int = 1): Unit =
     increment(-v)
 
-  def decrementAndGet(v: Int = 1): Long = 
+  def decrementAndGet(v: Int = 1): Long =
     incrementAndGet(-v)
 
-  def getAndDecrement(v: Int = 1): Long = 
+  def getAndDecrement(v: Int = 1): Long =
     getAndIncrement(-v)
 
-  override def toString: String = 
+  override def toString: String =
     s"AtomicLong(${ref.volatileGet()})"
 }
 
@@ -130,7 +130,8 @@ object AtomicLong {
         boxStrategyToPaddingStrategy(padding),
         true, // allowUnsafe
         allowPlatformIntrinsics
-      ))
+      )
+    )
   }
 
   /** $createDesc
@@ -155,6 +156,7 @@ object AtomicLong {
         boxStrategyToPaddingStrategy(padding),
         false, // allowUnsafe
         false // allowPlatformIntrinsics
-      ))
+      )
+    )
   }
 }

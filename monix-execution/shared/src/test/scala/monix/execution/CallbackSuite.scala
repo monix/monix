@@ -18,11 +18,11 @@
 package monix.execution
 
 import minitest.TestSuite
-import monix.execution.exceptions.{CallbackCalledMultipleTimesException, DummyException}
+import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, DummyException }
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.Promise
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 object CallbackSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -72,7 +72,8 @@ object CallbackSuite extends TestSuite[TestScheduler] {
       },
       { e =>
         result = Some(Failure(e))
-      })
+      }
+    )
 
     val stringCallback = callback.contramap[String](_.toInt)
     val dummy = DummyException("dummy")

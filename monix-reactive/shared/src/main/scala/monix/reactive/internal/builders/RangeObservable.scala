@@ -17,15 +17,15 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Ack, Cancelable, ExecutionModel, Scheduler}
+import monix.execution.{ Ack, Cancelable, ExecutionModel, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /** Generates ranges */
 private[reactive] final class RangeObservable(from: Long, until: Long, step: Long = 1) extends Observable[Long] {
@@ -46,7 +46,8 @@ private[reactive] final class RangeObservable(from: Long, until: Long, step: Lon
 
   @tailrec
   private def loop(c: BooleanCancelable, downstream: Subscriber[Long], em: ExecutionModel, from: Long, syncIndex: Int)(
-    implicit s: Scheduler): Unit = {
+    implicit s: Scheduler
+  ): Unit = {
 
     val ack = downstream.onNext(from)
     val nextFrom = from + step
@@ -71,7 +72,8 @@ private[reactive] final class RangeObservable(from: Long, until: Long, step: Lon
     ack: Future[Ack],
     downstream: Subscriber[Long],
     em: ExecutionModel,
-    from: Long)(implicit s: Scheduler): Unit = {
+    from: Long
+  )(implicit s: Scheduler): Unit = {
 
     ack.onComplete {
       case Success(success) =>

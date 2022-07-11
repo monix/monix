@@ -18,13 +18,13 @@
 package monix.execution
 
 import minitest.TestSuite
-import monix.execution.cancelables.{BooleanCancelable, ChainedCancelable}
+import monix.execution.cancelables.{ BooleanCancelable, ChainedCancelable }
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ Future, Promise }
+import scala.util.{ Failure, Success, Try }
 
 object CancelableFutureSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -531,7 +531,8 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
         CancelableFuture.never[Unit],
         Cancelable { () =>
           c.cancel()
-        })
+        }
+      )
     }
 
     assert(first.isCompleted, "!first.isCompleted")

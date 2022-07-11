@@ -22,7 +22,7 @@ package builders
 import cats.effect.ExitCase
 import monix.execution.Callback
 import monix.eval.Task
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.Cancelable
 import monix.execution.cancelables.AssignableCancelable
 import monix.reactive.observables.ChainedObservable
@@ -31,8 +31,8 @@ import scala.util.Success
 
 private[reactive] final class ResourceCaseObservable[A](
   acquire: Task[A],
-  release: (A, ExitCase[Throwable]) => Task[Unit])
-  extends ChainedObservable[A] {
+  release: (A, ExitCase[Throwable]) => Task[Unit]
+) extends ChainedObservable[A] {
 
   def unsafeSubscribeFn(conn: AssignableCancelable.Multi, subscriber: Subscriber[A]): Unit = {
     implicit val s = subscriber.scheduler

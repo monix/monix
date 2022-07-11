@@ -20,7 +20,7 @@ package monix.eval
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object CoevalMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Coeval.eval.memoizeOnSuccess should work for first subscriber") { implicit s =>

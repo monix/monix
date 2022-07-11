@@ -22,10 +22,10 @@ import java.util.concurrent.CountDownLatch
 import minitest.TestSuite
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.SchedulerService
-import monix.execution.{Cancelable, CancelableFuture, ExecutionModel, Scheduler}
+import monix.execution.{ Cancelable, CancelableFuture, ExecutionModel, Scheduler }
 
 import scala.concurrent.duration._
-import scala.concurrent.{blocking, ExecutionContext, Future}
+import scala.concurrent.{ blocking, ExecutionContext, Future }
 
 object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
   private val ThreadName = "test-thread"
@@ -872,7 +872,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  ///...
+  /// ...
   testAsync("Task.asyncF(register) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 

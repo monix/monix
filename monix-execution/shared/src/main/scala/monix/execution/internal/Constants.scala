@@ -17,7 +17,7 @@
 
 package monix.execution.internal
 
-import scala.util.{Success, Try}
+import scala.util.{ Success, Try }
 
 /**
   * Reusable references used in Monix's implementation.

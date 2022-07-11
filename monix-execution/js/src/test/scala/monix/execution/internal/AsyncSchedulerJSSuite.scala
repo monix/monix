@@ -20,7 +20,7 @@ package monix.execution.internal
 import minitest.TestSuite
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.schedulers.AsyncScheduler
-import monix.execution.{ExecutionModel, Scheduler, TestUtils}
+import monix.execution.{ ExecutionModel, Scheduler, TestUtils }
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 
 import scala.concurrent.Promise

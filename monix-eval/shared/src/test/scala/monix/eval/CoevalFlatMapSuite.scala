@@ -21,7 +21,7 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.execution.exceptions.DummyException
 
-import scala.util.{Random, Success}
+import scala.util.{ Random, Success }
 
 object CoevalFlatMapSuite extends BaseTestSuite {
   test("transformWith equivalence with flatMap") { implicit s =>

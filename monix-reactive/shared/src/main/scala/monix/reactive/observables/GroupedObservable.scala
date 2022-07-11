@@ -18,9 +18,9 @@
 package monix.reactive.observables
 
 import monix.execution.exceptions.APIContractViolationException
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
-import monix.reactive.observers.{CacheUntilConnectSubscriber, Subscriber}
+import monix.reactive.observers.{ CacheUntilConnectSubscriber, Subscriber }
 
 import scala.concurrent.Future
 
@@ -41,7 +41,8 @@ abstract class GroupedObservable[K, +V] extends Observable[V] { self =>
 object GroupedObservable {
   /** Builder returning an input+output pair */
   private[monix] def broadcast[K, V](key: K, onCancel: Cancelable)(
-    implicit s: Scheduler): (Subscriber[V], GroupedObservable[K, V]) = {
+    implicit s: Scheduler
+  ): (Subscriber[V], GroupedObservable[K, V]) = {
 
     val ref = new Implementation[K, V](key, onCancel)
     (ref, ref)

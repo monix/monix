@@ -19,14 +19,14 @@ package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable}
-import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.cancelables.{ CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable }
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
+import scala.concurrent.duration.{ FiniteDuration, MILLISECONDS }
 import scala.util.Success
 
 private[reactive] final class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnce: Boolean)

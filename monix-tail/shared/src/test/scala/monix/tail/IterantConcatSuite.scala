@@ -19,7 +19,7 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 
 object IterantConcatSuite extends BaseTestSuite {
   test("Iterant.prepend") { implicit s =>
@@ -58,7 +58,7 @@ object IterantConcatSuite extends BaseTestSuite {
   }
 
   test("Iterant ++ Iterant is stack safe") { implicit s =>
-    lazy val nats: Iterant[Coeval, Long] = Iterant[Coeval].of(1L) ++ nats.map(_ + 1L) take (4)
+    lazy val nats: Iterant[Coeval, Long] = (Iterant[Coeval].of(1L) ++ nats.map(_ + 1L)).take(4)
     assertEquals(nats.toListL.value(), List(1, 2, 3, 4))
   }
 

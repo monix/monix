@@ -19,7 +19,7 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.exceptions.DummyException
 import monix.tail.Iterant.Suspend
 import monix.tail.batches.BatchCursor

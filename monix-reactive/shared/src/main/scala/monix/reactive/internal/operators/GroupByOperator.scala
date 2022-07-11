@@ -17,22 +17,22 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.SingleProducer
 import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.observables.GroupedObservable
 import monix.reactive.Observable.Operator
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
-import monix.reactive.{Observer, OverflowStrategy}
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
+import monix.reactive.{ Observer, OverflowStrategy }
 import scala.annotation.tailrec
 import scala.concurrent.Future
 
 private[reactive] final class GroupByOperator[A, K](
   os: OverflowStrategy.Synchronous[GroupedObservable[K, A]],
-  keyFn: A => K)
-  extends Operator[A, GroupedObservable[K, A]] {
+  keyFn: A => K
+) extends Operator[A, GroupedObservable[K, A]] {
 
   def apply(subscriber: Subscriber[GroupedObservable[K, A]]): Subscriber[A] =
     new Subscriber[A] { self =>

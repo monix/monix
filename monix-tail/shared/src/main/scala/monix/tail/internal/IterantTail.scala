@@ -19,7 +19,7 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import monix.tail.Iterant
-import monix.tail.Iterant.{Last, Next, Suspend}
+import monix.tail.Iterant.{ Last, Next, Suspend }
 
 private[tail] object IterantTail {
   /**

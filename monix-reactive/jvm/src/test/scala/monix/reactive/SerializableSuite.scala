@@ -17,12 +17,12 @@
 
 package monix.reactive
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream }
 import cats.laws._
 import cats.laws.discipline._
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 object SerializableSuite extends BaseTestSuite {
   def serialize(obj: Serializable) = {

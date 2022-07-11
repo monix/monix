@@ -17,8 +17,8 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Context, Error, Now}
-import monix.eval.internal.TaskRunLoop.{startFull, Bind, CallStack}
+import monix.eval.Task.{ Context, Error, Now }
+import monix.eval.internal.TaskRunLoop.{ startFull, Bind, CallStack }
 import monix.eval.Task
 import monix.execution.Callback
 import monix.execution.misc.Local

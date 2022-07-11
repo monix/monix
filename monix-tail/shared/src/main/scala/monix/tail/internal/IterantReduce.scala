@@ -21,7 +21,7 @@ package internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.internal.collection.ChunkedArrayStack
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 
 private[tail] object IterantReduce {
   /** Implementation for `Iterant.reduce`. */
@@ -35,7 +35,7 @@ private[tail] object IterantReduce {
     private[this] var isEmpty = true
     private[this] var state: A = _
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
     private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
 
@@ -55,7 +55,7 @@ private[tail] object IterantReduce {
           case null => F.pure(state)
           case xs => xs.flatMap(this)
         }
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Next[F, A]): F[Option[A]] = {
       if (isEmpty) {

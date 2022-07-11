@@ -20,7 +20,7 @@ package monix.reactive.internal.builders
 import cats.effect.IO
 import cats.laws._
 import cats.laws.discipline._
-import monix.reactive.{BaseTestSuite, Observable}
+import monix.reactive.{ BaseTestSuite, Observable }
 import scala.concurrent.duration._
 
 object FirstStartedObservableSuite extends BaseTestSuite {

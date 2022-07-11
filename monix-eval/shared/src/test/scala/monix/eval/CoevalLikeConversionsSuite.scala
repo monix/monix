@@ -22,7 +22,7 @@ import cats.effect.SyncIO
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.DummyException
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 object CoevalLikeConversionsSuite extends SimpleTestSuite {
   test("Coeval.from(Coeval)") {

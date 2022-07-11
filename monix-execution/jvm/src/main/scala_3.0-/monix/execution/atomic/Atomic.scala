@@ -138,7 +138,8 @@ object Atomic {
     * @param builder is the builder that helps us to build the
     *        best reference possible, based on our `initialValue`
     */
-  def apply[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): R = macro Atomic.Macros.buildAnyMacro[A, R]
+  def apply[A, R <: Atomic[A]](initialValue: A)(implicit builder: AtomicBuilder[A, R]): R =
+    macro Atomic.Macros.buildAnyMacro[A, R]
 
   /** Constructs an `Atomic[A]` reference, applying the provided
     * [[PaddingStrategy]] in order to counter the "false sharing"
@@ -165,7 +166,8 @@ object Atomic {
     *        best reference possible, based on our `initialValue`
     */
   def withPadding[A, R <: Atomic[A]](initialValue: A, padding: PaddingStrategy)(
-    implicit builder: AtomicBuilder[A, R]): R = macro Atomic.Macros.buildAnyWithPaddingMacro[A, R]
+    implicit builder: AtomicBuilder[A, R]
+  ): R = macro Atomic.Macros.buildAnyWithPaddingMacro[A, R]
 
   /** Returns the builder that would be chosen to construct Atomic
     * references for the given `initialValue`.
@@ -356,7 +358,8 @@ object Atomic {
     }
 
     def buildAnyMacro[A: c.WeakTypeTag, R <: Atomic[A]: c.WeakTypeTag](initialValue: c.Expr[A])(
-      builder: c.Expr[AtomicBuilder[A, R]]): c.Expr[R] = {
+      builder: c.Expr[AtomicBuilder[A, R]]
+    ): c.Expr[R] = {
 
       val expr = reify {
         builder.splice.buildInstance(initialValue.splice, NoPadding, allowPlatformIntrinsics = true)
@@ -367,7 +370,8 @@ object Atomic {
 
     def buildAnyWithPaddingMacro[A: c.WeakTypeTag, R <: Atomic[A]: c.WeakTypeTag](
       initialValue: c.Expr[A],
-      padding: c.Expr[PaddingStrategy])(builder: c.Expr[AtomicBuilder[A, R]]): c.Expr[R] = {
+      padding: c.Expr[PaddingStrategy]
+    )(builder: c.Expr[AtomicBuilder[A, R]]): c.Expr[R] = {
 
       val expr = reify {
         builder.splice.buildInstance(initialValue.splice, padding.splice, allowPlatformIntrinsics = true)

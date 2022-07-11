@@ -18,10 +18,10 @@
 package monix.execution
 package internal
 
-import java.util.concurrent.{CancellationException, CompletableFuture, CompletionException}
+import java.util.concurrent.{ CancellationException, CompletableFuture, CompletionException }
 import java.util.function.BiFunction
 import scala.concurrent.ExecutionContext
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 private[execution] abstract class CancelableFutureForPlatform {
   /**

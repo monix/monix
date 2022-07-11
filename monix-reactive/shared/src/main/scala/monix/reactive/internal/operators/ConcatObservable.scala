@@ -22,7 +22,7 @@ import monix.execution.Ack.Continue
 import monix.execution.cancelables.AssignableCancelable
 import monix.reactive.Observable
 import monix.reactive.observables.ChainedObservable
-import monix.reactive.observables.ChainedObservable.{subscribe => chain}
+import monix.reactive.observables.ChainedObservable.{ subscribe => chain }
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future

@@ -27,7 +27,7 @@ import org.openjdk.jmh.annotations._
 
 import scala.collection.immutable.IndexedSeq
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Promise}
+import scala.concurrent.{ Await, Promise }
 
 /** To do comparative benchmarks between versions:
   *

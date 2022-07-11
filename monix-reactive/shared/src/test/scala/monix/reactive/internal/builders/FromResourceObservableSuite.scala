@@ -19,7 +19,7 @@ package monix.reactive.internal.builders
 
 import cats.effect.Resource
 import monix.eval.Task
-import monix.reactive.{BaseTestSuite, Observable}
+import monix.reactive.{ BaseTestSuite, Observable }
 
 import scala.concurrent.duration._
 import scala.util.Success

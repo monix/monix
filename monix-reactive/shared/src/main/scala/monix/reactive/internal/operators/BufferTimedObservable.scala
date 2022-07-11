@@ -19,15 +19,15 @@ package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable}
-import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.cancelables.{ CompositeCancelable, MultiAssignCancelable }
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
-import scala.concurrent.duration.{Duration, FiniteDuration, MILLISECONDS}
+import scala.concurrent.duration.{ Duration, FiniteDuration, MILLISECONDS }
 
 private[reactive] final class BufferTimedObservable[+A](source: Observable[A], timespan: FiniteDuration, maxCount: Int)
   extends Observable[Seq[A]] {
@@ -70,7 +70,8 @@ private[reactive] final class BufferTimedObservable[+A](source: Observable[A], t
           sendNextAndReset(now).syncOnContinue(
             // Schedule the next tick, but only after we are done
             // sending the bundle
-            run())
+            run()
+          )
         }
         ()
       }

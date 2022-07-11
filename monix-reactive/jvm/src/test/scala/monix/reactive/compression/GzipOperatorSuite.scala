@@ -99,7 +99,8 @@ object GzipOperatorSuite extends BaseOperatorSuite with GzipTestsUtils {
           .take(sourceCount.toLong - 1)
           .transform(gzip())
           .map(_ => 1L),
-        ex)
+        ex
+      )
       Sample(o, sourceCount, sourceCount, Zero, Zero)
     }
 

@@ -19,15 +19,15 @@ package monix.eval.internal
 
 import cats.effect.CancelToken
 import monix.eval.Task
-import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend, Trace}
+import monix.eval.Task.{ Async, Context, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend, Trace }
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.misc.Local
-import monix.execution.{Callback, CancelableFuture, ExecutionModel, Scheduler}
+import monix.execution.{ Callback, CancelableFuture, ExecutionModel, Scheduler }
 
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
-import monix.eval.internal.TracingPlatform.{enhancedExceptions, isStackTracing}
-import monix.eval.tracing.{TaskEvent, TaskTrace}
+import monix.eval.internal.TracingPlatform.{ enhancedExceptions, isStackTracing }
+import monix.eval.tracing.{ TaskEvent, TaskTrace }
 
 import scala.reflect.NameTransformer
 
@@ -49,7 +49,8 @@ private[eval] object TaskRunLoop {
     rcb: TaskRestartCallback,
     bFirst: Bind,
     bRest: CallStack,
-    frameIndex: FrameIndex): Unit = {
+    frameIndex: FrameIndex
+  ): Unit = {
 
     val cba = cb.asInstanceOf[Callback[Throwable, Any]]
     var current: Current = source
@@ -213,7 +214,8 @@ private[eval] object TaskRunLoop {
     cb: Callback[Throwable, A],
     rcb: TaskRestartCallback,
     bindCurrent: Bind,
-    bindRest: CallStack): Unit = {
+    bindRest: CallStack
+  ): Unit = {
 
     val savedLocals =
       if (context.options.localContextPropagation) Local.getContext()
@@ -258,7 +260,8 @@ private[eval] object TaskRunLoop {
     scheduler: Scheduler,
     opts: Task.Options,
     cb: Callback[Throwable, A],
-    isCancelable: Boolean = true): CancelToken[Task] = {
+    isCancelable: Boolean = true
+  ): CancelToken[Task] = {
 
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
@@ -363,7 +366,8 @@ private[eval] object TaskRunLoop {
               frameIndex,
               forceFork = false,
               isCancelable = isCancelable,
-              tracingCtx = tracingCtx)
+              tracingCtx = tracingCtx
+            )
 
         }
 
@@ -399,7 +403,8 @@ private[eval] object TaskRunLoop {
           frameIndex,
           forceFork = true,
           isCancelable = true,
-          tracingCtx = tracingCtx)
+          tracingCtx = tracingCtx
+        )
       }
     }
     // $COVERAGE-OFF$
@@ -502,7 +507,16 @@ private[eval] object TaskRunLoop {
           case async =>
             if (tracingCtx eq null) tracingCtx = new StackTracedContext
 
-            return goAsync4Step(async, scheduler, opts, bFirst, bRest, frameIndex, forceFork = false, tracingCtx = tracingCtx)
+            return goAsync4Step(
+              async,
+              scheduler,
+              opts,
+              bFirst,
+              bRest,
+              frameIndex,
+              forceFork = false,
+              tracingCtx = tracingCtx
+            )
         }
 
         if (hasUnboxed) {
@@ -526,7 +540,16 @@ private[eval] object TaskRunLoop {
         if (tracingCtx eq null) tracingCtx = new StackTracedContext
 
         // Force async boundary
-        return goAsync4Step(current, scheduler, opts, bFirst, bRest, frameIndex, forceFork = true, tracingCtx = tracingCtx)
+        return goAsync4Step(
+          current,
+          scheduler,
+          opts,
+          bFirst,
+          bRest,
+          frameIndex,
+          forceFork = true,
+          tracingCtx = tracingCtx
+        )
       }
     }
     // $COVERAGE-OFF$
@@ -665,7 +688,16 @@ private[eval] object TaskRunLoop {
       } else {
         if (tracingCtx eq null) tracingCtx = new StackTracedContext
         // Force async boundary
-        return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceFork = true, tracingCtx = tracingCtx)
+        return goAsync4Future(
+          current,
+          scheduler,
+          opts,
+          bFirst,
+          bRest,
+          frameIndex,
+          forceFork = true,
+          tracingCtx = tracingCtx
+        )
       }
     }
     // $COVERAGE-OFF$
@@ -680,7 +712,8 @@ private[eval] object TaskRunLoop {
     rcb: TaskRestartCallback,
     bFirst: Bind,
     bRest: CallStack,
-    nextFrame: FrameIndex): Unit = {
+    nextFrame: FrameIndex
+  ): Unit = {
 
     if (isStackTracing) {
       val trace = task.trace
@@ -716,7 +749,8 @@ private[eval] object TaskRunLoop {
     nextFrame: FrameIndex,
     isCancelable: Boolean,
     forceFork: Boolean,
-    tracingCtx: StackTracedContext): CancelToken[Task] = {
+    tracingCtx: StackTracedContext
+  ): CancelToken[Task] = {
 
     val context = Context(
       scheduler,
@@ -747,7 +781,8 @@ private[eval] object TaskRunLoop {
     bRest: CallStack,
     nextFrame: FrameIndex,
     forceFork: Boolean,
-    tracingCtx: StackTracedContext): CancelableFuture[A] = {
+    tracingCtx: StackTracedContext
+  ): CancelableFuture[A] = {
 
     val p = Promise[A]()
     val cb = Callback.fromPromise(p).asInstanceOf[Callback[Throwable, Any]]
@@ -775,7 +810,8 @@ private[eval] object TaskRunLoop {
     bRest: CallStack,
     nextFrame: FrameIndex,
     forceFork: Boolean,
-    tracingCtx: StackTracedContext): Either[Task[A], A] = {
+    tracingCtx: StackTracedContext
+  ): Either[Task[A], A] = {
 
     val ctx = Context(scheduler, opts, TaskConnection(), tracingCtx)
     val start: Start[Any] =
@@ -791,7 +827,8 @@ private[eval] object TaskRunLoop {
         start.asInstanceOf[Start[A]],
         trampolineBefore = false,
         trampolineAfter = false
-      ))
+      )
+    )
   }
 
   private[internal] def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Task[Any]] = {
@@ -864,10 +901,12 @@ private[eval] object TaskRunLoop {
             case (methodSite, callSite) =>
               val op = NameTransformer.decode(methodSite.getMethodName)
 
-              new StackTraceElement(op + " @ " + callSite.getClassName,
+              new StackTraceElement(
+                op + " @ " + callSite.getClassName,
                 callSite.getMethodName,
                 callSite.getFileName,
-                callSite.getLineNumber)
+                callSite.getLineNumber
+              )
           }
           .toArray
         ex.setStackTrace(prefix ++ suffix)

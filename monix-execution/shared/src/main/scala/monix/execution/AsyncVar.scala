@@ -17,7 +17,7 @@
 
 package monix.execution
 
-import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
+import monix.execution.annotations.{ UnsafeBecauseImpure, UnsafeProtocol }
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.internal.GenericVar

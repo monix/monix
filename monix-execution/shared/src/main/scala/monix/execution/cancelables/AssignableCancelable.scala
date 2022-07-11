@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import monix.execution.Cancelable.{Empty, IsDummy}
+import monix.execution.Cancelable.{ Empty, IsDummy }
 
 /** Represents a class of cancelables that can hold
   * an internal reference to another cancelable (and thus

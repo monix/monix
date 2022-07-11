@@ -24,9 +24,9 @@ import monix.execution.Ack.Stop
 import monix.execution.FutureUtils.extensions._
 import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
-import monix.reactive.{BaseTestSuite, Observable, Observer}
-import scala.concurrent.{Future, Promise}
-import scala.util.{Success, Try}
+import monix.reactive.{ BaseTestSuite, Observable, Observer }
+import scala.concurrent.{ Future, Promise }
+import scala.util.{ Success, Try }
 
 object ObservableOpsReturningTaskSuite extends BaseTestSuite {
   def first[A](obs: Observable[A])(implicit s: Scheduler): Future[Try[Option[A]]] = {

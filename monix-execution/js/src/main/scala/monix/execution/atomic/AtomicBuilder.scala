@@ -125,7 +125,8 @@ object AtomicBuilder extends Implicits.Level2 {
       def buildInstance(
         initialValue: Double,
         strategy: PaddingStrategy,
-        allowPlatformIntrinsics: Boolean): AtomicDouble =
+        allowPlatformIntrinsics: Boolean
+      ): AtomicDouble =
         AtomicDouble(initialValue)
       def buildSafeInstance(initialValue: Double, strategy: PaddingStrategy): AtomicDouble =
         AtomicDouble(initialValue)

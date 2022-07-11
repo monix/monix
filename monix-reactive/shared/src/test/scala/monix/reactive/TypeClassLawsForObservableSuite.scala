@@ -19,7 +19,14 @@ package monix.reactive
 
 import cats.effect.laws.discipline.BracketTests
 import cats.laws.discipline.arbitrary.catsLawsArbitraryForPartialFunction
-import cats.laws.discipline.{AlternativeTests, ApplyTests, CoflatMapTests, FunctorFilterTests, MonoidKTests, NonEmptyParallelTests}
+import cats.laws.discipline.{
+  AlternativeTests,
+  ApplyTests,
+  CoflatMapTests,
+  FunctorFilterTests,
+  MonoidKTests,
+  NonEmptyParallelTests
+}
 import monix.reactive.observables.CombineObservable
 
 object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {

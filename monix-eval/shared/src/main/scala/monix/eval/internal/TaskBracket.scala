@@ -18,8 +18,8 @@
 package monix.eval.internal
 
 import cats.effect.ExitCase
-import cats.effect.ExitCase.{Canceled, Completed, Error}
-import monix.eval.Task.{Context, ContextSwitch}
+import cats.effect.ExitCase.{ Canceled, Completed, Error }
+import monix.eval.Task.{ Context, ContextSwitch }
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.atomic.Atomic
@@ -88,7 +88,8 @@ private[monix] object TaskBracket {
   def either[A, B](
     acquire: Task[A],
     use: A => Task[B],
-    release: (A, Either[Option[Throwable], B]) => Task[Unit]): Task[B] = {
+    release: (A, Either[Option[Throwable], B]) => Task[Unit]
+  ): Task[B] = {
 
     TracedAsync(
       new StartE(acquire, use, release),
@@ -102,8 +103,8 @@ private[monix] object TaskBracket {
   private final class StartE[A, B](
     acquire: Task[A],
     use: A => Task[B],
-    release: (A, Either[Option[Throwable], B]) => Task[Unit])
-    extends BaseStart(acquire, use) {
+    release: (A, Either[Option[Throwable], B]) => Task[Unit]
+  ) extends BaseStart(acquire, use) {
 
     def makeReleaseFrame(ctx: Context, value: A) =
       new ReleaseFrameE(ctx, value, release)
@@ -141,8 +142,8 @@ private[monix] object TaskBracket {
   private final class StartCase[A, B](
     acquire: Task[A],
     use: A => Task[B],
-    release: (A, ExitCase[Throwable]) => Task[Unit])
-    extends BaseStart(acquire, use) {
+    release: (A, ExitCase[Throwable]) => Task[Unit]
+  ) extends BaseStart(acquire, use) {
 
     def makeReleaseFrame(ctx: Context, value: A) =
       new ReleaseFrameCase(ctx, value, release)
@@ -254,7 +255,10 @@ private[monix] object TaskBracket {
 
     private final def unsafeApply(b: B): Task[B] = {
       if (waitsForResult.compareAndSet(expect = true, update = false))
-        releaseOnSuccess(a, b).redeemWith(ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)), _ => Task{p.success(()); b})
+        releaseOnSuccess(a, b).redeemWith(
+          ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)),
+          _ => Task { p.success(()); b }
+        )
       else
         Task.never
 

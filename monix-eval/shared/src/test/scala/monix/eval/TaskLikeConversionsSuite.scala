@@ -18,16 +18,16 @@
 package monix.eval
 
 import cats.Eval
-import cats.effect.{ContextShift, IO, SyncIO}
+import cats.effect.{ ContextShift, IO, SyncIO }
 import monix.catnap.SchedulerEffect
 import monix.execution.CancelablePromise
 import monix.execution.exceptions.DummyException
 
 import scala.concurrent.Promise
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 object TaskLikeConversionsSuite extends BaseTestSuite {
-  import TaskConversionsSuite.{CIO, CustomConcurrentEffect, CustomEffect}
+  import TaskConversionsSuite.{ CIO, CustomConcurrentEffect, CustomEffect }
 
   test("Task.from(future)") { implicit s =>
     val p = Promise[Int]()

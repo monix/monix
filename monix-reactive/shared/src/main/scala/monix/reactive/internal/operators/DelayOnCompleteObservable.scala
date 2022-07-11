@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.cancelables.OrderedCancelable
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
@@ -49,9 +49,13 @@ private[reactive] final class DelayOnCompleteObservable[A](source: Observable[A]
       def onComplete(): Unit =
         if (!isDone) {
           isDone = true
-          val scheduled = scheduler.scheduleOnce(delay.length, delay.unit, new Runnable {
-            def run(): Unit = out.onComplete()
-          })
+          val scheduled = scheduler.scheduleOnce(
+            delay.length,
+            delay.unit,
+            new Runnable {
+              def run(): Unit = out.onComplete()
+            }
+          )
           task.orderedUpdate(scheduled, order = 2)
           ()
         }

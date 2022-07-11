@@ -19,11 +19,11 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.tail.batches.{ Batch, BatchCursor }
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 

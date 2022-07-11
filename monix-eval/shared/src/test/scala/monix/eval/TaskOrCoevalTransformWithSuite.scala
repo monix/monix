@@ -21,7 +21,7 @@ import monix.execution.Callback
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import scala.concurrent.Promise
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
   test("Task.materialize flatMap loop") { implicit s =>

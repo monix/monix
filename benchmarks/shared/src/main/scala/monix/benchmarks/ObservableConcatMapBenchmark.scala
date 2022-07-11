@@ -25,7 +25,7 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import org.openjdk.jmh.annotations._
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Promise}
+import scala.concurrent.{ Await, Promise }
 
 /** To do comparative benchmarks between versions:
   *

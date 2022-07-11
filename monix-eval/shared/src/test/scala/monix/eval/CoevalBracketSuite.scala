@@ -20,9 +20,9 @@ package monix.eval
 import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
-import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object CoevalBracketSuite extends BaseTestSuite {
   test("equivalence with onErrorHandleWith") { _ =>

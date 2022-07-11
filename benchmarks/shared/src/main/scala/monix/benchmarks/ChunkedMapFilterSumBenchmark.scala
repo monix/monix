@@ -20,18 +20,18 @@ package monix.benchmarks
 import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Keep, Sink => AkkaSink, Source => AkkaSource}
-import fs2.{Stream => FS2Stream}
+import akka.stream.scaladsl.{ Keep, Sink => AkkaSink, Source => AkkaSource }
+import fs2.{ Stream => FS2Stream }
 import monix.benchmarks
 import monix.execution.Ack.Continue
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import org.openjdk.jmh.annotations._
-import zio.stream.{Stream => ZStream}
+import zio.stream.{ Stream => ZStream }
 
 import scala.collection.immutable.IndexedSeq
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Promise}
+import scala.concurrent.{ Await, Promise }
 
 /** To do comparative benchmarks between versions:
   *

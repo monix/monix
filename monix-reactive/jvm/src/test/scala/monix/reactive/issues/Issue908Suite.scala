@@ -20,13 +20,13 @@ package issues
 
 import minitest.TestSuite
 import monix.eval.Task
-import monix.execution.{Scheduler, UncaughtExceptionReporter}
+import monix.execution.{ Scheduler, UncaughtExceptionReporter }
 import monix.execution.schedulers.SchedulerService
-import monix.reactive.subjects.{AsyncSubject, Subject}
+import monix.reactive.subjects.{ AsyncSubject, Subject }
 
-import scala.concurrent.{Await, TimeoutException}
+import scala.concurrent.{ Await, TimeoutException }
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object Issue908Suite extends TestSuite[SchedulerService] {
   val CONCURRENT_TASKS = 1000
@@ -37,7 +37,8 @@ object Issue908Suite extends TestSuite[SchedulerService] {
       parallelism = math.max(Runtime.getRuntime.availableProcessors(), 2),
       name = "issue908-suite",
       daemonic = true,
-      reporter = UncaughtExceptionReporter(_ => ()))
+      reporter = UncaughtExceptionReporter(_ => ())
+    )
   }
 
   def tearDown(env: SchedulerService): Unit = {

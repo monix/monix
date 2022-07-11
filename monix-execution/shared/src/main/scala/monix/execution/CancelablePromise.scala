@@ -20,13 +20,13 @@ package monix.execution
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.internal.Platform
 import monix.execution.internal.exceptions.matchError
-import monix.execution.atomic.{AtomicAny, PaddingStrategy}
+import monix.execution.atomic.{ AtomicAny, PaddingStrategy }
 
 import scala.annotation.tailrec
 import scala.collection.immutable.LongMap
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Promise
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 import scala.util.control.NonFatal
 
 /**
@@ -212,7 +212,7 @@ object CancelablePromise {
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
 
     @tailrec
@@ -262,7 +262,7 @@ object CancelablePromise {
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
 
     @tailrec def unsafeSubscribe(cb: AnyRef): Cancelable =
@@ -279,7 +279,7 @@ object CancelablePromise {
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
 
     private final class IdCancelable(id: Long) extends Cancelable {

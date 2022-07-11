@@ -20,10 +20,10 @@ package monix.eval
 import cats.laws._
 import cats.laws.discipline._
 import monix.execution.Callback
-import monix.execution.atomic.{Atomic, AtomicInt}
+import monix.execution.atomic.{ Atomic, AtomicInt }
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import scala.util.{Failure, Random, Success, Try}
+import scala.util.{ Failure, Random, Success, Try }
 
 object TaskFlatMapSuite extends BaseTestSuite {
   test("runAsync flatMap loop is not cancelable if autoCancelableRunLoops=false") { implicit s =>

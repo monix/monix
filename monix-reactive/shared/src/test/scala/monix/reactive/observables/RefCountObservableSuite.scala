@@ -24,7 +24,7 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.OverflowStrategy.Unbounded
 import monix.execution.exceptions.DummyException
 import monix.reactive.subjects.ConcurrentSubject
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
