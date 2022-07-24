@@ -22,16 +22,16 @@ import monix.execution.exceptions.DummyException
 
 import scala.util.{ Failure, Success }
 
-object TaskLiftSuite extends BaseTestSuite {
+class TaskLiftSuite extends BaseTestSuite {
   import TaskConversionsSuite.{ CIO, CustomConcurrentEffect, CustomEffect }
 
-  test("task.to[Task]") { _ =>
+  fixture.test("task.to[Task]") { _ =>
     val task = Task(1)
     val conv = task.to[Task]
     assertEquals(task, conv)
   }
 
-  test("task.to[IO]") { implicit s =>
+  fixture.test("task.to[IO]") { implicit s =>
     val task = Task(1)
     val io = task.to[IO]
     val f = io.unsafeToFuture()
@@ -40,7 +40,7 @@ object TaskLiftSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("task.to[IO] for errors") { implicit s =>
+  fixture.test("task.to[IO] for errors") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy)
     val io = task.to[IO]
@@ -50,7 +50,7 @@ object TaskLiftSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("task.to[Effect]") { implicit s =>
+  fixture.test("task.to[Effect]") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val F: CustomEffect = new CustomEffect()
 
@@ -62,7 +62,7 @@ object TaskLiftSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("task.to[Effect] for errors") { implicit s =>
+  fixture.test("task.to[Effect] for errors") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val F: CustomEffect = new CustomEffect()
 
@@ -75,7 +75,7 @@ object TaskLiftSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("task.to[ConcurrentEffect]") { implicit s =>
+  fixture.test("task.to[ConcurrentEffect]") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val F: CustomConcurrentEffect = new CustomConcurrentEffect()
 
@@ -87,7 +87,7 @@ object TaskLiftSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("task.to[ConcurrentEffect] for errors") { implicit s =>
+  fixture.test("task.to[ConcurrentEffect] for errors") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val F: CustomConcurrentEffect = new CustomConcurrentEffect()
 

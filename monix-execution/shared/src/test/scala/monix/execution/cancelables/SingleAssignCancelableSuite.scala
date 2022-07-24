@@ -17,10 +17,10 @@
 
 package monix.execution.cancelables
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.Cancelable
 
-object SingleAssignCancelableSuite extends SimpleTestSuite {
+class SingleAssignCancelableSuite extends BaseTestSuite {
   test("cancel()") {
     var effect = 0
     val s = SingleAssignCancelable()

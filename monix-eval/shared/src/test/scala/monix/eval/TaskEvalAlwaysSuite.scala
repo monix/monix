@@ -24,8 +24,8 @@ import monix.execution.exceptions.DummyException
 
 import scala.util.{ Failure, Success }
 
-object TaskEvalAlwaysSuite extends BaseTestSuite {
-  test("Task.eval should work synchronously") { implicit s =>
+class TaskEvalAlwaysSuite extends BaseTestSuite {
+  fixture.test("Task.eval should work synchronously") { implicit s =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
 
@@ -37,7 +37,7 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success("result")))
   }
 
-  test("Task.eval should protect against user code errors") { implicit s =>
+  fixture.test("Task.eval should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
     val f = Task.eval[Int](if (1 == 1) throw ex else 1).runToFuture
 
@@ -45,7 +45,7 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  test("Task.eval is equivalent with Task.evalOnce on first run") { implicit s =>
+  fixture.test("Task.eval is equivalent with Task.evalOnce on first run") { implicit s =>
     check1 { (a: Int) =>
       val t1 = {
         var effect = 100
@@ -61,19 +61,19 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     }
   }
 
-  test("Task.eval.flatMap should be equivalent with Task.eval") { implicit s =>
+  fixture.test("Task.eval.flatMap should be equivalent with Task.eval") { implicit s =>
     val ex = DummyException("dummy")
     val t = Task.eval[Int](if (1 == 1) throw ex else 1).flatMap(Task.now)
     check(t <-> Task.raiseError(ex))
   }
 
-  test("Task.eval.flatMap should protect against user code") { implicit s =>
+  fixture.test("Task.eval.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val t = Task.eval(1).flatMap[Int](_ => throw ex)
     check(t <-> Task.raiseError(ex))
   }
 
-  test("Task.eval.flatMap should be tail recursive") { implicit s =>
+  fixture.test("Task.eval.flatMap should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Task[Int] =
       Task.eval(idx).flatMap { _ =>
         if (idx < n) loop(n, idx + 1).map(_ + 1)
@@ -87,7 +87,7 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(iterations * 2)))
   }
 
-  test("Task.eval should not be cancelable") { implicit s =>
+  fixture.test("Task.eval should not be cancelable") { implicit s =>
     val t = Task.eval(10)
     val f = t.runToFuture
     f.cancel()
@@ -95,18 +95,18 @@ object TaskEvalAlwaysSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.eval.coeval") { implicit s =>
+  fixture.test("Task.eval.coeval") { implicit s =>
     val result = Task.eval(100).runSyncStep
     assertEquals(result, Right(100))
   }
 
-  test("Task.eval.flatMap should protect against user code errors") { implicit s =>
+  fixture.test("Task.eval.flatMap should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
     val task: Task[Int] = Task.eval(1).flatMap(_ => throw ex)
     assertEquals(task.attempt.runSyncStep, Right(Left(ex)))
   }
 
-  test("Task.delay is an alias for Task.eval") { implicit s =>
+  fixture.test("Task.delay is an alias for Task.eval") { implicit s =>
     var effect = 0
     val ts = Task.delay { effect += 1; effect }
 

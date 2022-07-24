@@ -25,7 +25,7 @@ import monix.tail.Iterant.Consumer
 import scala.concurrent.Future
 import scala.util.Random
 
-object IterantConsumeSuite extends BaseTestSuite {
+class IterantConsumeSuite extends BaseTestSuite {
   val iterationsCount = {
     if (Platform.isJVM) {
       // Discriminate CI
@@ -38,7 +38,7 @@ object IterantConsumeSuite extends BaseTestSuite {
     }
   }
 
-  testAsync("iterant.pushToChannel (simple)") { _ =>
+  fixture.test("iterant.pushToChannel (simple)") { _ =>
     implicit val ec: Scheduler = Scheduler.Implicits.global
     val stream = Iterant[Task].range(0, iterationsCount)
 
@@ -54,7 +54,7 @@ object IterantConsumeSuite extends BaseTestSuite {
     task.runToFuture
   }
 
-  testAsync("iterant.pushToChannel (arbitrary)") { _ =>
+  fixture.test("iterant.pushToChannel (arbitrary)") { _ =>
     implicit val ec: Scheduler = Scheduler.Implicits.global
 
     def loop(times: Int): Future[Unit] = {
@@ -80,7 +80,7 @@ object IterantConsumeSuite extends BaseTestSuite {
     loop(100)
   }
 
-  testAsync("iterant.consume (pull)") { _ =>
+  fixture.test("iterant.consume (pull)") { _ =>
     implicit val ec: Scheduler = Scheduler.Implicits.global
     val list = Range(0, iterationsCount).toList
     val source = arbitraryListToIterant[Task, Int](list, Random.nextInt(), allowErrors = false)
@@ -91,7 +91,7 @@ object IterantConsumeSuite extends BaseTestSuite {
     task.runToFuture
   }
 
-  testAsync("iterant.consume (pullMany)") { _ =>
+  fixture.test("iterant.consume (pullMany)") { _ =>
     implicit val ec: Scheduler = Scheduler.Implicits.global
     val list = Range(0, iterationsCount).toList
     val source = arbitraryListToIterant[Task, Int](list, Random.nextInt(), allowErrors = false)
@@ -102,7 +102,7 @@ object IterantConsumeSuite extends BaseTestSuite {
     task.runToFuture
   }
 
-  testAsync("Iterant.channel") { _ =>
+  fixture.test("Iterant.channel") { _ =>
     implicit val ec: Scheduler = Scheduler.Implicits.global
 
     val task = Iterant[Task].channel[Int]().flatMap {

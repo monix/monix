@@ -22,7 +22,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object OnErrorRecoverWithSuite extends BaseOperatorSuite {
+class OnErrorRecoverWithSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val fallback = Observable.range(0, 10)
     val source = Observable

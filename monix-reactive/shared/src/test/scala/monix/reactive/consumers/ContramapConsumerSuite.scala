@@ -23,8 +23,8 @@ import monix.execution.exceptions.DummyException
 import monix.reactive.{ BaseTestSuite, Consumer, Observable }
 import scala.util.Failure
 
-object ContramapConsumerSuite extends BaseTestSuite {
-  test("consumer.contramap equivalence with observable.map") { implicit s =>
+class ContramapConsumerSuite extends BaseTestSuite {
+  fixture.test("consumer.contramap equivalence with observable.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
       val t1 = obs.map(_ + 1).consumeWith(consumer)
@@ -33,7 +33,7 @@ object ContramapConsumerSuite extends BaseTestSuite {
     }
   }
 
-  test("consumer.contramap streams error") { implicit s =>
+  fixture.test("consumer.contramap streams error") { implicit s =>
     check2 { (obs: Observable[Int], ex: Throwable) =>
       val withError = obs.endWithError(ex)
       val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
@@ -44,7 +44,7 @@ object ContramapConsumerSuite extends BaseTestSuite {
     }
   }
 
-  test("consumer.contramap protects against user code") { implicit s =>
+  fixture.test("consumer.contramap protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].contramap(_ => throw ex))

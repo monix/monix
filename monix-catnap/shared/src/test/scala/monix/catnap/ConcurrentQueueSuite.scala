@@ -17,22 +17,20 @@
 
 package monix.catnap
 
-import java.util.concurrent.atomic.AtomicLong
-
 import cats.effect.{ ContextShift, IO, Timer }
 import cats.implicits._
-import minitest.TestSuite
 import monix.execution.BufferCapacity.{ Bounded, Unbounded }
 import monix.execution.ChannelType.{ MPMC, MPSC, SPMC, SPSC }
-import monix.execution.{ BufferCapacity, ChannelType, Scheduler }
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
+import monix.execution.{ BufferCapacity, ChannelType, Scheduler, TestSuite }
 
+import java.util.concurrent.atomic.AtomicLong
 import scala.collection.immutable.Queue
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
-object ConcurrentQueueFakeSuite extends BaseConcurrentQueueSuite[TestScheduler] {
+class ConcurrentQueueFakeSuite extends BaseConcurrentQueueSuite[TestScheduler] {
   def setup() = TestScheduler()
 
   def tearDown(env: TestScheduler): Unit =
@@ -43,7 +41,7 @@ object ConcurrentQueueFakeSuite extends BaseConcurrentQueueSuite[TestScheduler] 
       if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
       else IO.unit
 
-    test(name) { ec =>
+    fixture.test(name) { ec =>
       val result = repeatTest(f(ec), times).unsafeToFuture()
       ec.tick(1.day)
       result.value match {
@@ -54,7 +52,7 @@ object ConcurrentQueueFakeSuite extends BaseConcurrentQueueSuite[TestScheduler] 
   }
 }
 
-object ConcurrentQueueGlobalSuite extends BaseConcurrentQueueSuite[Scheduler] {
+class ConcurrentQueueGlobalSuite extends BaseConcurrentQueueSuite[Scheduler] {
   def setup() = Scheduler.global
   def tearDown(env: Scheduler): Unit = ()
 
@@ -63,7 +61,7 @@ object ConcurrentQueueGlobalSuite extends BaseConcurrentQueueSuite[Scheduler] {
       if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
       else IO.unit
 
-    testAsync(name) { implicit ec =>
+    fixture.test(name) { implicit ec =>
       repeatTest(f(ec).timeout(60.seconds), times).unsafeToFuture()
     }
   }

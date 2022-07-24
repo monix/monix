@@ -21,7 +21,7 @@ import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import scala.concurrent.duration.{ Duration, _ }
 
-object OnErrorRetryCountedSuite extends BaseOperatorSuite {
+class OnErrorRetryCountedSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val ex = DummyException("expected")
     val o = Observable

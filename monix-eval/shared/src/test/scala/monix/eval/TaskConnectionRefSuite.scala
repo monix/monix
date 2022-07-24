@@ -23,8 +23,8 @@ import monix.execution.cancelables.BooleanCancelable
 import monix.eval.internal.TaskConnectionRef
 import monix.execution.ExecutionModel.SynchronousExecution
 
-object TaskConnectionRefSuite extends BaseTestSuite {
-  test("assign and cancel a Cancelable") { implicit s =>
+class TaskConnectionRefSuite extends BaseTestSuite {
+  fixture.test("assign and cancel a Cancelable") { implicit s =>
     var effect = 0
     val cr = TaskConnectionRef()
     val b = BooleanCancelable { () =>
@@ -42,7 +42,7 @@ object TaskConnectionRefSuite extends BaseTestSuite {
     assert(effect == 1)
   }
 
-  test("assign and cancel a CancelableF") { implicit s =>
+  fixture.test("assign and cancel a CancelableF") { implicit s =>
     var effect = 0
     val cr = TaskConnectionRef()
     val b = CancelableF.wrap(Task { effect += 1 })
@@ -54,7 +54,7 @@ object TaskConnectionRefSuite extends BaseTestSuite {
     assert(effect == 1)
   }
 
-  test("assign and cancel a CancelToken[Task]") { implicit s =>
+  fixture.test("assign and cancel a CancelToken[Task]") { implicit s =>
     var effect = 0
     val cr = TaskConnectionRef()
     val b = Task { effect += 1 }
@@ -69,7 +69,7 @@ object TaskConnectionRefSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("cancel a Cancelable on single assignment") { implicit s =>
+  fixture.test("cancel a Cancelable on single assignment") { implicit s =>
     val cr = TaskConnectionRef()
     cr.cancel.runAsyncAndForget; s.tick()
 
@@ -92,7 +92,7 @@ object TaskConnectionRefSuite extends BaseTestSuite {
     assertEquals(effect, 2)
   }
 
-  test("cancel a CancelableF on single assignment") { scheduler =>
+  fixture.test("cancel a CancelableF on single assignment") { scheduler =>
     implicit val s = scheduler.withExecutionModel(SynchronousExecution)
 
     val cr = TaskConnectionRef()
@@ -113,7 +113,7 @@ object TaskConnectionRefSuite extends BaseTestSuite {
     assertEquals(effect, 2)
   }
 
-  test("cancel a Task on single assignment") { implicit s =>
+  fixture.test("cancel a Task on single assignment") { implicit s =>
     val cr = TaskConnectionRef()
     cr.cancel.runAsyncAndForget; s.tick()
 

@@ -26,7 +26,7 @@ import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.DummyException
 import monix.tail.batches.{ Batch, BatchCursor }
 
-object IterantDumpSuite extends BaseTestSuite {
+class IterantDumpSuite extends BaseTestSuite {
   def dummyOut(count: AtomicInt = null) = {
     val out = new OutputStream {
       def write(b: Int) = ()
@@ -53,7 +53,7 @@ object IterantDumpSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dump works for Next") { implicit s =>
+  fixture.test("Iterant.dump works for Next") { implicit s =>
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
       val out = Iterant[Task].nextS(el, Task.now(Iterant[Task].empty[Int])).dump("O", dummyOut(counter))
@@ -64,7 +64,7 @@ object IterantDumpSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dump works for NextCursor") { implicit s =>
+  fixture.test("Iterant.dump works for NextCursor") { implicit s =>
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
       val out =
@@ -76,7 +76,7 @@ object IterantDumpSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dump works for NextBatch") { implicit s =>
+  fixture.test("Iterant.dump works for NextBatch") { implicit s =>
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
       val out = Iterant[Task].nextBatchS(Batch(el), Task.now(Iterant[Task].empty[Int])).dump("O", dummyOut(counter))
@@ -87,7 +87,7 @@ object IterantDumpSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dump works for Suspend") { implicit s =>
+  fixture.test("Iterant.dump works for Suspend") { implicit s =>
     val counter = AtomicInt(0)
     val out = Iterant[Task].suspend(Task.now(Iterant[Task].empty[Int])).dump("O", dummyOut(counter))
     out.completedL.runToFuture
@@ -96,7 +96,7 @@ object IterantDumpSuite extends BaseTestSuite {
     assertEquals(counter.get(), 2)
   }
 
-  test("Iterant.dump works for Last") { implicit s =>
+  fixture.test("Iterant.dump works for Last") { implicit s =>
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
       val out = Iterant[Task].lastS(el).dump("O", dummyOut(counter))
@@ -107,7 +107,7 @@ object IterantDumpSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dump works for Halt") { implicit s =>
+  fixture.test("Iterant.dump works for Halt") { implicit s =>
     val dummy = DummyException("dummy")
     val counter = AtomicInt(0)
     val out = Iterant[Task].haltS(Some(dummy)).dump("O", dummyOut(counter))
@@ -117,7 +117,7 @@ object IterantDumpSuite extends BaseTestSuite {
     assertEquals(counter.get(), 1)
   }
 
-  test("Iterant.dump works for Concat") { implicit s =>
+  fixture.test("Iterant.dump works for Concat") { implicit s =>
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
       val out = Iterant.concatS(Task.pure(Iterant[Task].of(el)), Task.pure(Iterant[Task].of(el)))
@@ -130,7 +130,7 @@ object IterantDumpSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dump works for Resource") { implicit s =>
+  fixture.test("Iterant.dump works for Resource") { implicit s =>
     check1 { (el: Int) =>
       val counter = AtomicInt(0)
       val out = Iterant.scopeS[Task, Unit, Int](Task.unit, _ => Task.pure(Iterant[Task].of(el)), (_, _) => Task.unit)
@@ -143,7 +143,7 @@ object IterantDumpSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dump preserves the source guarantee") { implicit s =>
+  fixture.test("Iterant.dump preserves the source guarantee") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
     val source =
@@ -154,7 +154,7 @@ object IterantDumpSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Iterant.dump protects against broken batches") { implicit s =>
+  fixture.test("Iterant.dump protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val prefix = iter.onErrorIgnore
@@ -165,7 +165,7 @@ object IterantDumpSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dump protects against broken cursors") { implicit s =>
+  fixture.test("Iterant.dump protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val prefix = iter.onErrorIgnore
@@ -176,7 +176,7 @@ object IterantDumpSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dump protects against user error") { implicit s =>
+  fixture.test("Iterant.dump protects against user error") { implicit s =>
     check1 { (stream: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val received = (stream.onErrorIgnore ++ Iterant[Task].now(1)).dump("O", dummyOutException)

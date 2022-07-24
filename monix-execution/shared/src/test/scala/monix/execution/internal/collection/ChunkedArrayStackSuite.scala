@@ -17,9 +17,9 @@
 
 package monix.execution.internal.collection
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 
-object ChunkedArrayStackSuite extends SimpleTestSuite {
+class ChunkedArrayStackSuite extends BaseTestSuite {
   test("push and pop 8 items") {
     val stack = ChunkedArrayStack[Int](chunkSize = 8)
     var times = 0
@@ -35,7 +35,7 @@ object ChunkedArrayStackSuite extends SimpleTestSuite {
       }
 
       assertEquals(list, (0 until 8).toList)
-      assertEquals(stack.pop(), null)
+      assertEquals(Option(stack.pop()), None)
       assert(stack.isEmpty, "stack.isEmpty")
 
       times += 1
@@ -57,7 +57,7 @@ object ChunkedArrayStackSuite extends SimpleTestSuite {
       }
 
       assertEquals(list, (0 until 100).toList)
-      assertEquals(stack.pop(), null)
+      assertEquals(Option(stack.pop()), None)
       assert(stack.isEmpty, "stack.isEmpty")
 
       times += 1
@@ -78,7 +78,7 @@ object ChunkedArrayStackSuite extends SimpleTestSuite {
     }
 
     assertEquals(list, (0 until 100).toList.reverse)
-    assertEquals(stack.pop(), null)
+    assertEquals(Option(stack.pop()), None)
     assert(stack.isEmpty, "stack.isEmpty")
     assert(!stack2.isEmpty, "!stack2.isEmpty")
   }
@@ -95,7 +95,7 @@ object ChunkedArrayStackSuite extends SimpleTestSuite {
     }
 
     assertEquals(list, expected)
-    assertEquals(stack.pop(), null)
+    assertEquals(Option(stack.pop()), None)
     assert(stack.isEmpty, "stack.isEmpty")
   }
 

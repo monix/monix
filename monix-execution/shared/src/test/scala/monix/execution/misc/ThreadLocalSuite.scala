@@ -17,9 +17,9 @@
 
 package monix.execution.misc
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 
-object ThreadLocalSuite extends SimpleTestSuite {
+class ThreadLocalSuite extends BaseTestSuite {
   test("ThreadLocal should work") {
     val tl = ThreadLocal(10)
     assertEquals(tl.get(), 10)

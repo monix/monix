@@ -24,62 +24,62 @@ import monix.eval.{ Coeval, Task }
 import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 
-object IterantBasicSuite extends BaseTestSuite {
-  test("arbitraryListToTaskStream works") { implicit s =>
+class IterantBasicSuite extends BaseTestSuite {
+  fixture.test("arbitraryListToTaskStream works") { implicit s =>
     check2 { (list: List[Int], i: Int) =>
       val stream = arbitraryListToIterant[Task, Int](list, math.abs(i % 4), allowErrors = false)
       stream.toListL <-> Task.now(list)
     }
   }
 
-  test("arbitraryListToCoevalStream") { implicit s =>
+  fixture.test("arbitraryListToCoevalStream") { implicit s =>
     check2 { (list: List[Int], i: Int) =>
       val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(i % 4), allowErrors = false)
       stream.toListL <-> Coeval.now(list)
     }
   }
 
-  test("Iterant.pure") { implicit s =>
+  fixture.test("Iterant.pure") { implicit s =>
     val iter = Iterant[IO].pure(10)
     val f = iter.headOptionL.unsafeToFuture()
     assertEquals(f.value, Some(Success(Some(10))))
   }
 
-  test("Iterant.eval") { implicit s =>
+  fixture.test("Iterant.eval") { implicit s =>
     var effect = 0
     val iter = Iterant[IO].eval { effect += 1; effect }
     val f = iter.foldLeftL(0)(_ + _).unsafeToFuture()
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Iterant.defer") { implicit s =>
+  fixture.test("Iterant.defer") { implicit s =>
     var effect = 0
     val iter = Iterant[IO].defer { effect += 1; Iterant[IO].pure(effect) }
     val f = iter.foldLeftL(0)(_ + _).unsafeToFuture()
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Iterant.liftF") { implicit s =>
+  fixture.test("Iterant.liftF") { implicit s =>
     var effect = 0
     val iter = Iterant[IO].liftF(IO { effect += 1; effect })
     val f = iter.foldLeftL(0)(_ + _).unsafeToFuture()
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Iterant.liftF should lift raised errors") { implicit s =>
+  fixture.test("Iterant.liftF should lift raised errors") { implicit s =>
     val dummy = DummyException("dummy")
     val iter = Iterant[IO].liftF(IO.raiseError(dummy))
     val f = iter.headOptionL.unsafeToFuture()
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Iterant.liftF should lift any IO value") { implicit s =>
+  fixture.test("Iterant.liftF should lift any IO value") { implicit s =>
     check1 { (io: IO[Int]) =>
       Iterant[IO].liftF(io).headOptionL <-> io.map(Some.apply)
     }
   }
 
-  test("tailRecM basic usage") { implicit s =>
+  fixture.test("tailRecM basic usage") { implicit s =>
     val fa = Iterant[Coeval].tailRecM(0) { (a: Int) =>
       if (a < 10)
         Iterant[Coeval].of[Either[Int, Int]](Right(a), Left(a + 1))
@@ -91,7 +91,7 @@ object IterantBasicSuite extends BaseTestSuite {
     assertEquals(list, (0 to 10).toList)
   }
 
-  test("tailRecM should protect against user error") { implicit s =>
+  fixture.test("tailRecM should protect against user error") { implicit s =>
     val dummy = DummyException("dummy")
     val fa = Iterant[Coeval].tailRecM(0) { _ =>
       throw dummy

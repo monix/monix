@@ -17,10 +17,10 @@
 
 package monix.execution.internal.collection
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import scala.collection.mutable.ListBuffer
 
-object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
+class DropAllOnOverflowQueueSuite extends BaseTestSuite {
   test("should not accept null values") {
     val q = DropAllOnOverflowQueue[String](100)
     intercept[NullPointerException] {
@@ -60,7 +60,7 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropAllOnOverflowQueue[Int](7)
 
     assertEquals(q.capacity, 7)
-    assertEquals(q.poll(), null)
+    assertEquals(Option(q.poll()), None)
 
     assertEquals(q.offer(10), 0)
     assertEquals(q.offer(20), 0)
@@ -69,9 +69,9 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q.poll(), 10)
     assertEquals(q.poll(), 20)
     assertEquals(q.poll(), 30)
-    assertEquals(q.poll(), null)
+    assertEquals(Option(q.poll()), None)
 
-    assertEquals(q.offerMany(40, 50, 60, 70, 80, 90, 100), 0)
+    assertEquals(q.offerMany(40, 50, 60, 70, 80, 90, 100), 0L)
 
     val buffer = ListBuffer.empty[Int]
     assertEquals(q.drainToBuffer(buffer, 3), 3)
@@ -86,15 +86,15 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropAllOnOverflowQueue[Int](7)
 
     assertEquals(q.capacity, 7)
-    assertEquals(q.poll(), null)
+    assertEquals(Option(q.poll()), None)
 
     assertEquals(q.offer(0), 0)
     assertEquals(q.poll(), 0)
 
-    assertEquals(q.offerMany(1 to 7: _*), 0)
+    assertEquals(q.offerMany(1 to 7: _*), 0L)
 
     assertEquals(q.offer(8), 7)
-    assertEquals(q.offerMany(9 to 14: _*), 0)
+    assertEquals(q.offerMany(9 to 14: _*), 0L)
 
     val buffer = ListBuffer.empty[Int]
     assertEquals(q.drainToBuffer(buffer, 3), 3)
@@ -103,11 +103,11 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q.drainToArray(array), 4)
     assertEquals(array.toList.take(4), List(11, 12, 13, 14))
 
-    assertEquals(q.offerMany(15 until 29: _*), 7)
+    assertEquals(q.offerMany(15 until 29: _*), 7L)
     assertEquals(q.drainToArray(array), 7)
     assertEquals(array.toList, (22 until 29).toList)
 
-    assertEquals(q.poll(), null)
+    assertEquals(Option(q.poll()), None)
   }
 
   test("size should be correct on happy path") {
@@ -177,7 +177,7 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
   test("iterable") {
     val q = DropAllOnOverflowQueue[Int](127)
     q.offerMany(0 until 200: _*)
-    assertEquals(q.toList, 127 until 200)
+    assert(q.toList == List.range(127L, 200L))
   }
 
   test("should work with a capacity of 1") {

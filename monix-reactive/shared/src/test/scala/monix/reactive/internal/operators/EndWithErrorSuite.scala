@@ -17,20 +17,16 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Ack.Continue
-import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Promise
 
-object EndWithErrorSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class EndWithErrorSuite extends BaseTestSuite {
 
-  test("should end in the specified error") { implicit s =>
+  fixture.test("should end in the specified error") { implicit s =>
     var received = 0
     var wasThrown: Throwable = null
     val p = Promise[Continue.type]()
@@ -57,7 +53,7 @@ object EndWithErrorSuite extends TestSuite[TestScheduler] {
     s.tick()
   }
 
-  test("can end in another unforeseen error") { implicit s =>
+  fixture.test("can end in another unforeseen error") { implicit s =>
     var wasThrown: Throwable = null
     val source = Observable
       .raiseError(DummyException("unforeseen"))

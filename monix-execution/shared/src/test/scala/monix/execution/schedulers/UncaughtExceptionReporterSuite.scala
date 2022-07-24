@@ -19,8 +19,7 @@ package monix.execution.schedulers
 
 import scala.concurrent.{ ExecutionContext, Promise }
 import scala.concurrent.duration._
-import minitest.TestSuite
-import monix.execution.{ ExecutionModel, FutureUtils, Scheduler, UncaughtExceptionReporter }
+import monix.execution.{ ExecutionModel, FutureUtils, Scheduler, TestSuite, UncaughtExceptionReporter }
 
 class UncaughtExceptionReporterBaseSuite extends TestSuite[Promise[Throwable]] {
   protected val immediateEC = TrampolineExecutionContext.immediate
@@ -37,19 +36,19 @@ class UncaughtExceptionReporterBaseSuite extends TestSuite[Promise[Throwable]] {
   }
 
   def testReports(name: String)(f: UncaughtExceptionReporter => Scheduler) = {
-    testAsync(name) { p =>
+    fixture.test(name) { p =>
       f(reporter(p)).execute(throwRunnable)
       FutureUtils.timeout(p.future.collect { case Dummy => }(immediateEC), 500.millis)(Scheduler.global)
     }
 
-    testAsync(name + ".withUncaughtExceptionReporter") { p =>
+    fixture.test(name + ".withUncaughtExceptionReporter") { p =>
       f(UncaughtExceptionReporter.default).withUncaughtExceptionReporter(reporter(p)).execute(throwRunnable)
       FutureUtils.timeout(p.future.collect { case Dummy => }(immediateEC), 500.millis)(Scheduler.global)
     }
   }
 }
 
-object UncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSuite {
+class UncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSuite {
   testReports("Scheduler(_, ExecModel)")(Scheduler(_, ExecutionModel.Default))
   testReports("Scheduler(global, _)")(Scheduler(Scheduler.global, _))
   testReports("Scheduler(ExecutionContext, _)")(Scheduler(ExecutionContext.global, _))

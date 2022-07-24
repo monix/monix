@@ -17,30 +17,26 @@
 
 package monix.reactive.consumers
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.CancelableFuture
 import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.{ Consumer, Observable }
 
 import scala.util.{ Failure, Success }
 
-object ListConsumerSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class ListConsumerSuite extends BaseTestSuite {
 
-  test("should return the same all consumed elements as a list") { implicit s =>
+  fixture.test("should return the same all consumed elements as a list") { implicit s =>
     val l = List("a", "b", "c", "d")
     val ob: Observable[String] = Observable.fromIterable(l)
     val f: CancelableFuture[List[String]] = ob.consumeWith(Consumer.toList).runToFuture
 
     s.tick()
-    assertEquals(Some(Success(l)), f.value)
+    assertEquals(f.value, Some(Success(l)))
   }
 
-  test("should interrupt with error") { implicit s =>
+  fixture.test("should interrupt with error") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 100).endWithError(ex)
     val f = obs.consumeWith(Consumer.toList).runToFuture

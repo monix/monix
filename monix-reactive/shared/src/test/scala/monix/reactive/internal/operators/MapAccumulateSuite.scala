@@ -24,7 +24,7 @@ import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 import scala.util.Failure
 
-object MapAccumulateSuite extends BaseOperatorSuite {
+class MapAccumulateSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable
       .range(0L, sourceCount.toLong)
@@ -68,7 +68,7 @@ object MapAccumulateSuite extends BaseOperatorSuite {
     Seq(Sample(sample, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("should trigger error if the initial state triggers errors") { implicit s =>
+  fixture.test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable(1, 2, 3, 4).mapAccumulate[Int, Int](throw ex)((acc, elem) => (acc + elem, acc * elem))
     val f = obs.runAsyncGetFirst; s.tick()

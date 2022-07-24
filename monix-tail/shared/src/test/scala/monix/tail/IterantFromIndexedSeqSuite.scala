@@ -21,15 +21,15 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.{ Coeval, Task }
 
-object IterantFromIndexedSeqSuite extends BaseTestSuite {
-  test("Iterant[Task].fromIndexedSeq") { implicit s =>
+class IterantFromIndexedSeqSuite extends BaseTestSuite {
+  fixture.test("Iterant[Task].fromIndexedSeq") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromIndexedSeq(list.toVector).toListL
       result <-> Task.now(list)
     }
   }
 
-  test("Iterant[Coeval].fromIndexedSeq") { implicit s =>
+  fixture.test("Iterant[Coeval].fromIndexedSeq") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Coeval].fromIndexedSeq(list.toVector).toListL
       result <-> Coeval.now(list)

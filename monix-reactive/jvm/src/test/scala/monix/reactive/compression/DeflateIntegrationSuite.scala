@@ -21,7 +21,7 @@ import monix.eval.Task
 import monix.reactive.Observable
 import org.scalacheck.Prop
 
-object DeflateIntegrationSuite extends CompressionIntegrationSuite with DeflateTestUtils {
+class DeflateIntegrationSuite extends CompressionIntegrationSuite with DeflateTestUtils {
   private implicit def a[A]: Task[Boolean] => Prop =
     _.runSyncUnsafe()
 

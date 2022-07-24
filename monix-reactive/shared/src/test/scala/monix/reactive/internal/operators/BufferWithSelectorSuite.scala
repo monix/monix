@@ -23,7 +23,7 @@ import monix.execution.exceptions.DummyException
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object BufferWithSelectorSuite extends BaseOperatorSuite {
+class BufferWithSelectorSuite extends BaseOperatorSuite {
   val waitNext = 1.second
 
   def count(sourceCount: Int) = {
@@ -70,7 +70,7 @@ object BufferWithSelectorSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
-  test("selector onComplete should complete the resulting observable") { implicit s =>
+  fixture.test("selector onComplete should complete the resulting observable") { implicit s =>
     val selector = Observable.intervalAtFixedRate(1.second, 1.second).take(2L)
     val f = Observable
       .range(0, 10000)
@@ -80,10 +80,10 @@ object BufferWithSelectorSuite extends BaseOperatorSuite {
       .runAsyncGetFirst
 
     s.tick(2.seconds)
-    assertEquals(f.value, Some(Success(Some(10 * 19))))
+    assertEquals(f.value, Some(Success(Some(10L * 19L))))
   }
 
-  test("selector onError should terminate the resulting observable") { implicit s =>
+  fixture.test("selector onError should terminate the resulting observable") { implicit s =>
     val ex = DummyException("dummy")
     val selector = Observable
       .intervalAtFixedRate(1.second, 1.second)
@@ -101,7 +101,7 @@ object BufferWithSelectorSuite extends BaseOperatorSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("sizeOf should weight elements with observable.bufferTimedWithPressure") { implicit s =>
+  fixture.test("sizeOf should weight elements with observable.bufferTimedWithPressure") { implicit s =>
     // since each element is specified to weight 20 and the maxSize is 50
     // each buffer will be emitted with at most 3 elements
     val f = Observable
@@ -110,6 +110,6 @@ object BufferWithSelectorSuite extends BaseOperatorSuite {
       .runAsyncGetFirst
 
     s.tick(1.seconds)
-    assertEquals(f.value, Some(Success(Some(List(0, 1, 2)))))
+    assertEquals(f.value, Some(Success(Some(List(0L, 1L, 2L)))))
   }
 }

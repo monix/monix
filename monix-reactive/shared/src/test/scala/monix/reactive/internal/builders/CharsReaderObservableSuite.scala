@@ -20,8 +20,7 @@ package monix.reactive.internal.builders
 import java.io.{ Reader, StringReader }
 
 import cats.effect.ExitCase
-import minitest.SimpleTestSuite
-import minitest.laws.Checkers
+import monix.execution.BaseTestSuite
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
@@ -36,9 +35,8 @@ import org.scalacheck.{ Gen, Prop }
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{ Failure, Random, Success }
 
-object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
-  test("fromCharsReaderUnsafe yields a single subscriber observable") {
-    implicit val s = TestScheduler()
+class CharsReaderObservableSuite extends BaseTestSuite {
+  fixture.test("fromCharsReaderUnsafe yields a single subscriber observable") { implicit s =>
     var errorThrown: Throwable = null
     val obs = Observable.fromCharsReaderUnsafe(new StringReader(randomString()))
     obs.unsafeSubscribeFn(Subscriber.empty(s))
@@ -56,7 +54,6 @@ object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
     })
 
     assert(errorThrown.isInstanceOf[APIContractViolationException])
-    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
   test("fromCharsReaderUnsafe should throw if the chunkSize is zero") {
@@ -198,20 +195,25 @@ object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
       var wasCompleted = false
 
       val f = Observable
-        .fromCharsReaderF(Task.pure(
-          randomReaderWithOnFinish(() => wasClosed = true)
-        ))
+        .fromCharsReaderF(
+          Task.pure(
+            randomReaderWithOnFinish(() => wasClosed = true)
+          )
+        )
         .flatMap { _ =>
           Observable.suspend {
             wasStarted = true
-            Observable.eval {
-              assert(!wasClosed, "Resource should be available")
-            }.delayExecution(1.second).guaranteeCase {
-              case ExitCase.Canceled =>
-                Task { wasCanceled += 1 }
-              case _ =>
-                Task { wasCompleted = true }
-            }
+            Observable
+              .eval {
+                assert(!wasClosed, "Resource should be available")
+              }
+              .delayExecution(1.second)
+              .guaranteeCase {
+                case ExitCase.Canceled =>
+                  Task { wasCanceled += 1 }
+                case _ =>
+                  Task { wasCompleted = true }
+              }
           }
         }
         .doOnSubscriptionCancel(Task { wasCanceled += 2 })
@@ -303,7 +305,8 @@ object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
           val f = Observable
             .fromCharsReader(Task(in), chunkSize)
             .foldLeftL(Vector.empty[Int]) {
-              case (acc, charArray) => acc :+ charArray.length
+              case (acc, charArray) =>
+                acc :+ charArray.length
             }
             .runToFuture
 

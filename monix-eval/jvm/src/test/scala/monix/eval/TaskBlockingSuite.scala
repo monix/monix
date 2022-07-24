@@ -17,13 +17,12 @@
 
 package monix.eval
 
-import minitest.SimpleTestSuite
 import monix.execution.Scheduler.Implicits.global
 
 import scala.concurrent.{ Await, TimeoutException }
 import scala.concurrent.duration._
 
-object TaskBlockingSuite extends SimpleTestSuite {
+class TaskBlockingSuite extends BaseTestSuite {
   test("blocking on future should work") {
     val source1 = Task.evalAsync(100)
     val source2 = Task.evalAsync(200).onErrorHandleWith { case e => Task.raiseError(e) }

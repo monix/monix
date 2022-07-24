@@ -23,7 +23,7 @@ import cats.effect.IO
 import monix.reactive.Observable
 import scala.concurrent.duration._
 
-object ScanEffectSuite extends BaseOperatorSuite {
+class ScanEffectSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0L, sourceCount.toLong).scanEvalF(IO.pure(0L)) { (s, x) =>
       IO(s + x)
@@ -77,13 +77,13 @@ object ScanEffectSuite extends BaseOperatorSuite {
     )
   }
 
-  test("scanEval0.headL.to[IO] <-> seed") { implicit s =>
+  fixture.test("scanEval0.headL.to[IO] <-> seed") { implicit s =>
     check2 { (obs: Observable[Int], seed: IO[Int]) =>
       obs.scanEval0F(seed)((a, b) => IO.pure(a + b)).headL.to[IO] <-> seed
     }
   }
 
-  test("scanEval0.drop(1) <-> scanEval") { implicit s =>
+  fixture.test("scanEval0.drop(1) <-> scanEval") { implicit s =>
     check2 { (obs: Observable[Int], seed: IO[Int]) =>
       obs.scanEval0F(seed)((a, b) => IO.pure(a + b)).drop(1) <-> obs.scanEvalF(seed)((a, b) => IO.pure(a + b))
     }

@@ -24,7 +24,7 @@ import monix.reactive.{ BaseTestSuite, Observable }
 import scala.concurrent.duration._
 import scala.util.Success
 
-object FromResourceObservableSuite extends BaseTestSuite {
+class FromResourceObservableSuite extends BaseTestSuite {
   class Semaphore(var acquired: Int = 0, var released: Int = 0) {
     def acquire: Task[Handle] =
       Task { acquired += 1 }.map(_ => Handle(this))
@@ -34,7 +34,7 @@ object FromResourceObservableSuite extends BaseTestSuite {
     def release = Task { r.released += 1 }
   }
 
-  test("fromResource(Allocate)") { implicit s =>
+  fixture.test("fromResource(Allocate)") { implicit s =>
     val r = new Semaphore
     val res = Resource.make(r.acquire)(_.release)
 
@@ -53,7 +53,7 @@ object FromResourceObservableSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(Some(1))))
   }
 
-  test("fromResource(Suspend(FlatMap(Allocate)))") { implicit s =>
+  fixture.test("fromResource(Suspend(FlatMap(Allocate)))") { implicit s =>
     val r = new Semaphore
     val res = Resource.make(r.acquire)(_.release)
     val res2 = Resource.suspend(Task(res.flatMap(_ => res)))

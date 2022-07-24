@@ -23,7 +23,7 @@ import monix.execution.internal.Platform
 import monix.reactive.{ Observable, Observer }
 import scala.concurrent.duration._
 
-object ConcatManySuite extends BaseOperatorSuite {
+class ConcatManySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable
       .range(0L, sourceCount.toLong)
@@ -78,7 +78,7 @@ object ConcatManySuite extends BaseOperatorSuite {
     Seq(Sample(o, count, count, 1.seconds, 0.seconds))
   }
 
-  test("concatMap should be cancelable before main stream has finished") { implicit s =>
+  fixture.test("concatMap should be cancelable before main stream has finished") { implicit s =>
     val source = Observable(1L, 2L).concatMap { x =>
       Observable.intervalWithFixedDelay(1.second, 1.second).map(_ + x)
     }
@@ -103,7 +103,7 @@ object ConcatManySuite extends BaseOperatorSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("concatMap should be cancelable after main stream has finished") { implicit s =>
+  fixture.test("concatMap should be cancelable after main stream has finished") { implicit s =>
     val source = Observable.now(1L).concatMap { x =>
       Observable.intervalWithFixedDelay(1.second, 1.second).map(_ + x)
     }

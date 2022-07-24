@@ -100,9 +100,10 @@ lazy val macrotaskExecutorLib =
 lazy val kindProjectorCompilerPlugin =
   "org.typelevel" % "kind-projector" % kindProjector_Version cross CrossVersion.full
 
-/** [[https://github.com/monix/minitest/]] */
-lazy val minitestLib =
-  Def.setting { "io.monix" %%% "minitest-laws" % minitest_Version }
+/** [[https://github.com/scalameta/munit]] */
+lazy val munitLib =
+  Def.setting { "org.scalameta" %%% "munit" % "1.0.0-M6" }
+
 
 /** [[https://github.com/scala/scala-collection-compat]] */
 lazy val scalaCollectionCompatLib =
@@ -129,9 +130,8 @@ lazy val macroDependencies =
   )
 
 lazy val testDependencies = Seq(
-  testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
   libraryDependencies ++= Seq(
-    minitestLib.value       % Test,
+    munitLib.value       % Test,
     catsLawsLib.value       % Test,
     catsEffectLawsLib.value % Test
   )
@@ -199,13 +199,13 @@ lazy val sharedSettings = pgpSettings ++ Seq(
 
   // Turning off fatal warnings for doc generation
   Compile / doc / tpolecatExcludeOptions ++= ScalacOptions.defaultConsoleExclude,
-  
+
   // Turn off annoyances in tests
   Test / tpolecatExcludeOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 12)) => 
+      case Some((2, 12)) =>
         ScalacOptions.defaultConsoleExclude
-      case _ => 
+      case _ =>
         Set(
           ScalacOptions.lintInferAny,
           ScalacOptions.warnUnusedImplicits,
@@ -215,7 +215,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
         )
     }
   },
-  
+
   // Silence everything in auto-generated files
   scalacOptions ++= {
     if (isDotty.value)
@@ -321,13 +321,13 @@ lazy val extraSourceSettings = {
       baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
     }
   )
-  
+
   val perVersion = Seq(Compile, Test).map { sc =>
     (sc / unmanagedSourceDirectories) ++= {
       (sc / unmanagedSourceDirectories).value.flatMap { dir =>
         if (dir.getPath().endsWith("scala"))
           scalaPartV.value.toList.flatMap {
-            case (major, minor) => 
+            case (major, minor) =>
               Seq(
                 new File(s"${dir.getPath}-$major"),
                 new File(s"${dir.getPath}-$major.$minor"),
@@ -338,7 +338,7 @@ lazy val extraSourceSettings = {
       }
     }
   }
-  
+
   shared ++ perVersion
 }
 
@@ -357,7 +357,7 @@ lazy val assemblyShadeSettings = Seq(
   assembly / test := {},
   // prevent cyclic task dependencies, see https://github.com/sbt/sbt-assembly/issues/365
   // otherwise, there's a cyclic dependency between packageBin and assembly
-  assembly / fullClasspath := (Runtime / managedClasspath).value,
+//  assembly / fullClasspath := (Runtime / managedClasspath).value,
   // in dependent projects, use assembled and shaded jar
   exportJars := true,
   // do not include scala dependency in pom
@@ -426,7 +426,7 @@ def mimaSettings(projectName: String) = Seq(
 )
 
 lazy val doctestTestSettings = Seq(
-  doctestTestFramework := DoctestTestFramework.Minitest,
+  doctestTestFramework := DoctestTestFramework.Munit,
   doctestIgnoreRegex := Some(s".*TaskApp.scala|.*reactive.internal.(builders|operators|rstreams).*"),
   doctestOnlyCodeBlocksMode := true
 )
@@ -782,7 +782,6 @@ lazy val tracingTests = project
   )
   .dependsOn(evalJVM % "compile->compile; test->test")
   .configs(FullTracingTest)
-  .settings(testFrameworks := Seq(new TestFramework("minitest.runner.Framework")))
   .settings(inConfig(FullTracingTest)(Defaults.testSettings): _*)
   .settings(
     FullTracingTest / unmanagedSourceDirectories += {

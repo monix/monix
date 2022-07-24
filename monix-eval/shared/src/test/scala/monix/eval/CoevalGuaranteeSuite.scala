@@ -21,9 +21,9 @@ import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
 import scala.util.{ Failure, Success }
 
-object CoevalGuaranteeSuite extends BaseTestSuite {
+class CoevalGuaranteeSuite extends BaseTestSuite {
 
-  test("finalizer is evaluated on success") { _ =>
+  test("finalizer is evaluated on success") {
     var input = Option.empty[Int]
     val coeval = Coeval(1).map(_ + 1).guarantee(Coeval.eval { input = Some(1) })
 
@@ -32,7 +32,7 @@ object CoevalGuaranteeSuite extends BaseTestSuite {
     assertEquals(result, Success(2))
   }
 
-  test("finalizer is evaluated on error") { _ =>
+  test("finalizer is evaluated on error") {
     val dummy = DummyException("dummy")
     var input = Option.empty[Int]
     val coeval = Coeval.raiseError[Int](dummy).guarantee(Coeval.eval { input = Some(1) })
@@ -42,7 +42,7 @@ object CoevalGuaranteeSuite extends BaseTestSuite {
     assertEquals(result, Failure(dummy))
   }
 
-  test("if finalizer throws, report finalizer error and signal first error") { _ =>
+  test("if finalizer throws, report finalizer error and signal first error") {
     val useError = DummyException("dummy")
     val finalizerError = DummyException("finalizer")
 

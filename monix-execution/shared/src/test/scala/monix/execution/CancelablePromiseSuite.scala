@@ -17,13 +17,12 @@
 
 package monix.execution
 
-import minitest.SimpleTestSuite
 import monix.execution.exceptions.DummyException
 
 import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 
-object CancelablePromiseSuite extends SimpleTestSuite {
+class CancelablePromiseSuite extends BaseTestSuite {
   test("completes in success") {
     val p = CancelablePromise[Int]()
     assert(!p.isCompleted)

@@ -21,7 +21,7 @@ import monix.execution.Ack.Continue
 import monix.reactive.{ Observable, Observer }
 import scala.concurrent.duration.Duration.Zero
 
-object MinSuite extends BaseOperatorSuite {
+class MinSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(sourceCount.toLong, 0, -1).min
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -49,7 +49,7 @@ object MinSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("empty observable should be empty") { implicit s =>
+  fixture.test("empty observable should be empty") { implicit s =>
     val source: Observable[Long] = Observable.empty
     var received = 0
     var wasCompleted = false

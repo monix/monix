@@ -17,18 +17,14 @@
 
 package monix.reactive.internal.builders
 
-import minitest.TestSuite
-import monix.execution.schedulers.TestScheduler
+import monix.execution.BaseTestSuite
+
 import monix.reactive.{ Observable, Observer }
 import monix.execution.exceptions.DummyException
 
-object ErrorObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
-  }
+class ErrorObservableSuite extends BaseTestSuite {
 
-  test("should stream immediately") { implicit s =>
+  fixture.test("should stream immediately") { implicit s =>
     var errorThrown: Throwable = null
     Observable
       .raiseError(DummyException("dummy"))

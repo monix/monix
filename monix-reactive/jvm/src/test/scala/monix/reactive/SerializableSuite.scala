@@ -24,7 +24,7 @@ import monix.execution.Ack
 import monix.execution.Ack.Continue
 import scala.util.{ Failure, Success, Try }
 
-object SerializableSuite extends BaseTestSuite {
+class SerializableSuite extends BaseLawsTestSuite {
   def serialize(obj: Serializable) = {
     val bytes = new ByteArrayOutputStream()
     val out = new ObjectOutputStream(bytes)
@@ -43,7 +43,7 @@ object SerializableSuite extends BaseTestSuite {
       ref
     }
 
-  test("Observable is serializable") { implicit s =>
+  fixture.test("Observable is serializable") { implicit s =>
     check1 { (stream: Observable[Int]) =>
       val stream2 = deserialize[Observable[Int]](serialize(stream)) match {
         case Success(v) => v
@@ -54,7 +54,7 @@ object SerializableSuite extends BaseTestSuite {
     }
   }
 
-  test("Observer is serializable") { implicit s =>
+  fixture.test("Observer is serializable") { implicit s =>
     class MyObserver extends Observer.Sync[Int] {
       var sum = 0
       var completed: Option[Throwable] = _
@@ -85,7 +85,7 @@ object SerializableSuite extends BaseTestSuite {
     assertEquals(obs2.completed, None)
   }
 
-  test("Consumer is serializable") { implicit s =>
+  fixture.test("Consumer is serializable") { implicit s =>
     val ref1 = Consumer.foldLeft[Long, Long](0)(_ + _)
     val ref2 = deserialize[Consumer[Long, Long]](serialize(ref1)) match {
       case Success(v) => v
@@ -95,10 +95,10 @@ object SerializableSuite extends BaseTestSuite {
     val f = Observable.range(0, 100).consumeWith(ref2).runToFuture
 
     s.tick()
-    assertEquals(f.value, Some(Success(99 * 50)))
+    assertEquals(f.value, Some(Success((99 * 50).toLong)))
   }
 
-  test("Pipe is serializable") { implicit s =>
+  fixture.test("Pipe is serializable") { implicit s =>
     val ref1 = Pipe.publish[Int]
     val ref2 = deserialize[Pipe[Int, Int]](serialize(ref1)) match {
       case Success(v) => v

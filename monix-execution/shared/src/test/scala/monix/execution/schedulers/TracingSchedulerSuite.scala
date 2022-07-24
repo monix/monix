@@ -19,7 +19,7 @@ package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.misc.Local
 import monix.execution.FutureUtils.extensions._
@@ -31,7 +31,7 @@ import scala.concurrent.{ Future, Promise }
 import scala.concurrent.duration._
 import scala.util.Success
 
-object TracingSchedulerSuite extends SimpleTestSuite {
+class TracingSchedulerSuite extends BaseTestSuite {
   test("does not capture snapshot if not a tracing scheduler") {
     implicit val ec = TestScheduler()
 
@@ -77,7 +77,7 @@ object TracingSchedulerSuite extends SimpleTestSuite {
     assertEquals(f2.value, Some(Success(42)))
   }
 
-  testAsync("captures locals in actual async execution") {
+  fixture.test("captures locals in actual async execution") { implicit ec =>
     import monix.execution.Scheduler.Implicits.traced
     val local1 = Local(0)
     val local2 = Local(0)
@@ -181,22 +181,22 @@ object TracingSchedulerSuite extends SimpleTestSuite {
     val ec = TestScheduler()
     val traced = TracingScheduler(ec)
 
-    assertEquals(traced.clockRealTime(MILLISECONDS), 0)
+    assertEquals(traced.clockRealTime(MILLISECONDS), 0L)
     ec.tick(1.second)
-    assertEquals(traced.clockRealTime(MILLISECONDS), 1000)
+    assertEquals(traced.clockRealTime(MILLISECONDS), 1000L)
     ec.tick(1.second)
-    assertEquals(traced.clockRealTime(MILLISECONDS), 2000)
+    assertEquals(traced.clockRealTime(MILLISECONDS), 2000L)
   }
 
   test("clockMonotonic") {
     val ec = TestScheduler()
     val traced = TracingScheduler(ec)
 
-    assertEquals(traced.clockMonotonic(MILLISECONDS), 0)
+    assertEquals(traced.clockMonotonic(MILLISECONDS), 0L)
     ec.tick(1.second)
-    assertEquals(traced.clockMonotonic(MILLISECONDS), 1000)
+    assertEquals(traced.clockMonotonic(MILLISECONDS), 1000L)
     ec.tick(1.second)
-    assertEquals(traced.clockMonotonic(MILLISECONDS), 2000)
+    assertEquals(traced.clockMonotonic(MILLISECONDS), 2000L)
   }
 
   test("executionModel") {

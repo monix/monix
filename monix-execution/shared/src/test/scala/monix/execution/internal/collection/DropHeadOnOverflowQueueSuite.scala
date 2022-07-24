@@ -17,10 +17,10 @@
 
 package monix.execution.internal.collection
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import scala.collection.mutable.ListBuffer
 
-object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
+class DropHeadOnOverflowQueueSuite extends BaseTestSuite {
   test("should not accept null values") {
     val q = DropAllOnOverflowQueue[String](100)
     intercept[NullPointerException] {
@@ -60,7 +60,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropHeadOnOverflowQueue[Int](7)
 
     assertEquals(q.capacity, 7)
-    assertEquals(q.poll(), null)
+    assertEquals(Option(q.poll()), None)
 
     assertEquals(q.offer(10), 0)
     assertEquals(q.offer(20), 0)
@@ -69,9 +69,9 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q.poll(), 10)
     assertEquals(q.poll(), 20)
     assertEquals(q.poll(), 30)
-    assertEquals(q.poll(), null)
+    assertEquals(Option(q.poll()), None)
 
-    assertEquals(q.offerMany(40, 50, 60, 70, 80, 90, 100), 0)
+    assertEquals(q.offerMany(40, 50, 60, 70, 80, 90, 100), 0L)
 
     val buffer = ListBuffer.empty[Int]
     assertEquals(q.drainToBuffer(buffer, 3), 3)
@@ -86,12 +86,12 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropHeadOnOverflowQueue[Int](7)
 
     assertEquals(q.capacity, 7)
-    assertEquals(q.poll(): Any, null)
+    assertEquals(Option(q.poll()), None)
 
     assertEquals(q.offer(0), 0)
     assertEquals(q.poll(), 0)
 
-    assertEquals(q.offerMany(1 to 7: _*), 0)
+    assertEquals(q.offerMany(1 to 7: _*), 0L)
 
     assertEquals(q.offer(8), 1)
     assertEquals(q.offer(9), 1)
@@ -108,11 +108,11 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q.drainToArray(array), 4)
     assertEquals(array.toList.take(4), List(11, 12, 13, 14))
 
-    assertEquals(q.offerMany(15 until 29: _*), 7)
+    assertEquals(q.offerMany(15 until 29: _*), 7L)
     assertEquals(q.drainToArray(array), 7)
     assertEquals(array.toList, (22 until 29).toList)
 
-    assertEquals(q.poll(), null)
+    assertEquals(Option(q.poll()), None)
   }
 
   test("size should be correct on happy path") {
@@ -178,7 +178,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q.capacity, 127)
 
     q.offerMany(0 until 200: _*)
-    assertEquals(q.toList, 73 until 200)
+    assert(q.toList == (73 until 200))
   }
 
   test("should work with a capacity of 1") {

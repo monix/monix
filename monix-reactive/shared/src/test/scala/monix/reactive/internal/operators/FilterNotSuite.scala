@@ -26,7 +26,7 @@ import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 import scala.concurrent.{ Future, Promise }
 
-object FilterNotSuite extends BaseOperatorSuite {
+class FilterNotSuite extends BaseOperatorSuite {
   def count(sourceCount: Int) = {
     sourceCount
   }
@@ -89,7 +89,7 @@ object FilterNotSuite extends BaseOperatorSuite {
     Seq(Sample(sample, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  fixture.test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 
@@ -109,7 +109,7 @@ object FilterNotSuite extends BaseOperatorSuite {
         p.success(Continue)
         s.tick(waitForNext)
       case _ =>
-        fail()
+        fail("")
     }
   }
 }

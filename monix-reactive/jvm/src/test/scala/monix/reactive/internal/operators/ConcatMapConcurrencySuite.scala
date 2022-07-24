@@ -24,11 +24,11 @@ import monix.reactive.{ BaseConcurrencySuite, Observable }
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Future, Promise }
 
-object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
+class ConcatMapConcurrencySuite extends BaseConcurrencySuite {
   val cancelTimeout = 3.minutes
   val cancelIterations = 1000
 
-  test("concatMap should work for synchronous children") { implicit s =>
+  fixture.test("concatMap should work for synchronous children") { implicit s =>
     val count = 10000L
     val expected = 3L * count * (count - 1) / 2
 
@@ -44,7 +44,7 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  test("concatMap should work for asynchronous children") { implicit s =>
+  fixture.test("concatMap should work for asynchronous children") { implicit s =>
     val count = 10000L
     val expected = 3L * count * (count - 1) / 2
 
@@ -60,7 +60,7 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  test(s"concatMap should be cancellable, test 1, count $cancelIterations (issue #468)") { implicit s =>
+  fixture.test(s"concatMap should be cancellable, test 1, count $cancelIterations (issue #468)") { implicit s =>
     def never(): (Future[Unit], Observable[Int]) = {
       val isCancelled = Promise[Unit]()
       val ref = Observable.unsafeCreate[Int] { _ =>
@@ -83,7 +83,7 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  test(s"concatMap should be cancellable, test 2, count $cancelIterations (issue #468)") { implicit s =>
+  fixture.test(s"concatMap should be cancellable, test 2, count $cancelIterations (issue #468)") { implicit s =>
     def one(p: Promise[Unit])(x: Long): Observable[Long] =
       Observable.unsafeCreate { sub =>
         val ref = BooleanCancelable { () => p.trySuccess(()); () }
@@ -114,7 +114,7 @@ object ConcatMapConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  test(s"concatMap should be cancellable, test 3, count $cancelIterations (issue #468)") { implicit s =>
+  fixture.test(s"concatMap should be cancellable, test 3, count $cancelIterations (issue #468)") { implicit s =>
     for (_ <- 0 until cancelIterations) {
       val p = Promise[Unit]()
       val c = Observable

@@ -19,8 +19,6 @@ package monix.reactive
 
 import cats.Eq
 import cats.Monoid
-import minitest.{ SimpleTestSuite, TestSuite }
-import minitest.laws.Checkers
 import monix.eval.Task
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
@@ -33,14 +31,9 @@ import org.typelevel.discipline.Laws
 
 import scala.concurrent.duration._
 
-trait BaseTestSuite extends TestSuite[TestScheduler] with Checkers with ArbitraryInstances {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
-  }
-}
+trait BaseTestSuite extends monix.execution.BaseTestSuite with ArbitraryInstances
 
-trait BaseLawsTestSuite extends SimpleTestSuite with Checkers with ArbitraryInstances {
+trait BaseLawsTestSuite extends BaseTestSuite {
   override lazy val checkConfig: Parameters =
     Parameters.default
       .withMinSuccessfulTests(if (Platform.isJVM) 100 else 10)

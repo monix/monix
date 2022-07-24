@@ -17,11 +17,11 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.PublishSubject
 import monix.execution.atomic.Atomic
@@ -31,13 +31,9 @@ import scala.concurrent.duration._
 import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
-object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
-  }
+class BufferIntrospectiveSuite extends BaseTestSuite {
 
-  test("it buffers while consumer is busy") { implicit s =>
+  fixture.test("it buffers while consumer is busy") { implicit s =>
     val subject = PublishSubject[Long]()
     val nextAck = Atomic(Promise[Ack]())
     var wasCompleted = 0
@@ -66,33 +62,34 @@ object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {
     assertEquals(subject.onNext(3), Continue)
 
     s.tick()
-    assertEquals(sum, 1)
+    assertEquals(sum, 1L)
 
     nextAck.getAndSet(Promise()).success(Continue)
     s.tick()
-    assertEquals(sum, 6)
+    assertEquals(sum, 6L)
 
     for (i <- 0 until 10) subject.onNext(1)
     s.tick()
-    assertEquals(sum, 6)
+    assertEquals(sum, 6L)
 
     nextAck.getAndSet(Promise()).success(Continue)
     s.tick()
-    assertEquals(sum, 16)
+    assertEquals(sum, 16L)
 
     subject.onComplete()
     nextAck.getAndSet(Promise()).success(Continue)
     s.tick()
 
-    assertEquals(sum, 16)
+    assertEquals(sum, 16L)
     assertEquals(wasCompleted, 1)
   }
 
-  test("it should signal Stop upstream when it is back-pressured") { implicit s =>
+  fixture.test("it should signal Stop upstream when it is back-pressured") { implicit s =>
     var wasFinalized = false
     var wasEarlyStopped = false
 
-    val f = Observable.range(0, 100)
+    val f = Observable
+      .range(0, 100)
       .guarantee(Task { wasFinalized = true })
       .doOnEarlyStop(Task { wasEarlyStopped = true })
       .bufferIntrospective(3)

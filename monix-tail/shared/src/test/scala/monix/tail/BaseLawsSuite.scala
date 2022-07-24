@@ -18,9 +18,7 @@
 package monix.tail
 
 import cats.effect.laws.discipline.{ Parameters => EffectParameters }
-import minitest.SimpleTestSuite
-import minitest.api.IgnoredException
-import minitest.laws.Checkers
+import monix.execution.BaseTestSuite
 import monix.execution.TestUtils
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
@@ -30,10 +28,9 @@ import org.typelevel.discipline.Laws
 
 import scala.concurrent.duration._
 
-/** Just a marker for what we need to extend in the tests
-  * of `monix-tail`.
+/** Just a marker for what we need to extend in the tests of `monix-tail`.
   */
-trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstances with TestUtils {
+abstract class BaseLawsSuite extends BaseTestSuite with ArbitraryInstances with TestUtils {
 
   override lazy val checkConfig: Parameters =
     Parameters.default
@@ -70,7 +67,7 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
           silenceSystemErr(check(prop, config))
         }
     } catch {
-      case e: IgnoredException if catchErrors =>
+      case e: BaseTestSuite.IgnoreException if catchErrors =>
         test(name) { throw e }
     }
   }

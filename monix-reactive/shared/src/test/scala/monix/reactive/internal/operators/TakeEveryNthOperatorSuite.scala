@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import monix.reactive.Observable
 import scala.concurrent.duration.Duration
 
-object TakeEveryNthOperatorSuite extends BaseOperatorSuite {
+class TakeEveryNthOperatorSuite extends BaseOperatorSuite {
   override def createObservable(sourceCount: Int) = Some {
     val sCount = if (sourceCount > 4) sourceCount else 4
     val count = sCount / 4

@@ -19,8 +19,8 @@ package monix.eval
 
 import scala.util.Success
 
-object TaskLeftSuite extends BaseTestSuite {
-  test("Task.left should return a Left") { implicit s =>
+class TaskLeftSuite extends BaseTestSuite {
+  fixture.test("Task.left should return a Left") { implicit s =>
     val t = Task.left[Int, String](1)
     t.runToFuture.value match {
       case Some(Success(Left(_: Int))) =>

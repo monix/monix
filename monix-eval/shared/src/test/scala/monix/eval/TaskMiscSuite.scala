@@ -24,25 +24,25 @@ import org.reactivestreams.{ Subscriber, Subscription }
 import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 
-object TaskMiscSuite extends BaseTestSuite {
-  test("Task.attempt should succeed") { implicit s =>
+class TaskMiscSuite extends BaseTestSuite {
+  fixture.test("Task.attempt should succeed") { implicit s =>
     val result = Task.now(1).attempt.runToFuture
     assertEquals(result.value, Some(Success(Right(1))))
   }
 
-  test("Task.raiseError.attempt should expose error") { implicit s =>
+  fixture.test("Task.raiseError.attempt should expose error") { implicit s =>
     val ex = DummyException("dummy")
     val result = Task.raiseError[Int](ex).attempt.runToFuture
     assertEquals(result.value, Some(Success(Left(ex))))
   }
 
-  test("Task.fail should expose error") { implicit s =>
+  fixture.test("Task.fail should expose error") { implicit s =>
     val dummy = DummyException("dummy")
     val f = Task.raiseError(dummy).failed.runToFuture
     assertEquals(f.value, Some(Success(dummy)))
   }
 
-  test("Task.fail should fail for successful values") { implicit s =>
+  fixture.test("Task.fail should fail for successful values") { implicit s =>
     intercept[NoSuchElementException] {
       Task.eval(10).failed.runSyncStep
       ()
@@ -50,29 +50,31 @@ object TaskMiscSuite extends BaseTestSuite {
     ()
   }
 
-  test("Task.map protects against user code") { implicit s =>
+  fixture.test("Task.map protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val result = Task.now(1).map(_ => throw ex).runToFuture
     assertEquals(result.value, Some(Failure(ex)))
   }
 
-  test("Task.forever") { implicit s =>
+  fixture.test("Task.forever") { implicit s =>
     val ex = DummyException("dummy")
     var effect = 0
-    val result = Task.eval { if (effect < 10) effect += 1 else throw ex }.loopForever
+    val result = Task
+      .eval { if (effect < 10) effect += 1 else throw ex }
+      .loopForever
       .onErrorFallbackTo(Task.eval(effect))
       .runToFuture
     assertEquals(result.value.get.get, 10)
   }
 
-  test("Task.restartUntil") { implicit s =>
+  fixture.test("Task.restartUntil") { implicit s =>
     var effect = 0
     val r = Task.evalAsync { effect += 1; effect }.restartUntil(_ >= 10).runToFuture
     s.tick()
     assertEquals(r.value.get.get, 10)
   }
 
-  test("Task.toReactivePublisher should end in success") { implicit s =>
+  fixture.test("Task.toReactivePublisher should end in success") { implicit s =>
     val publisher = Task.evalAsync(1).toReactivePublisher
     var received: Int = 0
     var wasCompleted = false
@@ -91,7 +93,7 @@ object TaskMiscSuite extends BaseTestSuite {
     assertEquals(received, 1)
   }
 
-  test("Task.toReactivePublisher should end in error") { implicit s =>
+  fixture.test("Task.toReactivePublisher should end in error") { implicit s =>
     val expected = DummyException("dummy")
     val publisher = Task.raiseError(expected).toReactivePublisher
     var received: Throwable = null
@@ -112,7 +114,7 @@ object TaskMiscSuite extends BaseTestSuite {
     assertEquals(received, expected)
   }
 
-  test("Task.toReactivePublisher should be cancelable") { implicit s =>
+  fixture.test("Task.toReactivePublisher should be cancelable") { implicit s =>
     import concurrent.duration._
     val publisher = Task.now(1).delayExecution(1.second).toReactivePublisher
 
@@ -134,7 +136,7 @@ object TaskMiscSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "should not have tasks left to execute")
   }
 
-  test("Task.toReactivePublisher should throw error on invalid request") { implicit s =>
+  fixture.test("Task.toReactivePublisher should throw error on invalid request") { implicit s =>
     import concurrent.duration._
     val publisher = Task.now(1).delayExecution(1.second).toReactivePublisher
 
@@ -158,31 +160,31 @@ object TaskMiscSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "should not have tasks left to execute")
   }
 
-  test("Task.pure is an alias of now") { _ =>
+  fixture.test("Task.pure is an alias of now") { _ =>
     assertEquals(Task.pure(1), Task.now(1))
   }
 
-  test("Task.now.runAsync with Try-based callback") { implicit s =>
+  fixture.test("Task.now.runAsync with Try-based callback") { implicit s =>
     val p = Promise[Int]()
     Task.now(1).runAsync(Callback.fromPromise(p))
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("Task.error.runAsync with Try-based callback") { implicit s =>
+  fixture.test("Task.error.runAsync with Try-based callback") { implicit s =>
     val ex = DummyException("dummy")
     val p = Promise[Int]()
     Task.raiseError[Int](ex).runAsync(Callback.fromPromise(p))
     assertEquals(p.future.value, Some(Failure(ex)))
   }
 
-  test("task.executeAsync.runAsync with Try-based callback for success") { implicit s =>
+  fixture.test("task.executeAsync.runAsync with Try-based callback for success") { implicit s =>
     val p = Promise[Int]()
     Task.now(1).executeAsync.runAsync(Callback.fromPromise(p))
     s.tick()
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("task.executeAsync.runAsync with Try-based callback for error") { implicit s =>
+  fixture.test("task.executeAsync.runAsync with Try-based callback for error") { implicit s =>
     val ex = DummyException("dummy")
     val p = Promise[Int]()
     Task.raiseError[Int](ex).executeAsync.runAsync(Callback.fromPromise(p))
@@ -190,7 +192,7 @@ object TaskMiscSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Failure(ex)))
   }
 
-  test("task.executeWithOptions protects against user error") { implicit s =>
+  fixture.test("task.executeWithOptions protects against user error") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.now(1).executeWithOptions(_ => throw ex)
     val f = task.runToFuture

@@ -26,7 +26,7 @@ import monix.reactive.Observer
 import scala.concurrent.Future
 import scala.util.Success
 
-object ProfunctorSubjectSuite extends BaseSubjectSuite {
+class ProfunctorSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
     val s = BehaviorSubject[Long](-1)
     Sample(s, expectedElems.lastOption.getOrElse(-1))
@@ -37,7 +37,7 @@ object ProfunctorSubjectSuite extends BaseSubjectSuite {
     Some(Sample(s, expectedElems.sum))
   }
 
-  test("should protect against user-code in left mapping function") { implicit s =>
+  fixture.test("should protect against user-code in left mapping function") { implicit s =>
     val dummy = new RuntimeException("dummy")
     val subject = BehaviorSubject[String]("10").dimap[Int, Int](_ => throw dummy)(_.toInt)
     var received = 0
@@ -64,7 +64,7 @@ object ProfunctorSubjectSuite extends BaseSubjectSuite {
     assertEquals(errorThrown, dummy)
   }
 
-  test("should protect against user-code in right mapping function") { implicit s =>
+  fixture.test("should protect against user-code in right mapping function") { implicit s =>
     val dummy = new RuntimeException("dummy")
     val subject = BehaviorSubject[String]("10").dimap[Int, Int](_.toString)(_ => throw dummy)
     var received = 0
@@ -93,7 +93,7 @@ object ProfunctorSubjectSuite extends BaseSubjectSuite {
     assertEquals(errorThrown, dummy)
   }
 
-  test("should work synchronously for synchronous subscribers") { implicit s =>
+  fixture.test("should work synchronously for synchronous subscribers") { implicit s =>
     val subject = BehaviorSubject[String]("10").dimap[Int, Int](_.toString)(_.toInt)
     var received = 0
     var wasCompleted = 0
@@ -119,7 +119,7 @@ object ProfunctorSubjectSuite extends BaseSubjectSuite {
     assertEquals(wasCompleted, 10)
   }
 
-  test("should work with asynchronous subscribers") { implicit s =>
+  fixture.test("should work with asynchronous subscribers") { implicit s =>
     val subject = BehaviorSubject[String]("10").dimap[Int, Int](_.toString)(_.toInt)
     var received = 0
     var wasCompleted = 0
@@ -148,7 +148,7 @@ object ProfunctorSubjectSuite extends BaseSubjectSuite {
     assertEquals(wasCompleted, 10)
   }
 
-  test("subscribe after complete should complete immediately") { implicit s =>
+  fixture.test("subscribe after complete should complete immediately") { implicit s =>
     val subject = BehaviorSubject[String]("10").dimap[Int, Int](_.toString)(_.toInt)
     var received = 0
     subject.onComplete()
@@ -164,7 +164,7 @@ object ProfunctorSubjectSuite extends BaseSubjectSuite {
     assertEquals(received, 10)
   }
 
-  test("onError should terminate current and future subscribers") { implicit s =>
+  fixture.test("onError should terminate current and future subscribers") { implicit s =>
     val subject = BehaviorSubject[String]("10").dimap[Int, Int](_.toString)(_.toInt)
     val dummy = DummyException("dummy")
     var elemsReceived = 0
@@ -197,7 +197,7 @@ object ProfunctorSubjectSuite extends BaseSubjectSuite {
     assertEquals(errorsReceived, 11)
   }
 
-  test("can stop streaming while connecting") { implicit s =>
+  fixture.test("can stop streaming while connecting") { implicit s =>
     val subject = BehaviorSubject[String]("10").dimap[Int, Int](_.toString)(_.toInt)
 
     val future1 = subject.runAsyncGetFirst
@@ -212,7 +212,7 @@ object ProfunctorSubjectSuite extends BaseSubjectSuite {
     assertEquals(subject.size, 0)
   }
 
-  test("unsubscribe after onComplete") { implicit s =>
+  fixture.test("unsubscribe after onComplete") { implicit s =>
     var result: Int = 0
     val subject = BehaviorSubject[String]("0").dimap[Int, Int](_.toString)(_.toInt)
     val c = subject.subscribe { e =>

@@ -17,56 +17,54 @@
 
 package monix.execution
 
-import java.util.concurrent.{ CountDownLatch, TimeUnit }
-
-import minitest.TestSuite
-import minitest.api.{ AssertionException, MiniTestException }
 import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, DummyException }
 import monix.execution.schedulers.SchedulerService
+import munit.FailException
 
+import java.util.concurrent.{ CountDownLatch, TimeUnit }
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success, Try }
 
-object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils {
+class CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils {
   val WORKERS = 10
   val RETRIES = if (!isCI) 1000 else 100
   val DUMMY = DummyException("dummy")
 
-  override def setup(): SchedulerService =
+  def setup(): SchedulerService =
     Scheduler.io("test-callback")
 
-  override def tearDown(env: SchedulerService): Unit = {
+  def tearDown(env: SchedulerService): Unit = {
     env.shutdown()
     env.awaitTermination(10.seconds)
     ()
   }
 
-  test("Callback.safe is thread-safe onSuccess") { implicit sc =>
+  fixture.test("Callback.safe is thread-safe onSuccess") { implicit sc =>
     executeOnSuccessTest(Callback.safe)
   }
 
-  test("Callback.safe is thread-safe onError") { implicit sc =>
+  fixture.test("Callback.safe is thread-safe onError") { implicit sc =>
     executeOnErrorTest(Callback.safe)
   }
 
-  test("Callback.trampolined is thread-safe onSuccess") { implicit sc =>
+  fixture.test("Callback.trampolined is thread-safe onSuccess") { implicit sc =>
     executeOnSuccessTest(Callback.trampolined)
   }
 
-  test("Callback.trampolined is thread-safe onError") { implicit sc =>
+  fixture.test("Callback.trampolined is thread-safe onError") { implicit sc =>
     executeOnErrorTest(Callback.trampolined)
   }
 
-  test("Callback.forked is thread-safe onSuccess") { implicit sc =>
+  fixture.test("Callback.forked is thread-safe onSuccess") { implicit sc =>
     executeOnSuccessTest(Callback.forked, isForked = true)
   }
 
-  test("Callback.forked is thread-safe onError") { implicit sc =>
+  fixture.test("Callback.forked is thread-safe onError") { implicit sc =>
     executeOnErrorTest(Callback.forked, isForked = true)
   }
 
-  test("Callback.fromPromise is thread-safe onSuccess") { implicit sc =>
+  fixture.test("Callback.fromPromise is thread-safe onSuccess") { implicit sc =>
     val wrap = { (cb: Callback[Throwable, Int]) =>
       val p = Promise[Int]()
       p.future.onComplete(cb.apply)
@@ -75,7 +73,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
     executeOnSuccessTest(wrap, isForked = true)
   }
 
-  test("Callback.fromPromise is thread-safe onError") { implicit sc =>
+  fixture.test("Callback.fromPromise is thread-safe onError") { implicit sc =>
     val wrap = { (cb: Callback[Throwable, String]) =>
       val p = Promise[String]()
       p.future.onComplete(cb.apply)
@@ -84,97 +82,97 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
     executeOnErrorTest(wrap, isForked = true)
   }
 
-  test("Normal callback is not thread-safe via onSuccess") { implicit sc =>
-    intercept[AssertionException] { executeOnSuccessTest(x => x) }
+  fixture.test("Normal callback is not thread-safe via onSuccess") { implicit sc =>
+    intercept[FailException] { executeOnSuccessTest(x => x) }
     ()
   }
 
-  test("Normal callback is not thread-safe via onError") { implicit sc =>
-    intercept[AssertionException] { executeOnErrorTest(x => x) }
+  fixture.test("Normal callback is not thread-safe via onError") { implicit sc =>
+    intercept[FailException] { executeOnErrorTest(x => x) }
     ()
   }
 
-  test("Callback.fromAttempt is not thread-safe via onSuccess") { implicit sc =>
+  fixture.test("Callback.fromAttempt is not thread-safe via onSuccess") { implicit sc =>
     if (isCI) ignore()
 
     val wrap = { (cb: Callback[Throwable, Int]) =>
       val f = (r: Either[Throwable, Int]) => cb(r)
       Callback.fromAttempt(f)
     }
-    intercept[AssertionException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
+    intercept[FailException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
     ()
   }
 
-  test("Callback.fromAttempt is not thread-safe via onError") { implicit sc =>
+  fixture.test("Callback.fromAttempt is not thread-safe via onError") { implicit sc =>
     if (isCI) ignore()
 
     val wrap = { (cb: Callback[Throwable, String]) =>
       val f = (r: Either[Throwable, String]) => cb(r)
       Callback.fromAttempt(f)
     }
-    intercept[AssertionException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
+    intercept[FailException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
     ()
   }
 
-  test("Callback.fromTry is not thread-safe via onSuccess") { implicit sc =>
+  fixture.test("Callback.fromTry is not thread-safe via onSuccess") { implicit sc =>
     if (isCI) ignore()
 
     val wrap = { (cb: Callback[Throwable, Int]) =>
       val f = (r: Try[Int]) => cb(r)
       Callback.fromTry(f)
     }
-    intercept[AssertionException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
+    intercept[FailException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
     ()
   }
 
-  test("Callback.fromTry is not thread-safe via onError") { implicit sc =>
+  fixture.test("Callback.fromTry is not thread-safe via onError") { implicit sc =>
     if (isCI) ignore()
 
     val wrap = { (cb: Callback[Throwable, String]) =>
       val f = (r: Try[String]) => cb(r)
       Callback.fromTry(f)
     }
-    intercept[AssertionException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
+    intercept[FailException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
     ()
   }
 
-  test("Callback.fromAttempt is quasi-safe via onSuccess") { _ =>
+  fixture.test("Callback.fromAttempt is quasi-safe via onSuccess") { _ =>
     executeQuasiSafeOnSuccessTest { cb =>
       val f = (r: Either[Throwable, Int]) => cb(r)
       Callback.fromAttempt(f)
     }
   }
 
-  test("Callback.fromAttempt is quasi-safe via onError") { _ =>
+  fixture.test("Callback.fromAttempt is quasi-safe via onError") { _ =>
     executeQuasiSafeOnFailureTest { cb =>
       val f = (r: Either[Throwable, Int]) => cb(r)
       Callback.fromAttempt(f)
     }
   }
 
-  test("Callback.fromTry is quasi-safe via onSuccess") { _ =>
+  fixture.test("Callback.fromTry is quasi-safe via onSuccess") { _ =>
     executeQuasiSafeOnSuccessTest { cb =>
       val f = (r: Try[Int]) => cb(r)
       Callback.fromTry(f)
     }
   }
 
-  test("Callback.fromTry is quasi-safe via onError") { _ =>
+  fixture.test("Callback.fromTry is quasi-safe via onError") { _ =>
     executeQuasiSafeOnFailureTest { cb =>
       val f = (r: Try[Int]) => cb(r)
       Callback.fromTry(f)
     }
   }
 
-  test("Normal callback is not quasi-safe via onSuccess") { _ =>
-    intercept[MiniTestException] {
+  fixture.test("Normal callback is not quasi-safe via onSuccess") { _ =>
+    intercept[FailException] {
       executeQuasiSafeOnSuccessTest(x => x)
     }
     ()
   }
 
-  test("Normal callback is not quasi-safe via onError") { _ =>
-    intercept[MiniTestException] {
+  fixture.test("Normal callback is not quasi-safe via onError") { _ =>
+    intercept[FailException] {
       executeQuasiSafeOnFailureTest(x => x)
     }
     ()
@@ -229,7 +227,9 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
     wrap: Callback[Throwable, Int] => Callback[Throwable, Int],
     isForked: Boolean = false,
     retries: Int = RETRIES
-  )(implicit sc: Scheduler): Unit = {
+  )(
+    implicit sc: Scheduler
+  ): Unit = {
 
     def run(trigger: Callback[Throwable, Int] => Any): Unit = {
       for (_ <- 0 until retries) {
@@ -275,7 +275,9 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
     wrap: Callback[Throwable, String] => Callback[Throwable, String],
     isForked: Boolean = false,
     retries: Int = RETRIES
-  )(implicit sc: Scheduler): Unit = {
+  )(
+    implicit sc: Scheduler
+  ): Unit = {
 
     def run(trigger: Callback[Throwable, String] => Any): Unit = {
       for (_ <- 0 until retries) {

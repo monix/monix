@@ -17,20 +17,16 @@
 
 package monix.reactive.internal.builders
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-object RepeatOneObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class RepeatOneObservableSuite extends BaseTestSuite {
 
-  test("first execution is synchronous") { implicit s =>
+  fixture.test("first execution is synchronous") { implicit s =>
     var received = 0
     Observable.repeat(1).take(1L).subscribe { x =>
       received += x; Continue
@@ -38,7 +34,7 @@ object RepeatOneObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 1)
   }
 
-  test("should do synchronous execution in batches") { implicit s =>
+  fixture.test("should do synchronous execution in batches") { implicit s =>
     var received = 0
     Observable.repeat(1).take(Platform.recommendedBatchSize.toLong * 2).subscribe { x =>
       received += 1; Continue
@@ -51,7 +47,7 @@ object RepeatOneObservableSuite extends TestSuite[TestScheduler] {
     ()
   }
 
-  test("repeatOne should be cancelable") { implicit s =>
+  fixture.test("repeatOne should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 

@@ -21,11 +21,11 @@ import monix.execution.ExecutionModel
 import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, SynchronousExecution }
 import scala.util.Success
 
-object TaskExecuteWithModelSuite extends BaseTestSuite {
+class TaskExecuteWithModelSuite extends BaseTestSuite {
   def readModel: Task[ExecutionModel] =
     Task.deferAction(s => Task.now(s.executionModel))
 
-  test("executeWithModel works") { implicit sc =>
+  fixture.test("executeWithModel works") { implicit sc =>
     assertEquals(sc.executionModel, ExecutionModel.Default)
 
     val f1 = readModel.executeWithModel(SynchronousExecution).runToFuture
@@ -36,7 +36,7 @@ object TaskExecuteWithModelSuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Success(AlwaysAsyncExecution)))
   }
 
-  testAsync("local.write.executeWithModel(AlwaysAsyncExecution) works") { _ =>
+  fixture.test("local.write.executeWithModel(AlwaysAsyncExecution) works") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
@@ -52,7 +52,7 @@ object TaskExecuteWithModelSuite extends BaseTestSuite {
     }
   }
 
-  testAsync("local.write.executeWithModel(SynchronousExecution) works") { _ =>
+  fixture.test("local.write.executeWithModel(SynchronousExecution) works") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
@@ -68,7 +68,7 @@ object TaskExecuteWithModelSuite extends BaseTestSuite {
     }
   }
 
-  test("executeWithModel is stack safe in flatMap loops") { implicit sc =>
+  fixture.test("executeWithModel is stack safe in flatMap loops") { implicit sc =>
     def loop(n: Int, acc: Long): Task[Long] =
       Task.unit.executeWithModel(SynchronousExecution).flatMap { _ =>
         if (n > 0)
@@ -78,6 +78,6 @@ object TaskExecuteWithModelSuite extends BaseTestSuite {
       }
 
     val f = loop(10000, 0).runToFuture; sc.tick()
-    assertEquals(f.value, Some(Success(10000)))
+    assertEquals(f.value, Some(Success(10000L)))
   }
 }

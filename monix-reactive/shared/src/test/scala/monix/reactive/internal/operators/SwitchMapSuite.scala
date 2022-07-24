@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import monix.reactive.Observable
 import scala.concurrent.duration._
 
-object SwitchMapSuite extends BaseOperatorSuite {
+class SwitchMapSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) =
     Some {
       val mainPeriod = 2.seconds + 500.millis
@@ -77,7 +77,7 @@ object SwitchMapSuite extends BaseOperatorSuite {
     )
   }
 
-  test("source.switchMap(unit) == source") { implicit s =>
+  fixture.test("source.switchMap(unit) == source") { implicit s =>
     val source = Observable.range(0, 100)
     val switched = source.switchMap(i => Observable.now(i))
 
@@ -88,7 +88,7 @@ object SwitchMapSuite extends BaseOperatorSuite {
     assertEquals(r2.value.get, r1.value.get)
   }
 
-  test("Observable.unit.switchMap(_ => a) <-> a") { implicit s =>
+  fixture.test("Observable.unit.switchMap(_ => a) <-> a") { implicit s =>
     val expectedCount = 100
     val size = Observable.unit
       .switchMap(_ => Observable.interval(1.second).take(expectedCount.toLong))

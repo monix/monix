@@ -23,7 +23,7 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object MergeManySuite extends BaseOperatorSuite {
+class MergeManySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable
       .range(0L, sourceCount.toLong)
@@ -65,7 +65,7 @@ object MergeManySuite extends BaseOperatorSuite {
     )
   }
 
-  test("mergeMap should be cancelable after main stream has finished") { implicit s =>
+  fixture.test("mergeMap should be cancelable after main stream has finished") { implicit s =>
     val source = Observable.now(1L).concatMap { x =>
       Observable.intervalWithFixedDelay(1.second, 1.second).map(_ + x)
     }

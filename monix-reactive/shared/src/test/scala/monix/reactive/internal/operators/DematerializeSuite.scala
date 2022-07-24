@@ -25,7 +25,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object DematerializeSuite extends BaseOperatorSuite {
+class DematerializeSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0L, sourceCount.toLong).materialize.dematerialize
 
@@ -47,7 +47,7 @@ object DematerializeSuite extends BaseOperatorSuite {
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("dematerializeAttempt error") { implicit s =>
+  fixture.test("dematerializeAttempt error") { implicit s =>
     val dummyEx = DummyException("dummy")
     val o = (Observable.now(1) ++ Observable.raiseError(dummyEx)).materialize.dematerialize
     var received = 0

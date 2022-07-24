@@ -17,7 +17,6 @@
 
 package monix.execution
 
-import minitest.SimpleTestSuite
 import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.schedulers.TestScheduler
 import monix.execution.internal.Platform
@@ -25,7 +24,7 @@ import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.control.NonFatal
 
-object CancelableSuite extends SimpleTestSuite {
+class CancelableSuite extends BaseTestSuite {
   test("Cancelable.empty") {
     val c = Cancelable()
     assertEquals(c, Cancelable.empty)

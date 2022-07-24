@@ -17,25 +17,16 @@
 
 package monix.execution
 
+import monix.execution.FutureUtils.extensions._
+
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
-
-import minitest.TestSuite
-import monix.execution.FutureUtils.extensions._
-import monix.execution.schedulers.TestScheduler
-
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object FutureUtilsJVMSuite extends TestSuite[TestScheduler] {
+class FutureUtilsJVMSuite extends BaseTestSuite {
 
-  def setup() = TestScheduler()
-
-  def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
-  }
-
-  testAsync("timeoutTo should not evaluate fallback when future and timeout are finished at the same time") { _ =>
+  test("timeoutTo should not evaluate fallback when future and timeout are finished at the same time") {
     implicit val scheduler: Scheduler = Scheduler(Executors.newWorkStealingPool())
 
     case class TestException() extends RuntimeException
@@ -62,14 +53,16 @@ object FutureUtilsJVMSuite extends TestSuite[TestScheduler] {
             }
           )(Scheduler.Implicits.global)
         _ <- FutureUtils.delayedResult(100.millis)(()) // wait for all concurrent processes
-      } yield ()).map { _ =>
-        success.incrementAndGet()
-        ()
-      }.recover {
-        case _: TestException =>
-          error.incrementAndGet()
+      } yield ())
+        .map { _ =>
+          success.incrementAndGet()
           ()
-      }
+        }
+        .recover {
+          case _: TestException =>
+            error.incrementAndGet()
+            ()
+        }
     }
 
     // this function runs a lot of futures and tries to adjust timeouts to catch race condition,

@@ -19,8 +19,7 @@ package monix.reactive.internal.builders
 
 import java.io.{ ByteArrayInputStream, InputStream }
 
-import minitest.SimpleTestSuite
-import minitest.laws.Checkers
+import monix.execution.BaseTestSuite
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
@@ -34,7 +33,7 @@ import org.scalacheck.{ Gen, Prop }
 import scala.collection.mutable.ListBuffer
 import scala.util.{ Failure, Random, Success }
 
-object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
+class InputStreamObservableSuite extends BaseTestSuite {
   test("fromInputStreamUnsafe yields a single subscriber observable") {
     implicit val s = TestScheduler()
     var errorThrown: Throwable = null
@@ -263,7 +262,8 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
           val f = Observable
             .fromInputStreamF(Task(in), chunkSize)
             .foldLeftL(Vector.empty[Int]) {
-              case (acc, byteArray) => acc :+ byteArray.length
+              case (acc, byteArray) =>
+                acc :+ byteArray.length
             }
             .runToFuture
 

@@ -22,8 +22,8 @@ import monix.execution.exceptions.DummyException
 import concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskSequenceSuite extends BaseTestSuite {
-  test("Task.sequence should not execute in parallel") { implicit s =>
+class TaskSequenceSuite extends BaseTestSuite {
+  fixture.test("Task.sequence should not execute in parallel") { implicit s =>
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),
       Task.evalAsync(2).delayExecution(1.second),
@@ -41,7 +41,7 @@ object TaskSequenceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(Seq(1, 2, 3))))
   }
 
-  test("Task.sequence should onError if one of the tasks terminates in error") { implicit s =>
+  fixture.test("Task.sequence should onError if one of the tasks terminates in error") { implicit s =>
     val ex = DummyException("dummy")
     val seq = Seq(
       Task.evalAsync(2).delayExecution(1.second),
@@ -60,7 +60,7 @@ object TaskSequenceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task.sequence should be canceled") { implicit s =>
+  fixture.test("Task.sequence should be canceled") { implicit s =>
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),
       Task.evalAsync(2).delayExecution(1.second),

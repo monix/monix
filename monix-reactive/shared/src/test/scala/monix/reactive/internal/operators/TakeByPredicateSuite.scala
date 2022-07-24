@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.{ Future, Promise }
 
-object TakeByPredicateSuite extends BaseOperatorSuite {
+class TakeByPredicateSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int): Long =
     sourceCount.toLong * (sourceCount + 1) / 2
 
@@ -68,7 +68,7 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
     }
   }
 
-  test("should not call onComplete multiple times for 1 element") { implicit s =>
+  fixture.test("should not call onComplete multiple times for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = 0
 
@@ -88,7 +88,7 @@ object TakeByPredicateSuite extends BaseOperatorSuite {
         s.tick(waitForNext)
         assertEquals(wasCompleted, 1)
       case _ =>
-        fail()
+        fail("")
     }
   }
 

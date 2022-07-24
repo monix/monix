@@ -17,20 +17,15 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Ack.Continue
-import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Promise
 
-object MiscFailedSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
-
-  test("should complete") { implicit s =>
+class MiscFailedSuite extends BaseTestSuite {
+  fixture.test("should complete") { implicit s =>
     var received = 0
     var wasCompleted = false
 
@@ -51,7 +46,7 @@ object MiscFailedSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("should signal error without back-pressure applied") { implicit s =>
+  fixture.test("should signal error without back-pressure applied") { implicit s =>
     var wasCompleted = false
     var thrown: Throwable = null
     val p = Promise[Continue.type]()

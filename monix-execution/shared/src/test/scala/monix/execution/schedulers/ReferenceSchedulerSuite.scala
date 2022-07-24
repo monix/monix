@@ -18,12 +18,12 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.{ Cancelable, Features }
 import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, SynchronousExecution }
+import monix.execution.schedulers.ReferenceSchedulerSuite.{ DummyScheduler, DummyTimeScheduler }
 import scala.concurrent.duration._
-
-object ReferenceSchedulerSuite extends SimpleTestSuite {
+object ReferenceSchedulerSuite {
   class DummyScheduler(val underlying: TestScheduler = TestScheduler()) extends ReferenceScheduler {
 
     def executionModel = monix.execution.ExecutionModel.Default
@@ -40,6 +40,9 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     override def clockRealTime(unit: TimeUnit): Long = underlying.clockRealTime(unit)
     override def clockMonotonic(unit: TimeUnit): Long = underlying.clockMonotonic(unit)
   }
+}
+
+class ReferenceSchedulerSuite extends BaseTestSuite {
 
   test("clockRealTime") {
     val s = new DummyScheduler

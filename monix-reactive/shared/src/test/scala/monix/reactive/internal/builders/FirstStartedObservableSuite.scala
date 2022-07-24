@@ -23,15 +23,15 @@ import cats.laws.discipline._
 import monix.reactive.{ BaseTestSuite, Observable }
 import scala.concurrent.duration._
 
-object FirstStartedObservableSuite extends BaseTestSuite {
-  test("should mirror the first observable") { implicit s =>
+class FirstStartedObservableSuite extends BaseTestSuite {
+  fixture.test("should mirror the first observable") { implicit s =>
     check2 { (obs1: Observable[Int], obs: Observable[Int]) =>
       val amb = obs1.ambWith(obs.delayExecution(365.days))
       amb <-> obs1
     }
   }
 
-  test("should mirror the second observable") { implicit s =>
+  fixture.test("should mirror the second observable") { implicit s =>
     check2 { (obs: Observable[Int], obs2: Observable[Int]) =>
       val delayed = obs.delayExecution(365.days)
       val amb = Observable.firstStartedOf(delayed, obs2, delayed, delayed)
@@ -39,7 +39,7 @@ object FirstStartedObservableSuite extends BaseTestSuite {
     }
   }
 
-  test("should mirror the third observable") { implicit s =>
+  fixture.test("should mirror the third observable") { implicit s =>
     check2 { (obs: Observable[Int], obs3: Observable[Int]) =>
       val delayed = obs.delayExecution(365.days)
       val amb = Observable.firstStartedOf(delayed, delayed, obs3, delayed)
@@ -47,7 +47,7 @@ object FirstStartedObservableSuite extends BaseTestSuite {
     }
   }
 
-  test("first is cancelable") { implicit s =>
+  fixture.test("first is cancelable") { implicit s =>
     var received = 0
 
     var obs1Canceled = false
@@ -83,7 +83,7 @@ object FirstStartedObservableSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("second is cancelable") { implicit s =>
+  fixture.test("second is cancelable") { implicit s =>
     var received = 0
 
     var obs1Canceled = false
@@ -118,7 +118,7 @@ object FirstStartedObservableSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("all are cancelable") { implicit s =>
+  fixture.test("all are cancelable") { implicit s =>
     var received = 0
 
     var obs1Canceled = false

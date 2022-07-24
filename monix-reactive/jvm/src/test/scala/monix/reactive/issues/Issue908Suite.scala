@@ -18,9 +18,8 @@
 package monix.reactive
 package issues
 
-import minitest.TestSuite
+import monix.execution.{ BaseTestSuite, Scheduler, TestSuite, UncaughtExceptionReporter }
 import monix.eval.Task
-import monix.execution.{ Scheduler, UncaughtExceptionReporter }
 import monix.execution.schedulers.SchedulerService
 import monix.reactive.subjects.{ AsyncSubject, Subject }
 
@@ -28,7 +27,7 @@ import scala.concurrent.{ Await, TimeoutException }
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object Issue908Suite extends TestSuite[SchedulerService] {
+class Issue908Suite extends TestSuite[SchedulerService] {
   val CONCURRENT_TASKS = 1000
   val CYCLES = 100
 
@@ -46,7 +45,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
     assert(env.awaitTermination(1.minute), "scheduler.awaitTermination")
   }
 
-  test("broken tasks test (1)") { implicit sc =>
+  fixture.test("broken tasks test (1)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val task = Task.async[String] { cb =>
         sc.execute(() => cb.onSuccess("1"))
@@ -63,7 +62,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
     }
   }
 
-  test("broken tasks test (2)") { implicit sc =>
+  fixture.test("broken tasks test (2)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val task = Task.async[String] { cb =>
         sc.execute(() => cb.onSuccess("1"))
@@ -77,7 +76,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
     }
   }
 
-  test("broken tasks test (3)") { implicit sc =>
+  fixture.test("broken tasks test (3)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val task = Task.async[String] { cb =>
         sc.execute(() => cb.onSuccess("1"))
@@ -94,7 +93,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
     }
   }
 
-  test("concurrent test (1)") { implicit sc =>
+  fixture.test("concurrent test (1)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val subject = AsyncSubject.apply[Int]()
 
@@ -109,7 +108,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
     }
   }
 
-  test("concurrent test (2)") { implicit sc =>
+  fixture.test("concurrent test (2)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val subject = AsyncSubject.apply[Int]()
 

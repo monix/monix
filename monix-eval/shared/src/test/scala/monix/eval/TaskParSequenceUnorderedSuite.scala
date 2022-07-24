@@ -25,8 +25,8 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success, Try }
 
-object TaskParSequenceUnorderedSuite extends BaseTestSuite {
-  test("Task.parSequenceUnordered should execute in parallel") { implicit s =>
+class TaskParSequenceUnorderedSuite extends BaseTestSuite {
+  fixture.test("Task.parSequenceUnordered should execute in parallel") { implicit s =>
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),
       Task.evalAsync(2).delayExecution(1.second),
@@ -42,7 +42,7 @@ object TaskParSequenceUnorderedSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(List(3, 1, 2))))
   }
 
-  test("Task.parSequenceUnordered should onError if one of the tasks terminates in error") { implicit s =>
+  fixture.test("Task.parSequenceUnordered should onError if one of the tasks terminates in error") { implicit s =>
     val ex = DummyException("dummy")
     val seq = Seq(
       Task.evalAsync(3).delayExecution(3.seconds),
@@ -59,7 +59,7 @@ object TaskParSequenceUnorderedSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task.parSequenceUnordered should be canceled") { implicit s =>
+  fixture.test("Task.parSequenceUnordered should be canceled") { implicit s =>
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),
       Task.evalAsync(2).delayExecution(1.second),
@@ -77,7 +77,7 @@ object TaskParSequenceUnorderedSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.parSequenceUnordered should run over an iterable") { implicit s =>
+  fixture.test("Task.parSequenceUnordered should run over an iterable") { implicit s =>
     val count = 10
     val seq = 0 until count
     val it = seq.map(x => Task.eval(x + 1))
@@ -87,7 +87,7 @@ object TaskParSequenceUnorderedSuite extends BaseTestSuite {
     assertEquals(result.value.get, Success((count + 1) * count / 2))
   }
 
-  test("Task.parSequenceUnordered should be stack-safe on handling many tasks") { implicit s =>
+  fixture.test("Task.parSequenceUnordered should be stack-safe on handling many tasks") { implicit s =>
     val count = 10000
     val tasks = (0 until count).map(x => Task.eval(x))
     val sum = Task.parSequenceUnordered(tasks).map(_.sum)
@@ -96,7 +96,7 @@ object TaskParSequenceUnorderedSuite extends BaseTestSuite {
     assertEquals(result.value.get, Success(count * (count - 1) / 2))
   }
 
-  test("Task.parSequenceUnordered should be stack safe on success") { implicit s =>
+  fixture.test("Task.parSequenceUnordered should be stack safe on success") { implicit s =>
     def fold[A, B](ta: Task[ListBuffer[A]], tb: Task[A]): Task[ListBuffer[A]] =
       Task.parSequenceUnordered(List(ta, tb)).map {
         case a :: b :: Nil =>
@@ -131,7 +131,7 @@ object TaskParSequenceUnorderedSuite extends BaseTestSuite {
     assertEquals(result, Some(Success(count * (count - 1) / 2)))
   }
 
-  test("Task.parSequenceUnordered should log errors if multiple errors happen") { implicit s =>
+  fixture.test("Task.parSequenceUnordered should log errors if multiple errors happen") { implicit s =>
     implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
 
     val ex = DummyException("dummy1")
@@ -164,7 +164,7 @@ object TaskParSequenceUnorderedSuite extends BaseTestSuite {
     assertEquals(errorsThrow, 2)
   }
 
-  test("Task.parSequenceUnordered runAsync multiple times") { implicit s =>
+  fixture.test("Task.parSequenceUnordered runAsync multiple times") { implicit s =>
     var effect = 0
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
     val task2 = task1.map { x =>

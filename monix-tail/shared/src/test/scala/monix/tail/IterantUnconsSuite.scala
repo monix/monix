@@ -24,8 +24,8 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Coeval
 
-object IterantUnconsSuite extends BaseTestSuite {
-  test("uncons is reversible with flatMap and concat") { implicit s =>
+class IterantUnconsSuite extends BaseTestSuite {
+  fixture.test("uncons is reversible with flatMap and concat") { implicit s =>
     check1 { (stream: Iterant[Coeval, Int]) =>
       stream <-> stream.uncons.flatMap {
         case (opt, rest) =>
@@ -34,19 +34,19 @@ object IterantUnconsSuite extends BaseTestSuite {
     }
   }
 
-  test("uncons ignoring Option is equivalent to tail") { _ =>
+  test("uncons ignoring Option is equivalent to tail") {
     check1 { (stream: Iterant[Coeval, Int]) =>
       stream.tail <-> stream.uncons.flatMap { case (_, rest) => rest }
     }
   }
 
-  test("uncons ignoring tail is equivalent to headOptionL") { _ =>
+  test("uncons ignoring tail is equivalent to headOptionL") {
     check1 { (stream: Iterant[Coeval, Int]) =>
       Iterant[Coeval].liftF(stream.headOptionL) <-> stream.uncons.map { case (hd, _) => hd }
     }
   }
 
-  test("any fold is expressible using unconsR") { _ =>
+  test("any fold is expressible using unconsR") {
     def unconsFold[F[_]: Sync, A: Monoid](iterant: Iterant[F, A]): F[A] = {
       def go(iterant: Iterant[F, A], acc: A): Iterant[F, A] =
         iterant.uncons.flatMap {

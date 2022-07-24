@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import monix.reactive.Observable
 import scala.concurrent.duration._
 
-object SampleRepeatedSuite extends BaseOperatorSuite {
+class SampleRepeatedSuite extends BaseOperatorSuite {
   def waitNext = 500.millis
   def waitFirst = 500.millis
 

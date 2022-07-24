@@ -22,7 +22,7 @@ import monix.execution.Scheduler
 import monix.reactive.Observable
 import scala.concurrent.duration._
 
-object MapEffectSuite extends BaseOperatorSuite {
+class MapEffectSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0L, sourceCount.toLong).mapEvalF(x => IO(x))
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)

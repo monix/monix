@@ -17,29 +17,24 @@
 
 package monix.execution
 
-import minitest.TestSuite
-import monix.execution.schedulers.TestScheduler
-import monix.execution.internal.Platform
 import scala.concurrent.{ ExecutionContext, Future, Promise }
 import scala.util.{ Random, Success }
+import monix.execution.internal.Platform
 
-object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(env: TestScheduler): Unit =
-    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
+class AsyncSemaphoreSuite extends BaseTestSuite {
 
-  test("simple greenLight") { implicit s =>
+  fixture.test("simple greenLight") { implicit s =>
     val semaphore = AsyncSemaphore(provisioned = 4)
     val future = semaphore.withPermit(() => Future(100))
-    assertEquals(semaphore.available(), 3)
+    assertEquals(semaphore.available(), 3L)
     assert(!future.isCompleted, "!future.isCompleted")
 
     s.tick()
     assertEquals(future.value, Some(Success(100)))
-    assertEquals(semaphore.available(), 4)
+    assertEquals(semaphore.available(), 4L)
   }
 
-  test("should back-pressure when full") { implicit s =>
+  fixture.test("should back-pressure when full") { implicit s =>
     val semaphore = AsyncSemaphore(provisioned = 2)
 
     val p1 = Promise[Int]()
@@ -48,25 +43,25 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
     val f2 = semaphore.withPermit(() => p2.future)
 
     s.tick()
-    assertEquals(semaphore.available(), 0)
+    assertEquals(semaphore.available(), 0L)
 
     val f3 = semaphore.withPermit(() => Future(3))
 
     s.tick()
     assertEquals(f3.value, None)
-    assertEquals(semaphore.available(), 0)
+    assertEquals(semaphore.available(), 0L)
 
     p1.success(1); s.tick()
-    assertEquals(semaphore.available(), 1)
+    assertEquals(semaphore.available(), 1L)
     assertEquals(f1.value, Some(Success(1)))
     assertEquals(f3.value, Some(Success(3)))
 
     p2.success(2); s.tick()
     assertEquals(f2.value, Some(Success(2)))
-    assertEquals(semaphore.available(), 2)
+    assertEquals(semaphore.available(), 2L)
   }
 
-  testAsync("real async test of many futures") { _ =>
+  fixture.test("real async test of many futures") { _ =>
     // Executing Futures on the global scheduler!
     import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -83,7 +78,7 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("await for release of all active and pending permits") { implicit s =>
+  fixture.test("await for release of all active and pending permits") { implicit s =>
     val semaphore = AsyncSemaphore(provisioned = 2)
     val p1 = semaphore.acquire()
     assertEquals(p1.value, Some(Success(())))
@@ -120,7 +115,7 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
     assert(all3.isCompleted, "all3.isCompleted")
   }
 
-  test("acquire is cancelable") { implicit s =>
+  fixture.test("acquire is cancelable") { implicit s =>
     val semaphore = AsyncSemaphore(provisioned = 2)
 
     val p1 = semaphore.acquire()
@@ -130,20 +125,20 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
 
     val p3 = semaphore.acquire()
     assert(!p3.isCompleted, "!p3.isCompleted")
-    assertEquals(semaphore.available(), 0)
+    assertEquals(semaphore.available(), 0L)
 
     p3.cancel()
     semaphore.release()
-    assertEquals(semaphore.available(), 1)
+    assertEquals(semaphore.available(), 1L)
     semaphore.release()
-    assertEquals(semaphore.available(), 2)
+    assertEquals(semaphore.available(), 2L)
 
     s.tick()
-    assertEquals(semaphore.available(), 2)
+    assertEquals(semaphore.available(), 2L)
     assert(!p3.isCompleted, "!p3.isCompleted")
   }
 
-  testAsync("withPermitN / awaitAvailable concurrent test") { _ =>
+  fixture.test("withPermitN / awaitAvailable concurrent test") { _ =>
     // Executing Futures on the global scheduler!
     import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -177,7 +172,7 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  testAsync("tryAcquireN / awaitAvailable concurrent test") { _ =>
+  fixture.test("tryAcquireN / awaitAvailable concurrent test") { _ =>
     // Executing Futures on the global scheduler!
     import scala.concurrent.ExecutionContext.Implicits.global
 

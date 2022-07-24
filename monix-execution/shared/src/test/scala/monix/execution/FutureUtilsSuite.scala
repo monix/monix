@@ -17,22 +17,15 @@
 
 package monix.execution
 
-import minitest.TestSuite
 import monix.execution.FutureUtils.extensions._
-import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
 import scala.concurrent.{ Future, TimeoutException }
 import scala.util.{ Failure, Success, Try }
 
-object FutureUtilsSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
+class FutureUtilsSuite extends BaseTestSuite {
 
-  def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
-  }
-
-  test("delayedResult") { implicit s =>
+  fixture.test("delayedResult") { implicit s =>
     val f = Future.delayedResult(100.millis)("TICK")
 
     s.tick(50.millis)
@@ -42,7 +35,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     assert(f.value.get.get == "TICK")
   }
 
-  test("timeout should succeed") { implicit s =>
+  fixture.test("timeout should succeed") { implicit s =>
     val f = Future.delayedResult(50.millis)("Hello world!")
     val t = f.timeout(300.millis)
 
@@ -50,7 +43,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     assertEquals(t.value, Some(Success("Hello world!")))
   }
 
-  test("timeout should fail") { implicit s =>
+  fixture.test("timeout should fail") { implicit s =>
     val f = Future.delayedResult(1.second)("Hello world!")
     val t = f.timeout(30.millis)
 
@@ -59,7 +52,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     ()
   }
 
-  test("timeoutTo should work") { implicit s =>
+  fixture.test("timeoutTo should work") { implicit s =>
     val dummy = new RuntimeException("dummy")
     val f = Future.delayedResult(50.millis)("Hello world!")
     val t = f.timeoutTo(300.millis, Future.failed(dummy))
@@ -68,7 +61,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     assertEquals(t.value, Some(Success("Hello world!")))
   }
 
-  test("timeoutTo should fail") { implicit s =>
+  fixture.test("timeoutTo should fail") { implicit s =>
     val dummy = new RuntimeException("dummy")
     val f = Future.delayedResult(1.second)("Hello world!")
     val t = f.timeoutTo(30.millis, Future.failed(dummy))
@@ -77,7 +70,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     assertEquals(t.value, Some(Failure(dummy)))
   }
 
-  test("timeoutTo should not evaluate fallback when future finished earlier than timeout") { implicit s =>
+  fixture.test("timeoutTo should not evaluate fallback when future finished earlier than timeout") { implicit s =>
     @volatile var called = false
     val expected = 15
     val f = Future
@@ -94,7 +87,16 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     assertEquals(called, false)
   }
 
-  test("materialize") { implicit s =>
+  fixture.test("materialize synchronous") { implicit s =>
+    val f1 = Future.successful(1).materialize
+    assertEquals(f1.value, Some(Success(Success(1))))
+
+    val dummy = new RuntimeException("dummy")
+    val f2 = (Future.failed(dummy): Future[Int]).materialize
+    assertEquals(f2.value, Some(Success(Failure(dummy))))
+  }
+
+  fixture.test("materialize asynchronous") { implicit s =>
     val f1 = Future(1).materialize; s.tick()
     assertEquals(f1.value, Some(Success(Success(1))))
 
@@ -103,7 +105,19 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     assertEquals(f2.value, Some(Success(Failure(dummy))))
   }
 
-  test("dematerialize") { implicit s =>
+  fixture.test("dematerialize synchronous") { implicit s =>
+    val f1 = Future.successful(Success(1)).dematerialize
+    assertEquals(f1.value, Some(Success(1)))
+
+    val dummy = new RuntimeException("dummy")
+    val f2 = Future.successful(Failure(dummy)).dematerialize
+    assertEquals(f2.value, Some(Failure(dummy)))
+
+    val f3 = (Future.failed(dummy): Future[Try[Int]]).dematerialize
+    assertEquals(f3.value, Some(Failure(dummy)))
+  }
+
+  fixture.test("dematerialize asynchronous") { implicit s =>
     val f1 = Future(Success(1)).dematerialize; s.tick()
     assertEquals(f1.value, Some(Success(1)))
 
@@ -115,7 +129,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
-  test("transform backport") { implicit s =>
+  fixture.test("transform backport") { implicit s =>
     val source1 = Future(1)
     val result1 = FutureUtils.transform(source1, (x: Try[Int]) => x.map(_.toString))
     s.tick(); assertEquals(result1.value, Some(Success("1")))
@@ -126,7 +140,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     s.tick(); assertEquals(result2.value, Some(Success(2)))
   }
 
-  test("transformWith backport") { implicit s =>
+  fixture.test("transformWith backport") { implicit s =>
     val source1 = Future(1)
     val result1 = FutureUtils.transformWith(source1, (x: Try[Int]) => Future(x.map(_.toString).get))
     s.tick(); assertEquals(result1.value, Some(Success("1")))

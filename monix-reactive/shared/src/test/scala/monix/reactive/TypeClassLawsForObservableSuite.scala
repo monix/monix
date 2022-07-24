@@ -29,7 +29,7 @@ import cats.laws.discipline.{
 }
 import monix.reactive.observables.CombineObservable
 
-object TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
+class TypeClassLawsForObservableSuite extends BaseLawsTestSuite {
   checkAllAsync("Bracket[Observable, Throwable]") { implicit ec =>
     BracketTests[Observable, Throwable].bracket[Int, Int, Int]
   }

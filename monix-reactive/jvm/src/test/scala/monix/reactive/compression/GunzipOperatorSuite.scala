@@ -17,14 +17,14 @@
 
 package monix.reactive.compression
 
-import minitest.api.AssertionException
 import monix.reactive.Observable
+import munit.FailException
 
 import scala.concurrent.duration.Duration.Zero
 
-object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
+class GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
 
-  testAsync("long input, no SYNC_FLUSH") { _ =>
+  fixture.test("long input, no SYNC_FLUSH") { _ =>
     jdkGzippedStream(longText, syncFlush = false)
       .transform(gunzip(64))
       .toListL
@@ -32,44 +32,44 @@ object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
       .runToFuture
   }
 
-  testAsync("no output on very incomplete stream is not OK") { _ =>
+  fixture.test("no output on very incomplete stream is not OK") { _ =>
     Observable
       .now((1 to 5).map(_.toByte).toArray)
       .transform(gunzip())
       .toListL
       .map(_ => fail("should have failed"))
-      .onErrorRecover { case e if !e.isInstanceOf[AssertionException] => () }
+      .onErrorRecover { case e if !e.isInstanceOf[FailException] => () }
       .runToFuture
   }
-  testAsync("parses header with FEXTRA") { _ =>
+  fixture.test("parses header with FEXTRA") { _ =>
     headerWithExtra
       .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
-  testAsync("parses header with FCOMMENT") { _ =>
+  fixture.test("parses header with FCOMMENT") { _ =>
     headerWithComment
       .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
-  testAsync("parses header with FNAME") { _ =>
+  fixture.test("parses header with FNAME") { _ =>
     headerWithFileName
       .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
-  testAsync("parses header with CRC16") { _ =>
+  fixture.test("parses header with CRC16") { _ =>
     headerWithCrc
       .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
-  testAsync("parses header with CRC16, FNAME, FCOMMENT, FEXTRA") { _ =>
+  fixture.test("parses header with CRC16, FNAME, FCOMMENT, FEXTRA") { _ =>
     headerWithAll
       .transform(gunzip(64))
       .toListL
@@ -82,7 +82,7 @@ object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
 
   override def decompress(bufferSize: Int): Observable[Array[Byte]] => Observable[Array[Byte]] = gunzip(bufferSize)
 
-  override def createObservable(sourceCount: Int): Option[GunzipOperatorSuite.Sample] =
+  override def createObservable(sourceCount: Int): Option[Sample] =
     Some {
       val o = Observable
         .repeatEval(jdkGzip(longText, syncFlush = false))
@@ -92,7 +92,7 @@ object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
       Sample(o, sourceCount, sourceCount, Zero, Zero)
     }
 
-  override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[GunzipOperatorSuite.Sample] =
+  override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample] =
     Some {
       val o = (Observable
         .repeatEval(jdkGzip(longText, syncFlush = false))
@@ -105,7 +105,7 @@ object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
       Sample(o, sourceCount + 1, sourceCount + 1, Zero, Zero)
     }
 
-  override def observableInError(sourceCount: Int, ex: Throwable): Option[GunzipOperatorSuite.Sample] =
+  override def observableInError(sourceCount: Int, ex: Throwable): Option[Sample] =
     Some {
       val o = createObservableEndingInError(
         Observable
@@ -118,5 +118,5 @@ object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
       Sample(o, sourceCount, sourceCount, Zero, Zero)
     }
 
-  override def cancelableObservables(): Seq[GunzipOperatorSuite.Sample] = Seq.empty
+  override def cancelableObservables(): Seq[Sample] = Seq.empty
 }

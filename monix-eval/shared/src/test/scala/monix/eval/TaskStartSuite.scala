@@ -24,14 +24,14 @@ import monix.execution.internal.Platform
 import concurrent.duration._
 import scala.util.Success
 
-object TaskStartSuite extends BaseTestSuite {
-  test("task.start.flatMap(_.join) <-> task") { implicit sc =>
+class TaskStartSuite extends BaseTestSuite {
+  fixture.test("task.start.flatMap(_.join) <-> task") { implicit sc =>
     check1 { (task: Task[Int]) =>
       task.start.flatMap(_.join) <-> task
     }
   }
 
-  test("task.start.flatMap(id) is cancelable, but the source is memoized") { implicit sc =>
+  fixture.test("task.start.flatMap(id) is cancelable, but the source is memoized") { implicit sc =>
     var effect = 0
     val task = Task { effect += 1; effect }.delayExecution(1.second).start.flatMap(_.join)
     val f = task.runToFuture
@@ -43,7 +43,7 @@ object TaskStartSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("task.start is stack safe") { implicit sc =>
+  fixture.test("task.start is stack safe") { implicit sc =>
     var task: Task[Any] = Task.evalAsync(1)
     for (_ <- 0 until 5000) task = task.start.flatMap(_.join)
 
@@ -52,7 +52,7 @@ object TaskStartSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  testAsync("task.start shares Local.Context with fibers") { _ =>
+  fixture.test("task.start shares Local.Context with fibers") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
@@ -71,7 +71,7 @@ object TaskStartSuite extends BaseTestSuite {
     }
   }
 
-  test("task.start is stack safe") { implicit sc =>
+  fixture.test("task.start is stack safe") { implicit sc =>
     val count = if (Platform.isJVM) 10000 else 1000
     def loop(n: Int): Task[Unit] =
       if (n > 0)
@@ -83,7 +83,7 @@ object TaskStartSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("task.start executes asynchronously") { implicit sc =>
+  fixture.test("task.start executes asynchronously") { implicit sc =>
     val task = Task(1 + 1).start.flatMap(_.join)
     val f = task.runToFuture
 

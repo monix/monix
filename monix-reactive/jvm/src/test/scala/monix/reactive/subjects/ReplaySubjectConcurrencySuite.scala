@@ -18,19 +18,15 @@
 package monix.reactive.subjects
 
 import java.util.concurrent.{ CountDownLatch, TimeUnit }
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
 import monix.execution.internal.RunnableAction
-import monix.reactive.{ Observable, Observer }
+import monix.reactive.{ BaseConcurrencySuite, Observable, Observer }
 
-object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {
-  def tearDown(env: Scheduler) = ()
-  def setup() = {
-    monix.execution.Scheduler.Implicits.global
-  }
+class ReplaySubjectConcurrencySuite extends BaseConcurrencySuite {
 
-  test("subscribers should get everything") { implicit s =>
+  fixture.test("subscribers should get everything") { implicit s =>
     val nrOfSubscribers = 100
     val signalsPerSubscriber = 20000L
     val completed = new CountDownLatch(nrOfSubscribers)

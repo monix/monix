@@ -20,18 +20,17 @@ package monix.eval
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-import minitest.SimpleTestSuite
 import monix.execution.{ BufferCapacity, Scheduler }
 import monix.execution.exceptions.DummyException
 import monix.execution.misc.Local
 import cats.implicits._
 import monix.catnap.{ ConcurrentChannel, ConsumerF }
 
-object TaskLocalSuite extends SimpleTestSuite {
+class TaskLocalSuite extends BaseTestSuite {
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
   implicit val opts: Task.Options = Task.defaultOptions.enableLocalContextPropagation
 
-  testAsync("TaskLocal.apply") {
+  test("TaskLocal.apply") {
     val test =
       for {
         local <- TaskLocal(0)
@@ -50,7 +49,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     test.runToFutureOpt
   }
 
-  testAsync("TaskLocal.wrap") {
+  test("TaskLocal.wrap") {
     val local = Local(0)
     val test =
       for {
@@ -70,7 +69,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     test.runToFutureOpt
   }
 
-  testAsync("TaskLocal.defaultLazy") {
+  test("TaskLocal.defaultLazy") {
     var i = 0
 
     val test =
@@ -91,7 +90,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     test.runToFutureOpt
   }
 
-  testAsync("TaskLocal!.bind") {
+  test("TaskLocal!.bind") {
     val test =
       for {
         local <- TaskLocal(0)
@@ -106,7 +105,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     test.runToFutureOpt
   }
 
-  testAsync("TaskLocal!.bindL") {
+  test("TaskLocal!.bindL") {
     val test =
       for {
         local <- TaskLocal(0)
@@ -121,7 +120,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     test.runToFutureOpt
   }
 
-  testAsync("TaskLocal!.bindClear") {
+  test("TaskLocal!.bindClear") {
     val test =
       for {
         local <- TaskLocal(200)
@@ -136,7 +135,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     test.runToFutureOpt
   }
 
-  testAsync("TaskLocal canceled") {
+  test("TaskLocal canceled") {
     import scala.concurrent.duration._
 
     val test: Task[Unit] = for {
@@ -151,7 +150,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     test.runToFutureOpt
   }
 
-  testAsync("TaskLocal!.local") {
+  test("TaskLocal!.local") {
     val test =
       for {
         taskLocal <- TaskLocal(200)
@@ -173,7 +172,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     test.runToFutureOpt
   }
 
-  testAsync("TaskLocals get restored in Task.create on error") {
+  test("TaskLocals get restored in Task.create on error") {
     val dummy = DummyException("dummy")
     val task = Task.create[Int] { (_, cb) =>
       ec.execute(() => cb.onError(dummy))
@@ -191,7 +190,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     t.runToFutureOpt
   }
 
-  testAsync("TaskLocal should work with bracket") {
+  test("TaskLocal should work with bracket") {
     val t = for {
       local <- TaskLocal(0)
       _ <- Task.unit.executeAsync
@@ -203,7 +202,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     t.runToFutureOpt
   }
 
-  testAsync("TaskLocal.isolate should prevent context changes") {
+  test("TaskLocal.isolate should prevent context changes") {
     val t = for {
       local <- TaskLocal(0)
       inc = local.read.map(_ + 1).flatMap(local.write)
@@ -218,7 +217,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     t.runToFutureOpt
   }
 
-  testAsync("TaskLocal interop with future via deferFutureAction") {
+  test("TaskLocal interop with future via deferFutureAction") {
     val t = for {
       local  <- TaskLocal(0)
       unsafe <- local.local
@@ -237,7 +236,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     t.runToFutureOpt
   }
 
-  testAsync("TaskLocal.bind scoping works") {
+  test("TaskLocal.bind scoping works") {
     val tl = TaskLocal(999)
     val t = Task
       .map3(tl, tl, tl) { (l1, l2, l3) =>
@@ -253,7 +252,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     t.runToFutureOpt
   }
 
-  testAsync("TaskLocal.bind actually isolates reads") {
+  test("TaskLocal.bind actually isolates reads") {
     val t = for {
       l1 <- TaskLocal(0)
       l2 <- TaskLocal(0)
@@ -268,7 +267,7 @@ object TaskLocalSuite extends SimpleTestSuite {
     t.runToFutureOpt
   }
 
-  testAsync("TaskLocal.isolate with ConcurrentChannel") {
+  test("TaskLocal.isolate with ConcurrentChannel") {
     val bufferSize = 16
 
     class Test(

@@ -24,14 +24,15 @@ import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import scala.concurrent.duration._
 
-object TimeoutOnSlowDownstreamSuite extends BaseOperatorSuite {
+class TimeoutOnSlowDownstreamSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val source = Observable.now(sourceCount.toLong).delayOnComplete(1.hour)
     val o = source
       .timeoutOnSlowDownstream(1.second)
       .delayOnNext(30.minutes)
       .onErrorRecoverWith {
-        case DownstreamTimeoutException(_) => Observable.now(20L)
+        case DownstreamTimeoutException(_) =>
+          Observable.now(20L)
       }
     Sample(o, 1, 20, 1.second, 0.seconds)
   }
@@ -56,7 +57,7 @@ object TimeoutOnSlowDownstreamSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("Observable.timeoutOnSlowDownstreamTo should timeout on slow downstream") { implicit sc =>
+  fixture.test("Observable.timeoutOnSlowDownstreamTo should timeout on slow downstream") { implicit sc =>
     val backup = AtomicInt(0)
 
     Observable
@@ -70,7 +71,7 @@ object TimeoutOnSlowDownstreamSuite extends BaseOperatorSuite {
     assertEquals(backup.get(), 1)
   }
 
-  test("Observable.timeoutOnSlowDownstreamTo should complete successfully") { implicit sc =>
+  fixture.test("Observable.timeoutOnSlowDownstreamTo should complete successfully") { implicit sc =>
     val backup = AtomicInt(0)
 
     Observable

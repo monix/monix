@@ -23,8 +23,8 @@ import monix.execution.exceptions.DummyException
 import monix.reactive.{ BaseTestSuite, Consumer, Observable }
 import scala.util.Failure
 
-object MapConsumerSuite extends BaseTestSuite {
-  test("consumer.map equivalence with task.map") { implicit s =>
+class MapConsumerSuite extends BaseTestSuite {
+  fixture.test("consumer.map equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
       val t1 = obs.consumeWith(consumer.map(_ + 100))
@@ -33,7 +33,7 @@ object MapConsumerSuite extends BaseTestSuite {
     }
   }
 
-  test("consumer.map streams error") { implicit s =>
+  fixture.test("consumer.map streams error") { implicit s =>
     check2 { (obs: Observable[Int], ex: Throwable) =>
       val withError = obs.endWithError(ex)
       val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
@@ -44,7 +44,7 @@ object MapConsumerSuite extends BaseTestSuite {
     }
   }
 
-  test("consumer.map protects against user code") { implicit s =>
+  fixture.test("consumer.map protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].map(_ => throw ex))

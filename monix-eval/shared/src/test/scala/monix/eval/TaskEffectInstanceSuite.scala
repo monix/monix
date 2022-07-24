@@ -22,13 +22,13 @@ import monix.execution.schedulers.TracingScheduler
 
 import scala.concurrent.duration._
 
-object TaskEffectInstanceSuite extends BaseTestSuite {
+class TaskEffectInstanceSuite extends BaseTestSuite {
   val readOptions: Task[Task.Options] =
     Task.Async { (ctx, cb) =>
       cb.onSuccess(ctx.options)
     }
 
-  test("Effect instance should make use of implicit TaskOptions") { implicit sc =>
+  fixture.test("Effect instance should make use of implicit TaskOptions") { implicit sc =>
     implicit val customOptions: Task.Options = Task.Options(
       autoCancelableRunLoops = true,
       localContextPropagation = true
@@ -41,8 +41,7 @@ object TaskEffectInstanceSuite extends BaseTestSuite {
         received = opts
         IO.unit
       case _ =>
-        fail()
-        IO.unit
+        fail("failed")
     }
 
     io.unsafeRunSync()
@@ -50,15 +49,14 @@ object TaskEffectInstanceSuite extends BaseTestSuite {
     assertEquals(received, customOptions)
   }
 
-  test("Effect instance should use Task.defaultOptions with default TestScheduler") { implicit sc =>
+  fixture.test("Effect instance should use Task.defaultOptions with default TestScheduler") { implicit sc =>
     var received: Task.Options = null
     val io = Effect[Task].runAsync(readOptions) {
       case Right(opts) =>
         received = opts
         IO.unit
       case _ =>
-        fail()
-        IO.unit
+        fail("failed")
     }
 
     io.unsafeRunSync()
@@ -67,7 +65,7 @@ object TaskEffectInstanceSuite extends BaseTestSuite {
     assert(!received.localContextPropagation)
   }
 
-  test("Effect instance should use Task.defaultOptions.withSchedulerFeatures") { sc =>
+  fixture.test("Effect instance should use Task.defaultOptions.withSchedulerFeatures") { sc =>
     implicit val tracing = TracingScheduler(sc)
 
     var received: Task.Options = null
@@ -76,8 +74,7 @@ object TaskEffectInstanceSuite extends BaseTestSuite {
         received = opts
         IO.unit
       case _ =>
-        fail()
-        IO.unit
+        fail("failed")
     }
 
     io.unsafeRunSync()

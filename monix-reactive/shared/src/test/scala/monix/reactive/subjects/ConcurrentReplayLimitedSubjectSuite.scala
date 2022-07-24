@@ -17,14 +17,13 @@
 
 package monix.reactive.subjects
 
-import minitest.laws.Checkers
 import monix.execution.Scheduler
 import monix.reactive.MulticastStrategy
 import monix.reactive.OverflowStrategy.Unbounded
 
 import scala.util.Success
 
-object ConcurrentReplayLimitedSubjectSuite extends BaseConcurrentSubjectSuite with Checkers {
+class ConcurrentReplayLimitedSubjectSuite extends BaseConcurrentSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
     val c = ConcurrentSubject[Long](MulticastStrategy.replayLimited(expectedElems.size + 1), Unbounded)
     Sample(c, expectedElems.sum)
@@ -35,7 +34,7 @@ object ConcurrentReplayLimitedSubjectSuite extends BaseConcurrentSubjectSuite wi
     Some(Sample(c, expectedElems.sum))
   }
 
-  test("should replay only last n elements") { implicit s =>
+  fixture.test("should replay only last n elements") { implicit s =>
     check1 { (list: Seq[Long]) =>
       val capacity = 10
       val c = ConcurrentSubject.replayLimited[Long](capacity, list, Unbounded)

@@ -24,8 +24,8 @@ import monix.reactive.{ BaseTestSuite, Observable }
 import scala.concurrent.duration._
 import scala.util.Success
 
-object BufferSlidingSuite extends BaseTestSuite {
-  test("bufferSliding equivalence with the standard library") { implicit s =>
+class BufferSlidingSuite extends BaseTestSuite {
+  fixture.test("bufferSliding equivalence with the standard library") { implicit s =>
     check3 { (numbers: List[Int], countR: Int, skipR: Int) =>
       val count = Math.floorMod(countR, 10) + 1
       val skip = Math.floorMod(skipR, 10) + 1
@@ -36,11 +36,11 @@ object BufferSlidingSuite extends BaseTestSuite {
     }
   }
 
-  test("issue #275 regression test") { implicit s =>
+  fixture.test("issue #275 regression test") { implicit s =>
     val received = Observable.interval(1.seconds).bufferSliding(5, 1).take(10L).map(_.toList).toListL.runToFuture
     val expected = (0 until 20).sliding(5, 1).take(10).map(_.toList).toList
     s.tick(100.seconds)
 
-    assertEquals(received.value, Some(Success(expected)))
+    assertEquals(received.value, Some(Success(expected.map(_.map(_.toLong)))))
   }
 }

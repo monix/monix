@@ -30,21 +30,22 @@ import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
+import TaskConversionsSuite._
 
-object TaskConversionsSuite extends BaseTestSuite {
-  test("Task.from(task.to[IO]) == task") { implicit s =>
+class TaskConversionsSuite extends BaseTestSuite {
+  fixture.test("Task.from(task.to[IO]) == task") { implicit s =>
     check1 { (task: Task[Int]) =>
       Task.from(task.to[IO]) <-> task
     }
   }
 
-  test("Task.from(IO.raiseError(e))") { implicit s =>
+  fixture.test("Task.from(IO.raiseError(e))") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.from(IO.raiseError(dummy))
     assertEquals(task.runToFuture.value, Some(Failure(dummy)))
   }
 
-  test("Task.from(IO.raiseError(e).shift)") { implicit s =>
+  fixture.test("Task.from(IO.raiseError(e).shift)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.from(for (_ <- IO.shift(s); x <- IO.raiseError[Int](dummy)) yield x)
     val f = task.runToFuture
@@ -54,11 +55,11 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.now(v).to[IO]") { implicit s =>
+  fixture.test("Task.now(v).to[IO]") { implicit s =>
     assertEquals(Task.now(10).to[IO].unsafeRunSync(), 10)
   }
 
-  test("Task.raiseError(dummy).to[IO]") { implicit s =>
+  fixture.test("Task.raiseError(dummy).to[IO]") { implicit s =>
     val dummy = DummyException("dummy")
     intercept[DummyException] {
       Task.raiseError[Unit](dummy).to[IO].unsafeRunSync()
@@ -66,11 +67,11 @@ object TaskConversionsSuite extends BaseTestSuite {
     ()
   }
 
-  test("Task.eval(thunk).to[IO]") { implicit s =>
+  fixture.test("Task.eval(thunk).to[IO]") { implicit s =>
     assertEquals(Task.eval(10).to[IO].unsafeRunSync(), 10)
   }
 
-  test("Task.eval(fa).asyncBoundary.to[IO]") { implicit s =>
+  fixture.test("Task.eval(fa).asyncBoundary.to[IO]") { implicit s =>
     val io = Task.eval(1).asyncBoundary.to[IO]
     val f = io.unsafeToFuture()
 
@@ -78,7 +79,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.raiseError(dummy).asyncBoundary.to[IO]") { implicit s =>
+  fixture.test("Task.raiseError(dummy).asyncBoundary.to[IO]") { implicit s =>
     val dummy = DummyException("dummy")
     val io = Task.raiseError[Int](dummy).executeAsync.to[IO]
     val f = io.unsafeToFuture()
@@ -87,25 +88,25 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.fromConcurrent(task.toConcurrent[IO]) == task") { implicit s =>
+  fixture.test("Task.fromConcurrent(task.toConcurrent[IO]) == task") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     check1 { (task: Task[Int]) =>
       Task.fromConcurrentEffect(task.toConcurrent[IO]) <-> task
     }
   }
 
-  test("Task.fromAsync(task.toAsync[IO]) == task") { implicit s =>
+  fixture.test("Task.fromAsync(task.toAsync[IO]) == task") { implicit s =>
     check1 { (task: Task[Int]) =>
       Task.fromEffect(task.toAsync[IO]) <-> task
     }
   }
 
-  test("Task.fromConcurrent(task) == task") { implicit s =>
+  fixture.test("Task.fromConcurrent(task) == task") { implicit s =>
     val ref = Task.evalAsync(1)
     assertEquals(Task.fromConcurrentEffect(ref), ref)
   }
 
-  test("Task.fromConcurrent(io)") { implicit s =>
+  fixture.test("Task.fromConcurrent(io)") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val f = Task.fromConcurrentEffect(IO(1)).runToFuture
@@ -117,7 +118,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Success(1)))
   }
 
-  test("Task.fromAsync(Effect)") { implicit s =>
+  fixture.test("Task.fromAsync(Effect)") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val ioEffect: Effect[CIO] = new CustomEffect
 
@@ -134,7 +135,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
-  test("Task.fromConcurrent(ConcurrentEffect)") { implicit s =>
+  fixture.test("Task.fromConcurrent(ConcurrentEffect)") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val ioEffect: ConcurrentEffect[CIO] = new CustomConcurrentEffect()
 
@@ -151,7 +152,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
-  test("Task.fromAsync(broken Effect)") { implicit s =>
+  fixture.test("Task.fromAsync(broken Effect)") { implicit s =>
     val dummy = DummyException("dummy")
     implicit val ioEffect: Effect[CIO] =
       new CustomEffect()(IO.contextShift(s)) {
@@ -166,7 +167,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("Task.fromConcurrent(broken ConcurrentEffect)") { implicit s =>
+  fixture.test("Task.fromConcurrent(broken ConcurrentEffect)") { implicit s =>
     val dummy = DummyException("dummy")
     implicit val ioEffect: ConcurrentEffect[CIO] =
       new CustomConcurrentEffect()(IO.contextShift(s)) {
@@ -181,7 +182,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("Task.from is cancelable") { implicit s =>
+  fixture.test("Task.from is cancelable") { implicit s =>
     val timer = SchedulerEffect.timerLiftIO[IO](s)
     val io = timer.sleep(10.seconds)
     val f = Task.from(io).runToFuture
@@ -199,7 +200,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.fromConcurrent(io) is cancelable") { implicit s =>
+  fixture.test("Task.fromConcurrent(io) is cancelable") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val timer = SchedulerEffect.timer[IO](s)
@@ -219,7 +220,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.fromConcurrent(ConcurrentEffect) is cancelable") { implicit s =>
+  fixture.test("Task.fromConcurrent(ConcurrentEffect) is cancelable") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val effect: ConcurrentEffect[CIO] = new CustomConcurrentEffect
 
@@ -239,7 +240,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.fromConcurrent(task.to[IO]) preserves cancelability") { implicit s =>
+  fixture.test("Task.fromConcurrent(task.to[IO]) preserves cancelability") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val task0 = Task(1).delayExecution(10.seconds)
@@ -258,7 +259,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.fromConcurrent(task.to[CIO]) preserves cancelability") { implicit s =>
+  fixture.test("Task.fromConcurrent(task.to[CIO]) preserves cancelability") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val effect: ConcurrentEffect[CIO] = new CustomConcurrentEffect
 
@@ -278,7 +279,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.fromAsync(task.to[IO]) preserves cancelability (because IO is known)") { implicit s =>
+  fixture.test("Task.fromAsync(task.to[IO]) preserves cancelability (because IO is known)") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val task0 = Task(1).delayExecution(10.seconds)
@@ -297,7 +298,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.fromConcurrent(task.toConcurrent[F]) <-> task (Effect)") { implicit s =>
+  fixture.test("Task.fromConcurrent(task.toConcurrent[F]) <-> task (Effect)") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val effect: CustomConcurrentEffect = new CustomConcurrentEffect
 
@@ -306,7 +307,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     }
   }
 
-  test("Task.fromAsync(task.toAsync[F]) <-> task") { implicit s =>
+  fixture.test("Task.fromAsync(task.toAsync[F]) <-> task") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val effect: CustomEffect = new CustomEffect
 
@@ -315,7 +316,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     }
   }
 
-  test("Task.fromConcurrent(task.to[F]) <-> task (ConcurrentEffect)") { implicit s =>
+  fixture.test("Task.fromConcurrent(task.to[F]) <-> task (ConcurrentEffect)") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val effect: CustomConcurrentEffect = new CustomConcurrentEffect
 
@@ -324,7 +325,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     }
   }
 
-  test("Task.from[Eval]") { implicit s =>
+  fixture.test("Task.from[Eval]") { implicit s =>
     var effect = 0
     val task = Task.from(Eval.always { effect += 1; effect })
 
@@ -333,13 +334,13 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(task.runToFuture.value, Some(Success(3)))
   }
 
-  test("Task.from[Eval] protects against user error") { implicit s =>
+  fixture.test("Task.from[Eval] protects against user error") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.from(Eval.always { throw dummy })
     assertEquals(task.runToFuture.value, Some(Failure(dummy)))
   }
 
-  test("Task.fromCancelablePromise") { implicit s =>
+  fixture.test("Task.fromCancelablePromise") { implicit s =>
     val p = CancelablePromise[Int]()
     val task = Task.fromCancelablePromise(p)
 
@@ -357,7 +358,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(token3.value, Some(Success(1)))
   }
 
-  test("Task.fromCancelablePromise stack safety") { implicit s =>
+  fixture.test("Task.fromCancelablePromise stack safety") { implicit s =>
     val count = if (Platform.isJVM) 10000 else 1000
 
     val p = CancelablePromise[Int]()
@@ -380,7 +381,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Success(99)))
   }
 
-  test("Task.fromReactivePublisher protects against user error") { implicit s =>
+  fixture.test("Task.fromReactivePublisher protects against user error") { implicit s =>
     val dummy = DummyException("dummy")
 
     val pub = new Publisher[Int] {
@@ -395,7 +396,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(Task.fromReactivePublisher(pub).runToFuture.value, Some(Failure(dummy)))
   }
 
-  test("Task.fromReactivePublisher yields expected input") { implicit s =>
+  fixture.test("Task.fromReactivePublisher yields expected input") { implicit s =>
     val pub = new Publisher[Int] {
       def subscribe(s: Subscriber[_ >: Int]): Unit = {
         s.onSubscribe(new Subscription {
@@ -417,11 +418,15 @@ object TaskConversionsSuite extends BaseTestSuite {
     assertEquals(Task.fromReactivePublisher(pub).runToFuture.value, Some(Success(Some(1))))
   }
 
-  test("Task.fromReactivePublisher <-> task") { implicit s =>
+  fixture.test("Task.fromReactivePublisher <-> task") { implicit s =>
     check1 { (task: Task[Int]) =>
       Task.fromReactivePublisher(task.toReactivePublisher) <-> task.map(Some(_))
     }
   }
+
+}
+
+object TaskConversionsSuite {
 
   final case class CIO[+A](io: IO[A])
 
@@ -446,7 +451,11 @@ object TaskConversionsSuite extends BaseTestSuite {
       CIO(IO.pure(x))
     override def liftIO[A](ioa: IO[A]): CIO[A] =
       CIO(ioa)
-    override def bracketCase[A, B](acquire: CIO[A])(use: A => CIO[B])(
+    override def bracketCase[A, B](
+      acquire: CIO[A]
+    )(
+      use: A => CIO[B]
+    )(
       release: (A, ExitCase[Throwable]) => CIO[Unit]
     ): CIO[B] =
       CIO(acquire.io.bracketCase(a => use(a).io)((a, e) => release(a, e).io))

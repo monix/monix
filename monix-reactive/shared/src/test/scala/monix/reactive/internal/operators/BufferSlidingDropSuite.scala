@@ -21,7 +21,7 @@ import monix.execution.internal.Platform
 import monix.reactive.Observable
 import scala.concurrent.duration._
 
-object BufferSlidingDropSuite extends BaseOperatorSuite {
+class BufferSlidingDropSuite extends BaseOperatorSuite {
   val waitNext = Duration.Zero
   val waitFirst = Duration.Zero
 

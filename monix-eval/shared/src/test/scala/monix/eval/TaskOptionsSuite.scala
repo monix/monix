@@ -17,13 +17,11 @@
 
 package monix.eval
 
-import minitest.SimpleTestSuite
 import monix.eval.Task.Options
 import monix.execution.Callback
-import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.Promise
 
-object TaskOptionsSuite extends SimpleTestSuite {
+class TaskOptionsSuite extends BaseTestSuite {
   implicit val opts: Options = Task.defaultOptions.enableLocalContextPropagation
 
   def extractOptions: Task[Options] =
@@ -31,14 +29,14 @@ object TaskOptionsSuite extends SimpleTestSuite {
       cb.onSuccess(ctx.options)
     }
 
-  testAsync("change options with future") {
+  fixture.test("change options with future") { implicit s =>
     val task = extractOptions.map { r =>
       assertEquals(r, opts)
     }
     task.runToFutureOpt
   }
 
-  testAsync("change options with callback") {
+  fixture.test("change options with callback") { implicit s =>
     val p = Promise[Options]()
     extractOptions.runAsyncOpt(Callback.fromPromise(p))
 

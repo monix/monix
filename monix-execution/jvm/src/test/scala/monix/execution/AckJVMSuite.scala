@@ -17,13 +17,12 @@
 
 package monix.execution
 
-import minitest.SimpleTestSuite
 import monix.execution.Ack.{ Continue, Stop }
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
-object AckJVMSuite extends SimpleTestSuite {
+class AckJVMSuite extends BaseTestSuite {
   test("blocks on Continue") {
     Await.ready(Continue, Duration.Inf)
     assertEquals(Await.result(Continue, Duration.Inf), Continue)

@@ -25,8 +25,8 @@ import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 import monix.execution.atomic.Atomic
 
-object TaskRaceSuite extends BaseTestSuite {
-  test("Task.raceMany should switch to other") { implicit s =>
+class TaskRaceSuite extends BaseTestSuite {
+  fixture.test("Task.raceMany should switch to other") { implicit s =>
     val task =
       Task.raceMany(Seq(Task.evalAsync(1).delayExecution(10.seconds), Task.evalAsync(99).delayExecution(1.second)))
     val f = task.runToFuture
@@ -37,7 +37,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(99)))
   }
 
-  test("Task.raceMany should onError from other") { implicit s =>
+  fixture.test("Task.raceMany should onError from other") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.raceMany(
       Seq(Task.evalAsync(1).delayExecution(10.seconds), Task.evalAsync(throw ex).delayExecution(1.second))
@@ -50,7 +50,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task.raceMany should mirror the source") { implicit s =>
+  fixture.test("Task.raceMany should mirror the source") { implicit s =>
     val task =
       Task.raceMany(Seq(Task.evalAsync(1).delayExecution(1.seconds), Task.evalAsync(99).delayExecution(10.second)))
     val f = task.runToFuture
@@ -62,7 +62,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "other should be canceled")
   }
 
-  test("Task.raceMany should onError from the source") { implicit s =>
+  fixture.test("Task.raceMany should onError from the source") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.raceMany(
       Seq(Task.evalAsync(throw ex).delayExecution(1.seconds), Task.evalAsync(99).delayExecution(10.second))
@@ -76,7 +76,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "other should be canceled")
   }
 
-  test("Task.raceMany should cancel both") { implicit s =>
+  fixture.test("Task.raceMany should cancel both") { implicit s =>
     val task =
       Task.raceMany(Seq(Task.evalAsync(1).delayExecution(10.seconds), Task.evalAsync(99).delayExecution(1.second)))
     val f = task.runToFuture
@@ -90,7 +90,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "both should be canceled")
   }
 
-  test("Task.raceMany should be stack safe, take 1") { implicit s =>
+  fixture.test("Task.raceMany should be stack safe, take 1") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val tasks = (0 until count).map(x => Task.evalAsync(x))
     val sum = Task.raceMany(tasks)
@@ -99,7 +99,7 @@ object TaskRaceSuite extends BaseTestSuite {
     s.tick()
   }
 
-  test("Task.raceMany should be stack safe, take 2") { implicit s =>
+  fixture.test("Task.raceMany should be stack safe, take 2") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val tasks = (0 until count).map(x => Task.eval(x))
     val sum = Task.raceMany(tasks)
@@ -108,7 +108,7 @@ object TaskRaceSuite extends BaseTestSuite {
     s.tick()
   }
 
-  test("Task.raceMany has a stack safe cancelable") { implicit sc =>
+  fixture.test("Task.raceMany has a stack safe cancelable") { implicit sc =>
     val count = if (Platform.isJVM) 10000 else 1000
     val p = Promise[Int]()
 
@@ -123,7 +123,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task#timeout should timeout") { implicit s =>
+  fixture.test("Task#timeout should timeout") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(10.seconds).timeout(1.second)
     val f = task.runToFuture
 
@@ -135,7 +135,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "Main task was not canceled!")
   }
 
-  test("Task#timeout should mirror the source in case of success") { implicit s =>
+  fixture.test("Task#timeout should mirror the source in case of success") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(1.seconds).timeout(10.second)
     val f = task.runToFuture
 
@@ -146,7 +146,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "timer should be canceled")
   }
 
-  test("Task#timeout should mirror the source in case of error") { implicit s =>
+  fixture.test("Task#timeout should mirror the source in case of error") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.evalAsync(throw ex).delayExecution(1.seconds).timeout(10.second)
     val f = task.runToFuture
@@ -158,7 +158,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "timer should be canceled")
   }
 
-  test("Task#timeout should cancel both the source and the timer") { implicit s =>
+  fixture.test("Task#timeout should cancel both the source and the timer") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(10.seconds).timeout(1.second)
     val f = task.runToFuture
 
@@ -170,7 +170,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task#timeout with backup should timeout") { implicit s =>
+  fixture.test("Task#timeout with backup should timeout") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(10.seconds).timeoutTo(1.second, Task.evalAsync(99))
     val f = task.runToFuture
 
@@ -180,7 +180,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(99)))
   }
 
-  test("Task#timeout with backup should mirror the source in case of success") { implicit s =>
+  fixture.test("Task#timeout with backup should mirror the source in case of success") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(1.seconds).timeoutTo(10.second, Task.evalAsync(99))
     val f = task.runToFuture
 
@@ -191,7 +191,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "timer should be canceled")
   }
 
-  test("Task#timeout with backup should mirror the source in case of error") { implicit s =>
+  fixture.test("Task#timeout with backup should mirror the source in case of error") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.evalAsync(throw ex).delayExecution(1.seconds).timeoutTo(10.second, Task.evalAsync(99))
     val f = task.runToFuture
@@ -203,7 +203,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "timer should be canceled")
   }
 
-  test("Task#timeout should cancel both the source and the timer") { implicit s =>
+  fixture.test("Task#timeout should cancel both the source and the timer") { implicit s =>
     val task = Task.evalAsync(1).delayExecution(10.seconds).timeoutTo(1.second, Task.evalAsync(99))
     val f = task.runToFuture
 
@@ -216,7 +216,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "timer should be canceled")
   }
 
-  test("Task#timeout should cancel the backup") { implicit s =>
+  fixture.test("Task#timeout should cancel the backup") { implicit s =>
     val task =
       Task.evalAsync(1).delayExecution(10.seconds).timeoutTo(1.second, Task.evalAsync(99).delayExecution(2.seconds))
     val f = task.runToFuture
@@ -231,7 +231,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "backup should be canceled")
   }
 
-  test("Task#timeout should not return the source after timeout") { implicit s =>
+  fixture.test("Task#timeout should not return the source after timeout") { implicit s =>
     val task =
       Task.evalAsync(1).delayExecution(2.seconds).timeoutTo(1.second, Task.evalAsync(99).delayExecution(2.seconds))
     val f = task.runToFuture
@@ -243,7 +243,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(99)))
   }
 
-  test("Task#timeout should cancel the source after timeout") { implicit s =>
+  fixture.test("Task#timeout should cancel the source after timeout") { implicit s =>
     val backup = Task.evalAsync(99).delayExecution(1.seconds)
     val task = Task.evalAsync(1).delayExecution(5.seconds).timeoutTo(1.second, backup)
     val f = task.runToFuture
@@ -258,7 +258,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "all task should be completed")
   }
 
-  test("Task#timeoutL should evaluate as specified: lazy, no memoization") { implicit s =>
+  fixture.test("Task#timeoutL should evaluate as specified: lazy, no memoization") { implicit s =>
     val cnt = Atomic(0L)
     val timeout = Task(cnt.incrementAndGet().seconds)
     val loop = Task(10).delayExecution(2.9.seconds).timeoutL(timeout).onErrorRestart(3)
@@ -272,7 +272,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task#timeoutL should evaluate as specified: lazy, with memoization") { implicit s =>
+  fixture.test("Task#timeoutL should evaluate as specified: lazy, with memoization") { implicit s =>
     val cnt = Atomic(0L)
     val timeout = Task.evalOnce(cnt.incrementAndGet().seconds)
     val loop = Task(10).delayExecution(10.seconds).timeoutL(timeout).onErrorRestart(3)
@@ -293,7 +293,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(f.value.get.failed.get.isInstanceOf[TimeoutException])
   }
 
-  test("Task#timeoutL considers time taken to evaluate the duration task") { implicit s =>
+  fixture.test("Task#timeoutL considers time taken to evaluate the duration task") { implicit s =>
     val timeout = Task(3.seconds).delayExecution(2.seconds)
     val f = Task(10).delayExecution(4.seconds).timeoutToL(timeout, Task(-10)).runToFuture
 
@@ -304,7 +304,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(-10)))
   }
 
-  test("Task#timeoutL: evaluation time took > timeout => timeout is immediately completed") { implicit s =>
+  fixture.test("Task#timeoutL: evaluation time took > timeout => timeout is immediately completed") { implicit s =>
     val timeout = Task(2.seconds).delayExecution(3.seconds)
     val f = Task(10).delayExecution(4.seconds).timeoutToL(timeout, Task(-10)).runToFuture
 
@@ -312,7 +312,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(-10)))
   }
 
-  test("Task.racePair(a,b) should work if a completes first") { implicit s =>
+  fixture.test("Task.racePair(a,b) should work if a completes first") { implicit s =>
     val ta = Task.now(10).delayExecution(1.second)
     val tb = Task.now(20).delayExecution(2.seconds)
 
@@ -330,7 +330,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(30)))
   }
 
-  test("Task.racePair(a,b) should cancel both") { implicit s =>
+  fixture.test("Task.racePair(a,b) should cancel both") { implicit s =>
     val ta = Task.now(10).delayExecution(2.second)
     val tb = Task.now(20).delayExecution(1.seconds)
 
@@ -342,7 +342,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Task.racePair(A,B) should not cancel B if A completes first") { implicit s =>
+  fixture.test("Task.racePair(A,B) should not cancel B if A completes first") { implicit s =>
     val ta = Task.now(10).delayExecution(1.second)
     val tb = Task.now(20).delayExecution(2.seconds)
     var future = Option.empty[CancelableFuture[Int]]
@@ -368,7 +368,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(future.flatMap(_.value), Some(Success(20)))
   }
 
-  test("Task.racePair(A,B) should not cancel A if B completes first") { implicit s =>
+  fixture.test("Task.racePair(A,B) should not cancel A if B completes first") { implicit s =>
     val ta = Task.now(10).delayExecution(2.second)
     val tb = Task.now(20).delayExecution(1.seconds)
     var future = Option.empty[CancelableFuture[Int]]
@@ -394,7 +394,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(future.flatMap(_.value), Some(Success(10)))
   }
 
-  test("Task.racePair(A,B) should end both in error if A completes first in error") { implicit s =>
+  fixture.test("Task.racePair(A,B) should end both in error if A completes first in error") { implicit s =>
     val dummy = DummyException("dummy")
     val ta = Task.raiseError[Int](dummy).delayExecution(1.second)
     val tb = Task.now(20).delayExecution(2.seconds)
@@ -406,7 +406,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Task.racePair(A,B) should end both in error if B completes first in error") { implicit s =>
+  fixture.test("Task.racePair(A,B) should end both in error if B completes first in error") { implicit s =>
     val dummy = DummyException("dummy")
     val ta = Task.now(10).delayExecution(2.seconds)
     val tb = Task.raiseError[Int](dummy).delayExecution(1.second)
@@ -418,7 +418,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Task.racePair(A,B) should work if A completes second in error") { implicit s =>
+  fixture.test("Task.racePair(A,B) should work if A completes second in error") { implicit s =>
     val dummy = DummyException("dummy")
     val ta = Task.raiseError[Int](dummy).delayExecution(2.second)
     val tb = Task.now(20).delayExecution(1.seconds)
@@ -443,7 +443,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Success(20)))
   }
 
-  test("Task.racePair(A,B) should work if B completes second in error") { implicit s =>
+  fixture.test("Task.racePair(A,B) should work if B completes second in error") { implicit s =>
     val dummy = DummyException("dummy")
     val ta = Task.now(10).delayExecution(1.seconds)
     val tb = Task.raiseError[Int](dummy).delayExecution(2.second)
@@ -468,7 +468,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Success(10)))
   }
 
-  test("Task.racePair should be stack safe, take 1") { implicit s =>
+  fixture.test("Task.racePair should be stack safe, take 1") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val tasks = (0 until count).map(x => Task.evalAsync(x))
     val init = Task.never[Int]
@@ -484,7 +484,7 @@ object TaskRaceSuite extends BaseTestSuite {
     s.tick()
   }
 
-  test("Task.racePair should be stack safe, take 2") { implicit s =>
+  fixture.test("Task.racePair should be stack safe, take 2") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val tasks = (0 until count).map(x => Task.eval(x))
     val init = Task.never[Int]
@@ -500,7 +500,7 @@ object TaskRaceSuite extends BaseTestSuite {
     s.tick()
   }
 
-  test("Task.racePair has a stack safe cancelable") { implicit sc =>
+  fixture.test("Task.racePair has a stack safe cancelable") { implicit sc =>
     val count = if (Platform.isJVM) 10000 else 1000
     val p = Promise[Int]()
 
@@ -527,7 +527,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.race(a, b) should work if a completes first") { implicit s =>
+  fixture.test("Task.race(a, b) should work if a completes first") { implicit s =>
     val ta = Task.now(10).delayExecution(1.second)
     val tb = Task.now(20).delayExecution(2.seconds)
 
@@ -542,7 +542,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Task.race(a, b) should work if b completes first") { implicit s =>
+  fixture.test("Task.race(a, b) should work if b completes first") { implicit s =>
     val ta = Task.now(10).delayExecution(2.second)
     val tb = Task.now(20).delayExecution(1.seconds)
 
@@ -557,7 +557,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Task.race(a, b) should cancel both") { implicit s =>
+  fixture.test("Task.race(a, b) should cancel both") { implicit s =>
     val ta = Task.now(10).delayExecution(2.second)
     val tb = Task.now(20).delayExecution(1.seconds)
 
@@ -569,7 +569,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Task.race(a, b) should end both in error if `a` completes first in error") { implicit s =>
+  fixture.test("Task.race(a, b) should end both in error if `a` completes first in error") { implicit s =>
     val dummy = DummyException("dummy")
     val ta = Task.raiseError[Int](dummy).delayExecution(1.second)
     val tb = Task.now(20).delayExecution(2.seconds)
@@ -581,7 +581,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Task.race(a, b) should end both in error if `b` completes first in error") { implicit s =>
+  fixture.test("Task.race(a, b) should end both in error if `b` completes first in error") { implicit s =>
     val dummy = DummyException("dummy")
     val ta = Task.now(20).delayExecution(2.seconds)
     val tb = Task.raiseError[Int](dummy).delayExecution(1.second)
@@ -593,7 +593,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Task.race(a, b) should work if `a` completes in error") { implicit s =>
+  fixture.test("Task.race(a, b) should work if `a` completes in error") { implicit s =>
     val dummy = DummyException("dummy")
     val ta = Task.raiseError[Int](dummy).delayExecution(2.second).uncancelable
     val tb = Task.now(20).delayExecution(1.seconds)
@@ -610,7 +610,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("Task.race(a, b) should work if `b` completes in error") { implicit s =>
+  fixture.test("Task.race(a, b) should work if `b` completes in error") { implicit s =>
     val dummy = DummyException("dummy")
     val ta = Task.now(20).delayExecution(1.seconds)
     val tb = Task.raiseError[Int](dummy).delayExecution(2.second).uncancelable
@@ -627,7 +627,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("Task.race should be stack safe, take 1") { implicit s =>
+  fixture.test("Task.race should be stack safe, take 1") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val tasks = (0 until count).map(x => Task.evalAsync(x))
     val init = Task.never[Int]
@@ -643,7 +643,7 @@ object TaskRaceSuite extends BaseTestSuite {
     s.tick()
   }
 
-  test("Task.race should be stack safe, take 2") { implicit s =>
+  fixture.test("Task.race should be stack safe, take 2") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val tasks = (0 until count).map(x => Task.eval(x))
     val init = Task.never[Int]
@@ -659,7 +659,7 @@ object TaskRaceSuite extends BaseTestSuite {
     s.tick()
   }
 
-  test("Task.race has a stack safe cancelable") { implicit sc =>
+  fixture.test("Task.race has a stack safe cancelable") { implicit sc =>
     val count = if (Platform.isJVM) 10000 else 1000
     val p = Promise[Int]()
 

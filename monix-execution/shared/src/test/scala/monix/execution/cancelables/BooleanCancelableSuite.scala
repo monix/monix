@@ -17,9 +17,9 @@
 
 package monix.execution.cancelables
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 
-object BooleanCancelableSuite extends SimpleTestSuite {
+class BooleanCancelableSuite extends BaseTestSuite {
   test("BooleanCancelable.cancel()") {
     var effect = 0
     val sub = BooleanCancelable(() => effect += 1)

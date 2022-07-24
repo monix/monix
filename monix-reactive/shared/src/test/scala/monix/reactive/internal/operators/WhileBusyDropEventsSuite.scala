@@ -17,29 +17,25 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Ack.Continue
-import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.subjects.PublishSubject
 import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Promise
 import scala.util.Success
 
-object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class WhileBusyDropEventsSuite extends BaseTestSuite {
 
-  test("should not drop events for synchronous observers") { implicit s =>
+  fixture.test("should not drop events for synchronous observers") { implicit s =>
     val f = Observable.range(0, 1000).whileBusyDropEvents.sum.runAsyncGetFirst
     s.tick()
 
-    assertEquals(f.value, Some(Success(Some(999 * 500))))
+    assertEquals(f.value, Some(Success(Some(999 * 500L))))
   }
 
-  test("should drop events for busy observers") { implicit s =>
+  fixture.test("should drop events for busy observers") { implicit s =>
     val source = PublishSubject[Long]()
     val p = Promise[Continue.type]()
     var received = 0L
@@ -59,20 +55,20 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
 
     source.onNext(1)
     s.tick()
-    assertEquals(received, 1)
+    assertEquals(received, 1L)
 
     for (i <- 0 until 100) source.onNext(i.toLong)
-    assertEquals(received, 1)
+    assertEquals(received, 1L)
 
     p.success(Continue)
     s.tick()
-    assertEquals(received, 1)
+    assertEquals(received, 1L)
 
     for (i <- 100 until 200) source.onNext(i.toLong)
     assertEquals(received, (100 until 200).sum.toLong + 1)
   }
 
-  test("onComplete should not apply back-pressure") { implicit s =>
+  fixture.test("onComplete should not apply back-pressure") { implicit s =>
     val source = PublishSubject[Long]()
     val p = Promise[Continue.type]()
     var received = 0L
@@ -93,18 +89,18 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
       })
 
     source.onNext(1L); s.tick()
-    assertEquals(received, 0)
+    assertEquals(received, 0L)
 
     source.onComplete(); s.tick()
-    assertEquals(received, 0)
+    assertEquals(received, 0L)
     assert(wasCompleted, "wasCompleted should be true")
 
     p.success(Continue)
     s.tick()
-    assertEquals(received, 1)
+    assertEquals(received, 1L)
   }
 
-  test("onError should not apply back-pressure") { implicit s =>
+  fixture.test("onError should not apply back-pressure") { implicit s =>
     val source = PublishSubject[Long]()
     val p = Promise[Continue.type]()
     var received = 0L
@@ -124,13 +120,13 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
     val ex = DummyException("dummy")
 
     source.onNext(1L); s.tick()
-    assertEquals(received, 0)
+    assertEquals(received, 0L)
 
     source.onError(ex); s.tick()
-    assertEquals(received, 0)
+    assertEquals(received, 0L)
     assertEquals(wasThrown, ex)
 
     p.success(Continue); s.tick()
-    assertEquals(received, 1)
+    assertEquals(received, 1L)
   }
 }

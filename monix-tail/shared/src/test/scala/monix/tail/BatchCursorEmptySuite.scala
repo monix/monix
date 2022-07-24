@@ -19,10 +19,10 @@ package monix.tail
 
 import java.util.NoSuchElementException
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import monix.tail.batches.{ BatchCursor, EmptyCursor }
 
-object BatchCursorEmptySuite extends SimpleTestSuite {
+class BatchCursorEmptySuite extends BaseTestSuite {
   test("BatchCursor.empty.current") {
     val cursor = BatchCursor.empty[Int]
     intercept[NoSuchElementException] { cursor.next(); () }

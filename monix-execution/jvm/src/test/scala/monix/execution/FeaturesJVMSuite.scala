@@ -19,14 +19,12 @@ package monix.execution
 
 import java.util.concurrent.Executors
 
-import minitest.SimpleTestSuite
-import minitest.laws.Checkers
 import monix.execution.schedulers._
 
 import scala.concurrent.ExecutionContext.global
 import scala.concurrent.duration.TimeUnit
 
-object FeaturesJVMSuite extends SimpleTestSuite with Checkers {
+class FeaturesJVMSuite extends BaseTestSuite with Checkers {
   test("TestScheduler") {
     val ref = TestScheduler()
     assert(ref.features.contains(Scheduler.BATCHING))

@@ -42,7 +42,7 @@ abstract class ConcurrentChannelJVMSuite(parallelism: Int) extends BaseConcurren
       if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
       else IO.unit
 
-    testAsync(name) { implicit ec =>
+    fixture.test(name) { implicit ec =>
       repeatTest(f(ec).timeout(taskTimeout), times).unsafeToFuture()
     }
   }
@@ -51,6 +51,6 @@ abstract class ConcurrentChannelJVMSuite(parallelism: Int) extends BaseConcurren
     Bounded(32)
 }
 
-object ConcurrentChannelJVMParallelism8Suite extends ConcurrentChannelJVMSuite(8)
-object ConcurrentChannelJVMParallelism4Suite extends ConcurrentChannelJVMSuite(4)
-object ConcurrentChannelJVMParallelism1Suite extends ConcurrentChannelJVMSuite(1)
+class ConcurrentChannelJVMParallelism8Suite extends ConcurrentChannelJVMSuite(8)
+class ConcurrentChannelJVMParallelism4Suite extends ConcurrentChannelJVMSuite(4)
+class ConcurrentChannelJVMParallelism1Suite extends ConcurrentChannelJVMSuite(1)

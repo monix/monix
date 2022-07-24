@@ -21,7 +21,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration._
 
-object SumSuite extends BaseOperatorSuite {
+class SumSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0L, sourceCount.toLong).sum
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)

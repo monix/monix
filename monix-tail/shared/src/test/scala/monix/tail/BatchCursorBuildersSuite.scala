@@ -19,8 +19,8 @@ package monix.tail
 
 import monix.tail.batches.BatchCursor
 
-object BatchCursorBuildersSuite extends BaseTestSuite {
-  test("apply") { _ =>
+class BatchCursorBuildersSuite extends BaseTestSuite {
+  test("apply") {
     check1 { (list: List[Int]) =>
       list == BatchCursor(list: _*).toList &&
       list == BatchCursor.fromSeq(list).toList &&
@@ -28,17 +28,17 @@ object BatchCursorBuildersSuite extends BaseTestSuite {
     }
   }
 
-  test("range(0, 100)") { _ =>
+  test("range(0, 100)") {
     val range = BatchCursor.range(0, 100)
     assertEquals(range.toList, (0 until 100).toList)
   }
 
-  test("range(0, 100, 2)") { _ =>
+  test("range(0, 100, 2)") {
     val range = BatchCursor.range(0, 100, 2)
     assertEquals(range.toList, 0.until(100, 2).toList)
   }
 
-  test("range(100, 0, -1)") { _ =>
+  test("range(100, 0, -1)") {
     val range = BatchCursor.range(100, 0, -1)
     assertEquals(range.toList, 100.until(0, -1).toList)
   }

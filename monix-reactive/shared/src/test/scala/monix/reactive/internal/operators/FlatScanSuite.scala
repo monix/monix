@@ -28,7 +28,7 @@ import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 import scala.util.Failure
 
-object FlatScanSuite extends BaseOperatorSuite {
+class FlatScanSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable
       .range(0L, sourceCount.toLong)
@@ -77,21 +77,21 @@ object FlatScanSuite extends BaseOperatorSuite {
     )
   }
 
-  test("should trigger error if the initial state triggers errors") { implicit s =>
+  fixture.test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable(1, 2, 3, 4).flatScan[Int](throw ex)((_, e) => Observable(e))
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("flatScan0.drop(1) <-> flatScan") { implicit s =>
+  fixture.test("flatScan0.drop(1) <-> flatScan") { implicit s =>
     check2 { (obs: Observable[Long], seed: Long) =>
       obs.flatScan0(seed)((a, b) => Observable(a, b)).drop(1) <->
         obs.flatScan(seed)((a, b) => Observable(a, b))
     }
   }
 
-  test("flatScan0.headL <-> Task.pure(seed)") { implicit s =>
+  fixture.test("flatScan0.headL <-> Task.pure(seed)") { implicit s =>
     check2 { (obs: Observable[Int], seed: Int) =>
       obs.flatScan0(seed)((_, _) => Observable.empty).headL <-> Task.pure(seed)
     }

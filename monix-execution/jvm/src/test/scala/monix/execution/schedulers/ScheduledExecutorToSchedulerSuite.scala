@@ -19,7 +19,8 @@ package monix.execution.schedulers
 
 import java.util.concurrent._
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+import monix.execution.TestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.SingleAssignCancelable
@@ -28,7 +29,7 @@ import monix.execution.{ ExecutionModel => ExecModel, Features, UncaughtExceptio
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Promise }
 
-object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
+class ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
   val lastError = Atomic(null: Throwable)
 
   def setup(): ExecutorScheduler = {
@@ -53,7 +54,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
     assert(result, "scheduler.awaitTermination")
   }
 
-  test("scheduleOnce with delay") { implicit s =>
+  fixture.test("scheduleOnce with delay") { implicit s =>
     val p = Promise[Long]()
     val startedAt = System.nanoTime()
     s.scheduleOnce(100.millis) { p.success(System.nanoTime()); () }
@@ -62,7 +63,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
     assert((timeTaken - startedAt).nanos.toMillis >= 100)
   }
 
-  test("scheduleOnce with negative delay") { implicit s =>
+  fixture.test("scheduleOnce with negative delay") { implicit s =>
     val p = Promise[Boolean]()
     s.scheduleOnce(-100.millis) { p.success(true); () }
 
@@ -70,19 +71,19 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
     assert(result)
   }
 
-  test("reportFailure") { implicit s =>
+  fixture.test("reportFailure") { implicit s =>
     val dummy = new RuntimeException("dummy, please ignore")
     s.reportFailure(dummy)
     assertEquals(lastError.getAndSet(null), dummy)
   }
 
-  test("scheduleOnce with delay lower than 1.milli") { implicit s =>
+  fixture.test("scheduleOnce with delay lower than 1.milli") { implicit s =>
     val p = Promise[Int]()
     s.scheduleOnce(20.nanos) { p.success(1); () }
     assert(Await.result(p.future, 3.seconds) == 1)
   }
 
-  test("scheduleOnce with delay and cancel") { implicit s =>
+  fixture.test("scheduleOnce with delay and cancel") { implicit s =>
     val p = Promise[Int]()
     val task = s.scheduleOnce(100.millis) { p.success(1); () }
     task.cancel()
@@ -94,7 +95,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
     ()
   }
 
-  test("schedule with fixed delay") { implicit s =>
+  fixture.test("schedule with fixed delay") { implicit s =>
     val sub = SingleAssignCancelable()
     val p = Promise[Int]()
     var value = 0
@@ -113,7 +114,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
     assert(Await.result(p.future, 5.second) == 4)
   }
 
-  test("schedule at fixed rate") { implicit s =>
+  fixture.test("schedule at fixed rate") { implicit s =>
     val sub = SingleAssignCancelable()
     val p = Promise[Int]()
     var value = 0
@@ -132,7 +133,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
     assert(Await.result(p.future, 5.second) == 4)
   }
 
-  test("execute local") { implicit s =>
+  fixture.test("execute local") { implicit s =>
     var result = 0
     def loop(n: Int): Unit =
       s.executeTrampolined { () =>
@@ -145,7 +146,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
     assertEquals(result, count)
   }
 
-  test("change execution model") { implicit s =>
+  fixture.test("change execution model") { implicit s =>
     assertEquals(s.executionModel, ExecModel.Default)
     val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     assertEquals(s.executionModel, ExecModel.Default)

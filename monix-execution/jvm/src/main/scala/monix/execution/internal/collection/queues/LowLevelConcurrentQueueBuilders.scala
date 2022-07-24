@@ -27,8 +27,8 @@ import monix.execution.internal.jctools.queues._
 import monix.execution.internal.jctools.queues.atomic._
 
 private[internal] trait LowLevelConcurrentQueueBuilders {
-  /**
-    * Builds a concurrent queue.
+
+  /** Builds a concurrent queue.
     */
   def apply[A](capacity: BufferCapacity, channelType: ChannelType, fenced: Boolean): LowLevelConcurrentQueue[A] =
     capacity match {
@@ -36,8 +36,7 @@ private[internal] trait LowLevelConcurrentQueueBuilders {
       case BufferCapacity.Unbounded(hint) => unbounded(hint, channelType, fenced)
     }
 
-  /**
-    * Builds a bounded `ConcurrentQueue` reference.
+  /** Builds a bounded `ConcurrentQueue` reference.
     */
   private def bounded[A](capacity: Int, ct: ChannelType, fenced: Boolean): LowLevelConcurrentQueue[A] =
     if (UnsafeAccess.IS_OPENJDK_COMPATIBLE) {
@@ -65,8 +64,7 @@ private[internal] trait LowLevelConcurrentQueueBuilders {
       FromMessagePassingQueue[A](new MpmcAtomicArrayQueue[A](capacity), ct)
     }
 
-  /**
-    * Builds an bounded `ConcurrentQueue` reference.
+  /** Builds an bounded `ConcurrentQueue` reference.
     */
   private def unbounded[A](chunkSize: Option[Int], ct: ChannelType, fenced: Boolean): LowLevelConcurrentQueue[A] = {
     val chunk = chunkSize.getOrElse(Platform.recommendedBufferChunkSize)

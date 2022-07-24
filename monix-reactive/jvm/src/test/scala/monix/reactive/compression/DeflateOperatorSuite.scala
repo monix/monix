@@ -25,12 +25,12 @@ import monix.reactive.internal.operators.BaseOperatorSuite
 
 import scala.concurrent.duration.Duration.Zero
 
-object DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
+class DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
 
   implicit val scheduler: Scheduler =
     Scheduler.computation(parallelism = 4, name = "compression-tests", daemonic = true)
 
-  testAsync("deflate empty bytes") { _ =>
+  fixture.test("deflate empty bytes") { _ =>
     Observable
       .fromIterable(List.empty)
       .transform(deflate(bufferSize = 100))
@@ -43,7 +43,7 @@ object DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
       )
       .runToFuture
   }
-  testAsync("deflates same as JDK") { _ =>
+  fixture.test("deflates same as JDK") { _ =>
     Observable
       .now(longText)
       .transform(deflate(256))
@@ -51,7 +51,7 @@ object DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
       .map(list => assertEquals(list.flatten, jdkDeflate(longText, new Deflater(-1, false)).toList))
       .runToFuture
   }
-  testAsync("deflates same as JDK, nowrap") { _ =>
+  fixture.test("deflates same as JDK, nowrap") { _ =>
     Observable
       .now(longText)
       .transform(deflate(256, noWrap = true))
@@ -59,7 +59,7 @@ object DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
       .map(list => assertEquals(list.flatten, jdkDeflate(longText, new Deflater(-1, true)).toList))
       .runToFuture
   }
-  testAsync("deflates same as JDK, small buffer") { _ =>
+  fixture.test("deflates same as JDK, small buffer") { _ =>
     Observable
       .now(longText)
       .transform(deflate(1))
@@ -67,7 +67,7 @@ object DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
       .map(list => assertEquals(list.flatten, jdkDeflate(longText, new Deflater(-1, false)).toList))
       .runToFuture
   }
-  testAsync("deflates same as JDK, nowrap, small buffer ") { _ =>
+  fixture.test("deflates same as JDK, nowrap, small buffer ") { _ =>
     Observable
       .now(longText)
       .transform(deflate(1, noWrap = true))
@@ -76,7 +76,7 @@ object DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
       .runToFuture
   }
 
-  override def createObservable(sourceCount: Int): Option[DeflateOperatorSuite.Sample] =
+  override def createObservable(sourceCount: Int): Option[Sample] =
     Some {
       val o = Observable
         .repeatEval(longText)
@@ -86,9 +86,9 @@ object DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
       Sample(o, sourceCount, sourceCount, Zero, Zero)
     }
 
-  override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[DeflateOperatorSuite.Sample] = None
+  override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample] = None
 
-  override def observableInError(sourceCount: Int, ex: Throwable): Option[DeflateOperatorSuite.Sample] =
+  override def observableInError(sourceCount: Int, ex: Throwable): Option[Sample] =
     Some {
       val o = createObservableEndingInError(
         Observable
@@ -101,5 +101,5 @@ object DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
       Sample(o, sourceCount, sourceCount, Zero, Zero)
     }
 
-  override def cancelableObservables(): Seq[DeflateOperatorSuite.Sample] = Seq.empty
+  override def cancelableObservables(): Seq[Sample] = Seq.empty
 }

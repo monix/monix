@@ -17,19 +17,19 @@
 
 package monix.execution.internal
 
-import minitest.TestSuite
 import monix.execution.cancelables.SingleAssignCancelable
+import monix.execution._
 import monix.execution.schedulers.AsyncScheduler
 import monix.execution.{ ExecutionModel, Scheduler, TestUtils }
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 
-object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
+class AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
   def setup() = AsyncScheduler(MacrotaskExecutor, ExecutionModel.Default)
   def tearDown(env: Scheduler): Unit = ()
 
-  testAsync("execute async should work") { implicit s =>
+  fixture.test("execute async should work") { implicit s =>
     var effect = 0
     val p = Promise[Int]()
 
@@ -50,7 +50,7 @@ object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
     for (result <- p.future) yield assertEquals(result, 1 + 2 + 3)
   }
 
-  test("execute local should work") { implicit s =>
+  fixture.test("execute local should work") { implicit s =>
     var effect = 0
 
     s.executeTrampolined { () =>
@@ -66,7 +66,7 @@ object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
     assertEquals(effect, 1 + 2 + 3)
   }
 
-  testAsync("schedule for execution with delay") { implicit s =>
+  fixture.test("schedule for execution with delay") { implicit s =>
     if (isCI) {
       ignore("Test is slow and flaky on top of underpowered machines, skipping")
     }
@@ -82,7 +82,7 @@ object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
     }
   }
 
-  testAsync("scheduleWithFixedRate should compensate for scheduling inaccuracy") { implicit s =>
+  fixture.test("scheduleWithFixedRate should compensate for scheduling inaccuracy") { implicit s =>
     if (isCI) {
       ignore("Test is slow and flaky on top of underpowered machines, skipping")
     }
@@ -109,13 +109,13 @@ object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
     }
   }
 
-  test("clockRealTime") { s =>
+  fixture.test("clockRealTime") { s =>
     val t1 = System.currentTimeMillis()
     val t2 = s.clockRealTime(MILLISECONDS)
     assert(t2 >= t1, "t2 >= t1")
   }
 
-  test("clockMonotonic") { s =>
+  fixture.test("clockMonotonic") { s =>
     val t1 = System.nanoTime()
     val t2 = s.clockMonotonic(NANOSECONDS)
     assert(t2 >= t1, "t2 >= t1")

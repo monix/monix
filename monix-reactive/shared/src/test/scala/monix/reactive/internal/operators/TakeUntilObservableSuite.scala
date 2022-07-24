@@ -26,7 +26,7 @@ import concurrent.duration._
 import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
-object TakeUntilObservableSuite extends BaseOperatorSuite {
+class TakeUntilObservableSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val source = Observable.intervalAtFixedRate(2.seconds, 2.seconds)
     val trigger = Observable.now(1).delayExecution(2.seconds * sourceCount.toLong + 1.second)
@@ -57,13 +57,13 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
     )
   }
 
-  test("should mirror the source if never triggered") { implicit s =>
+  fixture.test("should mirror the source if never triggered") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       obs <-> obs.takeUntil(Observable.never)
     }
   }
 
-  test("should cancel the trigger if finished before it") { implicit s =>
+  fixture.test("should cancel the trigger if finished before it") { implicit s =>
     val obs = Observable(1).executeAsync.takeUntil(Observable.now(1).delayExecution(1.second))
     val f = obs.runAsyncGetFirst
 
@@ -74,7 +74,7 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("takeUntilEval should only take until task completes") { implicit s =>
+  fixture.test("takeUntilEval should only take until task completes") { implicit s =>
     val obs = Observable
       .intervalAtFixedRate(2.seconds, 2.seconds)
       .takeUntilEval(Task.unit.delayExecution(3.seconds))
@@ -83,10 +83,10 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
 
     s.tick(3.seconds)
 
-    assertEquals(obs.value, Some(Success(List(0))))
+    assertEquals(obs.value, Some(Success(List(0L))))
   }
 
-  test("takeUntilEvalF should only take until future completes") { implicit s =>
+  fixture.test("takeUntilEvalF should only take until future completes") { implicit s =>
     case class FutureIO[A](value: () => Future[A]) {
       def run: Future[A] = value()
     }
@@ -111,6 +111,6 @@ object TakeUntilObservableSuite extends BaseOperatorSuite {
 
     s.tick(3.seconds)
 
-    assertEquals(obs.value, Some(Success(List(0))))
+    assertEquals(obs.value, Some(Success(List(0L))))
   }
 }

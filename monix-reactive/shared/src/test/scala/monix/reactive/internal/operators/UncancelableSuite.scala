@@ -24,10 +24,10 @@ import monix.reactive.{ BaseTestSuite, Observable }
 import concurrent.duration._
 import scala.util.Success
 
-object UncancelableSuite extends BaseTestSuite {
+class UncancelableSuite extends BaseTestSuite {
   implicit val opts: Task.Options = Task.defaultOptions.disableAutoCancelableRunLoops
 
-  test("uncancelable works") { implicit ec =>
+  fixture.test("uncancelable works") { implicit ec =>
     val obs = Observable
       .eval(1)
       .delayExecution(1.second)
@@ -47,7 +47,7 @@ object UncancelableSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(Some(1))))
   }
 
-  test("uncancelable works for suspend loop") { implicit ec =>
+  fixture.test("uncancelable works for suspend loop") { implicit ec =>
     def loop(n: Int): Observable[Int] =
       Observable.suspend {
         if (n > 0)

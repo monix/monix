@@ -18,24 +18,20 @@
 package monix.reactive.internal.operators
 
 import cats.effect.IO
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class DoOnEarlyStopSuite extends BaseTestSuite {
 
-  test("should execute for cats.effect.IO") { implicit s =>
+  fixture.test("should execute for cats.effect.IO") { implicit s =>
     var wasCanceled = 0
     var wasCompleted = 0
 
@@ -53,7 +49,7 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 1)
   }
 
-  test("should execute for synchronous subscribers") { implicit s =>
+  fixture.test("should execute for synchronous subscribers") { implicit s =>
     var wasCanceled = 0
     var wasCompleted = 0
 
@@ -71,7 +67,7 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 1)
   }
 
-  test("should execute for asynchronous subscribers") { implicit s =>
+  fixture.test("should execute for asynchronous subscribers") { implicit s =>
     var wasCanceled = 0
     var wasCompleted = 0
 
@@ -90,7 +86,7 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 1)
   }
 
-  test("should not execute if cancel does not happen") { implicit s =>
+  fixture.test("should not execute if cancel does not happen") { implicit s =>
     var wasCanceled = 0
     var wasCompleted = 0
 
@@ -111,7 +107,7 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 1)
   }
 
-  test("should stream onError") { implicit s =>
+  fixture.test("should stream onError") { implicit s =>
     val dummy = DummyException("ex")
     var wasCanceled = 0
     var wasCompleted = 0
@@ -137,7 +133,7 @@ object DoOnEarlyStopSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, dummy)
   }
 
-  test("should protect against user code") { implicit s =>
+  fixture.test("should protect against user code") { implicit s =>
     val dummy = DummyException("dummy")
     var hasError = false
 

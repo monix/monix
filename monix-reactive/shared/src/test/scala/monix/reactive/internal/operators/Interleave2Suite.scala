@@ -26,7 +26,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 
-object Interleave2Suite extends BaseOperatorSuite {
+class Interleave2Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Option {
     val source = Observable.range(0L, sourceCount.toLong)
     val o = source.interleave(source)
@@ -49,7 +49,7 @@ object Interleave2Suite extends BaseOperatorSuite {
     Seq(Sample(sample1, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("self starts before other and finishes before other") { implicit s =>
+  fixture.test("self starts before other and finishes before other") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -86,7 +86,7 @@ object Interleave2Suite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("self signals error and interrupts the stream before it starts") { implicit s =>
+  fixture.test("self signals error and interrupts the stream before it starts") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -112,7 +112,7 @@ object Interleave2Suite extends BaseOperatorSuite {
     assert(wasCanceled)
   }
 
-  test("other signals error and interrupts the stream before it starts") { implicit s =>
+  fixture.test("other signals error and interrupts the stream before it starts") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -120,9 +120,11 @@ object Interleave2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = 0
 
-    obs2.doOnEarlyStopF { () =>
-      wasCanceled = true
-    }.interleave(obs1)
+    obs2
+      .doOnEarlyStopF { () =>
+        wasCanceled = true
+      }
+      .interleave(obs1)
       .unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -137,7 +139,7 @@ object Interleave2Suite extends BaseOperatorSuite {
     assert(wasCanceled)
   }
 
-  test("should not back-pressure self.onError") { implicit s =>
+  fixture.test("should not back-pressure self.onError") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -162,7 +164,7 @@ object Interleave2Suite extends BaseOperatorSuite {
     s.tick(2.second)
   }
 
-  test("should not back-pressure other.onError") { implicit s =>
+  fixture.test("should not back-pressure other.onError") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 

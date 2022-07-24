@@ -24,8 +24,8 @@ import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 import monix.tail.batches.BatchCursor
 
-object IterantDropLastSuite extends BaseTestSuite {
-  test("Iterant.dropLast is equivalent with List.dropRight") { implicit s =>
+class IterantDropLastSuite extends BaseTestSuite {
+  fixture.test("Iterant.dropLast is equivalent with List.dropRight") { implicit s =>
     check3 { (list: List[Int], idx: Int, nr: Int) =>
       val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1).onErrorIgnore
       val n = if (nr == 0) 0 else math.abs(math.abs(nr) % 20)
@@ -33,7 +33,7 @@ object IterantDropLastSuite extends BaseTestSuite {
       stream.dropLast(n).toListL <-> stream.toListL.map(_.dropRight(n))
     }
   }
-  test("Iterant.dropLast protects against broken batches") { implicit s =>
+  fixture.test("Iterant.dropLast protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
@@ -43,7 +43,7 @@ object IterantDropLastSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dropLast protects against broken cursors") { implicit s =>
+  fixture.test("Iterant.dropLast protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
@@ -53,7 +53,7 @@ object IterantDropLastSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dropLast preserves resource safety") { implicit s =>
+  fixture.test("Iterant.dropLast preserves resource safety") { implicit s =>
     var effect = 0
     val source = Iterant[Coeval]
       .nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
@@ -63,7 +63,7 @@ object IterantDropLastSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Iterant.dropLast closes resources on exception") { _ =>
+  test("Iterant.dropLast closes resources on exception") {
     check1 { (iter: Iterant[Coeval, Int]) =>
       val cancelable = BooleanCancelable()
       val dummy = DummyException("dummy")
@@ -78,7 +78,7 @@ object IterantDropLastSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dropLast works for infinite cursors") { implicit s =>
+  fixture.test("Iterant.dropLast works for infinite cursors") { implicit s =>
     // always produces at least one item
     def dropRight[A](i: Iterator[A], n: Int) = {
       // https://stackoverflow.com/a/3511985/4094860
@@ -94,7 +94,7 @@ object IterantDropLastSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dropLast suspends side effects") { implicit s =>
+  fixture.test("Iterant.dropLast suspends side effects") { implicit s =>
     check1 { (stream: Iterant[Task, Int]) =>
       stream.dropLast(1) <-> stream.dropLast(1)
     }

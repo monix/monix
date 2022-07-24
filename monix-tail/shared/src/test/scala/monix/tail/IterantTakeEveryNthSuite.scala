@@ -29,7 +29,7 @@ import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 import scala.util.Failure
 
-object IterantTakeEveryNthSuite extends BaseTestSuite {
+class IterantTakeEveryNthSuite extends BaseTestSuite {
   override lazy val checkConfig: Parameters = {
     if (Platform.isJVM)
       Test.Parameters.default.withMaxSize(256)
@@ -46,7 +46,7 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
           Iterant[F].empty
     }
 
-  test("naiveImp smoke test") { implicit s =>
+  fixture.test("naiveImp smoke test") { implicit s =>
     val input = List(1, 2, 3, 4, 5, 6)
     val iter = Iterant[Coeval].fromList(input)
     assertEquals(naiveImp(iter, 1).toListL.value(), input)
@@ -55,7 +55,7 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
     assertEquals(naiveImp(iter, input.length + 1).toListL.value(), List.empty[Int])
   }
 
-  test("Iterant[Task].takeEveryNth equivalence with naiveImp") { implicit s =>
+  fixture.test("Iterant[Task].takeEveryNth equivalence with naiveImp") { implicit s =>
     check3 { (list: List[Int], idx: Int, nr: Int) =>
       val stream = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1, allowErrors = false)
       val length = list.length
@@ -72,7 +72,7 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeEveryNth protects against broken batches") { implicit s =>
+  fixture.test("Iterant.takeEveryNth protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
@@ -82,7 +82,7 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeEveryNth protects against broken cursors") { implicit s =>
+  fixture.test("Iterant.takeEveryNth protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
@@ -92,7 +92,7 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeEveryNth triggers early stop on exception") { _ =>
+  test("Iterant.takeEveryNth triggers early stop on exception") {
     check1 { (iter: Iterant[Coeval, Int]) =>
       val cancelable = BooleanCancelable()
       val dummy = DummyException("dummy")
@@ -103,7 +103,7 @@ object IterantTakeEveryNthSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeEveryNth throws on invalid n") { implicit s =>
+  fixture.test("Iterant.takeEveryNth throws on invalid n") { implicit s =>
     val source = Iterant[Coeval].nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
     intercept[IllegalArgumentException] {
       source.takeEveryNth(0).completedL.value()

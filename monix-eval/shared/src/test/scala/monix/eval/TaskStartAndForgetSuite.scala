@@ -23,9 +23,9 @@ import monix.execution.internal.Platform
 import scala.concurrent.duration._
 import scala.util.Success
 
-object TaskStartAndForgetSuite extends BaseTestSuite {
+class TaskStartAndForgetSuite extends BaseTestSuite {
 
-  test("Task.startAndForget triggers execution in background thread") { implicit sc =>
+  fixture.test("Task.startAndForget triggers execution in background thread") { implicit sc =>
     var counter = 0
     val task = Task.eval { counter += 1; counter }
 
@@ -42,7 +42,7 @@ object TaskStartAndForgetSuite extends BaseTestSuite {
     assertEquals(counter, 2)
   }
 
-  test("Task.startAndForget triggers exceptions in background thread") { implicit sc =>
+  fixture.test("Task.startAndForget triggers exceptions in background thread") { implicit sc =>
     val dummy = new DummyException()
     val task = Task.now(20)
     val errorTask = Task.raiseError(dummy)
@@ -58,7 +58,7 @@ object TaskStartAndForgetSuite extends BaseTestSuite {
     assertEquals(sc.state.lastReportedError, dummy)
   }
 
-  test("Task.startAndForget is stack safe") { implicit sc =>
+  fixture.test("Task.startAndForget is stack safe") { implicit sc =>
     val count = if (Platform.isJVM) 100000 else 5000
 
     var task: Task[Any] = Task.evalAsync(1)

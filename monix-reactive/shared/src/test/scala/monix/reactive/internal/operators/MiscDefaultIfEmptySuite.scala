@@ -22,7 +22,7 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object MiscDefaultIfEmptySuite extends BaseOperatorSuite {
+class MiscDefaultIfEmptySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = (Observable.empty: Observable[Long])
       .defaultIfEmpty(222L)
@@ -44,7 +44,7 @@ object MiscDefaultIfEmptySuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("should not emit default if not empty") { implicit s =>
+  fixture.test("should not emit default if not empty") { implicit s =>
     val obs = Observable.now(1).defaultIfEmpty(2)
     var received = 0
     var wasCompleted = false

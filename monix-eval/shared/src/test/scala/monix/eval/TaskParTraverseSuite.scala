@@ -24,8 +24,8 @@ import concurrent.duration._
 import scala.annotation.nowarn
 import scala.util.{ Failure, Success }
 
-object TaskParTraverseSuite extends BaseTestSuite {
-  test("Task.parTraverse should execute in parallel for async tasks") { implicit s =>
+class TaskParTraverseSuite extends BaseTestSuite {
+  fixture.test("Task.parTraverse should execute in parallel for async tasks") { implicit s =>
     val seq = Seq((1, 2), (2, 1), (3, 3))
     val f = Task
       .parTraverse(seq) {
@@ -42,7 +42,7 @@ object TaskParTraverseSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(Seq(2, 3, 4))))
   }
 
-  test("Task.parTraverse should onError if one of the tasks terminates in error") { implicit s =>
+  fixture.test("Task.parTraverse should onError if one of the tasks terminates in error") { implicit s =>
     val ex = DummyException("dummy")
     val seq = Seq((1, 3), (-1, 1), (3, 2), (3, 1))
     val f = Task
@@ -60,11 +60,12 @@ object TaskParTraverseSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task.parTraverse should be canceled") { implicit s =>
+  fixture.test("Task.parTraverse should be canceled") { implicit s =>
     val seq = Seq((1, 2), (2, 1), (3, 3))
     val f = Task
       .parTraverse(seq) {
-        case (i, d) => Task.evalAsync(i + 1).delayExecution(d.seconds)
+        case (i, d) =>
+          Task.evalAsync(i + 1).delayExecution(d.seconds)
       }
       .runToFuture
 
@@ -78,7 +79,7 @@ object TaskParTraverseSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.parTraverse should be stack safe for synchronous tasks") { implicit s =>
+  fixture.test("Task.parTraverse should be stack safe for synchronous tasks") { implicit s =>
     val count = if (Platform.isJVM) 200000 else 5000
     val seq = for (_ <- 0 until count) yield 1
     val composite = Task.parTraverse(seq)(Task.now).map(_.sum)
@@ -87,7 +88,7 @@ object TaskParTraverseSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Success(count)))
   }
 
-  test("Task.parTraverse runAsync multiple times") { implicit s =>
+  fixture.test("Task.parTraverse runAsync multiple times") { implicit s =>
     var effect = 0
 
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
@@ -107,7 +108,7 @@ object TaskParTraverseSuite extends BaseTestSuite {
     assertEquals(effect, 1 + 3 + 3)
   }
 
-  test("Task.parTraverse should wrap exceptions in the function") { implicit s =>
+  fixture.test("Task.parTraverse should wrap exceptions in the function") { implicit s =>
     val ex = DummyException("dummy")
 
     @nowarn

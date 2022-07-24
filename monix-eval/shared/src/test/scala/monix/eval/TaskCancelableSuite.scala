@@ -24,8 +24,8 @@ import monix.execution.exceptions.DummyException
 
 import scala.util.{ Failure, Success, Try }
 
-object TaskCancelableSuite extends BaseTestSuite {
-  test("Task.cancelable0 should be stack safe on repeated, right-associated binds") { implicit s =>
+class TaskCancelableSuite extends BaseTestSuite {
+  fixture.test("Task.cancelable0 should be stack safe on repeated, right-associated binds") { implicit s =>
     def signal[A](a: A): Task[A] = Task.cancelable0[A] { (_, cb) =>
       cb.onSuccess(a)
       Task.unit
@@ -38,7 +38,7 @@ object TaskCancelableSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10000)))
   }
 
-  test("Task.cancelable0 should be stack safe on repeated, left-associated binds") { implicit s =>
+  fixture.test("Task.cancelable0 should be stack safe on repeated, left-associated binds") { implicit s =>
     def signal[A](a: A): Task[A] = Task.cancelable0[A] { (_, cb) =>
       cb.onSuccess(a)
       Task.unit
@@ -51,7 +51,7 @@ object TaskCancelableSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10000)))
   }
 
-  test("Task.cancelable0 should work onSuccess") { implicit s =>
+  fixture.test("Task.cancelable0 should work onSuccess") { implicit s =>
     val t = Task.cancelable0[Int] { (_, cb) =>
       cb.onSuccess(10); Task.unit
     }
@@ -60,7 +60,7 @@ object TaskCancelableSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.cancelable0 should work onError") { implicit s =>
+  fixture.test("Task.cancelable0 should work onError") { implicit s =>
     val dummy = DummyException("dummy")
     val t = Task.cancelable0[Int] { (_, cb) =>
       cb.onError(dummy); Task.unit
@@ -70,7 +70,7 @@ object TaskCancelableSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.cancelable0 should execute immediately when executed as future") { implicit s =>
+  fixture.test("Task.cancelable0 should execute immediately when executed as future") { implicit s =>
     val t = Task.cancelable0[Int] { (_, cb) =>
       cb.onSuccess(100); Task.unit
     }
@@ -78,25 +78,25 @@ object TaskCancelableSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Success(100)))
   }
 
-  test("Task.cancelable0 should execute immediately when executed with callback") { implicit s =>
+  fixture.test("Task.cancelable0 should execute immediately when executed with callback") { implicit s =>
     var result = Option.empty[Try[Int]]
     val t = Task.cancelable0[Int] { (_, cb) =>
       cb.onSuccess(100); Task.unit
     }
-    t.runAsync(Callback.fromTry[Int]({ r =>
+    t.runAsync(Callback.fromTry[Int] { r =>
       result = Some(r)
-    }))
+    })
     assertEquals(result, Some(Success(100)))
   }
 
-  test("Task.cancelable works for immediate successful value") { implicit sc =>
+  fixture.test("Task.cancelable works for immediate successful value") { implicit sc =>
     val task = Task.cancelable[Int] { cb =>
       cb.onSuccess(1); Task.unit
     }
     assertEquals(task.runToFuture.value, Some(Success(1)))
   }
 
-  test("Task.cancelable works for immediate error") { implicit sc =>
+  fixture.test("Task.cancelable works for immediate error") { implicit sc =>
     val e = DummyException("dummy")
     val task = Task.cancelable[Int] { cb =>
       cb.onError(e); Task.unit
@@ -104,7 +104,7 @@ object TaskCancelableSuite extends BaseTestSuite {
     assertEquals(task.runToFuture.value, Some(Failure(e)))
   }
 
-  test("Task.cancelable is memory safe in flatMap loops") { implicit sc =>
+  fixture.test("Task.cancelable is memory safe in flatMap loops") { implicit sc =>
     def signal(n: Int): Task[Int] =
       Task.cancelable { cb =>
         cb.onSuccess(n); Task.unit
@@ -120,7 +120,7 @@ object TaskCancelableSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10000)))
   }
 
-  test("Task.cancelable is cancelable") { implicit sc =>
+  fixture.test("Task.cancelable is cancelable") { implicit sc =>
     val c = BooleanCancelable()
     val f = Task.cancelable[Int](_ => Task(c.cancel())).runToFuture
 
@@ -131,7 +131,7 @@ object TaskCancelableSuite extends BaseTestSuite {
     assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Task.cancelable pops the connection after it's done") { implicit sc =>
+  fixture.test("Task.cancelable pops the connection after it's done") { implicit sc =>
     import scala.concurrent.duration._
 
     var effect = 0

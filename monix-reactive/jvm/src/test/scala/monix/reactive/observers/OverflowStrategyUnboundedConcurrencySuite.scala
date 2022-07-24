@@ -17,32 +17,33 @@
 
 package monix.reactive.observers
 
-import java.util.concurrent.{ CountDownLatch, TimeUnit }
-
-import minitest.TestSuite
 import monix.execution.Ack.Continue
+import monix.execution.BaseTestSuite.IgnoreException
 import monix.execution.schedulers.SchedulerService
-import monix.execution.{ Ack, Scheduler }
+import monix.execution.{ Ack, Scheduler, TestSuite }
 import monix.reactive.OverflowStrategy.Unbounded
 import monix.reactive.{ Observable, Observer }
+import munit.{ FunSuite, Location }
 
+import java.util.concurrent.{ CountDownLatch, TimeUnit }
+import scala.concurrent.ExecutionContext.global
 import scala.concurrent.duration._
 import scala.concurrent.{ blocking, Await, Future, Promise }
 import scala.util.Random
 
-object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerService] {
-  def setup() = {
+class OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerService] {
+  override def setup(): SchedulerService = {
     Scheduler.computation(parallelism = 4, name = "for-testing")
   }
 
-  def tearDown(env: SchedulerService) = {
+  override def tearDown(env: SchedulerService): Unit = {
     env.shutdown()
     blocking {
       assert(env.awaitTermination(10.seconds), "env.awaitTermination")
     }
   }
 
-  test("merge test should work") { implicit s =>
+  fixture.test("merge test should work") { implicit s =>
     val num = 200000L
     val source = Observable.repeat(1L).take(num)
     val o1 = source.map(_ + 2)
@@ -56,10 +57,10 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
       .runAsyncGetFirst
 
     val result = Await.result(f, 30.seconds)
-    assertEquals(result, Some(num * 3 + num * 4 + num * 5))
+    assertEquals(result, Some((num * 3 + num * 4 + num * 5).toLong))
   }
 
-  test("should not lose events with sync subscriber, test 1") { implicit s =>
+  fixture.test("should not lose events with sync subscriber, test 1") { implicit s =>
     var number = 0
     val completed = new CountDownLatch(1)
 
@@ -88,7 +89,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should not lose events with sync subscriber, test 2") { implicit s =>
+  fixture.test("should not lose events with sync subscriber, test 2") { implicit s =>
     var number = 0
     val completed = new CountDownLatch(1)
 
@@ -122,7 +123,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should not lose events with async subscriber from one publisher") { implicit s =>
+  fixture.test("should not lose events with async subscriber from one publisher") { implicit s =>
     // Repeating because of possible problems
     for (_ <- 0 until 100) {
       val completed = new CountDownLatch(1)
@@ -170,7 +171,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should not lose events with async subscriber from multiple publishers") { implicit s =>
+  fixture.test("should not lose events with async subscriber from multiple publishers") { implicit s =>
     val completed = new CountDownLatch(1)
     val total = 1000000L
     var sum = 0L
@@ -218,7 +219,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should send onError when empty") { implicit s =>
+  fixture.test("should send onError when empty") { implicit s =>
     val latch = new CountDownLatch(1)
     val underlying = new Observer[Int] {
       def onError(ex: Throwable) = {
@@ -237,7 +238,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should send onError when in flight") { implicit s =>
+  fixture.test("should send onError when in flight") { implicit s =>
     val latch = new CountDownLatch(1)
     val underlying = new Observer[Int] {
       def onError(ex: Throwable) = {
@@ -257,7 +258,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should send onComplete when empty") { implicit s =>
+  fixture.test("should send onComplete when empty") { implicit s =>
     val latch = new CountDownLatch(1)
     val underlying = new Observer[Int] {
       def onError(ex: Throwable) = throw new IllegalStateException()
@@ -273,7 +274,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should not back-pressure onComplete") { implicit s =>
+  fixture.test("should not back-pressure onComplete") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
     val underlying = new Observer[Int] {
@@ -291,7 +292,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should do onComplete only after all the queue was drained") { implicit s =>
+  fixture.test("should do onComplete only after all the queue was drained") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue.type]()
@@ -316,7 +317,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should do onComplete only after all the queue was drained, test2") { implicit s =>
+  fixture.test("should do onComplete only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
     val underlying = new Observer[Long] {
@@ -339,7 +340,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should do onError only after the queue was drained") { implicit s =>
+  fixture.test("should do onError only after the queue was drained") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue.type]()
@@ -365,7 +366,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should do onError only after all the queue was drained, test2") { implicit s =>
+  fixture.test("should do onError only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
 

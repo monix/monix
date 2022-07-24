@@ -19,8 +19,8 @@ package monix.eval
 
 import scala.util.Success
 
-object TaskExecuteWithOptionsSuite extends BaseTestSuite {
-  test("executeWithOptions works") { implicit s =>
+class TaskExecuteWithOptionsSuite extends BaseTestSuite {
+  fixture.test("executeWithOptions works") { implicit s =>
     val task = Task
       .eval(1)
       .flatMap(_ => Task.eval(2))
@@ -36,7 +36,7 @@ object TaskExecuteWithOptionsSuite extends BaseTestSuite {
     assert(!opt2.localContextPropagation, "!opt2.localContextPropagation")
   }
 
-  testAsync("local.write.executeWithOptions") { _ =>
+  test("local.write.executeWithOptions") {
     import monix.execution.Scheduler.Implicits.global
 
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
@@ -53,7 +53,7 @@ object TaskExecuteWithOptionsSuite extends BaseTestSuite {
     }
   }
 
-  test("executeWithOptions is stack safe in flatMap loops") { implicit sc =>
+  fixture.test("executeWithOptions is stack safe in flatMap loops") { implicit sc =>
     def loop(n: Int, acc: Long): Task[Long] =
       Task.unit.executeWithOptions(_.enableAutoCancelableRunLoops).flatMap { _ =>
         if (n > 0)
@@ -63,6 +63,6 @@ object TaskExecuteWithOptionsSuite extends BaseTestSuite {
       }
 
     val f = loop(10000, 0).runToFuture; sc.tick()
-    assertEquals(f.value, Some(Success(10000)))
+    assertEquals(f.value, Some(Success(10000L)))
   }
 }

@@ -30,65 +30,65 @@ import monix.tail.batches.Batch
 import org.reactivestreams.{ Subscriber, Subscription }
 import scala.util.{ Failure, Success }
 
-object IterantToReactivePublisherSuite extends BaseTestSuite {
-  test("sum with Task and request(1)") { implicit s =>
+class IterantToReactivePublisherSuite extends BaseTestSuite {
+  fixture.test("sum with Task and request(1)") { implicit s =>
     check1 { (stream: Iterant[Task, Int]) =>
       sum(stream, 1) <-> stream.foldLeftL(0L)(_ + _)
     }
   }
 
-  test("sum with Task and request(2)") { implicit s =>
+  fixture.test("sum with Task and request(2)") { implicit s =>
     check1 { (stream: Iterant[Task, Int]) =>
       sum(stream, 2) <-> stream.foldLeftL(0L)(_ + _)
     }
   }
 
-  test("sum with Task and request(6)") { implicit s =>
+  fixture.test("sum with Task and request(6)") { implicit s =>
     check1 { (stream: Iterant[Task, Int]) =>
       sum(stream, 2) <-> stream.foldLeftL(0L)(_ + _)
     }
   }
 
-  test("sum with Task and request(Long.MaxValue)") { implicit s =>
+  fixture.test("sum with Task and request(Long.MaxValue)") { implicit s =>
     check1 { (stream: Iterant[Task, Int]) =>
       sum(stream, Long.MaxValue) <-> stream.foldLeftL(0L)(_ + _)
     }
   }
 
-  test("stack-safety for Next nodes") { implicit s =>
+  fixture.test("stack-safety for Next nodes") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val stream = Iterant[Task].range(0, count).mapEval(_ => Task.now(1))
     val f = sum(stream, 1).runToFuture
 
     assertEquals(f.value, None)
     s.tick()
-    assertEquals(f.value, Some(Success(count)))
+    assertEquals(f.value, Some(Success(count.toLong)))
   }
 
-  test("stack-safety for NextBatch nodes") { implicit s =>
+  fixture.test("stack-safety for NextBatch nodes") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val stream = Iterant[Task].range(0, count).map(_ => 1).batched(6)
     val f = sum(stream, 1).runToFuture
 
     assertEquals(f.value, None)
     s.tick()
-    assertEquals(f.value, Some(Success(count)))
+    assertEquals(f.value, Some(Success(count.toLong)))
   }
 
-  test("works with IO") { implicit s =>
+  fixture.test("works with IO") { implicit s =>
     check1 { (stream: Iterant[IO, Int]) =>
       sum(stream, 1) <-> Task.from(stream.foldLeftL(0L)(_ + _))
     }
   }
 
-  test("works with any Effect") { implicit s =>
+  fixture.test("works with any Effect") { implicit s =>
     implicit val ioEffect: Effect[IO] = new CustomIOEffect()(IO.contextShift(s))
     check1 { (stream: Iterant[IO, Int]) =>
       sum(stream, 1) <-> Task.fromEffect(stream.foldLeftL(0L)(_ + _))
     }
   }
 
-  test("loop is cancelable") { implicit s =>
+  fixture.test("loop is cancelable") { implicit s =>
     val count = 10000
     var emitted = 0
     var wasCompleted = false
@@ -132,7 +132,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     }
   }
 
-  test("loop is cancellable in flight") { implicit s =>
+  fixture.test("loop is cancellable in flight") { implicit s =>
     val count = 10000
     var effect = 0
     var wasStopped = false
@@ -154,7 +154,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("long batch is cancelable in flight") { s =>
+  fixture.test("long batch is cancelable in flight") { s =>
     implicit val ec = s.withExecutionModel(AlwaysAsyncExecution)
 
     val count = 1000
@@ -184,7 +184,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("protects against invalid request") { implicit s =>
+  fixture.test("protects against invalid request") { implicit s =>
     val count = 10000
     var emitted = 0
     var wasCompleted: Option[Throwable] = null
@@ -226,7 +226,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     )
   }
 
-  test("protects against invalid subscriber") { implicit s =>
+  fixture.test("protects against invalid subscriber") { implicit s =>
     intercept[NullPointerException] {
       Iterant[Task].of(1).toReactivePublisher.subscribe(null)
       ()
@@ -234,7 +234,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     ()
   }
 
-  test("protects against broken cursors") { implicit s =>
+  fixture.test("protects against broken cursors") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
     val stream = Iterant[Task]
@@ -250,7 +250,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("protects against broken batches") { implicit s =>
+  fixture.test("protects against broken batches") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -267,7 +267,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Iterant.empty completes immediately on subscribe") { implicit s =>
+  fixture.test("Iterant.empty completes immediately on subscribe") { implicit s =>
     var wasCompleted: Option[Throwable] = null
 
     Iterant[Task]
@@ -286,7 +286,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     assertEquals(wasCompleted, None)
   }
 
-  test("Iterant.raiseError completes immediately on subscribe") { implicit s =>
+  fixture.test("Iterant.raiseError completes immediately on subscribe") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Task]
       .raiseError[Long](dummy)
@@ -313,7 +313,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     assertEquals(thrownError, dummy)
   }
 
-  test("Iterant.empty produces EmptySubscription") { implicit s =>
+  fixture.test("Iterant.empty produces EmptySubscription") { implicit s =>
     var wasCompleted: Option[Throwable] = null
 
     Iterant[Task]
@@ -391,7 +391,11 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       IO.pure(x)
     override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
-    override def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(
+    override def bracketCase[A, B](
+      acquire: IO[A]
+    )(
+      use: A => IO[B]
+    )(
       release: (A, ExitCase[Throwable]) => IO[Unit]
     ): IO[B] =
       acquire.bracketCase(use)(release)

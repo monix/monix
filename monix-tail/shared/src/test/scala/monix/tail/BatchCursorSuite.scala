@@ -32,126 +32,126 @@ abstract class BatchCursorSuite[A: ClassTag](
 
   def fromList(list: List[A]): Cursor
 
-  test("cursor.toList") { _ =>
+  test("cursor.toList") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.toList == list
     }
   }
 
-  test("cursor.toArray") { _ =>
+  test("cursor.toArray") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.toArray.toList == list
     }
   }
 
-  test("cursor.drop(2).toArray") { _ =>
+  test("cursor.drop(2).toArray") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.drop(2).toArray.toList == list.drop(2)
     }
   }
 
-  test("cursor.take(2).toArray") { _ =>
+  test("cursor.take(2).toArray") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.take(2).toArray.toList == list.take(2)
     }
   }
 
-  test("cursor.toBatch") { _ =>
+  test("cursor.toBatch") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.toBatch.cursor().toList == list
     }
   }
 
-  test("cursor.drop(2).toBatch") { _ =>
+  test("cursor.drop(2).toBatch") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.drop(2).toBatch.cursor().toList == list.drop(2)
     }
   }
 
-  test("cursor.take(2).toBatch") { _ =>
+  test("cursor.take(2).toBatch") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.take(2).toBatch.cursor().toList == list.take(2)
     }
   }
 
-  test("cursor.drop(5).toList") { _ =>
+  test("cursor.drop(5).toList") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.drop(5).toList == list.drop(5)
     }
   }
 
-  test("cursor.drop(1000).toList") { _ =>
+  test("cursor.drop(1000).toList") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.drop(1000).toList == list.drop(1000)
     }
   }
 
-  test("cursor.take(5).toList") { _ =>
+  test("cursor.take(5).toList") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.drop(5).toList == list.drop(5)
     }
   }
 
-  test("cursor.take(1000).toList") { _ =>
+  test("cursor.take(1000).toList") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.drop(1000).toList == list.drop(1000)
     }
   }
 
-  test("cursor.take(5).drop(5).toList") { _ =>
+  test("cursor.take(5).drop(5).toList") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.take(5).drop(5).toList == Nil
     }
   }
 
-  test("cursor.drop(5).take(5).toList") { _ =>
+  test("cursor.drop(5).take(5).toList") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.drop(5).take(5).toList == list.slice(5, 10)
     }
   }
 
-  test("cursor.slice(5,5).toList") { _ =>
+  test("cursor.slice(5,5).toList") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.slice(5, 5).toList == list.slice(5, 5)
     }
   }
 
-  test("cursor.slice(5,10).toList") { _ =>
+  test("cursor.slice(5,10).toList") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.slice(5, 10).toList == list.slice(5, 10)
     }
   }
 
-  test("cursor.map") { _ =>
+  test("cursor.map") {
     check2 { (list: List[A], f: A => A) =>
       val cursor = fromList(list)
       cursor.map(f).toList == list.map(f)
     }
   }
 
-  test("cursor.filter") { _ =>
+  test("cursor.filter") {
     check2 { (list: List[A], f: A => Boolean) =>
       val cursor = fromList(list)
       cursor.filter(f).toList == list.filter(f)
     }
   }
 
-  test("cursor.collect") { _ =>
+  test("cursor.collect") {
     check3 { (list: List[A], p: A => Boolean, f: A => A) =>
       val pf: PartialFunction[A, A] = { case x if p(x) => f(x) }
       val cursor = fromList(list)
@@ -159,14 +159,14 @@ abstract class BatchCursorSuite[A: ClassTag](
     }
   }
 
-  test("cursor.toIterator") { _ =>
+  test("cursor.toIterator") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.toIterator.toList == list
     }
   }
 
-  test("cursor.hasNext") { _ =>
+  test("cursor.hasNext") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       var seen = 0
@@ -180,42 +180,42 @@ abstract class BatchCursorSuite[A: ClassTag](
     }
   }
 
-  test("cursor.hasNext <=> !cursor.isEmpty") { _ =>
+  test("cursor.hasNext <=> !cursor.isEmpty") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.hasNext() == !cursor.isEmpty
     }
   }
 
-  test("cursor.hasNext <=> cursor.nonEmpty") { _ =>
+  test("cursor.hasNext <=> cursor.nonEmpty") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.hasNext() == cursor.nonEmpty
     }
   }
 
-  test("cursor.hasNext == list.nonEmpty") { _ =>
+  test("cursor.hasNext == list.nonEmpty") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       list.nonEmpty == cursor.hasNext()
     }
   }
 
-  test("recommendedBatchSize is positive") { _ =>
+  test("recommendedBatchSize is positive") {
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.recommendedBatchSize > 0
     }
   }
 
-  test("BatchCursor.fromArray") { _ =>
+  test("BatchCursor.fromArray") {
     check1 { (array: Array[A]) =>
       BatchCursor.fromArray(array).toArray.toSeq == array.toSeq
     }
   }
 }
 
-object GenericCursorSuite extends BatchCursorSuite[Int] {
+class GenericCursorSuite extends BatchCursorSuite[Int] {
   type Cursor = GenericCursor[Int]
 
   override def fromList(list: List[Int]): Cursor =
@@ -228,14 +228,14 @@ object GenericCursorSuite extends BatchCursorSuite[Int] {
     }
 }
 
-object ArrayCursorSuite extends BatchCursorSuite[Int] {
+class ArrayCursorSuite extends BatchCursorSuite[Int] {
   type Cursor = ArrayCursor[Int]
 
   override def fromList(list: List[Int]): Cursor =
     BatchCursor.fromArray(list.toArray)
 }
 
-object ArraySliceCursorSuite extends BatchCursorSuite[Int] {
+class ArraySliceCursorSuite extends BatchCursorSuite[Int] {
   type Cursor = ArrayCursor[Int]
 
   override def fromList(list: List[Int]): Cursor = {
@@ -245,49 +245,49 @@ object ArraySliceCursorSuite extends BatchCursorSuite[Int] {
   }
 }
 
-object IteratorCursorSuite extends BatchCursorSuite[Int] {
+class IteratorCursorSuite extends BatchCursorSuite[Int] {
   type Cursor = BatchCursor[Int]
 
   override def fromList(list: List[Int]): Cursor =
     BatchCursor.fromIterator(list.iterator)
 }
 
-object BooleansCursorSuite extends BatchCursorSuite[Boolean] {
+class BooleansCursorSuite extends BatchCursorSuite[Boolean] {
   type Cursor = BooleansCursor
 
   override def fromList(list: List[Boolean]): BooleansCursor =
     BatchCursor.booleans(list.toArray)
 }
 
-object BytesCursorSuite extends BatchCursorSuite[Byte] {
+class BytesCursorSuite extends BatchCursorSuite[Byte] {
   type Cursor = BytesCursor
 
   override def fromList(list: List[Byte]): BytesCursor =
     BatchCursor.bytes(list.toArray)
 }
 
-object CharsCursorSuite extends BatchCursorSuite[Char] {
+class CharsCursorSuite extends BatchCursorSuite[Char] {
   type Cursor = CharsCursor
 
   override def fromList(list: List[Char]): CharsCursor =
     BatchCursor.chars(list.toArray)
 }
 
-object IntegersCursorSuite extends BatchCursorSuite[Int] {
+class IntegersCursorSuite extends BatchCursorSuite[Int] {
   type Cursor = IntegersCursor
 
   override def fromList(list: List[Int]): IntegersCursor =
     BatchCursor.integers(list.toArray)
 }
 
-object LongsCursorSuite extends BatchCursorSuite[Long] {
+class LongsCursorSuite extends BatchCursorSuite[Long] {
   type Cursor = LongsCursor
 
   override def fromList(list: List[Long]): LongsCursor =
     BatchCursor.longs(list.toArray)
 }
 
-object DoublesCursorSuite extends BatchCursorSuite[Double] {
+class DoublesCursorSuite extends BatchCursorSuite[Double] {
   type Cursor = DoublesCursor
 
   override def fromList(list: List[Double]): DoublesCursor =

@@ -17,35 +17,27 @@
 
 package monix.reactive.subjects
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.eval.Task
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.{ Observable, Observer }
 
 import scala.util.Random
 
-trait BaseSubjectSuite extends TestSuite[TestScheduler] {
+trait BaseSubjectSuite extends BaseTestSuite {
   case class Sample(subject: Subject[Long, Long], expectedSum: Long)
 
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
-
-  /**
-    * Returns a sample subject that needs testing.
+  /** Returns a sample subject that needs testing.
     */
   def alreadyTerminatedTest(expectedElems: Seq[Long]): Sample
 
-  /**
-    * Returns a sample subject for the test of
-    * continuous streaming.
+  /** Returns a sample subject for the test of continuous streaming.
     */
   def continuousStreamingTest(expectedElems: Seq[Long]): Option[Sample]
 
-  test("already completed and empty subject terminates observers") { implicit s =>
+  fixture.test("already completed and empty subject terminates observers") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -74,7 +66,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     assertEquals(wereCompleted, 3)
   }
 
-  test("failed empty subject terminates observers with an error") { implicit s =>
+  fixture.test("failed empty subject terminates observers with an error") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -102,11 +94,11 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
 
     s.tick()
 
-    assertEquals(sum, 0)
+    assertEquals(sum, 0L)
     assertEquals(wereCompleted, 3)
   }
 
-  test("already completed but non-empty subject terminates new observers") { implicit s =>
+  fixture.test("already completed but non-empty subject terminates new observers") { implicit s =>
     val elems = (0 until 20).map(_ => Random.nextLong())
     var wereCompleted = 0
     var sum = 0L
@@ -137,7 +129,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     assertEquals(wereCompleted, 3)
   }
 
-  test("already failed but non-empty subject terminates new observers") { implicit s =>
+  fixture.test("already failed but non-empty subject terminates new observers") { implicit s =>
     val elems = (0 until 20).map(_ => Random.nextLong())
     var wereCompleted = 0
 
@@ -168,7 +160,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     assertEquals(wereCompleted, 3)
   }
 
-  test("should remove subscribers that triggered errors") { implicit s =>
+  fixture.test("should remove subscribers that triggered errors") { implicit s =>
     val elemsLength = Random.nextInt(300) + 100
     val elems = (0 until elemsLength).map(_.toLong)
     var wereCompleted = 0
@@ -215,7 +207,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("should protect onNext after onCompleted") { implicit s =>
+  fixture.test("should protect onNext after onCompleted") { implicit s =>
     val Sample(subject, _) = alreadyTerminatedTest(Seq.empty)
     subject.onComplete()
 
@@ -224,7 +216,7 @@ trait BaseSubjectSuite extends TestSuite[TestScheduler] {
     assertEquals(subject.onNext(2), Stop)
   }
 
-  test("should protect onNext after onError") { implicit s =>
+  fixture.test("should protect onNext after onError") { implicit s =>
     val Sample(subject, _) = alreadyTerminatedTest(Seq.empty)
     subject.onError(DummyException("dummy"))
 

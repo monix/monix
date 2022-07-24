@@ -25,7 +25,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 
-object ReduceSuite extends BaseOperatorSuite {
+class ReduceSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     if (sourceCount > 1) {
       val o = Observable.range(1, sourceCount.toLong + 1).reduce(_ + _)
@@ -60,7 +60,7 @@ object ReduceSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("Observable.reduce is equivalent with List.reduce") { implicit s =>
+  fixture.test("Observable.reduce is equivalent with List.reduce") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.reduce(_ + _).lastL

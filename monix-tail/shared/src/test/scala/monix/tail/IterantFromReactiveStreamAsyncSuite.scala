@@ -17,9 +17,8 @@
 
 package monix.tail
 
-import minitest.TestSuite
+import monix.execution.{ Scheduler, TestSuite }
 import monix.eval.Task
-import monix.execution.Scheduler
 import monix.execution.Scheduler.global
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
@@ -28,7 +27,7 @@ import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 
 import scala.concurrent.{ Future, Promise }
 
-object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
+class IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
   def setup(): Scheduler = global
   def tearDown(env: Scheduler): Unit = ()
 
@@ -54,51 +53,51 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
     loop(if (Platform.isJVM) 100 else 1)
   }
 
-  testAsync("convert range publisher with requestCount=1,   eagerBuffer=true  and async tasks") { implicit sc =>
+  fixture.test("convert range publisher with requestCount=1,   eagerBuffer=true  and async tasks") { implicit sc =>
     testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = true, async = true)
   }
 
-  testAsync("convert range publisher with requestCount=1,   eagerBuffer=false and async tasks") { implicit sc =>
+  fixture.test("convert range publisher with requestCount=1,   eagerBuffer=false and async tasks") { implicit sc =>
     testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = false, async = true)
   }
 
-  testAsync("convert range publisher with requestCount=16,  eagerBuffer=true  and async tasks") { implicit sc =>
+  fixture.test("convert range publisher with requestCount=16,  eagerBuffer=true  and async tasks") { implicit sc =>
     testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = true, async = true)
   }
 
-  testAsync("convert range publisher with requestCount=16,  eagerBuffer=false and async tasks") { implicit sc =>
+  fixture.test("convert range publisher with requestCount=16,  eagerBuffer=false and async tasks") { implicit sc =>
     testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = false, async = true)
   }
 
-  testAsync("convert range publisher with requestCount=256, eagerBuffer=true  and async tasks") { implicit sc =>
+  fixture.test("convert range publisher with requestCount=256, eagerBuffer=true  and async tasks") { implicit sc =>
     testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = true, async = true)
   }
 
-  testAsync("convert range publisher with requestCount=256, eagerBuffer=false and async tasks") { implicit sc =>
+  fixture.test("convert range publisher with requestCount=256, eagerBuffer=false and async tasks") { implicit sc =>
     testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = false, async = true)
   }
 
-  testAsync("convert range publisher with requestCount=1,   eagerBuffer=true  and sync  tasks") { implicit sc =>
+  fixture.test("convert range publisher with requestCount=1,   eagerBuffer=true  and sync  tasks") { implicit sc =>
     testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = true, async = false)
   }
 
-  testAsync("convert range publisher with requestCount=1,   eagerBuffer=false and sync  tasks") { implicit sc =>
+  fixture.test("convert range publisher with requestCount=1,   eagerBuffer=false and sync  tasks") { implicit sc =>
     testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = false, async = false)
   }
 
-  testAsync("convert range publisher with requestCount=16,  eagerBuffer=true  and sync  tasks") { implicit sc =>
+  fixture.test("convert range publisher with requestCount=16,  eagerBuffer=true  and sync  tasks") { implicit sc =>
     testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = true, async = false)
   }
 
-  testAsync("convert range publisher with requestCount=16,  eagerBuffer=false and sync  tasks") { implicit sc =>
+  fixture.test("convert range publisher with requestCount=16,  eagerBuffer=false and sync  tasks") { implicit sc =>
     testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = false, async = false)
   }
 
-  testAsync("convert range publisher with requestCount=256, eagerBuffer=true  and sync  tasks") { implicit sc =>
+  fixture.test("convert range publisher with requestCount=256, eagerBuffer=true  and sync  tasks") { implicit sc =>
     testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = true, async = false)
   }
 
-  testAsync("convert range publisher with requestCount=256, eagerBuffer=false and sync  tasks") { implicit sc =>
+  fixture.test("convert range publisher with requestCount=256, eagerBuffer=false and sync  tasks") { implicit sc =>
     testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = false, async = false)
   }
 
@@ -132,55 +131,61 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
     })
   }
 
-  testAsync("stream ending in error with requestCount=1,   eagerBuffer=true  and async tasks") { implicit sc =>
+  fixture.test("stream ending in error with requestCount=1,   eagerBuffer=true  and async tasks") { implicit sc =>
     testStreamEndingInError(1, eagerBuffer = true, async = true)
   }
 
-  testAsync("stream ending in error with requestCount=1,   eagerBuffer=false and async tasks") { implicit sc =>
+  fixture.test("stream ending in error with requestCount=1,   eagerBuffer=false and async tasks") { implicit sc =>
     testStreamEndingInError(1, eagerBuffer = false, async = true)
   }
 
-  testAsync("stream ending in error with requestCount=16,  eagerBuffer=true  and async tasks") { implicit sc =>
+  fixture.test("stream ending in error with requestCount=16,  eagerBuffer=true  and async tasks") { implicit sc =>
     testStreamEndingInError(16, eagerBuffer = true, async = true)
   }
 
-  testAsync("stream ending in error with requestCount=16,  eagerBuffer=false and async tasks") { implicit sc =>
+  fixture.test("stream ending in error with requestCount=16,  eagerBuffer=false and async tasks") { implicit sc =>
     testStreamEndingInError(16, eagerBuffer = false, async = true)
   }
 
-  testAsync("stream ending in error with requestCount=256, eagerBuffer=true  and async tasks") { implicit sc =>
+  fixture.test("stream ending in error with requestCount=256, eagerBuffer=true  and async tasks") { implicit sc =>
     testStreamEndingInError(256, eagerBuffer = true, async = true)
   }
 
-  testAsync("stream ending in error with requestCount=256, eagerBuffer=false and async tasks") { implicit sc =>
+  fixture.test("stream ending in error with requestCount=256, eagerBuffer=false and async tasks") { implicit sc =>
     testStreamEndingInError(256, eagerBuffer = false, async = true)
   }
 
-  testAsync("stream ending in error with requestCount=1,   eagerBuffer=true  and sync  tasks") { implicit sc =>
+  fixture.test("stream ending in error with requestCount=1,   eagerBuffer=true  and sync  tasks") { implicit sc =>
     testStreamEndingInError(1, eagerBuffer = true, async = false)
   }
 
-  testAsync("stream ending in error with requestCount=1,   eagerBuffer=false and sync  tasks") { implicit sc =>
+  fixture.test("stream ending in error with requestCount=1,   eagerBuffer=false and sync  tasks") { implicit sc =>
     testStreamEndingInError(1, eagerBuffer = false, async = false)
   }
 
-  testAsync("stream ending in error with requestCount=16,  eagerBuffer=true  and sync  tasks") { implicit sc =>
+  fixture.test("stream ending in error with requestCount=16,  eagerBuffer=true  and sync  tasks") { implicit sc =>
     testStreamEndingInError(16, eagerBuffer = true, async = false)
   }
 
-  testAsync("stream ending in error with requestCount=16,  eagerBuffer=false and sync  tasks") { implicit sc =>
+  fixture.test("stream ending in error with requestCount=16,  eagerBuffer=false and sync  tasks") { implicit sc =>
     testStreamEndingInError(16, eagerBuffer = false, async = false)
   }
 
-  testAsync("stream ending in error with requestCount=256, eagerBuffer=true  and sync  tasks") { implicit sc =>
+  fixture.test("stream ending in error with requestCount=256, eagerBuffer=true  and sync  tasks") { implicit sc =>
     testStreamEndingInError(256, eagerBuffer = true, async = false)
   }
 
-  testAsync("stream ending in error with requestCount=256, eagerBuffer=false and sync  tasks") { implicit sc =>
+  fixture.test("stream ending in error with requestCount=256, eagerBuffer=false and sync  tasks") { implicit sc =>
     testStreamEndingInError(256, eagerBuffer = false, async = false)
   }
 
-  class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])(
+  class RangePublisher(
+    from: Int,
+    until: Int,
+    step: Int,
+    finish: Option[Throwable],
+    onCancel: Promise[Unit]
+  )(
     implicit sc: Scheduler
   ) extends Publisher[Int] {
 

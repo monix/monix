@@ -21,7 +21,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object RepeatSuite extends BaseOperatorSuite {
+class RepeatSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int) = {
     (0 until sourceCount).foldLeft(0L)((acc, e) => acc + e % 5)
   }

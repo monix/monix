@@ -22,10 +22,10 @@ import monix.execution.atomic.Atomic
 import monix.reactive.{ BaseTestSuite, Observable, OverflowStrategy }
 import scala.util.Success
 
-object PublishSelectorSuite extends BaseTestSuite {
+class PublishSelectorSuite extends BaseTestSuite {
   implicit val os: OverflowStrategy[Nothing] = OverflowStrategy.Default
 
-  test("publishSelector sanity test") { implicit s =>
+  fixture.test("publishSelector sanity test") { implicit s =>
     val isStarted = Atomic(0)
     val f = Observable
       .range(0, 1000)
@@ -37,11 +37,11 @@ object PublishSelectorSuite extends BaseTestSuite {
       .runToFuture
 
     s.tick()
-    assertEquals(f.value, Some(Success(500 * 999 * 3)))
+    assertEquals(f.value, Some(Success(500L * 999 * 3)))
     assertEquals(isStarted.get(), 1)
   }
 
-  test("treating Stop event") { implicit s =>
+  fixture.test("treating Stop event") { implicit s =>
     val isStarted = Atomic(0)
     val isCanceled = Atomic(false)
 

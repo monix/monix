@@ -28,7 +28,7 @@ import monix.reactive.{ BaseTestSuite, Observable, Observer }
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Success, Try }
 
-object ObservableOpsReturningTaskSuite extends BaseTestSuite {
+class ObservableOpsReturningTaskSuite extends BaseTestSuite {
   def first[A](obs: Observable[A])(implicit s: Scheduler): Future[Try[Option[A]]] = {
     val p = Promise[Try[Option[A]]]()
     obs.unsafeSubscribeFn(new Observer.Sync[A] {
@@ -39,21 +39,21 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     p.future
   }
 
-  test("runAsyncGetFirst works") { implicit s =>
+  fixture.test("runAsyncGetFirst works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       obs.runAsyncGetFirst.materialize <-> first(obs)
     }
   }
 
-  test("runAsyncGetLast works") { implicit s =>
+  fixture.test("runAsyncGetLast works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       obs.runAsyncGetLast.materialize <-> first(obs.last)
     }
   }
 
-  test("countL works") { implicit s =>
+  fixture.test("countL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Long]]] =
@@ -63,7 +63,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("countL is equivalent with countF") { implicit s =>
+  fixture.test("countL is equivalent with countF") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Long]]] =
@@ -73,7 +73,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("existsL works") { implicit s =>
+  fixture.test("existsL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Boolean]]] =
@@ -83,7 +83,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("existsL is equivalent with existsF") { implicit s =>
+  fixture.test("existsL is equivalent with existsF") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Boolean]]] =
@@ -93,7 +93,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("findL is equivalent with findF") { implicit s =>
+  fixture.test("findL is equivalent with findF") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Int]]] =
@@ -103,7 +103,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("foldLeftL works") { implicit s =>
+  fixture.test("foldLeftL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Int]]] =
@@ -113,7 +113,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("foldWhileL works") { implicit s =>
+  fixture.test("foldWhileL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val sum1 = obs.foldLeftL(0)(_ + _)
@@ -122,7 +122,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("forAllL works") { implicit s =>
+  fixture.test("forAllL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Boolean]]] =
@@ -132,7 +132,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("forAllL is equivalent with forAllF") { implicit s =>
+  fixture.test("forAllL is equivalent with forAllF") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Boolean]]] =
@@ -142,7 +142,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("firstOptionL works") { implicit s =>
+  fixture.test("firstOptionL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.firstOptionL
@@ -150,7 +150,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("firstL works") { implicit s =>
+  fixture.test("firstL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.firstL.onErrorHandle(_ => -101)
@@ -158,21 +158,21 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("headL is equivalent with firstL") { implicit s =>
+  fixture.test("headL is equivalent with firstL") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       obs.headL.onErrorHandle(_ => -101) <-> obs.firstL.onErrorHandle(_ => -101)
     }
   }
 
-  test("headOptionL is equivalent with firstOptionL") { implicit s =>
+  fixture.test("headOptionL is equivalent with firstOptionL") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       obs.headOptionL <-> obs.firstOptionL
     }
   }
 
-  test("headOrElseL is equivalent with firstOrElseL") { implicit s =>
+  fixture.test("headOrElseL is equivalent with firstOrElseL") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       obs.map(Some.apply).headOrElseL(None) <->
@@ -180,7 +180,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("lastOptionL is equivalent with lastF") { implicit s =>
+  fixture.test("lastOptionL is equivalent with lastF") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Int]]] =
@@ -190,7 +190,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("lastOrElseL is equivalent with lastF") { implicit s =>
+  fixture.test("lastOrElseL is equivalent with lastF") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Int]]] =
@@ -200,7 +200,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("lastL works") { implicit s =>
+  fixture.test("lastL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.lastL.onErrorHandle(_ => -101)
@@ -208,7 +208,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("isEmptyL works") { implicit s =>
+  fixture.test("isEmptyL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.isEmptyL
@@ -216,7 +216,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("nonEmptyL works") { implicit s =>
+  fixture.test("nonEmptyL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.nonEmptyL
@@ -224,7 +224,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("maxL works") { implicit s =>
+  fixture.test("maxL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.maxL.map(_.getOrElse(-101))
@@ -232,7 +232,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("maxByL works") { implicit s =>
+  fixture.test("maxByL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.maxByL(identity).map(_.getOrElse(-101))
@@ -240,7 +240,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("minL works") { implicit s =>
+  fixture.test("minL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.minL.map(_.getOrElse(-101))
@@ -248,7 +248,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("minByL works") { implicit s =>
+  fixture.test("minByL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.minByL(identity).map(_.getOrElse(-101))
@@ -256,7 +256,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("sumL works") { implicit s =>
+  fixture.test("sumL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.sumL
@@ -264,7 +264,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("toListL works") { implicit s =>
+  fixture.test("toListL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.toListL
@@ -272,7 +272,7 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     }
   }
 
-  test("foreachL works") { implicit s =>
+  fixture.test("foreachL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val sumRef = Atomic(0)

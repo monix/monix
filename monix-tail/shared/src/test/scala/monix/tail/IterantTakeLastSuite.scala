@@ -24,8 +24,8 @@ import monix.eval.{ Coeval, Task }
 import monix.execution.exceptions.DummyException
 import monix.tail.batches.BatchCursor
 
-object IterantTakeLastSuite extends BaseTestSuite {
-  test("Iterant.takeLast is equivalent with List.takeRight") { implicit s =>
+class IterantTakeLastSuite extends BaseTestSuite {
+  fixture.test("Iterant.takeLast is equivalent with List.takeRight") { implicit s =>
     check3 { (list: List[Int], idx: Int, nr: Int) =>
       val iter = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1).onErrorIgnore
       val stream = iter ++ Iterant[Task].of(1, 2, 3)
@@ -34,7 +34,7 @@ object IterantTakeLastSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeLast protects against broken batches") { implicit s =>
+  fixture.test("Iterant.takeLast protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
@@ -44,7 +44,7 @@ object IterantTakeLastSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeLast protects against broken cursors") { implicit s =>
+  fixture.test("Iterant.takeLast protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
@@ -54,7 +54,7 @@ object IterantTakeLastSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeLast preserves the source guarantee") { implicit s =>
+  fixture.test("Iterant.takeLast preserves the source guarantee") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
     val source =

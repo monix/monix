@@ -23,21 +23,21 @@ import monix.execution.exceptions.DummyException
 import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 
-object TaskOverloadsSuite extends BaseTestSuite {
-  test("Now.runAsync(scheduler)") { implicit s =>
+class TaskOverloadsSuite extends BaseTestSuite {
+  fixture.test("Now.runAsync(scheduler)") { implicit s =>
     val task = Task.now(1)
     val f = task.runToFuture(s)
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Now.runAsync(callback)") { implicit s =>
+  fixture.test("Now.runAsync(callback)") { implicit s =>
     val task = Task.now(1)
     val p = Promise[Int]()
     task.runAsync(Callback.fromPromise(p))(s)
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("Now.runAsync(callback) for AlwaysAsyncExecution") { s =>
+  fixture.test("Now.runAsync(callback) for AlwaysAsyncExecution") { s =>
     val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     val task = Task.now(1)
     val p = Promise[Int]()
@@ -49,27 +49,27 @@ object TaskOverloadsSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("Now.runAsyncOpt(scheduler)") { implicit s =>
+  fixture.test("Now.runAsyncOpt(scheduler)") { implicit s =>
     val task = Task.now(1)
     val f = task.runToFutureOpt(s, Task.defaultOptions)
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Now.runAsyncOpt(callback)") { implicit s =>
+  fixture.test("Now.runAsyncOpt(callback)") { implicit s =>
     val task = Task.now(1)
     val p = Promise[Int]()
     task.runAsyncOpt(Callback.fromPromise(p))(s, Task.defaultOptions)
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("Error.runAsync(scheduler)") { implicit s =>
+  fixture.test("Error.runAsync(scheduler)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy)
     val f = task.runToFuture(s)
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Error.runAsync(callback)") { implicit s =>
+  fixture.test("Error.runAsync(callback)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy)
     val p = Promise[Int]()
@@ -77,7 +77,7 @@ object TaskOverloadsSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Failure(dummy)))
   }
 
-  test("Error.runAsync(callback) for AlwaysAsyncExecution") { s =>
+  fixture.test("Error.runAsync(callback) for AlwaysAsyncExecution") { s =>
     val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy)
@@ -90,14 +90,14 @@ object TaskOverloadsSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Failure(dummy)))
   }
 
-  test("Error.runAsyncOpt(scheduler)") { implicit s =>
+  fixture.test("Error.runAsyncOpt(scheduler)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy)
     val f = task.runToFutureOpt(s, Task.defaultOptions)
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Error.runAsyncOpt(callback)") { implicit s =>
+  fixture.test("Error.runAsyncOpt(callback)") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy)
     val p = Promise[Int]()

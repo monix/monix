@@ -22,8 +22,8 @@ import monix.execution.exceptions.DummyException
 import concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskTraverseSuite extends BaseTestSuite {
-  test("Task.traverse should not execute in parallel") { implicit s =>
+class TaskTraverseSuite extends BaseTestSuite {
+  fixture.test("Task.traverse should not execute in parallel") { implicit s =>
     val seq = Seq((1, 2), (2, 1), (3, 3))
     val f = Task
       .traverse(seq) {
@@ -42,7 +42,7 @@ object TaskTraverseSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(Seq(2, 3, 4))))
   }
 
-  test("Task.traverse should onError if one of the tasks terminates in error") { implicit s =>
+  fixture.test("Task.traverse should onError if one of the tasks terminates in error") { implicit s =>
     val ex = DummyException("dummy")
     val seq = Seq((1, 2), (-1, 0), (3, 3), (3, 1))
     val f = Task
@@ -62,11 +62,12 @@ object TaskTraverseSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task.traverse should be canceled") { implicit s =>
+  fixture.test("Task.traverse should be canceled") { implicit s =>
     val seq = Seq((1, 2), (2, 1), (3, 3))
     val f = Task
       .traverse(seq) {
-        case (i, d) => Task.evalAsync(i + 1).delayExecution(d.seconds)
+        case (i, d) =>
+          Task.evalAsync(i + 1).delayExecution(d.seconds)
       }
       .runToFuture
 

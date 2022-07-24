@@ -18,12 +18,11 @@
 package monix.execution
 
 import cats.implicits._
-import minitest.SimpleTestSuite
-import minitest.laws.Checkers
+
 import monix.execution.Features.{ Flag, Flags }
 import org.scalacheck.Arbitrary
 
-object FeaturesSuite extends SimpleTestSuite with Checkers {
+class FeaturesSuite extends BaseTestSuite with Checkers {
   implicit val arbFeatures: Arbitrary[Features] =
     Arbitrary(implicitly[Arbitrary[Long]].arbitrary.map(l => new Features(l.asInstanceOf[Flags])))
   val allFlags =

@@ -17,10 +17,10 @@
 
 package monix.reactive.observables
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.OverflowStrategy.Unbounded
 import monix.execution.exceptions.DummyException
 import monix.reactive.subjects.ConcurrentSubject
@@ -28,13 +28,9 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object RefCountObservableSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class RefCountObservableSuite extends BaseTestSuite {
 
-  test("should work") { implicit s =>
+  fixture.test("should work") { implicit s =>
     var received = 0L
     var completed = 0
 
@@ -52,34 +48,34 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     val ref = Observable.interval(2.seconds).publish.refCount
     val s1 = ref.subscribe(createObserver)
 
-    s.tick(); assertEquals(received, 1)
-    s.tick(2.seconds); assertEquals(received, 2)
+    s.tick(); assertEquals(received, 1L)
+    s.tick(2.seconds); assertEquals(received, 2L)
 
     val s2 = ref.subscribe(createObserver)
-    s.tick(); assertEquals(received, 2)
-    s.tick(2.seconds); assertEquals(received, 4)
-    s.tick(2.seconds); assertEquals(received, 6)
+    s.tick(); assertEquals(received, 2L)
+    s.tick(2.seconds); assertEquals(received, 4L)
+    s.tick(2.seconds); assertEquals(received, 6L)
 
     s1.cancel()
-    s.tick(); assertEquals(received, 6)
-    s.tick(2.seconds); assertEquals(received, 7)
+    s.tick(); assertEquals(received, 6L)
+    s.tick(2.seconds); assertEquals(received, 7L)
     assertEquals(completed, 0)
 
     s2.cancel()
-    s.tick(2.seconds); assertEquals(received, 7)
+    s.tick(2.seconds); assertEquals(received, 7L)
     assertEquals(completed, 0)
     s.tick(2.seconds)
 
     ref.subscribe(createObserver)
-    s.tick(2.seconds); assertEquals(received, 7)
+    s.tick(2.seconds); assertEquals(received, 7L)
     assertEquals(completed, 0)
 
     ref.subscribe(createObserver)
-    s.tick(2.seconds); assertEquals(received, 7)
+    s.tick(2.seconds); assertEquals(received, 7L)
     assertEquals(completed, 0)
   }
 
-  test("onError should stop everything") { implicit s =>
+  fixture.test("onError should stop everything") { implicit s =>
     var received = 0L
     var completed = 0
 
@@ -99,9 +95,9 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     ref.subscribe(createObserver)
     ref.subscribe(createObserver)
 
-    assertEquals(received, 0)
+    assertEquals(received, 0L)
     ch.onNext(1)
-    s.tick(); assertEquals(received, 2)
+    s.tick(); assertEquals(received, 2L)
 
     ch.onError(DummyException("dummy"))
     s.tick(); assertEquals(completed, 2)
@@ -110,10 +106,10 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(completed, 3)
     ref.subscribe(createObserver)
     assertEquals(completed, 4)
-    assertEquals(received, 2)
+    assertEquals(received, 2L)
   }
 
-  test("onComplete") { implicit s =>
+  fixture.test("onComplete") { implicit s =>
     var received = 0L
     var completed = 0
 
@@ -137,11 +133,11 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     ch.onComplete()
     s.tick()
 
-    assertEquals(received, 2)
+    assertEquals(received, 2L)
     assertEquals(completed, 2)
   }
 
-  test("cancel and stop should be idempotent") { implicit s =>
+  fixture.test("cancel and stop should be idempotent") { implicit s =>
     val ch = ConcurrentSubject.publish[Long](Unbounded)
     var received = 0L
     var completed = 0
@@ -163,20 +159,20 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     val s2 = ref.take(0L).subscribe(createObserver)
 
     ch.onNext(10); s.tick()
-    assertEquals(received, 1)
+    assertEquals(received, 1L)
     assertEquals(completed, 1)
 
     s2.cancel(); s.tick()
     assertEquals(completed, 1)
 
     ch.onNext(20); s.tick()
-    assertEquals(received, 2)
+    assertEquals(received, 2L)
     assertEquals(completed, 1)
 
     s1.cancel(); s.tick()
     ch.onNext(30); s.tick()
 
-    assertEquals(received, 2)
+    assertEquals(received, 2L)
     assertEquals(completed, 1)
   }
 }

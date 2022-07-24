@@ -23,7 +23,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 import scala.util.Success
 
-object ThrottleSuite extends BaseOperatorSuite {
+class ThrottleSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int) = {
     sourceCount * (sourceCount - 1) / 2
   }
@@ -49,7 +49,7 @@ object ThrottleSuite extends BaseOperatorSuite {
     )
   }
 
-  test("should emit elements at given rate without dropping them") { implicit s =>
+  fixture.test("should emit elements at given rate without dropping them") { implicit s =>
     val lastElements = ListBuffer[Long]()
 
     val f = Observable
@@ -60,11 +60,11 @@ object ThrottleSuite extends BaseOperatorSuite {
       .runToFuture
 
     s.tick(1.seconds)
-    assertEquals(lastElements.toList, List(0, 1))
+    assertEquals(lastElements.toList, List(0L, 1))
     s.tick(2.seconds)
-    assertEquals(lastElements.toList, List(0, 1, 2, 3, 4, 5))
+    assertEquals(lastElements.toList, List(0L, 1, 2, 3, 4, 5))
     s.tick(1.day)
-    assertEquals(lastElements.toList, List(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
+    assertEquals(lastElements.toList, List(0L, 1, 2, 3, 4, 5, 6, 7, 8, 9))
     assertEquals(f.value, Some(Success(())))
   }
 }

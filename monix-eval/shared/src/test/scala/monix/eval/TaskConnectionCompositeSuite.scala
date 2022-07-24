@@ -22,8 +22,8 @@ import monix.eval.internal.TaskConnectionComposite
 import monix.execution.Cancelable
 import monix.execution.cancelables.BooleanCancelable
 
-object TaskConnectionCompositeSuite extends BaseTestSuite {
-  test("cancels Cancelable references") { implicit sc =>
+class TaskConnectionCompositeSuite extends BaseTestSuite {
+  fixture.test("cancels Cancelable references") { implicit sc =>
     val conn = TaskConnectionComposite()
     val b1 = BooleanCancelable()
     val b2 = BooleanCancelable()
@@ -39,7 +39,7 @@ object TaskConnectionCompositeSuite extends BaseTestSuite {
     assert(b2.isCanceled)
   }
 
-  test("cancels Cancelable references after cancel on assignment") { implicit sc =>
+  fixture.test("cancels Cancelable references after cancel on assignment") { implicit sc =>
     val conn = TaskConnectionComposite()
     val b1 = BooleanCancelable()
     val b2 = BooleanCancelable()
@@ -53,7 +53,7 @@ object TaskConnectionCompositeSuite extends BaseTestSuite {
     assert(b2.isCanceled)
   }
 
-  test("cancels Task references") { implicit sc =>
+  fixture.test("cancels Task references") { implicit sc =>
     var effect = 0
     val conn = TaskConnectionComposite()
     val b1 = Task { effect += 1 }
@@ -74,7 +74,7 @@ object TaskConnectionCompositeSuite extends BaseTestSuite {
     assertEquals(effect, 4)
   }
 
-  test("cancels Task references after cancel on assignment") { implicit sc =>
+  fixture.test("cancels Task references after cancel on assignment") { implicit sc =>
     var effect = 0
     val conn = TaskConnectionComposite()
     val b1 = Task { effect += 1 }
@@ -91,7 +91,7 @@ object TaskConnectionCompositeSuite extends BaseTestSuite {
     assertEquals(effect, 4)
   }
 
-  test("cancels CancelableF references") { implicit sc =>
+  fixture.test("cancels CancelableF references") { implicit sc =>
     var effect = 0
     val conn = TaskConnectionComposite()
     val b1 = CancelableF.wrap(Task { effect += 1 })
@@ -112,7 +112,7 @@ object TaskConnectionCompositeSuite extends BaseTestSuite {
     assertEquals(effect, 4)
   }
 
-  test("cancels CancelableF references after cancel on assignment") { implicit sc =>
+  fixture.test("cancels CancelableF references after cancel on assignment") { implicit sc =>
     var effect = 0
     val conn = TaskConnectionComposite()
     val b1 = CancelableF.wrap(Task { effect += 1 })
@@ -129,7 +129,7 @@ object TaskConnectionCompositeSuite extends BaseTestSuite {
     assertEquals(effect, 4)
   }
 
-  test("addAll") { implicit sc =>
+  fixture.test("addAll") { implicit sc =>
     var effect = 0
     val task1 = Task { effect += 1 }
     val task2 = Task { effect += 2 }
@@ -146,7 +146,7 @@ object TaskConnectionCompositeSuite extends BaseTestSuite {
     assertEquals(effect, 12)
   }
 
-  test("remove Task") { implicit sc =>
+  fixture.test("remove Task") { implicit sc =>
     var effect = 0
     val task1 = Task { effect += 1 }
     val task2 = Task { effect += 2 }
@@ -161,7 +161,7 @@ object TaskConnectionCompositeSuite extends BaseTestSuite {
     assertEquals(effect, 4)
   }
 
-  test("remove Cancelable") { implicit sc =>
+  fixture.test("remove Cancelable") { implicit sc =>
     var effect = 0
     val task1 = Cancelable { () =>
       effect += 1
@@ -182,7 +182,7 @@ object TaskConnectionCompositeSuite extends BaseTestSuite {
     assertEquals(effect, 4)
   }
 
-  test("remove CancelableF") { implicit sc =>
+  fixture.test("remove CancelableF") { implicit sc =>
     var effect = 0
     val task1 = CancelableF.wrap(Task { effect += 1 })
     val task2 = CancelableF.wrap(Task { effect += 2 })

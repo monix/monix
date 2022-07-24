@@ -26,22 +26,22 @@ import monix.tail.batches.{ Batch, BatchCursor }
 
 import scala.util.Failure
 
-object IterantHeadOptionSuite extends BaseTestSuite {
-  test("Iterant.headOptionL <-> List.headOption") { _ =>
+class IterantHeadOptionSuite extends BaseTestSuite {
+  test("Iterant.headOptionL <-> List.headOption") {
     check2 { (list: List[Int], idx: Int) =>
       val iter = arbitraryListToIterant[Coeval, Int](list, math.abs(idx % 4), allowErrors = false)
       iter.headOptionL <-> Coeval.now(list.headOption)
     }
   }
 
-  test("Iterant.headOption <-> List.headOption") { _ =>
+  test("Iterant.headOption <-> List.headOption") {
     check2 { (list: List[Int], idx: Int) =>
       val iter = arbitraryListToIterant[Coeval, Int](list, math.abs(idx % 4), allowErrors = false)
       iter.headOptionL.value() == list.headOption
     }
   }
 
-  test("Iterant.headOption suspends execution for NextCursor or NextBatch") { _ =>
+  test("Iterant.headOption suspends execution for NextCursor or NextBatch") {
     check1 { (list: List[Int]) =>
       val iter1 = Iterant[Coeval].nextBatchS(Batch(list: _*), Coeval.now(Iterant[Coeval].empty[Int]))
       iter1.headOptionL <-> Coeval.suspend(Coeval.now(list.headOption))
@@ -51,7 +51,7 @@ object IterantHeadOptionSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.headOption works for empty NextCursor or NextBatch") { _ =>
+  test("Iterant.headOption works for empty NextCursor or NextBatch") {
     val iter1 = Iterant[Coeval].nextBatchS(Batch[Int](), Coeval.now(Iterant[Coeval].empty[Int]))
     assertEquals(iter1.headOptionL.value(), None)
 
@@ -59,7 +59,7 @@ object IterantHeadOptionSuite extends BaseTestSuite {
     assertEquals(iter2.headOptionL.value(), None)
   }
 
-  test("Iterant.headOption doesn't touch Halt") { implicit s =>
+  fixture.test("Iterant.headOption doesn't touch Halt") { implicit s =>
     val dummy = DummyException("dummy")
     val iter1: Iterant[Task, Int] = Iterant[Task].haltS(Some(dummy))
     val state1 = iter1.headOptionL
@@ -69,7 +69,7 @@ object IterantHeadOptionSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Iterant.headOption earlyStop gets called for failing `rest` on Next node") { implicit s =>
+  fixture.test("Iterant.headOption earlyStop gets called for failing `rest` on Next node") { implicit s =>
     var effect = 0
 
     def stop(i: Int): Coeval[Unit] = Coeval { effect += i }
@@ -82,7 +82,7 @@ object IterantHeadOptionSuite extends BaseTestSuite {
     assertEquals(effect, 6)
   }
 
-  test("protects against broken batches as first node") { implicit s =>
+  fixture.test("protects against broken batches as first node") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -96,7 +96,7 @@ object IterantHeadOptionSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("headOptionL handles Scope's release before the rest of the stream") { implicit s =>
+  fixture.test("headOptionL handles Scope's release before the rest of the stream") { implicit s =>
     val triggered = Atomic(false)
     val fail = DummyException("fail")
 
@@ -119,7 +119,7 @@ object IterantHeadOptionSuite extends BaseTestSuite {
     assertEquals(stream.headOptionL.value(), None)
   }
 
-  test("headOptionL handles Scope's release after use is finished") { implicit s =>
+  fixture.test("headOptionL handles Scope's release after use is finished") { implicit s =>
     val triggered = Atomic(false)
     val fail = DummyException("fail")
 

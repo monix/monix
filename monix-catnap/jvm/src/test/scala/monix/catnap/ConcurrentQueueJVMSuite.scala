@@ -40,12 +40,12 @@ abstract class ConcurrentQueueJVMSuite(parallelism: Int) extends BaseConcurrentQ
       if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
       else IO.unit
 
-    testAsync(name) { implicit ec =>
+    fixture.test(name) { implicit ec =>
       repeatTest(f(ec).timeout(60.second), times).unsafeToFuture()
     }
   }
 }
 
-object ConcurrentQueueJVMParallelism8Suite extends ConcurrentQueueJVMSuite(8)
-object ConcurrentQueueJVMParallelism4Suite extends ConcurrentQueueJVMSuite(4)
-object ConcurrentQueueJVMParallelism1Suite extends ConcurrentQueueJVMSuite(1)
+class ConcurrentQueueJVMParallelism8Suite extends ConcurrentQueueJVMSuite(8)
+class ConcurrentQueueJVMParallelism4Suite extends ConcurrentQueueJVMSuite(4)
+class ConcurrentQueueJVMParallelism1Suite extends ConcurrentQueueJVMSuite(1)

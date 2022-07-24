@@ -23,7 +23,7 @@ import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 import scala.util.Success
 
-object TransformerSuite extends BaseOperatorSuite {
+class TransformerSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int): Long = (0 until sourceCount).sum.toLong * 2
   def count(sourceCount: Int) = sourceCount
 
@@ -64,7 +64,7 @@ object TransformerSuite extends BaseOperatorSuite {
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("should transform the observable using the given transformer") { implicit s =>
+  fixture.test("should transform the observable using the given transformer") { implicit s =>
     val l = List(1L, 2, 3, 4)
     val f = Observable.from(l).transform(dummyTransformer).toListL.runToFuture
     s.tick()

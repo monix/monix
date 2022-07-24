@@ -27,8 +27,8 @@ import monix.tail.batches.BatchCursor
 
 import scala.util.Failure
 
-object IterantFilterSuite extends BaseTestSuite {
-  test("Iterant.filter <=> List.filter") { implicit s =>
+class IterantFilterSuite extends BaseTestSuite {
+  fixture.test("Iterant.filter <=> List.filter") { implicit s =>
     check2 { (stream: Iterant[Task, Int], p: Int => Boolean) =>
       val received = stream.filter(p).toListL
       val expected = stream.toListL.map(_.filter(p))
@@ -36,7 +36,7 @@ object IterantFilterSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.filter protects against user error") { implicit s =>
+  fixture.test("Iterant.filter protects against user error") { implicit s =>
     check1 { (stream: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val received = (stream.onErrorIgnore ++ Iterant[Task].now(1)).filter(_ => throw dummy)
@@ -44,7 +44,7 @@ object IterantFilterSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.filter flatMap equivalence") { implicit s =>
+  fixture.test("Iterant.filter flatMap equivalence") { implicit s =>
     check2 { (stream: Iterant[Task, Int], p: Int => Boolean) =>
       val received = stream.filter(p)
       val expected = stream.flatMap(x => if (p(x)) Iterant[Task].now(x) else Iterant[Task].empty[Int])
@@ -52,7 +52,7 @@ object IterantFilterSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.filter suspends the evaluation for NextBatch") { _ =>
+  test("Iterant.filter suspends the evaluation for NextBatch") {
     val dummy = DummyException("dummy")
     val items = new ThrowExceptionBatch(dummy)
     val iter = Iterant[Coeval].nextBatchS(items, Coeval.now(Iterant[Coeval].empty[Int]))
@@ -65,7 +65,7 @@ object IterantFilterSuite extends BaseTestSuite {
     assertEquals(state.toListL.runTry(), Failure(dummy))
   }
 
-  test("Iterant.filter suspends the evaluation for NextCursor") { _ =>
+  test("Iterant.filter suspends the evaluation for NextCursor") {
     val dummy = DummyException("dummy")
     val items = new ThrowExceptionCursor(dummy)
     val iter = Iterant[Coeval].nextCursorS(items, Coeval.now(Iterant[Coeval].empty[Int]))
@@ -78,7 +78,7 @@ object IterantFilterSuite extends BaseTestSuite {
     assertEquals(state.toListL.runTry(), Failure(dummy))
   }
 
-  test("Iterant.filter protects against user code for Next") { _ =>
+  test("Iterant.filter protects against user code for Next") {
     val dummy = DummyException("dummy")
     val iter = Iterant[Coeval].nextS(1, Coeval.now(Iterant[Coeval].empty[Int]))
     val state = iter.filter { _ =>
@@ -87,7 +87,7 @@ object IterantFilterSuite extends BaseTestSuite {
     assertEquals(state.toListL.runTry(), Failure(dummy))
   }
 
-  test("Iterant.filter protects against user code for Last") { _ =>
+  test("Iterant.filter protects against user code for Last") {
     val dummy = DummyException("dummy")
     val iter = Iterant[Coeval].lastS(1)
     val state = iter.filter { _ =>
@@ -96,7 +96,7 @@ object IterantFilterSuite extends BaseTestSuite {
     assertEquals(state.toListL.runTry(), Failure(dummy))
   }
 
-  test("Iterant.filter doesn't touch Halt") { _ =>
+  test("Iterant.filter doesn't touch Halt") {
     val dummy = DummyException("dummy")
     val iter1: Iterant[Coeval, Int] = Iterant[Coeval].haltS[Int](Some(dummy))
     val state1 = iter1.filter { _ =>
@@ -111,7 +111,7 @@ object IterantFilterSuite extends BaseTestSuite {
     assertEquals(state2, iter2)
   }
 
-  test("Iterant.filter preserves resource safety") { implicit s =>
+  fixture.test("Iterant.filter preserves resource safety") { implicit s =>
     var effect = 0
     val source = Iterant[Coeval]
       .nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
@@ -121,7 +121,7 @@ object IterantFilterSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Iterant.withFilter applies filtering in for-comprehension") { implicit s =>
+  fixture.test("Iterant.withFilter applies filtering in for-comprehension") { implicit s =>
     val source = Iterant[Coeval]
       .nextCursorS(BatchCursor(1, 2, 3, 4, 5), Coeval.now(Iterant[Coeval].empty[Int]))
 

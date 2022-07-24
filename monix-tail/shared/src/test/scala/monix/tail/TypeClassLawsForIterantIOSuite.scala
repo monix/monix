@@ -31,7 +31,7 @@ import cats.laws.discipline.{
 import cats.laws.discipline.arbitrary.catsLawsArbitraryForPartialFunction
 import monix.execution.schedulers.TestScheduler
 
-object TypeClassLawsForIterantIOSuite extends BaseLawsSuite {
+class TypeClassLawsForIterantIOSuite extends BaseLawsSuite {
   type F[α] = Iterant[IO, α]
 
   implicit lazy val ec: TestScheduler = TestScheduler()

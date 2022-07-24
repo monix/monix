@@ -21,30 +21,30 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.{ Coeval, Task }
 
-object IterantRetryIfEmptySuite extends BaseTestSuite {
-  test("Iterant.pure(1).retryIfEmpty mirrors source") { _ =>
+class IterantRetryIfEmptySuite extends BaseTestSuite {
+  test("Iterant.pure(1).retryIfEmpty mirrors source") {
     val r = Iterant[Coeval].pure(1).retryIfEmpty(None).toListL.value()
     assertEquals(r, List(1))
   }
 
-  test("Iterant.suspend(Iterant.pure(1)).retryIfEmpty mirrors source") { _ =>
+  test("Iterant.suspend(Iterant.pure(1)).retryIfEmpty mirrors source") {
     val r = Iterant.suspend(Iterant[Coeval].pure(1)).retryIfEmpty(None).toListL.value()
     assertEquals(r, List(1))
   }
 
-  test("(batch ++ batch ++ batch ++ batch).retryIfEmpty mirrors source") { _ =>
+  test("(batch ++ batch ++ batch ++ batch).retryIfEmpty mirrors source") {
     def batch(start: Int) = Iterant[Coeval].fromArray(Array(start, start + 1, start + 2))
     val r = (batch(1) ++ batch(4) ++ batch(7) ++ batch(10)).retryIfEmpty(None).toListL.value()
     assertEquals(r, (1 to 12).toList)
   }
 
-  test("iterant.retryIfEmpty <-> iterant (for pure streams)") { _ =>
+  test("iterant.retryIfEmpty <-> iterant (for pure streams)") {
     check1 { (stream: Iterant[Coeval, Int]) =>
       stream.retryIfEmpty(Some(1)) <-> stream
     }
   }
 
-  test("iterant.retryIfEmpty handles Scopes properly") { _ =>
+  test("iterant.retryIfEmpty handles Scopes properly") {
     var cycles = 0
     var acquired = 0
     val empty = Iterant[Coeval].suspend(Coeval {
@@ -67,7 +67,7 @@ object IterantRetryIfEmptySuite extends BaseTestSuite {
     assertEquals(acquired, 0)
   }
 
-  test("iterant.retryIfEmpty actually retries until source emits something") { _ =>
+  test("iterant.retryIfEmpty actually retries until source emits something") {
     var cycles = 10
     val iterant = Iterant[Coeval].suspend(Coeval {
       cycles -= 1
@@ -81,7 +81,7 @@ object IterantRetryIfEmptySuite extends BaseTestSuite {
     assertEquals(r, List(1))
   }
 
-  test("iterant.retryIfEmpty gives up after maxRetries") { _ =>
+  test("iterant.retryIfEmpty gives up after maxRetries") {
     var cycles = 10
     val iterant = Iterant[Coeval].suspend(Coeval {
       cycles -= 1
@@ -95,7 +95,7 @@ object IterantRetryIfEmptySuite extends BaseTestSuite {
     assertEquals(r, Nil)
   }
 
-  test("iterant.retryIfEmpty(None) repeats until it succeeds") { _ =>
+  test("iterant.retryIfEmpty(None) repeats until it succeeds") {
     import scala.util.Random
     val stream = Iterant[Coeval].suspend(Coeval {
       val nr = Random.nextInt()
@@ -109,7 +109,7 @@ object IterantRetryIfEmptySuite extends BaseTestSuite {
     assertEquals(r, List(1, 2, 3))
   }
 
-  test("iterant.retryIfEmpty(None) repeats until the end of time") { implicit sc =>
+  fixture.test("iterant.retryIfEmpty(None) repeats until the end of time") { implicit s =>
     val f = Iterant[Task]
       .suspend(Iterant.empty[Task, Int])
       .retryIfEmpty(None)
@@ -119,11 +119,11 @@ object IterantRetryIfEmptySuite extends BaseTestSuite {
     var count = 1000
     while (count > 0) {
       count -= 1
-      assert(sc.tickOne(), "sc.tickOne()")
+      assert(s.tickOne(), "sc.tickOne()")
       assert(!f.isCompleted, "!f.isCompleted")
     }
 
     f.cancel()
-    sc.tick()
+    s.tick()
   }
 }

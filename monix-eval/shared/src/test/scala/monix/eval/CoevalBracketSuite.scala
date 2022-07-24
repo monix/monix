@@ -22,10 +22,11 @@ import cats.laws.discipline._
 import cats.syntax.all._
 import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
+
 import scala.util.{ Failure, Success }
 
-object CoevalBracketSuite extends BaseTestSuite {
-  test("equivalence with onErrorHandleWith") { _ =>
+class CoevalBracketSuite extends BaseTestSuite {
+  test("equivalence with onErrorHandleWith") {
     check2 { (coeval: Coeval[Int], f: Throwable => Coeval[Unit]) =>
       val expected = coeval.onErrorHandleWith(e => f(e) *> Coeval.raiseError(e))
       val received = coeval.bracketE(Coeval.now) {
@@ -36,7 +37,7 @@ object CoevalBracketSuite extends BaseTestSuite {
     }
   }
 
-  test("equivalence with flatMap + transformWith") { _ =>
+  test("equivalence with flatMap + transformWith") {
     check3 { (acquire: Coeval[Int], f: Int => Coeval[Int], release: Int => Coeval[Unit]) =>
       val expected = acquire.flatMap { a =>
         f(a).redeemWith(
@@ -50,7 +51,7 @@ object CoevalBracketSuite extends BaseTestSuite {
     }
   }
 
-  test("use is protected against user error") { _ =>
+  test("use is protected against user error") {
     val dummy = new DummyException("dummy")
     var input = Option.empty[(Int, Either[Throwable, Int])]
 
@@ -63,7 +64,7 @@ object CoevalBracketSuite extends BaseTestSuite {
     assertEquals(result, Failure(dummy))
   }
 
-  test("release is evaluated on success") { _ =>
+  test("release is evaluated on success") {
     var input = Option.empty[(Int, Either[Throwable, Int])]
     val coeval = Coeval(1).bracketE(x => Coeval(x + 1)) { (a, i) =>
       Coeval.eval { input = Some((a, i)) }
@@ -74,12 +75,13 @@ object CoevalBracketSuite extends BaseTestSuite {
     assertEquals(result, Success(2))
   }
 
-  test("release is evaluated on error") { _ =>
+  test("release is evaluated on error") {
     val dummy = new DummyException("dummy")
     var input = Option.empty[(Int, Either[Throwable, Int])]
 
-    val coeval = Coeval(1).bracketE(_ => Coeval.raiseError[Int](dummy)) { (a, i) =>
-      Coeval.eval { input = Some((a, i)) }
+    val coeval = Coeval(1).bracketE(_ => Coeval.raiseError[Int](dummy)) {
+      case (a, i) =>
+        Coeval.eval { input = Some((a, i)) }
     }
 
     val result = coeval.runTry()
@@ -87,9 +89,9 @@ object CoevalBracketSuite extends BaseTestSuite {
     assertEquals(result, Failure(dummy))
   }
 
-  test("if both use and release throw, report release error, signal use error") { _ =>
-    val useError = new DummyException("use")
-    val releaseError = new DummyException("release")
+  test("if both use and release throw, report release error, signal use error") {
+    val useError = DummyException("use")
+    val releaseError = DummyException("release")
 
     val coeval = Coeval(1).bracket[Int] { _ =>
       Coeval.raiseError(useError)

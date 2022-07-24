@@ -18,10 +18,10 @@
 package monix.catnap.cancelables
 
 import cats.effect.IO
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import monix.catnap.CancelableF
 
-object AssignableCancelableFSuite extends SimpleTestSuite {
+class AssignableCancelableFSuite extends BaseTestSuite {
   test("alreadyCanceled") {
     val ac = AssignableCancelableF.alreadyCanceled[IO]
     var effect = 0

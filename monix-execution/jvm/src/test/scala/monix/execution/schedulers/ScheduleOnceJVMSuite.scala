@@ -19,11 +19,11 @@ package monix.execution
 package schedulers
 
 import java.util.concurrent.ScheduledThreadPoolExecutor
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 
-object ScheduleOnceJVMSuite extends SimpleTestSuite {
+class ScheduleOnceJVMSuite extends BaseTestSuite {
   test("Scheduler.global") {
     runTest(Scheduler.global)
   }

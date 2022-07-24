@@ -27,8 +27,8 @@ import monix.execution.internal.Platform
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskCancellationSuite extends BaseTestSuite {
-  test("cancellation works for async actions") { implicit ec =>
+class TaskCancellationSuite extends BaseTestSuite {
+  fixture.test("cancellation works for async actions") { implicit ec =>
     implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
 
     var wasCancelled = false
@@ -44,7 +44,7 @@ object TaskCancellationSuite extends BaseTestSuite {
     assert(ec.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("cancellation works for autoCancelableRunLoops") { implicit ec =>
+  fixture.test("cancellation works for autoCancelableRunLoops") { implicit ec =>
     implicit val opts = Task.defaultOptions.enableAutoCancelableRunLoops
 
     var effect = 0
@@ -63,7 +63,7 @@ object TaskCancellationSuite extends BaseTestSuite {
     assertEquals(effect, 0)
   }
 
-  test("task.start.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> Task.never") { implicit ec =>
+  fixture.test("task.start.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> Task.never") { implicit ec =>
     check1 { (task: Task[Int]) =>
       val fa = for {
         forked <- task.attempt.asyncBoundary
@@ -77,7 +77,7 @@ object TaskCancellationSuite extends BaseTestSuite {
     }
   }
 
-  test("uncancelable works for async actions") { implicit ec =>
+  fixture.test("uncancelable works for async actions") { implicit ec =>
     var effect = 0
     val task = Task.eval(1).delayExecution(1.second).foreachL { x =>
       effect += x
@@ -96,7 +96,7 @@ object TaskCancellationSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("uncancelable works for autoCancelableRunLoops") { implicit ec =>
+  fixture.test("uncancelable works for autoCancelableRunLoops") { implicit ec =>
     val task = Task.evalAsync(1)
     val source = task
       .flatMap(x => task.map(_ + x))
@@ -113,7 +113,7 @@ object TaskCancellationSuite extends BaseTestSuite {
     assertEquals(f2.value, None)
   }
 
-  test("uncancelable is stack safe in flatMap loop, take 1") { implicit ec =>
+  fixture.test("uncancelable is stack safe in flatMap loop, take 1") { implicit ec =>
     def loop(n: Int): Task[Int] =
       Task.eval(n).flatMap { x =>
         if (x > 0)
@@ -127,7 +127,7 @@ object TaskCancellationSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(0)))
   }
 
-  test("uncancelable is stack safe in flatMap loop, take 2") { implicit ec =>
+  fixture.test("uncancelable is stack safe in flatMap loop, take 2") { implicit ec =>
     var task = Task.evalAsync(1)
     for (_ <- 0 until 10000) task = task.uncancelable
 
@@ -136,38 +136,39 @@ object TaskCancellationSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("fa.onCancelRaiseError <-> fa") { implicit ec =>
+  fixture.test("fa.onCancelRaiseError <-> fa") { implicit ec =>
     val dummy = new DummyException("dummy")
     check1 { (fa: Task[Int]) =>
       fa.onCancelRaiseError(dummy) <-> fa
     }
   }
 
-  test("fa.onCancelRaiseError(e).start.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> raiseError(e)") { implicit ec =>
-    check2 { (fa: Task[Int], e: Throwable) =>
-      val received = fa
-        .onCancelRaiseError(e)
-        .start
-        .flatMap(fa => fa.cancel.flatMap(_ => fa.join))
-        .executeWithOptions(_.disableAutoCancelableRunLoops)
+  fixture.test("fa.onCancelRaiseError(e).start.flatMap(fa => fa.cancel.flatMap(_ => fa)) <-> raiseError(e)") {
+    implicit ec =>
+      check2 { (fa: Task[Int], e: Throwable) =>
+        val received = fa
+          .onCancelRaiseError(e)
+          .start
+          .flatMap(fa => fa.cancel.flatMap(_ => fa.join))
+          .executeWithOptions(_.disableAutoCancelableRunLoops)
 
-      received <-> Task.raiseError(e)
-    }
+        received <-> Task.raiseError(e)
+      }
   }
 
-  test("cancelBoundary happy path") { implicit ec =>
+  fixture.test("cancelBoundary happy path") { implicit ec =>
     check1 { (task: Task[Int]) =>
       task <* Task.cancelBoundary <-> task
     }
   }
 
-  test("cancelBoundary execution is immediate") { implicit ec =>
+  fixture.test("cancelBoundary execution is immediate") { implicit ec =>
     val task = Task.cancelBoundary *> Task(1)
     val f = task.runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("cancelBoundary is stack safe") { implicit ec =>
+  fixture.test("cancelBoundary is stack safe") { implicit ec =>
     def loop(n: Int): Task[Unit] =
       if (n > 0) Task.cancelBoundary.flatMap(_ => loop(n - 1))
       else Task.pure(())
@@ -177,14 +178,14 @@ object TaskCancellationSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("cancelBoundary cancels") { implicit ec =>
+  fixture.test("cancelBoundary cancels") { implicit ec =>
     check1 { (task: Task[Int]) =>
       (Task.cancelBoundary *> task).start
         .flatMap(f => f.cancel *> f.join) <-> Task.never
     }
   }
 
-  test("onCancelRaiseError resets cancellation flag") { implicit ec =>
+  fixture.test("onCancelRaiseError resets cancellation flag") { implicit ec =>
     implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
 
     val err = DummyException("dummy")
@@ -200,7 +201,7 @@ object TaskCancellationSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("errors raised after cancel get reported") { implicit sc =>
+  fixture.test("errors raised after cancel get reported") { implicit sc =>
     val dummy = new DummyException()
     val canceled = new CancellationException()
     val task = Task
@@ -216,7 +217,7 @@ object TaskCancellationSuite extends BaseTestSuite {
     assertEquals(sc.state.lastReportedError, dummy)
   }
 
-  test("onCancelRaiseError is stack safe in flatMap loop, take 1") { implicit ec =>
+  fixture.test("onCancelRaiseError is stack safe in flatMap loop, take 1") { implicit ec =>
     val cancel = new RuntimeException
     def loop(n: Int): Task[Int] =
       Task.eval(n).flatMap { x =>
@@ -231,7 +232,7 @@ object TaskCancellationSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(0)))
   }
 
-  test("onCancelRaiseError is stack safe in flatMap loop, take 2") { implicit ec =>
+  fixture.test("onCancelRaiseError is stack safe in flatMap loop, take 2") { implicit ec =>
     val cancel = new RuntimeException
     def loop(n: Int): Task[Int] =
       Task.eval(n).flatMap { x =>
@@ -246,7 +247,7 @@ object TaskCancellationSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(0)))
   }
 
-  testAsync("local.write.uncancelable works") { _ =>
+  fixture.test("local.write.uncancelable works") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
@@ -262,7 +263,7 @@ object TaskCancellationSuite extends BaseTestSuite {
     }
   }
 
-  testAsync("local.write.onCancelRaiseError works") { _ =>
+  fixture.test("local.write.onCancelRaiseError works") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
     val error = DummyException("dummy")

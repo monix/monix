@@ -17,14 +17,14 @@
 
 package monix.execution.schedulers
 
-import minitest.TestSuite
+import monix.execution.{ Scheduler, TestSuite }
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.ExecutionModel.{ Default => DefaultExecModel }
-import monix.execution.Scheduler
-import monix.execution.internal.Platform
+import munit.internal.PlatformCompat.isJVM
+
 import scala.concurrent.Promise
 
-object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
+class TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
   def setup(): (Scheduler, TestScheduler) = {
     val u = TestScheduler(DefaultExecModel)
     val t = TrampolineScheduler(u, DefaultExecModel)
@@ -35,7 +35,7 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
     assert(env._2.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("execute async should execute immediately") {
+  fixture.test("execute async should execute immediately") {
     case (s, _) =>
       var effect = 0
       val p = Promise[Int]()
@@ -56,7 +56,7 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
       assertEquals(effect, 1 + 2 + 3)
   }
 
-  test("execute local should work") {
+  fixture.test("execute local should work") {
     case (s, _) =>
       var effect = 0
 
@@ -73,7 +73,7 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
       assertEquals(effect, 1 + 2 + 3)
   }
 
-  test("schedule for execution with delay") {
+  fixture.test("schedule for execution with delay") {
     case (s, u) =>
       import concurrent.duration._
       val p = Promise[Unit]()
@@ -86,14 +86,14 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
       assert(p.future.isCompleted, "p.future.isCompleted")
   }
 
-  test("report failure should work") {
+  fixture.test("report failure should work") {
     case (s, u) =>
       val ex = new RuntimeException("dummy")
       s.reportFailure(ex)
       assertEquals(u.state.lastReportedError, ex)
   }
 
-  test("scheduleWithFixedDelay") {
+  fixture.test("scheduleWithFixedDelay") {
     case (s, u) =>
       import concurrent.duration._
       var effect = 0
@@ -110,7 +110,7 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
       assertEquals(effect, 2)
   }
 
-  test("scheduleAtFixedRate") {
+  fixture.test("scheduleAtFixedRate") {
     case (s, u) =>
       import concurrent.duration._
       var effect = 0
@@ -127,7 +127,7 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
       assertEquals(effect, 2)
   }
 
-  test("withExecutionModel") {
+  fixture.test("withExecutionModel") {
     case (s, _) =>
       val em = AlwaysAsyncExecution
       val s2 = s.withExecutionModel(em)
@@ -136,10 +136,10 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
       assertEquals(s2.executionModel, em)
   }
 
-  test("on blocking it should fork") {
+  fixture.test("on blocking it should fork") {
     case (s, u) =>
       import concurrent.blocking
-      if (!Platform.isJVM) ignore("test relevant only for the JVM")
+      if (isJVM) ignore("test relevant only for the JVM")
 
       var effect = 0
       s.execute { () =>

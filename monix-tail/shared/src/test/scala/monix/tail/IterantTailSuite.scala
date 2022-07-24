@@ -23,8 +23,8 @@ import monix.eval.{ Coeval, Task }
 import monix.execution.exceptions.DummyException
 import monix.tail.Iterant.Suspend
 
-object IterantTailSuite extends BaseTestSuite {
-  test("Iterant.tail is equivalent with List.tail") { implicit s =>
+class IterantTailSuite extends BaseTestSuite {
+  fixture.test("Iterant.tail is equivalent with List.tail") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val iter = arbitraryListToIterant[Task, Int](list, math.abs(idx))
       val stream = iter ++ Iterant[Task].fromList(List(1, 2, 3))
@@ -32,7 +32,7 @@ object IterantTailSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.tail protects against broken batches") { implicit s =>
+  fixture.test("Iterant.tail protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
@@ -42,7 +42,7 @@ object IterantTailSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.tail protects against broken cursors") { implicit s =>
+  fixture.test("Iterant.tail protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
@@ -52,7 +52,7 @@ object IterantTailSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.tail suspends execution for NextCursor") { implicit s =>
+  fixture.test("Iterant.tail suspends execution for NextCursor") { implicit s =>
     val dummy = DummyException("dummy")
     val iter = Iterant[Coeval]
       .nextCursorS[Int](
@@ -66,7 +66,7 @@ object IterantTailSuite extends BaseTestSuite {
     ()
   }
 
-  test("Iterant.tail suspends execution for NextBatch") { implicit s =>
+  fixture.test("Iterant.tail suspends execution for NextBatch") { implicit s =>
     val dummy = DummyException("dummy")
     val iter = Iterant[Coeval]
       .nextBatchS[Int](

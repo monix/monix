@@ -17,22 +17,18 @@
 
 package monix.reactive.internal.builders
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Ack.{ Continue, Stop }
-import monix.execution.schedulers.TestScheduler
 import monix.execution.{ Ack, Cancelable }
 import monix.execution.exceptions.DummyException
 import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 import scala.util.Success
 
-object UnsafeCreateObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
-  }
+class UnsafeCreateObservableSuite extends BaseTestSuite {
 
-  test("should work") { implicit s =>
+  fixture.test("should work") { implicit s =>
     val o = Observable.unsafeCreate[Int] { out =>
       out.onNext(1)
       out.onComplete()
@@ -44,7 +40,7 @@ object UnsafeCreateObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(sum.value.get, Success(Some(1)))
   }
 
-  test("should protect against user error") { implicit s =>
+  fixture.test("should protect against user error") { implicit s =>
     val ex = DummyException("dummy")
     val o = Observable.unsafeCreate[Int] { out =>
       throw ex
@@ -57,7 +53,7 @@ object UnsafeCreateObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("should protect the grammar onComplete") { implicit s =>
+  fixture.test("should protect the grammar onComplete") { implicit s =>
     var effect = 0
     val o = Observable.unsafeCreate[Int] { out =>
       out.onNext(10)
@@ -80,7 +76,7 @@ object UnsafeCreateObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 11)
   }
 
-  test("should protect the grammar on cancel") { implicit s =>
+  fixture.test("should protect the grammar on cancel") { implicit s =>
     var effect = 0
     val o = Observable.unsafeCreate[Int] { out =>
       out.onNext(10)
@@ -103,7 +99,7 @@ object UnsafeCreateObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 10)
   }
 
-  test("should protect the grammar on error") { implicit s =>
+  fixture.test("should protect the grammar on error") { implicit s =>
     val ex = DummyException("dummy")
     var effect = 0
 
@@ -132,7 +128,7 @@ object UnsafeCreateObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 11)
   }
 
-  test("should protect against onNext synchronous exceptions") { implicit s =>
+  fixture.test("should protect against onNext synchronous exceptions") { implicit s =>
     val ex = DummyException("dummy")
     var effect = 0
 

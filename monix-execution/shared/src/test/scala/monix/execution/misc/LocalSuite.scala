@@ -18,13 +18,13 @@
 package monix.execution.misc
 
 import cats.Eval
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.schedulers.{ TestScheduler, TracingScheduler }
 import monix.execution.misc.CanBindLocals.Implicits.synchronousAsDefault
 import scala.concurrent.Future
 import scala.util.Success
 
-object LocalSuite extends SimpleTestSuite {
+class LocalSuite extends BaseTestSuite {
   test("Local.apply") {
     val local = Local(0)
     assertEquals(local.get, 0)
@@ -86,7 +86,7 @@ object LocalSuite extends SimpleTestSuite {
     assertEquals(f.value, Some(Success(200)))
   }
 
-  testAsync("captures snapshot in actual async execution") {
+  test("captures snapshot in actual async execution") {
     import monix.execution.Scheduler.Implicits.traced
 
     val local1 = Local(0)

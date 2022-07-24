@@ -22,8 +22,8 @@ import cats.laws.discipline._
 import monix.eval.Task
 import monix.reactive.{ BaseConcurrencySuite, Observable }
 
-object MapParallelOrderedConcurrencySuite extends BaseConcurrencySuite {
-  test("mapParallelOrdered works concurrently") { implicit s =>
+class MapParallelOrderedConcurrencySuite extends BaseConcurrencySuite {
+  fixture.test("mapParallelOrdered works concurrently") { implicit s =>
     check2 { (list: List[Int], rnd: Int) =>
       val parallelism = {
         val abs = math.abs(rnd)
@@ -37,7 +37,7 @@ object MapParallelOrderedConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  test("mapParallelOrdered works concurrently and preserves order") { implicit s =>
+  fixture.test("mapParallelOrdered works concurrently and preserves order") { implicit s =>
     check2 { (list: List[Int], rnd: Int) =>
       val parallelism = {
         val abs = math.abs(rnd)

@@ -17,10 +17,10 @@
 
 package monix.execution.cancelables
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.Cancelable
 
-object OrderedCancelableSuite extends SimpleTestSuite {
+class OrderedCancelableSuite extends BaseTestSuite {
   test("cancel()") {
     var effect = 0
     val sub = BooleanCancelable(() => effect += 1)
@@ -77,23 +77,23 @@ object OrderedCancelableSuite extends SimpleTestSuite {
       effect = 1
     }
     mc.orderedUpdate(c1, 1)
-    assertEquals(mc.currentOrder, 1)
+    assertEquals(mc.currentOrder, 1L)
 
     val c2 = Cancelable { () =>
       effect = 2
     }
     mc.orderedUpdate(c2, 2)
-    assertEquals(mc.currentOrder, 2)
+    assertEquals(mc.currentOrder, 2L)
 
     val c3 = Cancelable { () =>
       effect = 3
     }
     mc.orderedUpdate(c3, 1)
-    assertEquals(mc.currentOrder, 2)
+    assertEquals(mc.currentOrder, 2L)
 
     mc.cancel()
     assertEquals(effect, 2)
-    assertEquals(mc.currentOrder, 0)
+    assertEquals(mc.currentOrder, 0L)
   }
 
   test("orderedUpdate should work on overflow") {

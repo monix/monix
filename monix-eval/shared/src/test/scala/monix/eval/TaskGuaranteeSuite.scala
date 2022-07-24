@@ -24,9 +24,9 @@ import monix.execution.internal.Platform
 import scala.util.{ Failure, Success }
 import scala.concurrent.duration._
 
-object TaskGuaranteeSuite extends BaseTestSuite {
+class TaskGuaranteeSuite extends BaseTestSuite {
 
-  test("finalizer is evaluated on success") { implicit sc =>
+  fixture.test("finalizer is evaluated on success") { implicit sc =>
     var input = Option.empty[Int]
     val task = Task
       .evalAsync(1)
@@ -42,7 +42,7 @@ object TaskGuaranteeSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Success(2)))
   }
 
-  test("finalizer is evaluated on error") { implicit sc =>
+  fixture.test("finalizer is evaluated on error") { implicit sc =>
     var input = Option.empty[Int]
     val dummy = DummyException("dummy")
     val task = Task
@@ -59,7 +59,7 @@ object TaskGuaranteeSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Failure(dummy)))
   }
 
-  test("if finalizer throws, report finalizer error and signal use error") { implicit sc =>
+  fixture.test("if finalizer throws, report finalizer error and signal use error") { implicit sc =>
     val useError = DummyException("useError")
     val finalizerError = DummyException("finalizerError")
     val task = Task.raiseError(useError).guarantee(Task.raiseError(finalizerError))
@@ -90,7 +90,7 @@ object TaskGuaranteeSuite extends BaseTestSuite {
     }
   }
 
-  test("finalizer is evaluated on cancelation (1)") { implicit sc =>
+  fixture.test("finalizer is evaluated on cancelation (1)") { implicit sc =>
     val effect = Atomic(false)
     val task = Task
       .sleep(10.seconds)
@@ -109,7 +109,7 @@ object TaskGuaranteeSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("finalizer is evaluated on cancellation (2)") { implicit sc =>
+  fixture.test("finalizer is evaluated on cancellation (2)") { implicit sc =>
     val effect = Atomic(false)
     val task = Task.unit
       .guarantee(Task.sleep(10.seconds) *> Task(effect.set(true)))
@@ -131,7 +131,7 @@ object TaskGuaranteeSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("stack-safety (1)") { implicit sc =>
+  fixture.test("stack-safety (1)") { implicit sc =>
     def loop(n: Int): Task[Unit] =
       if (n <= 0) Task.unit
       else Task.unit.guarantee(Task.unit).flatMap(_ => loop(n - 1))
@@ -143,7 +143,7 @@ object TaskGuaranteeSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("stack-safety (2)") { implicit sc =>
+  fixture.test("stack-safety (2)") { implicit sc =>
     val cycles = if (Platform.isJVM) 100000 else 10000
     val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
       acc.flatMap(_ => Task.unit.guarantee(Task.unit))
@@ -153,7 +153,7 @@ object TaskGuaranteeSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("stack-safety (3)") { implicit sc =>
+  fixture.test("stack-safety (3)") { implicit sc =>
     val cycles = if (Platform.isJVM) 100000 else 10000
     val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
       acc.guarantee(Task.unit)

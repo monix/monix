@@ -19,9 +19,9 @@ package monix.catnap
 package cancelables
 
 import cats.effect.IO
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 
-object BooleanCancelableFSuite extends SimpleTestSuite {
+class BooleanCancelableFSuite extends BaseTestSuite {
   test("apply") {
     var effect = 0
     val task = IO { effect += 1 }

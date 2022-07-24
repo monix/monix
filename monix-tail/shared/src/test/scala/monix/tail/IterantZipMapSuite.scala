@@ -29,7 +29,7 @@ import org.scalacheck.Test.Parameters
 import scala.concurrent.duration._
 import scala.util.Success
 
-object IterantZipMapSuite extends BaseTestSuite {
+class IterantZipMapSuite extends BaseTestSuite {
   override lazy val checkConfig: Parameters = {
     if (Platform.isJVM)
       Test.Parameters.default.withMaxSize(256)
@@ -37,7 +37,7 @@ object IterantZipMapSuite extends BaseTestSuite {
       Test.Parameters.default.withMaxSize(32)
   }
 
-  test("Iterant.zipMap equivalence with List.zip") { implicit s =>
+  fixture.test("Iterant.zipMap equivalence with List.zip") { implicit s =>
     check5 { (list1: List[Int], idx1: Int, list2: List[Int], idx2: Int, f: (Int, Int) => Long) =>
       val stream1 = arbitraryListToIterant[Coeval, Int](list1, math.abs(idx1) + 1, allowErrors = false)
       val stream2 = arbitraryListToIterant[Coeval, Int](list2, math.abs(idx2) + 1, allowErrors = false)
@@ -48,7 +48,7 @@ object IterantZipMapSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.zipMap protects against user error") { implicit s =>
+  fixture.test("Iterant.zipMap protects against user error") { implicit s =>
     check2 { (s1: Iterant[Task, Int], s2: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val f = (_: Int, _: Int) => (throw dummy): Long
@@ -60,7 +60,7 @@ object IterantZipMapSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.parZip equivalence with List.zip") { implicit s =>
+  fixture.test("Iterant.parZip equivalence with List.zip") { implicit s =>
     check4 { (list1: List[Int], idx1: Int, list2: List[Int], idx2: Int) =>
       val stream1 = arbitraryListToIterant[Task, Int](list1, math.abs(idx1) + 1, allowErrors = false)
       val stream2 = arbitraryListToIterant[Task, Int](list2, math.abs(idx2) + 1, allowErrors = false)
@@ -71,7 +71,7 @@ object IterantZipMapSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.zip does not process in parallel") { implicit s =>
+  fixture.test("Iterant.zip does not process in parallel") { implicit s =>
     val stream1 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(1)).delayExecution(1.second))
     val stream2 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(2)).delayExecution(1.second))
     val task = stream1.zip(stream2).headOptionL
@@ -86,7 +86,7 @@ object IterantZipMapSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(Some((1, 2)))))
   }
 
-  test("Iterant.parZip can process in parallel") { implicit s =>
+  fixture.test("Iterant.parZip can process in parallel") { implicit s =>
     val stream1 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(1)).delayExecution(1.second))
     val stream2 = Iterant[Task].suspend(Task.eval(Iterant[Task].pure(2)).delayExecution(1.second))
     val task = stream1.parZip(stream2).headOptionL
@@ -98,7 +98,7 @@ object IterantZipMapSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(Some((1, 2)))))
   }
 
-  test("Iterant.zip can cope with Scope") { _ =>
+  test("Iterant.zip can cope with Scope") {
     val stream = {
       val triggered = Atomic(false)
       val fail = DummyException("fail")

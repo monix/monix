@@ -23,11 +23,11 @@ import monix.reactive.{ BaseConcurrencySuite, Observable }
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Future, Promise }
 
-object MapTaskConcurrencySuite extends BaseConcurrencySuite {
+class MapTaskConcurrencySuite extends BaseConcurrencySuite {
   val cancelTimeout = 30.seconds
   val cancelIterations = 1000
 
-  test("mapTask should work for synchronous children") { implicit s =>
+  fixture.test("mapTask should work for synchronous children") { implicit s =>
     val count = 10000L
     val expected = 3L * count * (count - 1) / 2
 
@@ -43,7 +43,7 @@ object MapTaskConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  test("mapTask should work for asynchronous children") { implicit s =>
+  fixture.test("mapTask should work for asynchronous children") { implicit s =>
     val count = 10000L
     val expected = 3L * count * (count - 1) / 2
 
@@ -59,7 +59,7 @@ object MapTaskConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  test(s"mapTask should be cancellable, test 1, count $cancelIterations (issue #468)") { implicit s =>
+  fixture.test(s"mapTask should be cancellable, test 1, count $cancelIterations (issue #468)") { implicit s =>
     def never(): (Future[Unit], Task[Int]) = {
       val isCancelled = Promise[Unit]()
       val ref =

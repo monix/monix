@@ -23,8 +23,8 @@ import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
 import scala.util.Failure
 
-object IterantDistinctUntilChangedSuite extends BaseTestSuite {
-  test("suppresses duplicates") { implicit s =>
+class IterantDistinctUntilChangedSuite extends BaseTestSuite {
+  fixture.test("suppresses duplicates") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val expected =
         if (list.isEmpty) Nil
@@ -38,7 +38,7 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
     }
   }
 
-  test("suppresses duplicates by key") { implicit s =>
+  fixture.test("suppresses duplicates by key") { implicit s =>
     check3 { (list: List[Int], idx: Int, f: Int => Int) =>
       val expected =
         if (list.isEmpty) Nil
@@ -54,7 +54,7 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
     }
   }
 
-  test("protects against broken function") { implicit s =>
+  fixture.test("protects against broken function") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       var effect = 0
       val dummy = DummyException("dummy")
@@ -70,7 +70,7 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
     }
   }
 
-  test("protects against broken cursors as first node") { implicit s =>
+  fixture.test("protects against broken cursors as first node") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -85,7 +85,7 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("protects against broken cursors as second node") { implicit s =>
+  fixture.test("protects against broken cursors as second node") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -102,7 +102,7 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("protects against broken batches as first node") { implicit s =>
+  fixture.test("protects against broken batches as first node") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -117,7 +117,7 @@ object IterantDistinctUntilChangedSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("protects against broken batches as second node") { implicit s =>
+  fixture.test("protects against broken batches as second node") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 

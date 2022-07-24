@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import monix.reactive.Observable
 import scala.concurrent.duration._
 
-object DebounceFlattenSuite extends BaseOperatorSuite {
+class DebounceFlattenSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable
       .now(1L)

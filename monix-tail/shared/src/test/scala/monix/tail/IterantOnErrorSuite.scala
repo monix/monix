@@ -27,8 +27,8 @@ import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
 import monix.tail.batches.{ Batch, BatchCursor }
 
-object IterantOnErrorSuite extends BaseTestSuite {
-  test("fa.attempt <-> fa.map(Right) for successful streams") { implicit s =>
+class IterantOnErrorSuite extends BaseTestSuite {
+  fixture.test("fa.attempt <-> fa.map(Right) for successful streams") { implicit s =>
     val i = Iterant[Coeval].of(1, 2, 3)
 
     assertEquals(
@@ -37,7 +37,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     )
   }
 
-  test("fa.attempt ends with a Left in case of error") { implicit s =>
+  fixture.test("fa.attempt ends with a Left in case of error") { implicit s =>
     val dummy = DummyException("dummy")
     val i = Iterant[Coeval].of(1, 2, 3) ++ Iterant[Coeval].raiseError[Int](dummy)
 
@@ -47,7 +47,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     )
   }
 
-  test("fa.attempt.flatMap <-> fa") { implicit s =>
+  fixture.test("fa.attempt.flatMap <-> fa") { implicit s =>
     check1 { (fa: Iterant[Coeval, Int]) =>
       val fae = fa.attempt
       val r = fae.flatMap(
@@ -61,7 +61,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     }
   }
 
-  test("fa.onErrorHandleWith(_ => fb) <-> fa for successful streams") { _ =>
+  test("fa.onErrorHandleWith(_ => fb) <-> fa for successful streams") {
     check1 { (list: List[Int]) =>
       val iter = Iterant[Coeval].of(list: _*)
 
@@ -69,7 +69,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     }
   }
 
-  test("fa.onErrorHandleWith(_ => fb) <-> fa ++ fb in case of error") { implicit s =>
+  fixture.test("fa.onErrorHandleWith(_ => fb) <-> fa ++ fb in case of error") { implicit s =>
     val dummy = DummyException("dummy")
     val iter1 = Iterant[Coeval].of(1, 2, 3) ++ Iterant[Coeval].raiseError[Int](dummy)
     val iter2 = Iterant[Coeval].fromArray(Array(4, 5, 6))
@@ -80,7 +80,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     )
   }
 
-  test("Iterant[Task].onErrorHandleWith should protect against broken batches") { implicit s =>
+  fixture.test("Iterant[Task].onErrorHandleWith should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionCursor(dummy)
@@ -90,7 +90,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Task].onErrorHandleWith should protect against cursors broken in the middle") { implicit s =>
+  fixture.test("Iterant[Task].onErrorHandleWith should protect against cursors broken in the middle") { implicit s =>
     val dummy = DummyException("dummy")
     val cursor = BatchCursor.fromIterator(semiBrokenIterator(dummy))
     val error = Iterant[Task].nextCursorS(cursor, Task.now(Iterant[Task].empty[Int]))
@@ -113,7 +113,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     )
   }
 
-  test("onErrorHandleWith should protect against broken continuations") { _ =>
+  test("onErrorHandleWith should protect against broken continuations") {
     val fallback = Seq(1, 2, 3)
     for (broken <- brokenTails) {
       val out = broken
@@ -121,11 +121,11 @@ object IterantOnErrorSuite extends BaseTestSuite {
         .toListL
         .value()
 
-      assertEquals(out.takeRight(fallback.length), fallback)
+      assertEquals(out.takeRight(fallback.length), fallback.toList)
     }
   }
 
-  test("onErrorHandleWith should stack finalizers") { _ =>
+  test("onErrorHandleWith should stack finalizers") {
     var effect = 0
 
     val errorInTail = Iterant[Coeval]
@@ -143,7 +143,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     assertEquals(effect, 3)
   }
 
-  test("attempt should protect against broken continuations") { _ =>
+  test("attempt should protect against broken continuations") {
     for (broken <- brokenTails) {
       val end = broken.attempt.toListL
         .value()
@@ -153,7 +153,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     }
   }
 
-  test("attempt should stack finalizers") { _ =>
+  test("attempt should stack finalizers") {
     var effect = 0
 
     val errorInTail = Iterant[Coeval]
@@ -171,7 +171,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     assertEquals(effect, 3)
   }
 
-  test("onErrorIgnore works") { _ =>
+  test("onErrorIgnore works") {
     check2 { (list: List[Int], idx: Int) =>
       val expected = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
       val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = true)
@@ -179,7 +179,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     }
   }
 
-  test("onErrorIgnore should capture exceptions from eval, mapEval & liftF") { _ =>
+  test("onErrorIgnore should capture exceptions from eval, mapEval & liftF") {
     val dummy = DummyException("dummy")
     Iterant[IO].eval { throw dummy }.onErrorIgnore.completedL.unsafeRunSync()
 
@@ -200,7 +200,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     Iterant[IO].liftF(IO { throw dummy }).onErrorIgnore.completedL.unsafeRunSync()
   }
 
-  test("attempt should capture exceptions from mapEval") { _ =>
+  test("attempt should capture exceptions from mapEval") {
     val dummy = DummyException("dummy")
     val result = Iterant[IO]
       .of(1)
@@ -212,7 +212,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     assertEquals(result, Some(Left(dummy)))
   }
 
-  test("attempt should protect against broken batches") { _ =>
+  test("attempt should protect against broken batches") {
     val dummy = DummyException("dummy")
     val result =
       Iterant[IO].nextBatchS[Int](ThrowExceptionBatch(dummy), IO(Iterant[IO].empty)).attempt.headOptionL.unsafeRunSync()
@@ -220,7 +220,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     assertEquals(result, Some(Left(dummy)))
   }
 
-  test("attempt should protect against broken cursor") { _ =>
+  test("attempt should protect against broken cursor") {
     val dummy = DummyException("dummy")
     val result = Iterant[IO]
       .nextCursorS[Int](ThrowExceptionCursor(dummy), IO(Iterant[IO].empty))
@@ -240,7 +240,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     Iterator(0, 1, 2) ++ end
   }
 
-  test("attempt should protect against cursors broken in the middle") { _ =>
+  test("attempt should protect against cursors broken in the middle") {
     val dummy = DummyException("dummy")
     val cursor = BatchCursor.fromIterator(semiBrokenIterator(dummy))
 
@@ -257,7 +257,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     )
   }
 
-  test("Resource.attempt with broken acquire") { _ =>
+  test("Resource.attempt with broken acquire") {
     val dummy = DummyException("dummy")
     val stream = 1 +: Iterant[Coeval].resource(Coeval.raiseError[Int](dummy))(_ => Coeval.unit)
 
@@ -267,7 +267,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     )
   }
 
-  test("Resource.attempt with broken use") { _ =>
+  test("Resource.attempt with broken use") {
     val dummy = DummyException("dummy")
     val stream = 1 +: Iterant[Coeval].scopeS[Int, Int](
       Coeval(1),
@@ -281,7 +281,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     )
   }
 
-  test("Resource.attempt with broken release") { _ =>
+  test("Resource.attempt with broken release") {
     val dummy = DummyException("dummy")
     val stream = 1 +: Iterant[Coeval].scopeS[Int, Int](
       Coeval(1),
@@ -295,7 +295,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     )
   }
 
-  test("Resource.attempt with broken use and release") { _ =>
+  test("Resource.attempt with broken use and release") {
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
 
@@ -317,7 +317,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     }
   }
 
-  test("Resource.onErrorHandleWith with broken acquire") { _ =>
+  test("Resource.onErrorHandleWith with broken acquire") {
     val dummy = DummyException("dummy")
     val stream = 1 +: Iterant[Coeval].resource(Coeval.raiseError[Int](dummy))(_ => Coeval.unit)
 
@@ -327,7 +327,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     )
   }
 
-  test("Resource.onErrorHandleWith with broken use") { _ =>
+  test("Resource.onErrorHandleWith with broken use") {
     val dummy = DummyException("dummy")
     val stream = 1 +: Iterant[Coeval].scopeS[Int, Int](
       Coeval(1),
@@ -341,7 +341,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     )
   }
 
-  test("Resource.onErrorHandleWith with broken release") { _ =>
+  test("Resource.onErrorHandleWith with broken release") {
     val dummy = DummyException("dummy")
     val stream = 1 +: Iterant[Coeval].scopeS[Int, Int](
       Coeval(1),
@@ -355,7 +355,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
     )
   }
 
-  test("Resource.onErrorHandleWith with broken use and release") { _ =>
+  test("Resource.onErrorHandleWith with broken use and release") {
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
 

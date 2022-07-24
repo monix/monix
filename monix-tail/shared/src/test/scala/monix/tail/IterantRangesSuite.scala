@@ -19,33 +19,33 @@ package monix.tail
 
 import monix.eval.Coeval
 
-object IterantRangesSuite extends BaseTestSuite {
-  test("Iterant.range(0, 10, 1)") { implicit s =>
+class IterantRangesSuite extends BaseTestSuite {
+  fixture.test("Iterant.range(0, 10, 1)") { implicit s =>
     val lst = Iterant[Coeval].range(0, 10).toListL.value()
     assertEquals(lst, (0 until 10).toList)
   }
 
-  test("Iterant.range(0, 10, 2)") { implicit s =>
+  fixture.test("Iterant.range(0, 10, 2)") { implicit s =>
     val lst = Iterant[Coeval].range(0, 10, 2).toListL.value()
     assertEquals(lst, 0.until(10, 2).toList)
   }
 
-  test("Iterant.range(10, 0, -1)") { implicit s =>
+  fixture.test("Iterant.range(10, 0, -1)") { implicit s =>
     val lst = Iterant[Coeval].range(10, 0, -1).toListL.value()
     assertEquals(lst, 10.until(0, -1).toList)
   }
 
-  test("Iterant.range(10, 0, -2)") { implicit s =>
+  fixture.test("Iterant.range(10, 0, -2)") { implicit s =>
     val lst = Iterant[Coeval].range(10, 0, -2).toListL.value()
     assertEquals(lst, 10.until(0, -2).toList)
   }
 
-  test("Iterant.range(0, 10, -1)") { implicit s =>
+  fixture.test("Iterant.range(0, 10, -1)") { implicit s =>
     val lst = Iterant[Coeval].range(0, 10, -1).toListL.value()
     assertEquals(lst, 0.until(10, -1).toList)
   }
 
-  test("Iterant.range(10, 0, 1)") { implicit s =>
+  fixture.test("Iterant.range(10, 0, 1)") { implicit s =>
     val lst = Iterant[Coeval].range(10, 0).toListL.value()
     assertEquals(lst, 10.until(0, 1).toList)
   }

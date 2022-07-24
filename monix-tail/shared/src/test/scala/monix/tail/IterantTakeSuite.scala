@@ -28,7 +28,7 @@ import monix.tail.batches.{ Batch, BatchCursor }
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 
-object IterantTakeSuite extends BaseTestSuite {
+class IterantTakeSuite extends BaseTestSuite {
   override lazy val checkConfig: Parameters = {
     if (Platform.isJVM)
       Test.Parameters.default.withMaxSize(256)
@@ -36,7 +36,7 @@ object IterantTakeSuite extends BaseTestSuite {
       Test.Parameters.default.withMaxSize(32)
   }
 
-  test("Iterant[Task].take equivalence with List.take") { implicit s =>
+  fixture.test("Iterant[Task].take equivalence with List.take") { implicit s =>
     check3 { (list: List[Int], idx: Int, nr: Int) =>
       val iter = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1, allowErrors = false)
       val stream = iter ++ Iterant[Task].of(1, 2, 3)
@@ -50,7 +50,7 @@ object IterantTakeSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Coeval].take releases resources") { implicit s =>
+  fixture.test("Iterant[Coeval].take releases resources") { implicit s =>
     check3 { (list: List[Int], idx: Int, nr: Int) =>
       val cancelable = BooleanCancelable()
       val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1).onErrorIgnore
@@ -65,7 +65,7 @@ object IterantTakeSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.take protects against broken batches") { implicit s =>
+  fixture.test("Iterant.take protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
@@ -75,7 +75,7 @@ object IterantTakeSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.take protects against broken cursors") { implicit s =>
+  fixture.test("Iterant.take protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
@@ -85,7 +85,7 @@ object IterantTakeSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.take releases resources on exception") { _ =>
+  test("Iterant.take releases resources on exception") {
     check1 { (iter: Iterant[Coeval, Int]) =>
       val cancelable = BooleanCancelable()
       val dummy = DummyException("dummy")
@@ -97,7 +97,7 @@ object IterantTakeSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.take suspends execution for NextCursor or NextBatch") { _ =>
+  test("Iterant.take suspends execution for NextCursor or NextBatch") {
     val iter1 = Iterant[Coeval].nextBatchS(Batch(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))
     assert(iter1.take(2).isInstanceOf[Suspend[Coeval, Int]], "NextBatch should be suspended")
     assertEquals(iter1.take(2).toListL.value(), List(1, 2))
@@ -107,7 +107,7 @@ object IterantTakeSuite extends BaseTestSuite {
     assertEquals(iter2.take(2).toListL.value(), List(1, 2))
   }
 
-  test("Iterant.take preserves the source earlyStop") { implicit s =>
+  fixture.test("Iterant.take preserves the source earlyStop") { implicit s =>
     var effect = 0
     val source = Iterant[Coeval]
       .nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))

@@ -26,7 +26,7 @@ import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.{ Future, Promise }
 import scala.concurrent.duration._
 
-object MapSuite extends BaseOperatorSuite {
+class MapSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int): Long = sourceCount.toLong * (sourceCount + 1)
   def count(sourceCount: Int) = sourceCount
 
@@ -82,7 +82,7 @@ object MapSuite extends BaseOperatorSuite {
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  fixture.test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 
@@ -103,7 +103,7 @@ object MapSuite extends BaseOperatorSuite {
         s.tick(waitForNext)
 
       case _ =>
-        fail()
+        fail("")
     }
   }
 }

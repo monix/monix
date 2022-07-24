@@ -28,7 +28,7 @@ import monix.tail.batches.{ Batch, BatchCursor }
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 
-object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
+class IterantTakeWhileWithIndexSuite extends BaseTestSuite {
   override lazy val checkConfig: Parameters = {
     if (Platform.isJVM)
       Test.Parameters.default.withMaxSize(256)
@@ -49,7 +49,7 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
     }
   }
 
-  test("naiveImp smoke test") { implicit s =>
+  fixture.test("naiveImp smoke test") { implicit s =>
     val input = List(2, 3, 4, 5, 6)
     val iter = Iterant[Coeval].fromList(input)
     assertEquals(naiveImp(iter, (_: Int, _) => true).toListL.value(), input)
@@ -58,13 +58,13 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
     assertEquals(naiveImp(iter, (_: Int, _) => false).toListL.value(), List.empty[Int])
   }
 
-  test("Iterant[Task].takeWhileWithIndex((_, _) => true) mirrors the source") { implicit s =>
+  fixture.test("Iterant[Task].takeWhileWithIndex((_, _) => true) mirrors the source") { implicit s =>
     check1 { (iter: Iterant[Coeval, Int]) =>
       iter <-> iter.takeWhileWithIndex((_, _) => true)
     }
   }
 
-  test("Iterant[Task].takeWhileWithIndex equivalence with naiveImp") { implicit s =>
+  fixture.test("Iterant[Task].takeWhileWithIndex equivalence with naiveImp") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: (Int, Long) => Boolean) =>
       val iter = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1, allowErrors = false)
       val stream = iter ++ Iterant[Task].of(1, 2, 3)
@@ -72,14 +72,14 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Task].takeWhileWithIndex works for non-determinate batches") { implicit s =>
+  fixture.test("Iterant[Task].takeWhileWithIndex works for non-determinate batches") { implicit s =>
     check3 { (list: List[Int], _: Int, p: (Int, Long) => Boolean) =>
       val stream = Iterant[Task].nextBatchS(Batch.fromIterable(list, 1), Task.now(Iterant[Task].empty[Int]))
       stream.takeWhileWithIndex(p).toListL <-> naiveImp(stream, p).toListL
     }
   }
 
-  test("Iterant[Coeval].takeWhileWithIndex preserves resource safety") { implicit s =>
+  fixture.test("Iterant[Coeval].takeWhileWithIndex preserves resource safety") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val cancelable = BooleanCancelable()
       val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1, allowErrors = false)
@@ -90,7 +90,7 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeWhileWithIndex protects against broken batches") { implicit s =>
+  fixture.test("Iterant.takeWhileWithIndex protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
@@ -100,7 +100,7 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeWhileWithIndex protects against broken cursors") { implicit s =>
+  fixture.test("Iterant.takeWhileWithIndex protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
@@ -110,7 +110,7 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeWhileWithIndex protects against user code") { implicit s =>
+  fixture.test("Iterant.takeWhileWithIndex protects against user code") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val stream = 1 +: iter.onErrorIgnore
@@ -119,7 +119,7 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeWhileWithIndex preserves resoure safety on exception") { _ =>
+  test("Iterant.takeWhileWithIndex preserves resoure safety on exception") {
     check1 { (iter: Iterant[Coeval, Int]) =>
       val cancelable = BooleanCancelable()
       val dummy = DummyException("dummy")
@@ -134,7 +134,7 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeWhileWithIndex preserves the source guarantee") { implicit s =>
+  fixture.test("Iterant.takeWhileWithIndex preserves the source guarantee") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
     val source =

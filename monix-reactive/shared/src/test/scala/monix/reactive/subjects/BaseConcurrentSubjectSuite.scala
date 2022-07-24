@@ -17,36 +17,28 @@
 
 package monix.reactive.subjects
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.eval.Task
 import monix.execution.exceptions.DummyException
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.{ Observable, Observer }
 
 import scala.util.Random
 
-trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
+trait BaseConcurrentSubjectSuite extends BaseTestSuite {
   case class Sample(channel: ConcurrentSubject[Long, Long] with Observable[Long], expectedSum: Long)
 
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
-
-  /**
-    * Returns a sample channel that needs testing.
+  /** Returns a sample channel that needs testing.
     */
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler): Sample
 
-  /**
-    * Returns a sample channel for the test of
-    * continuous streaming.
+  /** Returns a sample channel for the test of continuous streaming.
     */
   def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler): Option[Sample]
 
-  test("already completed and empty channel terminates observers") { implicit s =>
+  fixture.test("already completed and empty channel terminates observers") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -75,7 +67,7 @@ trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
     assertEquals(wereCompleted, 3)
   }
 
-  test("failed empty channel terminates observers with an error") { implicit s =>
+  fixture.test("failed empty channel terminates observers with an error") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -104,11 +96,11 @@ trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
 
     s.tick()
 
-    assertEquals(sum, 0)
+    assertEquals(sum, 0L)
     assertEquals(wereCompleted, 3)
   }
 
-  test("already completed but non-empty channel terminates new observers") { implicit s =>
+  fixture.test("already completed but non-empty channel terminates new observers") { implicit s =>
     val elems = (0 until 20).map(_ => Random.nextLong())
     var wereCompleted = 0
     var sum = 0L
@@ -139,7 +131,7 @@ trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
     assertEquals(wereCompleted, 3)
   }
 
-  test("already failed but non-empty channel terminates new observers") { implicit s =>
+  fixture.test("already failed but non-empty channel terminates new observers") { implicit s =>
     val elems = (0 until 20).map(_ => Random.nextLong())
     var wereCompleted = 0
 
@@ -168,7 +160,7 @@ trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
     assertEquals(wereCompleted, 3)
   }
 
-  test("should remove subscribers that triggered errors") { implicit s =>
+  fixture.test("should remove subscribers that triggered errors") { implicit s =>
     val elems = (0 until Random.nextInt(300) + 100).map(_.toLong)
     var wereCompleted = 0
     var totalOnNext = 0L
@@ -209,7 +201,7 @@ trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
 
         assertEquals(wereCompleted, 3)
         assertEquals(totalEmitted, expectedSum)
-        assertEquals(totalOnNext, 11 * 5 * 3)
+        assertEquals(totalOnNext, 11L * 5L * 3L)
     }
   }
 }

@@ -25,7 +25,7 @@ import monix.eval.Task
 import scala.concurrent.duration._
 import scala.util.Random
 
-object DropUntilSuite extends BaseOperatorSuite {
+class DropUntilSuite extends BaseOperatorSuite {
   val waitFirst = 2500.millis
   val waitNext = 500.millis
 
@@ -72,7 +72,7 @@ object DropUntilSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("if signal ends in error, then end in error") { implicit s =>
+  fixture.test("if signal ends in error, then end in error") { implicit s =>
     var received = 0
     var errorThrown: Throwable = null
     val sourceCount = Random.nextInt(300) + 100

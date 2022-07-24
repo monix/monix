@@ -21,15 +21,15 @@ import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 import scala.concurrent.duration._
 
-object TaskAsyncSuite extends BaseTestSuite {
-  test("Task.never should never complete") { implicit s =>
+class TaskAsyncSuite extends BaseTestSuite {
+  fixture.test("Task.never should never complete") { implicit s =>
     val t = Task.never[Int]
     val f = t.runToFuture
     s.tick(365.days)
     assertEquals(f.value, None)
   }
 
-  test("Task.async should execute") { implicit s =>
+  fixture.test("Task.async should execute") { implicit s =>
     val task = Task.async0[Int] { (ec, cb) =>
       ec.execute { () =>
         cb.onSuccess(1)
@@ -42,7 +42,7 @@ object TaskAsyncSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.async should signal errors in register") { implicit s =>
+  fixture.test("Task.async should signal errors in register") { implicit s =>
     val ex = DummyException("dummy")
     val task = Task.async0[Int]((_, _) => throw ex)
     val result = task.runToFuture; s.tick()
@@ -50,7 +50,7 @@ object TaskAsyncSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  test("Task.async should be stack safe") { implicit s =>
+  fixture.test("Task.async should be stack safe") { implicit s =>
     def signal(n: Int) = Task.async0[Int]((_, cb) => cb.onSuccess(n))
     def loop(n: Int, acc: Int): Task[Int] =
       signal(1).flatMap { x =>
@@ -62,18 +62,18 @@ object TaskAsyncSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10000)))
   }
 
-  test("Task.async works for immediate successful value") { implicit sc =>
+  fixture.test("Task.async works for immediate successful value") { implicit sc =>
     val task = Task.async[Int](_.onSuccess(1))
     assertEquals(task.runToFuture.value, Some(Success(1)))
   }
 
-  test("Task.async works for immediate error") { implicit sc =>
+  fixture.test("Task.async works for immediate error") { implicit sc =>
     val e = DummyException("dummy")
     val task = Task.async[Int](_.onError(e))
     assertEquals(task.runToFuture.value, Some(Failure(e)))
   }
 
-  test("Task.async is memory safe in flatMap loops") { implicit sc =>
+  fixture.test("Task.async is memory safe in flatMap loops") { implicit sc =>
     def signal(n: Int): Task[Int] = Task.async(_.onSuccess(n))
 
     def loop(n: Int, acc: Int): Task[Int] =
@@ -86,12 +86,12 @@ object TaskAsyncSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10000)))
   }
 
-  test("Task.async0 works for immediate successful value") { implicit sc =>
+  fixture.test("Task.async0 works for immediate successful value") { implicit sc =>
     val task = Task.async0[Int]((_, cb) => cb.onSuccess(1))
     assertEquals(task.runToFuture.value, Some(Success(1)))
   }
 
-  test("Task.async0 works for async successful value") { implicit sc =>
+  fixture.test("Task.async0 works for async successful value") { implicit sc =>
     val f = Task
       .async0[Int]((s, cb) => s.execute(() => cb.onSuccess(1)))
       .runToFuture
@@ -100,7 +100,7 @@ object TaskAsyncSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.async0 works for async error") { implicit sc =>
+  fixture.test("Task.async0 works for async error") { implicit sc =>
     val e = DummyException("dummy")
     val f = Task
       .async0[Int]((s, cb) => s.execute(() => cb.onError(e)))
@@ -110,7 +110,7 @@ object TaskAsyncSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(e)))
   }
 
-  test("Task.async0 is memory safe in synchronous flatMap loops") { implicit sc =>
+  fixture.test("Task.async0 is memory safe in synchronous flatMap loops") { implicit sc =>
     def signal(n: Int): Task[Int] = Task.async0((_, cb) => cb.onSuccess(n))
 
     def loop(n: Int, acc: Int): Task[Int] =
@@ -123,7 +123,7 @@ object TaskAsyncSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10000)))
   }
 
-  test("Task.async0 is memory safe in async flatMap loops") { implicit sc =>
+  fixture.test("Task.async0 is memory safe in async flatMap loops") { implicit sc =>
     def signal(n: Int): Task[Int] =
       Task.async0((s, cb) => s.execute(() => cb.onSuccess(n)))
 

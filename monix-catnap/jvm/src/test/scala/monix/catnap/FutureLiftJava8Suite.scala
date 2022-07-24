@@ -17,21 +17,18 @@
 
 package monix.catnap
 
-import java.util.concurrent.CompletableFuture
 import cats.effect.{ Async, Concurrent, ContextShift, IO }
-import minitest.TestSuite
 import monix.catnap.syntax._
+import monix.execution.BaseTestSuite
 import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.TestScheduler
+
+import java.util.concurrent.CompletableFuture
 import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 
-object FutureLiftJava8Suite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(env: TestScheduler): Unit =
-    assert(env.state.tasks.isEmpty, "There should be no tasks left!")
+class FutureLiftJava8Suite extends BaseTestSuite {
 
-  test("convert from async CompletableFuture; on success; with Async[IO]") { implicit s =>
+  fixture.test("convert from async CompletableFuture; on success; with Async[IO]") { implicit s =>
     val future = new CompletableFuture[Int]()
     val f = IO(future).futureLift.unsafeToFuture()
 
@@ -43,7 +40,7 @@ object FutureLiftJava8Suite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(100)))
   }
 
-  test("convert from async CompletableFuture; on success; with Concurrent[IO]") { implicit s =>
+  fixture.test("convert from async CompletableFuture; on success; with Concurrent[IO]") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val future = new CompletableFuture[Int]()
@@ -57,7 +54,7 @@ object FutureLiftJava8Suite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(100)))
   }
 
-  test("convert from async CompletableFuture; on failure; with Async[IO]") { implicit s =>
+  fixture.test("convert from async CompletableFuture; on failure; with Async[IO]") { implicit s =>
     val future = new CompletableFuture[Int]()
     val f = convertAsync(IO(future)).unsafeToFuture()
 
@@ -71,7 +68,7 @@ object FutureLiftJava8Suite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("convert from async CompletableFuture; on failure; with Concurrent[IO]") { implicit s =>
+  fixture.test("convert from async CompletableFuture; on failure; with Concurrent[IO]") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val future = new CompletableFuture[Int]()
@@ -87,7 +84,7 @@ object FutureLiftJava8Suite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("CompletableFuture is cancelable via IO") { implicit s =>
+  fixture.test("CompletableFuture is cancelable via IO") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val future = new CompletableFuture[Int]()

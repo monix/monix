@@ -27,7 +27,7 @@ import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 import scala.annotation.tailrec
 
-object IterantDropWhileIndexSuite extends BaseTestSuite {
+class IterantDropWhileIndexSuite extends BaseTestSuite {
   override lazy val checkConfig: Parameters = {
     if (Platform.isJVM)
       Test.Parameters.default.withMaxSize(256)
@@ -36,7 +36,7 @@ object IterantDropWhileIndexSuite extends BaseTestSuite {
   }
 
   @tailrec
-  def dropWhileWithIndex(list: List[Int], index: Int)(p: (Int, Int) => Boolean): List[Int] = {
+  final def dropWhileWithIndex(list: List[Int], index: Int)(p: (Int, Int) => Boolean): List[Int] = {
     list match {
       case x :: xs =>
         if (p(x, index)) dropWhileWithIndex(xs, index + 1)(p)
@@ -55,7 +55,7 @@ object IterantDropWhileIndexSuite extends BaseTestSuite {
     list
   }
 
-  test("Iterant.dropWhileWithIndex equivalence with List.dropWhileWithIndex") { implicit s =>
+  fixture.test("Iterant.dropWhileWithIndex equivalence with List.dropWhileWithIndex") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: (Int, Int) => Boolean) =>
       val iter = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1, allowErrors = false)
       val stream = iter ++ Iterant[Task].of(1, 2, 3)
@@ -63,7 +63,7 @@ object IterantDropWhileIndexSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dropWhileWithIndex protects against broken batches") { implicit s =>
+  fixture.test("Iterant.dropWhileWithIndex protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
@@ -73,7 +73,7 @@ object IterantDropWhileIndexSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dropWhileWithIndex protects against broken cursors") { implicit s =>
+  fixture.test("Iterant.dropWhileWithIndex protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
@@ -83,7 +83,7 @@ object IterantDropWhileIndexSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dropWhileWithIndex protects against user code") { implicit s =>
+  fixture.test("Iterant.dropWhileWithIndex protects against user code") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](BatchCursor(1, 2, 3), Task.now(Iterant[Task].empty))
@@ -93,7 +93,7 @@ object IterantDropWhileIndexSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.dropWhileWithIndex preserves the source guarantee") { implicit s =>
+  fixture.test("Iterant.dropWhileWithIndex preserves the source guarantee") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
     val source =
@@ -103,7 +103,7 @@ object IterantDropWhileIndexSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Iterant.dropWhileWithIndex works for infinite cursors") { implicit s =>
+  fixture.test("Iterant.dropWhileWithIndex works for infinite cursors") { implicit s =>
     check3 { (el: Int, p: (Int, Int) => Boolean, _: Int) =>
       val stream = Iterant[Coeval].nextCursorS(BatchCursor.continually(el), Coeval.now(Iterant[Coeval].empty[Int]))
       val received = stream.dropWhileWithIndex(p).take(1).toListL

@@ -24,8 +24,8 @@ import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 import scala.concurrent.duration._
 
-object TaskCreateSuite extends BaseTestSuite {
-  test("can use Unit as return type") { implicit sc =>
+class TaskCreateSuite extends BaseTestSuite {
+  fixture.test("can use Unit as return type") { implicit sc =>
     val task = Task.create[Int]((_, cb) => cb.onSuccess(1))
     val f = task.runToFuture
 
@@ -33,7 +33,7 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("can use Cancelable.empty as return type") { implicit sc =>
+  fixture.test("can use Cancelable.empty as return type") { implicit sc =>
     val task = Task.create[Int] { (_, cb) =>
       cb.onSuccess(1); Cancelable.empty
     }
@@ -43,7 +43,7 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("returning Unit yields non-cancelable tasks") { implicit sc =>
+  fixture.test("returning Unit yields non-cancelable tasks") { implicit sc =>
     implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
 
     val task = Task.create[Int] { (sc, cb) =>
@@ -60,7 +60,7 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("can use Cancelable as return type") { implicit sc =>
+  fixture.test("can use Cancelable as return type") { implicit sc =>
     val task = Task.create[Int] { (sc, cb) =>
       sc.scheduleOnce(1.second)(cb.onSuccess(1))
     }
@@ -73,7 +73,7 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("returning Cancelable yields a cancelable task") { implicit sc =>
+  fixture.test("returning Cancelable yields a cancelable task") { implicit sc =>
     val task = Task.create[Int] { (sc, cb) =>
       sc.scheduleOnce(1.second)(cb.onSuccess(1))
     }
@@ -87,7 +87,7 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("can use IO[Unit] as return type") { implicit sc =>
+  fixture.test("can use IO[Unit] as return type") { implicit sc =>
     val task = Task.create[Int] { (sc, cb) =>
       val c = sc.scheduleOnce(1.second)(cb.onSuccess(1))
       IO(c.cancel())
@@ -101,7 +101,7 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("returning IO[Unit] yields a cancelable task") { implicit sc =>
+  fixture.test("returning IO[Unit] yields a cancelable task") { implicit sc =>
     val task = Task.create[Int] { (sc, cb) =>
       val c = sc.scheduleOnce(1.second)(cb.onSuccess(1))
       IO(c.cancel())
@@ -116,7 +116,7 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("can use Task[Unit] as return type") { implicit sc =>
+  fixture.test("can use Task[Unit] as return type") { implicit sc =>
     val task = Task.create[Int] { (sc, cb) =>
       val c = sc.scheduleOnce(1.second)(cb.onSuccess(1))
       Task.evalAsync(c.cancel())
@@ -130,7 +130,7 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("returning Task[Unit] yields a cancelable task") { implicit sc =>
+  fixture.test("returning Task[Unit] yields a cancelable task") { implicit sc =>
     val task = Task.create[Int] { (sc, cb) =>
       val c = sc.scheduleOnce(1.second)(cb.onSuccess(1))
       Task.evalAsync(c.cancel())
@@ -145,7 +145,7 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("can use Coeval[Unit] as return type") { implicit sc =>
+  fixture.test("can use Coeval[Unit] as return type") { implicit sc =>
     val task = Task.create[Int] { (sc, cb) =>
       val c = sc.scheduleOnce(1.second)(cb.onSuccess(1))
       Coeval(c.cancel())
@@ -159,7 +159,7 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("returning Coeval[Unit] yields a cancelable task") { implicit sc =>
+  fixture.test("returning Coeval[Unit] yields a cancelable task") { implicit sc =>
     val task = Task.create[Int] { (sc, cb) =>
       val c = sc.scheduleOnce(1.second)(cb.onSuccess(1))
       Coeval(c.cancel())
@@ -174,7 +174,7 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("throwing error when returning Unit") { implicit sc =>
+  fixture.test("throwing error when returning Unit") { implicit sc =>
     val dummy = DummyException("dummy")
     val task = Task.create[Int] { (_, _) =>
       (throw dummy): Unit
@@ -187,7 +187,7 @@ object TaskCreateSuite extends BaseTestSuite {
     assertEquals(sc.state.lastReportedError, null)
   }
 
-  test("throwing error when returning Cancelable") { implicit sc =>
+  fixture.test("throwing error when returning Cancelable") { implicit sc =>
     val dummy = DummyException("dummy")
     val task = Task.create[Int] { (_, _) =>
       (throw dummy): Cancelable

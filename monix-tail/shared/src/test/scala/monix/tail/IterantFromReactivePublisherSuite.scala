@@ -31,7 +31,7 @@ import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 import scala.concurrent.duration._
 
-object IterantFromReactivePublisherSuite extends BaseTestSuite {
+class IterantFromReactivePublisherSuite extends BaseTestSuite {
 
   implicit val arbRange: Arbitrary[Range] = Arbitrary {
     for {
@@ -42,14 +42,14 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     } yield min until max by step
   }
 
-  test("fromReactivePublisher(bufferSize = 1) emits values in correct order") { implicit s =>
+  fixture.test("fromReactivePublisher(bufferSize = 1) emits values in correct order") { implicit s =>
     check1 { (range: Range) =>
       val publisher = new RangePublisher(range, None)
       Iterant[IO].fromReactivePublisher(publisher, 1) <-> Iterant[IO].fromSeq(range)
     }
   }
 
-  test("fromReactivePublisher(bufferSize = 1) can end in error") { implicit s =>
+  fixture.test("fromReactivePublisher(bufferSize = 1) can end in error") { implicit s =>
     check1 { (range: Range) =>
       val dummy = DummyException("dummy")
       val publisher = new RangePublisher(range, Some(dummy))
@@ -58,14 +58,14 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     }
   }
 
-  test("fromReactivePublisher(bufferSize = default) emits values in correct order") { implicit s =>
+  fixture.test("fromReactivePublisher(bufferSize = default) emits values in correct order") { implicit s =>
     check1 { (range: Range) =>
       val publisher = new RangePublisher(range, None)
       Iterant[IO].fromReactivePublisher(publisher) <-> Iterant[IO].fromSeq(range)
     }
   }
 
-  test("fromReactivePublisher(bufferSize = default) can end in error") { implicit s =>
+  fixture.test("fromReactivePublisher(bufferSize = default) can end in error") { implicit s =>
     check1 { (range: Range) =>
       val dummy = DummyException("dummy")
       val publisher = new RangePublisher(range, Some(dummy))
@@ -74,7 +74,7 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     }
   }
 
-  test("fromReactivePublisher(bufferSize = default) with slow consumer") { implicit s =>
+  fixture.test("fromReactivePublisher(bufferSize = default) with slow consumer") { implicit s =>
     check1 { (range: Range) =>
       val publisher = new RangePublisher(range, None)
       val lh = Iterant[Task].fromReactivePublisher(publisher).mapEval(x => Task(x).delayExecution(10.millis))
@@ -82,7 +82,7 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     }
   }
 
-  test("fromReactivePublisher cancels subscription on earlyStop") { implicit s =>
+  fixture.test("fromReactivePublisher cancels subscription on earlyStop") { implicit s =>
     val cancelled = Promise[Unit]()
     val publisher = new RangePublisher(1 to 64, None, cancelled)
     Iterant[Task]
@@ -95,7 +95,7 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     assertEquals(cancelled.future.value, Some(Success(())))
   }
 
-  test("fromReactivePublisher propagates errors") { implicit s =>
+  fixture.test("fromReactivePublisher propagates errors") { implicit s =>
     val dummy = DummyException("dummy")
     val publisher = new RangePublisher(1 to 64, Some(dummy))
     val f = Iterant[Task].fromReactivePublisher(publisher).completedL.runToFuture
@@ -104,13 +104,13 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("fromReactivePublisher(it.toReactivePublisher) is identity") { implicit s =>
+  fixture.test("fromReactivePublisher(it.toReactivePublisher) is identity") { implicit s =>
     check1 { (it: Iterant[IO, Int]) =>
       Iterant[IO].fromReactivePublisher(it.toReactivePublisher) <-> it
     }
   }
 
-  test("fromReactivePublisher handles immediate completion") { implicit s =>
+  fixture.test("fromReactivePublisher handles immediate completion") { implicit s =>
     val publisher = new Publisher[Unit] {
       def subscribe(subscriber: Subscriber[_ >: Unit]): Unit = {
         subscriber.onComplete()
@@ -122,7 +122,13 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])(
+  class RangePublisher(
+    from: Int,
+    until: Int,
+    step: Int,
+    finish: Option[Throwable],
+    onCancel: Promise[Unit]
+  )(
     implicit sc: Scheduler
   ) extends Publisher[Int] {
 

@@ -17,7 +17,8 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.{ Ack, Scheduler }
@@ -28,13 +29,9 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-object ExecuteOnSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
-  }
+class ExecuteOnSuite extends BaseTestSuite {
 
-  test("it works") { implicit s =>
+  fixture.test("it works") { implicit s =>
     val other = TestScheduler()
     val nr = s.executionModel.recommendedBatchSize * 2
     val expectedSum = nr.toLong * (nr - 1) / 2
@@ -62,18 +59,18 @@ object ExecuteOnSuite extends TestSuite[TestScheduler] {
       }
     })
 
-    assertEquals(finallyReceived, 0)
-    assertEquals(receivedOnNext, 0)
+    assertEquals(finallyReceived, 0L)
+    assertEquals(receivedOnNext, 0L)
 
     // Not going to work
     s.tick()
-    assertEquals(finallyReceived, 0)
-    assertEquals(receivedOnNext, 0)
+    assertEquals(finallyReceived, 0L)
+    assertEquals(receivedOnNext, 0L)
 
     // Should trigger processing, but not final result
     // because of the async boundary
     other.tick()
-    assertEquals(finallyReceived, 0)
+    assertEquals(finallyReceived, 0L)
     assertEquals(receivedOnNext, expectedSum)
 
     // We should now have it all!

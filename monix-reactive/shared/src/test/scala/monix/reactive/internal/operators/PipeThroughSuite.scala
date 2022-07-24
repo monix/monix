@@ -22,7 +22,7 @@ import monix.reactive.{ Observable, Pipe }
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 
-object PipeThroughSuite extends BaseOperatorSuite {
+class PipeThroughSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int): Long = sourceCount.toLong * (sourceCount + 1)
   def count(sourceCount: Int) = sourceCount
 

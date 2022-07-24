@@ -17,14 +17,13 @@
 
 package monix.execution
 
-import minitest.SimpleTestSuite
 import monix.execution.Scheduler.Implicits.global
 
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Future, TimeoutException }
 import scala.util.Success
 
-object CancelableFutureJVMSuite extends SimpleTestSuite {
+class CancelableFutureJVMSuite extends BaseTestSuite {
   test("async.result") {
     val f = CancelableFuture(Future(1), Cancelable.empty)
     val r = Await.result(f, Duration.Inf)

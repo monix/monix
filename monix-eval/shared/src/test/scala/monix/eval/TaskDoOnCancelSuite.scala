@@ -22,8 +22,8 @@ import monix.execution.exceptions.DummyException
 import concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskDoOnCancelSuite extends BaseTestSuite {
-  test("doOnCancel should normally mirror the source") { implicit s =>
+class TaskDoOnCancelSuite extends BaseTestSuite {
+  fixture.test("doOnCancel should normally mirror the source") { implicit s =>
     var effect1 = 0
     var effect2 = 0
     var effect3 = 0
@@ -45,7 +45,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
     assertEquals(effect3, 0)
   }
 
-  test("doOnCancel should mirror failed sources") { implicit s =>
+  fixture.test("doOnCancel should mirror failed sources") { implicit s =>
     var effect = 0
     val dummy = new RuntimeException("dummy")
     val f = Task
@@ -59,7 +59,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
     assertEquals(effect, 0)
   }
 
-  test("doOnCancel should cancel delayResult #1") { implicit s =>
+  fixture.test("doOnCancel should cancel delayResult #1") { implicit s =>
     var effect1 = 0
     var effect2 = 0
     var effect3 = 0
@@ -86,7 +86,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "s.state.tasks.isEmpty")
   }
 
-  test("doOnCancel should cancel delayResult #2") { implicit s =>
+  fixture.test("doOnCancel should cancel delayResult #2") { implicit s =>
     var effect1 = 0
     var effect2 = 0
     var effect3 = 0
@@ -113,7 +113,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "s.state.tasks.isEmpty")
   }
 
-  test("doOnCancel should cancel delayResult #3") { implicit s =>
+  fixture.test("doOnCancel should cancel delayResult #3") { implicit s =>
     var effect1 = 0
     var effect2 = 0
     var effect3 = 0
@@ -140,7 +140,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "s.state.tasks.isEmpty")
   }
 
-  test("doOnCancel should cancel delayExecution #1") { implicit s =>
+  fixture.test("doOnCancel should cancel delayExecution #1") { implicit s =>
     var effect1 = 0
     var effect2 = 0
     var effect3 = 0
@@ -167,7 +167,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "s.state.tasks.isEmpty")
   }
 
-  test("doOnCancel should cancel delayExecution #2") { implicit s =>
+  fixture.test("doOnCancel should cancel delayExecution #2") { implicit s =>
     var effect1 = 0
     var effect2 = 0
     var effect3 = 0
@@ -194,7 +194,7 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "s.state.tasks.isEmpty")
   }
 
-  test("doOnCancel is stack safe in flatMap loops") { implicit sc =>
+  fixture.test("doOnCancel is stack safe in flatMap loops") { implicit sc =>
     val onCancel = Task.evalAsync(throw DummyException("dummy"))
 
     def loop(n: Int, acc: Long): Task[Long] =
@@ -206,10 +206,10 @@ object TaskDoOnCancelSuite extends BaseTestSuite {
       }
 
     val f = loop(10000, 0).runToFuture; sc.tick()
-    assertEquals(f.value, Some(Success(10000)))
+    assertEquals(f.value, Some(Success(10000L)))
   }
 
-  testAsync("local.write.doOnCancel works") { _ =>
+  fixture.test("local.write.doOnCancel works") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
     val onCancel = Task.evalAsync(throw DummyException("dummy"))

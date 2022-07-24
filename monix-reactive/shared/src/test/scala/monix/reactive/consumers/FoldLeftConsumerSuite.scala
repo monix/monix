@@ -17,19 +17,15 @@
 
 package monix.reactive.consumers
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.{ Consumer, Observable }
 import scala.util.{ Failure, Success }
 
-object FoldLeftConsumerSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class FoldLeftConsumerSuite extends BaseTestSuite {
 
-  test("should sum a long stream") { implicit s =>
+  fixture.test("should sum a long stream") { implicit s =>
     val count = 10000L
     val obs = Observable.range(0, count)
     val f = obs.consumeWith(Consumer.foldLeft(0L)(_ + _)).runToFuture
@@ -38,7 +34,7 @@ object FoldLeftConsumerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(count * (count - 1) / 2)))
   }
 
-  test("should interrupt with error") { implicit s =>
+  fixture.test("should interrupt with error") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
     val f = obs.consumeWith(Consumer.foldLeft(0L)(_ + _)).runToFuture
@@ -47,7 +43,7 @@ object FoldLeftConsumerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("should protect against user error") { implicit s =>
+  fixture.test("should protect against user error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable
       .now(1)

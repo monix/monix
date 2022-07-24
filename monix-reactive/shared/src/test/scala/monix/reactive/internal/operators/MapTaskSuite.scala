@@ -32,7 +32,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Failure, Random }
 
-object MapTaskSuite extends BaseOperatorSuite {
+class MapTaskSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0L, sourceCount.toLong).mapEval(x => Task.evalAsync(x))
     Sample(o, count(sourceCount), sum(sourceCount), waitFirst, waitNext)
@@ -91,7 +91,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     )
   }
 
-  test("should work synchronously for synchronous observers") { implicit s =>
+  fixture.test("should work synchronously for synchronous observers") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var received = 0
     var total = 0L
@@ -114,7 +114,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     assertEquals(total, sum(sourceCount))
   }
 
-  test("should work for asynchronous observers") { implicit s =>
+  fixture.test("should work for asynchronous observers") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var received = 0
     var total = 0L
@@ -133,14 +133,14 @@ object MapTaskSuite extends BaseOperatorSuite {
       def onComplete(): Unit = total = sum
     })
 
-    assertEquals(total, 0)
+    assertEquals(total, 0L)
     s.tick()
 
     assertEquals(received, count(sourceCount))
     assertEquals(total, sum(sourceCount))
   }
 
-  test("map can be expressed in terms of mapTask") { implicit s =>
+  fixture.test("map can be expressed in terms of mapTask") { implicit s =>
     check2 { (list: List[Int], isAsync: Boolean) =>
       val received = Observable
         .fromIterable(list)
@@ -152,7 +152,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     }
   }
 
-  test("should wait the completion of the current, before subscribing to the next") { implicit s =>
+  fixture.test("should wait the completion of the current, before subscribing to the next") { implicit s =>
     var received = 0L
     var continued = 0
     var wasCompleted = false
@@ -178,13 +178,13 @@ object MapTaskSuite extends BaseOperatorSuite {
       })
 
     s.tick()
-    assertEquals(received, 0)
+    assertEquals(received, 0L)
     p1.success(10)
     s.tick()
-    assertEquals(received, 10)
+    assertEquals(received, 10L)
 
     s.tick(1.second)
-    assertEquals(received, 10 + 100)
+    assertEquals(received, 10L + 100L)
     assert(wasCompleted)
 
     assertEquals(continued, 1)
@@ -192,7 +192,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     assertEquals(continued, 2)
   }
 
-  test("should interrupt the streaming on error, test #1") { implicit s =>
+  fixture.test("should interrupt the streaming on error, test #1") { implicit s =>
     val dummy = DummyException("dummy")
     var wasThrown: Throwable = null
     var received = 0L
@@ -219,23 +219,23 @@ object MapTaskSuite extends BaseOperatorSuite {
       })
 
     s.tick()
-    assertEquals(received, 0)
+    assertEquals(received, 0L)
     p1.success(10)
     s.tick()
-    assertEquals(received, 10)
+    assertEquals(received, 10L)
 
     p2.failure(dummy)
     s.tick()
-    assertEquals(wasThrown, null)
+    assertEquals(Option(wasThrown), None)
 
     s.tick(1.second)
     assertEquals(wasThrown, dummy)
 
     s.tick(1.second)
-    assertEquals(received, 10)
+    assertEquals(received, 10L)
   }
 
-  test("should interrupt the streaming on error, test #2") { implicit s =>
+  fixture.test("should interrupt the streaming on error, test #2") { implicit s =>
     val dummy = DummyException("dummy")
     var wasThrown: Throwable = null
     var received = 0L
@@ -256,16 +256,16 @@ object MapTaskSuite extends BaseOperatorSuite {
       })
 
     s.tick(1.second)
-    assertEquals(received, 3)
+    assertEquals(received, 3L)
     assertEquals(wasThrown, null)
 
     s.tick(1.seconds)
-    assertEquals(received, 6)
+    assertEquals(received, 6L)
     assertEquals(wasThrown, dummy)
     s.tick(1.second)
   }
 
-  test("should interrupt the streaming on error, test #3") { implicit s =>
+  fixture.test("should interrupt the streaming on error, test #3") { implicit s =>
     val dummy = DummyException("dummy")
     var wasThrown: Throwable = null
     var received = 0L
@@ -285,11 +285,11 @@ object MapTaskSuite extends BaseOperatorSuite {
           throw new IllegalStateException("onComplete")
       })
 
-    assertEquals(received, 6)
+    assertEquals(received, 6L)
     assertEquals(wasThrown, dummy)
   }
 
-  test("should not break the contract on user-level error #1") { implicit s =>
+  fixture.test("should not break the contract on user-level error #1") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
 
@@ -324,7 +324,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     assertEquals(onErrorReceived, 1)
   }
 
-  test("should not break the contract on user-level error #2") { implicit s =>
+  fixture.test("should not break the contract on user-level error #2") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
 
@@ -359,7 +359,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     assertEquals(onErrorReceived, 1)
   }
 
-  test("should not break the contract on user-level error #3") { implicit s =>
+  fixture.test("should not break the contract on user-level error #3") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
 
@@ -395,7 +395,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     assertEquals(onErrorReceived, 1)
   }
 
-  test("should be cancelable, test #1") { implicit s =>
+  fixture.test("should be cancelable, test #1") { implicit s =>
     var sumBeforeMap = 0L
     var sumAfterMap = 0L
 
@@ -409,18 +409,18 @@ object MapTaskSuite extends BaseOperatorSuite {
       .runToFuture
 
     s.tick()
-    assertEquals(sumBeforeMap, 0)
+    assertEquals(sumBeforeMap, 0L)
 
     f.cancel()
     assert(s.state.tasks.isEmpty, "state.tasks.isEmpty")
-    assertEquals(sumBeforeMap, 0)
-    assertEquals(sumAfterMap, 0)
+    assertEquals(sumBeforeMap, 0L)
+    assertEquals(sumAfterMap, 0L)
 
     s.tick(1.hour)
     assertEquals(f.value, None)
   }
 
-  test("should be cancelable, test #2") { implicit s =>
+  fixture.test("should be cancelable, test #2") { implicit s =>
     var sumBeforeMap = 0L
     var sumAfterMap = 0L
 
@@ -434,18 +434,18 @@ object MapTaskSuite extends BaseOperatorSuite {
       .runToFuture
 
     s.tick(1.second)
-    assertEquals(sumBeforeMap, 1)
+    assertEquals(sumBeforeMap, 1L)
 
     f.cancel()
     assert(s.state.tasks.isEmpty, "state.tasks.isEmpty")
-    assertEquals(sumBeforeMap, 1)
-    assertEquals(sumAfterMap, 0)
+    assertEquals(sumBeforeMap, 1L)
+    assertEquals(sumAfterMap, 0L)
 
     s.tick(1.hour)
     assertEquals(f.value, None)
   }
 
-  test("should be cancelable, test #3") { implicit s =>
+  fixture.test("should be cancelable, test #3") { implicit s =>
     var sumBeforeMap = 0L
     var sumAfterMap = 0L
 
@@ -459,18 +459,18 @@ object MapTaskSuite extends BaseOperatorSuite {
       .runToFuture
 
     s.tick(3.second)
-    assertEquals(sumBeforeMap, 1)
+    assertEquals(sumBeforeMap, 1L)
 
     f.cancel()
     assert(s.state.tasks.isEmpty, "state.tasks.isEmpty")
-    assertEquals(sumBeforeMap, 1)
-    assertEquals(sumAfterMap, 2)
+    assertEquals(sumBeforeMap, 1L)
+    assertEquals(sumAfterMap, 2L)
 
     s.tick(1.hour)
     assertEquals(f.value, None)
   }
 
-  test("should be cancelable, test #4") { implicit s =>
+  fixture.test("should be cancelable, test #4") { implicit s =>
     var sumBeforeMapTask = 0L
     var sumAfterMapTask = 0L
     var sumAfterMapFuture = 0L
@@ -487,23 +487,23 @@ object MapTaskSuite extends BaseOperatorSuite {
       .runToFuture
 
     s.tick(3.second)
-    assertEquals(sumBeforeMapTask, 1)
-    assertEquals(sumAfterMapTask, 2)
-    assertEquals(sumAfterMapFuture, 0)
+    assertEquals(sumBeforeMapTask, 1L)
+    assertEquals(sumAfterMapTask, 2L)
+    assertEquals(sumAfterMapFuture, 0L)
 
     f.cancel()
     assert(s.state.tasks.nonEmpty, "state.tasks.nonEmpty")
 
     s.tick(1.second)
     assert(s.state.tasks.isEmpty, "state.tasks.isEmpty")
-    assertEquals(sumAfterMapTask, 2)
-    assertEquals(sumAfterMapFuture, 0)
+    assertEquals(sumAfterMapTask, 2L)
+    assertEquals(sumAfterMapFuture, 0L)
 
     s.tick(1.hour)
     assertEquals(f.value, None)
   }
 
-  test("should be cancelable after the main stream has ended") { implicit s =>
+  fixture.test("should be cancelable after the main stream has ended") { implicit s =>
     val f = Observable
       .now(1)
       .mapEval(x => Task.evalAsync(x + 1).delayExecution(1.second))
@@ -519,7 +519,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("exceptions can be triggered synchronously by throw") { implicit s =>
+  fixture.test("exceptions can be triggered synchronously by throw") { implicit s =>
     val dummy = DummyException("dummy")
     val source = Observable.now(1L).mapEval(_ => throw dummy)
 
@@ -530,7 +530,7 @@ object MapTaskSuite extends BaseOperatorSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  test("exceptions can be triggered synchronously through raiseError") { implicit s =>
+  fixture.test("exceptions can be triggered synchronously through raiseError") { implicit s =>
     val dummy = DummyException("dummy")
     val source = Observable.now(1L).mapEval(_ => Task.raiseError(dummy))
 

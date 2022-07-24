@@ -25,7 +25,7 @@ import monix.execution.internal.jctools.queues.MessagePassingQueue
 import sun.misc.Unsafe
 import scala.collection.mutable
 
-private[internal] abstract class FromMessagePassingQueue[A](queue: MessagePassingQueue[A])
+abstract private[internal] class FromMessagePassingQueue[A](queue: MessagePassingQueue[A])
   extends LowLevelConcurrentQueue[A] {
 
   def fenceOffer(): Unit
@@ -48,8 +48,8 @@ private[internal] abstract class FromMessagePassingQueue[A](queue: MessagePassin
 }
 
 private[internal] object FromMessagePassingQueue {
-  /**
-    * Builds a [[FromMessagePassingQueue]] instance.
+
+  /** Builds a [[FromMessagePassingQueue]] instance.
     */
   def apply[A](queue: MessagePassingQueue[A], ct: ChannelType): FromMessagePassingQueue[A] =
     ct match {

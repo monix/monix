@@ -17,13 +17,13 @@
 
 package monix.execution.atomic.internal
 
-import minitest.SimpleTestSuite
+import munit.FunSuite
+
 import scala.util.control.NonFatal
 import scala.annotation.unused
 
-object InlineMacrosTest extends SimpleTestSuite {
+object InlineMacrosTest extends FunSuite {
   class DummyException(msg: String) extends RuntimeException(msg)
-
   test("inline a function code gen") {
     val result = TestInlineMacros.testInlineSingleArg()
     result match {

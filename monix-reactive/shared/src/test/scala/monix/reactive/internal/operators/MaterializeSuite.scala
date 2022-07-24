@@ -26,7 +26,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object MaterializeSuite extends BaseOperatorSuite {
+class MaterializeSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0L, sourceCount.toLong).materialize.map {
       case OnNext(x) => x
@@ -43,7 +43,7 @@ object MaterializeSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
   def observableInError(sourceCount: Int, ex: Throwable) = None
 
-  override def cancelableObservables(): Seq[MaterializeSuite.Sample] = {
+  override def cancelableObservables(): Seq[Sample] = {
     val o = Observable.range(0, 100).delayOnNext(1.second).materialize.map {
       case OnNext(x) => x
       case OnComplete => 10L
@@ -53,7 +53,7 @@ object MaterializeSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("materializeAttempt error") { implicit s =>
+  fixture.test("materializeAttempt error") { implicit s =>
     val dummyEx = DummyException("dummy")
     val o = (Observable.now(1) ++ Observable.raiseError(dummyEx)).materialize
     var received = 0

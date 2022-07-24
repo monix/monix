@@ -31,7 +31,7 @@ import cats.laws.discipline._
 
 import scala.util.Success
 
-object BufferWhileSuite extends BaseOperatorSuite {
+class BufferWhileSuite extends BaseOperatorSuite {
   val waitNext = Duration.Zero
   val waitFirst = Duration.Zero
 
@@ -90,7 +90,7 @@ object BufferWhileSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("should emit buffer onComplete") { implicit s =>
+  fixture.test("should emit buffer onComplete") { implicit s =>
     val count = 157
     val obs = Observable.range(0L, count.toLong * 10).bufferWhile(_ % 20 != 0).map(_.sum)
 
@@ -116,7 +116,7 @@ object BufferWhileSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("should drop buffer onError") { implicit s =>
+  fixture.test("should drop buffer onError") { implicit s =>
     val count = 157
     val dummy = DummyException("dummy")
     val obs = createObservableEndingInError(Observable.range(0L, count.toLong * 10), dummy)
@@ -145,7 +145,7 @@ object BufferWhileSuite extends BaseOperatorSuite {
     assertEquals(errorThrown, dummy)
   }
 
-  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  fixture.test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 
@@ -166,11 +166,11 @@ object BufferWhileSuite extends BaseOperatorSuite {
         s.tick(waitForNext)
 
       case _ =>
-        fail()
+        fail("")
     }
   }
 
-  test("bufferWhile(_ % count != 0) <-> bufferTumbling(count)") { implicit s =>
+  fixture.test("bufferWhile(_ % count != 0) <-> bufferTumbling(count)") { implicit s =>
     check1 { (n: Long) =>
       val count = Math.floorMod(n, 10) + 1
       val numbers = Observable.range(0L, count * 30L)
@@ -184,7 +184,7 @@ object BufferWhileSuite extends BaseOperatorSuite {
     }
   }
 
-  test("should work for scaladoc example") { implicit s =>
+  fixture.test("should work for scaladoc example") { implicit s =>
     val f =
       Observable(1, 1, 1, 2, 2, 1, 3)
         .bufferWhile(_ == 1)

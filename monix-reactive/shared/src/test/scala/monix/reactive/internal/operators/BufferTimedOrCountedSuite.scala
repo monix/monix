@@ -24,7 +24,7 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.duration._
 import scala.concurrent.{ Future, Promise }
 
-object BufferTimedOrCountedSuite extends BaseOperatorSuite {
+class BufferTimedOrCountedSuite extends BaseOperatorSuite {
   val waitNext = 1.second
   val waitFirst = 1.second
 
@@ -79,7 +79,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("should emit buffer onComplete") { implicit s =>
+  fixture.test("should emit buffer onComplete") { implicit s =>
     val sourceCount = 157
 
     val obs = Observable
@@ -110,7 +110,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("should throw on negative timespan") { implicit s =>
+  fixture.test("should throw on negative timespan") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable
         .intervalAtFixedRate(100.millis)
@@ -120,7 +120,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
     ()
   }
 
-  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  fixture.test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 
@@ -145,7 +145,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
         s.tick(waitForNext)
 
       case _ =>
-        fail()
+        fail("")
     }
   }
 }

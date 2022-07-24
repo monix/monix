@@ -20,9 +20,9 @@ package monix.eval
 import monix.execution.schedulers.TestScheduler
 import scala.util.Success
 
-object TaskExecuteOnSuite extends BaseTestSuite {
+class TaskExecuteOnSuite extends BaseTestSuite {
 
-  test("executeOn(forceAsync = false)") { implicit sc =>
+  fixture.test("executeOn(forceAsync = false)") { implicit sc =>
     val sc2 = TestScheduler()
     val fa = Task.eval(1).executeOn(sc2, forceAsync = false)
     val f = fa.runToFuture
@@ -30,7 +30,7 @@ object TaskExecuteOnSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("executeOn(forceAsync = true)") { implicit sc =>
+  fixture.test("executeOn(forceAsync = true)") { implicit sc =>
     val sc2 = TestScheduler()
     val fa = Task.eval(1).executeOn(sc2)
     val f = fa.runToFuture
@@ -44,7 +44,7 @@ object TaskExecuteOnSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("executeOn(forceAsync = false) is stack safe in flatMap loops, test 1") { implicit sc =>
+  fixture.test("executeOn(forceAsync = false) is stack safe in flatMap loops, testAsync 1") { implicit sc =>
     val sc2 = TestScheduler()
 
     def loop(n: Int, acc: Long): Task[Long] =
@@ -56,10 +56,10 @@ object TaskExecuteOnSuite extends BaseTestSuite {
       }
 
     val f = loop(10000, 0).runToFuture; sc.tick()
-    assertEquals(f.value, Some(Success(10000)))
+    assertEquals(f.value, Some(Success(10000L)))
   }
 
-  test("executeOn(forceAsync = false) is stack safe in flatMap loops, test 2") { implicit sc =>
+  fixture.test("executeOn(forceAsync = false) is stack safe in flatMap loops, testAsync 2") { implicit sc =>
     val sc2 = TestScheduler()
 
     def loop(n: Int, acc: Long): Task[Long] =
@@ -74,10 +74,10 @@ object TaskExecuteOnSuite extends BaseTestSuite {
     sc.tick()
     sc2.tick()
 
-    assertEquals(f.value, Some(Success(10000)))
+    assertEquals(f.value, Some(Success(10000L)))
   }
 
-  testAsync("local.write.executeOn(forceAsync = false) works") { _ =>
+  fixture.test("local.write.executeOn(forceAsync = false) works") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
@@ -93,7 +93,7 @@ object TaskExecuteOnSuite extends BaseTestSuite {
     }
   }
 
-  testAsync("local.write.executeOn(forceAsync = true) works") { _ =>
+  fixture.test("local.write.executeOn(forceAsync = true) works") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 

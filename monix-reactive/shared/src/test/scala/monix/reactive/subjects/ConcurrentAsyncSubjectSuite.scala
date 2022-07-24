@@ -22,7 +22,7 @@ import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.{ MulticastStrategy, Observer }
 
-object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
+class ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
     val c = ConcurrentSubject(MulticastStrategy.async[Long])
     Sample(c, expectedElems.lastOption.getOrElse(0))
@@ -30,7 +30,7 @@ object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
 
   def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler) = None
 
-  test("while active, keep adding subscribers, but don't emit anything") { implicit s =>
+  fixture.test("while active, keep adding subscribers, but don't emit anything") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -54,24 +54,24 @@ object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
     for (x <- Seq(10, 20, 30)) channel.onNext(x.toLong)
 
     s.tick()
-    assertEquals(sum, 0)
+    assertEquals(sum, 0L)
     assertEquals(wereCompleted, 0)
 
     channel.onComplete()
     channel.onComplete()
     s.tick()
 
-    assertEquals(sum, 30 * 3)
+    assertEquals(sum, 30L * 3L)
     assertEquals(wereCompleted, 3)
 
     channel.unsafeSubscribeFn(createObserver)
     s.tick()
 
-    assertEquals(sum, 30 * 4)
+    assertEquals(sum, 30L * 4L)
     assertEquals(wereCompleted, 4)
   }
 
-  test("should interrupt on error without emitting anything") { implicit s =>
+  fixture.test("should interrupt on error without emitting anything") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -100,22 +100,22 @@ object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
     channel.onNext(30)
 
     s.tick()
-    assertEquals(sum, 0)
+    assertEquals(sum, 0L)
     assertEquals(wereCompleted, 0)
 
     channel.onError(DummyException("dummy1"))
     channel.onError(DummyException("dummy2"))
 
     s.tick()
-    assertEquals(sum, 0)
+    assertEquals(sum, 0L)
     assertEquals(wereCompleted, 3)
 
     channel.unsafeSubscribeFn(createObserver)
-    assertEquals(sum, 0)
+    assertEquals(sum, 0L)
     assertEquals(wereCompleted, 4)
   }
 
-  test("should interrupt when empty") { implicit s =>
+  fixture.test("should interrupt when empty") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -137,13 +137,13 @@ object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
     channel.onComplete()
 
     s.tick()
-    assertEquals(sum, 0)
+    assertEquals(sum, 0L)
     assertEquals(wereCompleted, 3)
 
     channel.unsafeSubscribeFn(createObserver)
 
     s.tick()
-    assertEquals(sum, 0)
+    assertEquals(sum, 0L)
     assertEquals(wereCompleted, 4)
   }
 }

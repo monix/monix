@@ -43,12 +43,12 @@ abstract class AsyncQueueJVMSuite(parallelism: Int) extends BaseAsyncQueueSuite[
       else
         Future.successful(())
 
-    testAsync(name) { implicit ec =>
+    fixture.test(name) { implicit ec =>
       repeatTest(f(ec), times)
     }
   }
 }
 
-object AsyncQueueJVMParallelism8Suite extends AsyncQueueJVMSuite(8)
-object AsyncQueueJVMParallelism4Suite extends AsyncQueueJVMSuite(4)
-object AsyncQueueJVMParallelism1Suite extends AsyncQueueJVMSuite(1)
+class AsyncQueueJVMParallelism8Suite extends AsyncQueueJVMSuite(8)
+class AsyncQueueJVMParallelism4Suite extends AsyncQueueJVMSuite(4)
+class AsyncQueueJVMParallelism1Suite extends AsyncQueueJVMSuite(1)

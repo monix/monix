@@ -18,21 +18,17 @@
 package monix.reactive.internal.operators
 
 import cats.effect.IO
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.eval.Task
 import monix.execution.Ack.Continue
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 
-object DoOnNextAckSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class DoOnNextAckSuite extends BaseTestSuite {
 
-  test("should work for cats.effect.IO") { implicit s =>
+  fixture.test("should work for cats.effect.IO") { implicit s =>
     var sum = 0L
     var wasCompleted = 0
 
@@ -47,11 +43,11 @@ object DoOnNextAckSuite extends TestSuite[TestScheduler] {
       })
 
     s.tick()
-    assertEquals(sum, 190)
+    assertEquals(sum, 190L)
     assertEquals(wasCompleted, 1)
   }
 
-  test("should work for Observable.range asynchronously") { implicit s =>
+  fixture.test("should work for Observable.range asynchronously") { implicit s =>
     var sum = 0L
     var wasCompleted = 0
 
@@ -66,11 +62,11 @@ object DoOnNextAckSuite extends TestSuite[TestScheduler] {
       })
 
     s.tick()
-    assertEquals(sum, 190)
+    assertEquals(sum, 190L)
     assertEquals(wasCompleted, 1)
   }
 
-  test("should work for Observable.range synchronously") { implicit s =>
+  fixture.test("should work for Observable.range synchronously") { implicit s =>
     var sum = 0L
     var wasCompleted = 0
 
@@ -84,11 +80,11 @@ object DoOnNextAckSuite extends TestSuite[TestScheduler] {
         def onComplete(): Unit = wasCompleted += 1
       })
 
-    assertEquals(sum, 190)
+    assertEquals(sum, 190L)
     assertEquals(wasCompleted, 1)
   }
 
-  test("should work for Observable.now asynchronously") { implicit s =>
+  fixture.test("should work for Observable.now asynchronously") { implicit s =>
     var sum = 0L
     var wasCompleted = 0
 
@@ -107,7 +103,7 @@ object DoOnNextAckSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 1)
   }
 
-  test("should work for Observable.now synchronously") { implicit s =>
+  fixture.test("should work for Observable.now synchronously") { implicit s =>
     var sum = 0L
     var wasCompleted = 0
 
@@ -125,7 +121,7 @@ object DoOnNextAckSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 1)
   }
 
-  test("should protect against user code for Observable.now") { implicit s =>
+  fixture.test("should protect against user code for Observable.now") { implicit s =>
     val dummy = DummyException("dummy")
     var received = 0L
     var wasCompleted = 0L
@@ -141,12 +137,12 @@ object DoOnNextAckSuite extends TestSuite[TestScheduler] {
         def onComplete(): Unit = wasCompleted += 1
       })
 
-    assertEquals(received, 10)
+    assertEquals(received, 10L)
     assertEquals(errorThrown, dummy)
-    assertEquals(wasCompleted, 0)
+    assertEquals(wasCompleted, 0L)
   }
 
-  test("should protect against user code for Observable.range") { implicit s =>
+  fixture.test("should protect against user code for Observable.range") { implicit s =>
     val dummy = DummyException("dummy")
     var received = 0L
     var wasCompleted = 0L
@@ -162,8 +158,8 @@ object DoOnNextAckSuite extends TestSuite[TestScheduler] {
         def onComplete(): Unit = wasCompleted += 1
       })
 
-    assertEquals(received, 1)
+    assertEquals(received, 1L)
     assertEquals(errorThrown, dummy)
-    assertEquals(wasCompleted, 0)
+    assertEquals(wasCompleted, 0L)
   }
 }

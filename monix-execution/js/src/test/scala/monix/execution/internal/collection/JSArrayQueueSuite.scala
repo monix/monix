@@ -17,9 +17,9 @@
 
 package monix.execution.internal.collection
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 
-object JSArrayQueueSuite extends SimpleTestSuite {
+class JSArrayQueueSuite extends BaseTestSuite {
   test("unbounded") {
     val q = JSArrayQueue.unbounded[Int]
 

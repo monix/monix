@@ -26,7 +26,7 @@ import org.scalacheck.Test.Parameters
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
-object IterantInterleaveSuite extends BaseTestSuite {
+class IterantInterleaveSuite extends BaseTestSuite {
   override lazy val checkConfig: Parameters = {
     if (Platform.isJVM)
       Test.Parameters.default.withMaxSize(256)
@@ -48,21 +48,21 @@ object IterantInterleaveSuite extends BaseTestSuite {
     loop(lh, rh, ListBuffer.empty)
   }
 
-  test("interleaveLists #1") { _ =>
+  test("interleaveLists #1") {
     val list1 = List(1, 2, 3, 4)
     val list2 = List(1, 2)
 
     assertEquals(interleaveLists(list1, list2), List(1, 1, 2, 2, 3))
   }
 
-  test("interleaveLists #2") { _ =>
+  test("interleaveLists #2") {
     val list1 = List(1, 2)
     val list2 = List(1, 2, 3)
 
     assertEquals(interleaveLists(list1, list2), List(1, 1, 2, 2))
   }
 
-  test("Iterant.interleave equivalence with interleaveLists") { implicit s =>
+  fixture.test("Iterant.interleave equivalence with interleaveLists") { implicit s =>
     check4 { (list1: List[Int], idx1: Int, list2: List[Int], idx2: Int) =>
       val stream1 = arbitraryListToIterant[Coeval, Int](list1, math.abs(idx1) + 1, allowErrors = false)
       val stream2 = arbitraryListToIterant[Coeval, Int](list2, math.abs(idx2) + 1, allowErrors = false)

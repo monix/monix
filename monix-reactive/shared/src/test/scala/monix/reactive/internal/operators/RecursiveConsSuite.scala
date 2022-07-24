@@ -21,7 +21,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration.Duration.Zero
 import scala.util.Success
 
-object RecursiveConsSuite extends BaseOperatorSuite {
+class RecursiveConsSuite extends BaseOperatorSuite {
   def range(from: Long, until: Long): Observable[Long] =
     Observable.defer {
       from +: (
@@ -47,7 +47,7 @@ object RecursiveConsSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def cancelableObservables() = Seq.empty
 
-  test("stack safety") { implicit s =>
+  fixture.test("stack safety") { implicit s =>
     val count = 10000
     val f = range(0L, count.toLong).sumL.runToFuture
     s.tick()

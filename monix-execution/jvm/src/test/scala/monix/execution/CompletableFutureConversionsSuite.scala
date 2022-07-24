@@ -17,47 +17,41 @@
 
 package monix.execution
 
-import java.util.concurrent.{ CompletableFuture, CompletionException }
-
-import minitest.TestSuite
 import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.TestScheduler
 
+import java.util.concurrent.{ CompletableFuture, CompletionException }
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Failure, Success }
 
-object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(env: TestScheduler): Unit =
-    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
+class CompletableFutureConversionsSuite extends BaseTestSuite {
 
-  test("FutureUtils.fromJavaCompletable works") { implicit s =>
+  fixture.test("FutureUtils.fromJavaCompletable works") { implicit s =>
     val cf = CompletableFuture.completedFuture(42)
     assertEquals(FutureUtils.fromJavaCompletable(cf).value, Some(Success(42)))
   }
 
-  test("FutureUtils.fromJavaCompletable is non-terminating on cancelled source") { implicit s =>
+  fixture.test("FutureUtils.fromJavaCompletable is non-terminating on cancelled source") { implicit s =>
     val cf = new CompletableFuture[Int]
     val sc = FutureUtils.fromJavaCompletable(cf)
     cf.cancel(true)
     assertEquals(sc.value, None)
   }
 
-  test("FutureUtils.fromJavaCompletable reports errors") { implicit s =>
+  fixture.test("FutureUtils.fromJavaCompletable reports errors") { implicit s =>
     val dummy = DummyException("dummy")
     val cf = new CompletableFuture[Int]
     cf.completeExceptionally(dummy)
     assertEquals(FutureUtils.fromJavaCompletable(cf).value, Some(Failure(dummy)))
   }
 
-  test("FutureUtils.toJavaCompletable works") { implicit s =>
+  fixture.test("FutureUtils.toJavaCompletable works") { implicit s =>
     val f = Future.successful(42)
     val cf = FutureUtils.toJavaCompletable(f)
     s.tickOne()
     assertEquals(cf.getNow(-1), 42)
   }
 
-  test("FutureUtils.toJavaCompletable reports errors") { implicit s =>
+  fixture.test("FutureUtils.toJavaCompletable reports errors") { implicit s =>
     val dummy = DummyException("dummy")
     val ef = Future.failed[Int](dummy)
     val ecf = FutureUtils.toJavaCompletable(ef)
@@ -71,7 +65,7 @@ object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("CancelableFuture.fromJavaCompletable should work for success") { implicit s =>
+  fixture.test("CancelableFuture.fromJavaCompletable should work for success") { implicit s =>
     val cf = new CompletableFuture[Int]()
     val f = CancelableFuture.fromJavaCompletable(cf)
 
@@ -79,7 +73,7 @@ object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("CancelableFuture.fromJavaCompletable should work for failure") { implicit s =>
+  fixture.test("CancelableFuture.fromJavaCompletable should work for failure") { implicit s =>
     val cf = new CompletableFuture[Int]()
     val f = CancelableFuture.fromJavaCompletable(cf)
 
@@ -88,7 +82,7 @@ object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("CancelableFuture.fromJavaCompletable should be cancelable") { implicit s =>
+  fixture.test("CancelableFuture.fromJavaCompletable should be cancelable") { implicit s =>
     val cf = new CompletableFuture[Int]()
     val f = CancelableFuture.fromJavaCompletable(cf)
 
@@ -97,7 +91,7 @@ object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, None)
   }
 
-  test("CancelableFuture.toJavaCompletable should work for success") { implicit s =>
+  fixture.test("CancelableFuture.toJavaCompletable should work for success") { implicit s =>
     val p = CancelablePromise[Int]()
     val f = CancelableFuture.toJavaCompletable(p.future)
 
@@ -105,7 +99,7 @@ object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
     assertEquals(f.getNow(-1), 1)
   }
 
-  test("CancelableFuture.toJavaCompletable should work for failure") { implicit s =>
+  fixture.test("CancelableFuture.toJavaCompletable should work for failure") { implicit s =>
     val p = CancelablePromise[Int]()
     val f = CancelableFuture.toJavaCompletable(p.future)
 
@@ -122,7 +116,7 @@ object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("CancelableFuture.toJavaCompletable should be cancelable") { implicit s =>
+  fixture.test("CancelableFuture.toJavaCompletable should be cancelable") { implicit s =>
     val p = Promise[Int]()
     var wasCanceled = 0
     val source = CancelableFuture(p.future, Cancelable(() => wasCanceled += 1))

@@ -20,7 +20,7 @@ package monix.eval
 import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success, Try }
 
-object CoevalRunSuite extends BaseTestSuite {
+class CoevalRunSuite extends BaseTestSuite {
   def testRun(build: (() => Int) => Coeval[Int]): Unit = {
     val fa1 = build(() => 10 + 20)
     val eager1 = fa1.run()
@@ -57,23 +57,23 @@ object CoevalRunSuite extends BaseTestSuite {
     ()
   }
 
-  test("Coeval.Always") { _ =>
+  test("Coeval.Always") {
     testRun(f => Coeval.eval(f()))
   }
 
-  test("Coeval.FlatMap") { _ =>
+  test("Coeval.FlatMap") {
     testRun(f => Coeval.eval(f()).flatMap(Coeval.pure))
   }
 
-  test("Coeval.Once") { _ =>
+  test("Coeval.Once") {
     testRun(f => Coeval.evalOnce(f()))
   }
 
-  test("Coeval.Eager") { _ =>
+  test("Coeval.Eager") {
     testRun(f => Coeval.fromTry(Try(f())))
   }
 
-  test("Eager(f)") { _ =>
+  test("Eager(f)") {
     testRun(f => Coeval.Eager(f()))
   }
 }

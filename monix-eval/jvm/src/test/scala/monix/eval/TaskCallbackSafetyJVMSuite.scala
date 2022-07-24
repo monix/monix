@@ -19,7 +19,6 @@ package monix.eval
 
 import java.util.concurrent.{ CountDownLatch, TimeUnit }
 
-import minitest.SimpleTestSuite
 import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, DummyException }
 import monix.execution.schedulers.SchedulerService
 import monix.execution.{ Callback, Scheduler, TestUtils }
@@ -27,7 +26,7 @@ import monix.execution.{ Callback, Scheduler, TestUtils }
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
+class TaskCallbackSafetyJVMSuite extends BaseTestSuite with TestUtils {
   val WORKERS = 10
   val RETRIES = if (!isCI) 1000 else 100
 

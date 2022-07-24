@@ -18,20 +18,15 @@
 package monix.reactive.internal.operators
 
 import cats.effect.{ ExitCase, IO }
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.{ Observable, Observer }
 import monix.execution.exceptions.DummyException
 
-object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class DoOnSubscribeSuite extends BaseTestSuite {
 
-  test("doOnSubscribe should work") { implicit s =>
+  fixture.test("doOnSubscribe should work") { implicit s =>
     var elem = 0
     Observable
       .now(10)
@@ -46,7 +41,7 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
     assertEquals(elem, 2)
   }
 
-  test("doOnSubscribe should protect against error") { implicit s =>
+  fixture.test("doOnSubscribe should protect against error") { implicit s =>
     val dummy = DummyException("dummy")
     var wasThrown: Throwable = null
     Observable
@@ -62,7 +57,7 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
     assertEquals(wasThrown, dummy)
   }
 
-  test("doAfterSubscribe should work") { implicit s =>
+  fixture.test("doAfterSubscribe should work") { implicit s =>
     var elem = 0
     Observable
       .now(10)
@@ -77,7 +72,7 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
     assertEquals(elem, 2)
   }
 
-  test("doAfterSubscribe should protect against error") { implicit s =>
+  fixture.test("doAfterSubscribe should protect against error") { implicit s =>
     val dummy = DummyException("dummy")
     var wasThrown: Throwable = null
     Observable
@@ -93,7 +88,7 @@ object DoOnSubscribeSuite extends TestSuite[TestScheduler] {
     assertEquals(wasThrown, dummy)
   }
 
-  test("doAfterSubscribe should preserve original cancelable") { implicit s =>
+  fixture.test("doAfterSubscribe should preserve original cancelable") { implicit s =>
     var wasCanceled = false
 
     Observable

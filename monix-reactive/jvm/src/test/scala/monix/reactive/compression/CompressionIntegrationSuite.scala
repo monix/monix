@@ -17,11 +17,9 @@
 
 package monix.reactive.compression
 
-import minitest.SimpleTestSuite
-import minitest.laws.Checkers
-import monix.execution.Scheduler
+import monix.execution.{ BaseTestSuite, Scheduler }
 
-trait CompressionIntegrationSuite extends SimpleTestSuite with Checkers {
+trait CompressionIntegrationSuite extends BaseTestSuite {
 
   implicit val scheduler: Scheduler =
     Scheduler.computation(parallelism = 4, name = "compression-tests", daemonic = true)

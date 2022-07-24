@@ -22,8 +22,8 @@ import monix.catnap.SchedulerEffect
 
 import scala.util.Success
 
-object TaskConversionsKSuite extends BaseTestSuite {
-  test("Task.liftTo[IO]") { implicit s =>
+class TaskConversionsKSuite extends BaseTestSuite {
+  fixture.test("Task.liftTo[IO]") { implicit s =>
     var effect = 0
     val task = Task { effect += 1; effect }
     val io = Task.liftTo[IO].apply(task)
@@ -32,7 +32,7 @@ object TaskConversionsKSuite extends BaseTestSuite {
     assertEquals(io.unsafeRunSync(), 2)
   }
 
-  test("Task.liftToAsync[IO]") { implicit s =>
+  fixture.test("Task.liftToAsync[IO]") { implicit s =>
     var effect = 0
     val task = Task { effect += 1; effect }
     val io = Task.liftToAsync[IO].apply(task)
@@ -41,7 +41,7 @@ object TaskConversionsKSuite extends BaseTestSuite {
     assertEquals(io.unsafeRunSync(), 2)
   }
 
-  test("Task.liftToConcurrent[IO]") { implicit s =>
+  fixture.test("Task.liftToConcurrent[IO]") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     var effect = 0
     val task = Task { effect += 1; effect }
@@ -51,7 +51,7 @@ object TaskConversionsKSuite extends BaseTestSuite {
     assertEquals(io.unsafeRunSync(), 2)
   }
 
-  test("Task.liftFrom[IO]") { implicit s =>
+  fixture.test("Task.liftFrom[IO]") { implicit s =>
     var effect = 0
     val io0 = IO { effect += 1; effect }
     val task = Task.liftFrom[IO].apply(io0)
@@ -62,7 +62,7 @@ object TaskConversionsKSuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Success(2)))
   }
 
-  test("Task.liftFromEffect[IO]") { implicit s =>
+  fixture.test("Task.liftFromEffect[IO]") { implicit s =>
     var effect = 0
     val io0 = IO { effect += 1; effect }
     val task = Task.liftFromEffect[IO].apply(io0)
@@ -73,7 +73,7 @@ object TaskConversionsKSuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Success(2)))
   }
 
-  test("Task.liftFromConcurrentEffect[IO]") { implicit s =>
+  fixture.test("Task.liftFromConcurrentEffect[IO]") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     var effect = 0

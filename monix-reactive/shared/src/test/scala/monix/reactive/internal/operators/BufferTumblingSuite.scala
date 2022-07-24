@@ -25,7 +25,7 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.duration._
 import scala.concurrent.{ Future, Promise }
 
-object BufferTumblingSuite extends BaseOperatorSuite {
+class BufferTumblingSuite extends BaseOperatorSuite {
   val waitNext = Duration.Zero
   val waitFirst = Duration.Zero
 
@@ -60,7 +60,7 @@ object BufferTumblingSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
 
-  override def cancelableObservables(): Seq[BufferTumblingSuite.Sample] = {
+  override def cancelableObservables(): Seq[Sample] = {
     val o = Observable
       .range(0L, Platform.recommendedBatchSize.toLong)
       .delayOnNext(1.second)
@@ -70,7 +70,7 @@ object BufferTumblingSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("should emit buffer onComplete") { implicit s =>
+  fixture.test("should emit buffer onComplete") { implicit s =>
     val count = 157
     val obs = Observable.range(0L, count.toLong * 10).bufferTumbling(20).map(_.sum)
 
@@ -96,7 +96,7 @@ object BufferTumblingSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("should drop buffer onError") { implicit s =>
+  fixture.test("should drop buffer onError") { implicit s =>
     val count = 157
     val dummy = DummyException("dummy")
     val obs = createObservableEndingInError(Observable.range(0L, count.toLong * 10), dummy)
@@ -125,7 +125,7 @@ object BufferTumblingSuite extends BaseOperatorSuite {
     assertEquals(errorThrown, dummy)
   }
 
-  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  fixture.test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 
@@ -146,7 +146,7 @@ object BufferTumblingSuite extends BaseOperatorSuite {
         s.tick(waitForNext)
 
       case _ =>
-        fail()
+        fail("")
     }
   }
 }

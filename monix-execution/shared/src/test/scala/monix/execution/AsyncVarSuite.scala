@@ -17,11 +17,10 @@
 
 package monix.execution
 
-import minitest.SimpleTestSuite
 import monix.execution.atomic.PaddingStrategy.LeftRight128
-import scala.util.Success
 
-object AsyncVarSuite extends SimpleTestSuite {
+import scala.util.Success
+class AsyncVarSuite extends BaseTestSuite {
   test("empty; put; read; take; put; read; take") {
     val av = AsyncVar.empty[Int]()
 

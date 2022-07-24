@@ -27,7 +27,7 @@ import monix.tail.batches.{ Batch, BatchCursor }
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 
-object IterantTakeWhileSuite extends BaseTestSuite {
+class IterantTakeWhileSuite extends BaseTestSuite {
   override lazy val checkConfig: Parameters = {
     if (Platform.isJVM)
       Test.Parameters.default.withMaxSize(256)
@@ -44,7 +44,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
       }
     }
 
-  test("Iterant[Task].takeWhile equivalence with List.takeWhile") { implicit s =>
+  fixture.test("Iterant[Task].takeWhile equivalence with List.takeWhile") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
       val iter = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1, allowErrors = false)
       val stream = iter ++ Iterant[Task].of(1, 2, 3)
@@ -52,20 +52,20 @@ object IterantTakeWhileSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Task].takeWhile works for non-determinate batches") { implicit s =>
+  fixture.test("Iterant[Task].takeWhile works for non-determinate batches") { implicit s =>
     check3 { (list: List[Int], _: Int, p: Int => Boolean) =>
       val stream = Iterant[Task].nextBatchS(Batch.fromIterable(list, 1), Task.now(Iterant[Task].empty[Int]))
       stream.takeWhile(p).toListL <-> stream.toListL.map(_.takeWhile(p))
     }
   }
 
-  test("Iterant[Task].takeWhile(_ => true) mirrors the source") { implicit s =>
+  fixture.test("Iterant[Task].takeWhile(_ => true) mirrors the source") { implicit s =>
     check1 { (iter: Iterant[Coeval, Int]) =>
       iter <-> iter.takeWhile(_ => true)
     }
   }
 
-  test("Iterant[Coeval].takeWhile preserves resource safety") { implicit s =>
+  fixture.test("Iterant[Coeval].takeWhile preserves resource safety") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val cancelable = BooleanCancelable()
       val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1, allowErrors = false)
@@ -76,7 +76,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeWhile protects against broken batches") { implicit s =>
+  fixture.test("Iterant.takeWhile protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
@@ -86,7 +86,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeWhile protects against broken cursors") { implicit s =>
+  fixture.test("Iterant.takeWhile protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
@@ -96,7 +96,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeWhile protects against user code") { implicit s =>
+  fixture.test("Iterant.takeWhile protects against user code") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val stream = 1 +: iter.onErrorIgnore
@@ -105,7 +105,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeWhile preserves resource safety on exception") { _ =>
+  test("Iterant.takeWhile preserves resource safety on exception") {
     check1 { (iter: Iterant[Coeval, Int]) =>
       val cancelable = BooleanCancelable()
       val dummy = DummyException("dummy")
@@ -117,7 +117,7 @@ object IterantTakeWhileSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.takeWhile preserves the source guarantee") { implicit s =>
+  fixture.test("Iterant.takeWhile preserves the source guarantee") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
     val source =

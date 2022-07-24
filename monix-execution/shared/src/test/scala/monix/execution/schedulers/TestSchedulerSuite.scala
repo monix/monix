@@ -19,7 +19,8 @@ package monix.execution.schedulers
 
 import java.util.concurrent.{ TimeUnit, TimeoutException }
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
@@ -28,13 +29,9 @@ import scala.concurrent.duration._
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Success, Try }
 
-object TestSchedulerSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.tasks.isEmpty)
-  }
+class TestSchedulerSuite extends BaseTestSuite {
 
-  test("should execute asynchronously") { s =>
+  fixture.test("should execute asynchronously") { s =>
     var wasExecuted = false
     s.execute { () =>
       wasExecuted = true
@@ -45,7 +42,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assert(wasExecuted)
   }
 
-  test("should execute the whole stack") { s =>
+  fixture.test("should execute the whole stack") { s =>
     var iterations = 0
 
     s.execute { () =>
@@ -72,7 +69,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assert(iterations == 5)
   }
 
-  test("should schedule stuff in the future") { s =>
+  fixture.test("should schedule stuff in the future") { s =>
     var firstBatch = 0
     var secondBatch = 0
 
@@ -126,7 +123,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assert(firstBatch == 3 && secondBatch == 3)
   }
 
-  test("should work correctly for ticks spanning several tasks, test 1") { implicit s =>
+  fixture.test("should work correctly for ticks spanning several tasks, testAsync 1") { implicit s =>
     val f = delayedResult(50.millis, 300.millis)("hello world")
     assertEquals(f.value, None)
 
@@ -134,7 +131,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success("hello world")))
   }
 
-  test("should work correctly for ticks spanning several tasks, test 2") { implicit s =>
+  fixture.test("should work correctly for ticks spanning several tasks, testAsync 2") { implicit s =>
     val f = delayedResult(500.millis, 300.millis)("hello world")
     assertEquals(f.value, None)
 
@@ -143,7 +140,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     ()
   }
 
-  test("should work correctly for ticks spanning several tasks, test 3") { implicit s =>
+  fixture.test("should work correctly for ticks spanning several tasks, testAsync 3") { implicit s =>
     val f = delayedResult(50.millis, 300.millis)("hello world")
     assertEquals(f.value, None)
 
@@ -153,7 +150,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success("hello world")))
   }
 
-  test("should work correctly for ticks spanning several tasks, test 4") { implicit s =>
+  fixture.test("should work correctly for ticks spanning several tasks, testAsync 4") { implicit s =>
     val f = delayedResult(50.millis, 300.millis)("hello world")
     assertEquals(f.value, None)
 
@@ -164,7 +161,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success("hello world")))
   }
 
-  test("complicated scheduling, test 1") { implicit s =>
+  fixture.test("complicated scheduling, testAsync 1") { implicit s =>
     var counter = 0
 
     delayedResult(50.millis, 300.millis) {
@@ -193,7 +190,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty)
   }
 
-  test("complicated scheduling, test 2") { implicit s =>
+  fixture.test("complicated scheduling, testAsync 2") { implicit s =>
     var counter = 0
 
     delayedResult(50.millis, 300.millis) {
@@ -221,7 +218,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty)
   }
 
-  test("tasks sharing same runsAt should execute randomly") { implicit s =>
+  fixture.test("tasks sharing same runsAt should execute randomly") { implicit s =>
     var seq = Seq.empty[Int]
     for (i <- 0 until 1000) s.execute(action { seq = seq :+ i })
     s.tick()
@@ -231,7 +228,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(seq.sum, expected.sum)
   }
 
-  test("execute extension method") { implicit s =>
+  fixture.test("execute extension method") { implicit s =>
     var wasExecuted = false
     s.execute { () =>
       wasExecuted = true
@@ -242,7 +239,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assert(wasExecuted, "was executed")
   }
 
-  test("execute local") { implicit s =>
+  fixture.test("execute local") { implicit s =>
     var effect = 1
     s.executeTrampolined { () =>
       effect += 1
@@ -260,7 +257,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 1 + 1 + 2 + 3 + 4)
   }
 
-  test("execute local should fork on error") { implicit s =>
+  fixture.test("execute local should fork on error") { implicit s =>
     val ex = DummyException("dummy")
     var effect = 0
 
@@ -283,7 +280,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 1 + 2 + 3)
   }
 
-  test("execute local should be stack safe") { implicit s =>
+  fixture.test("execute local should be stack safe") { implicit s =>
     var result = 0
     def loop(n: Int): Unit =
       s.executeTrampolined { () =>
@@ -297,7 +294,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(result, count)
   }
 
-  test("start async batch, then trampolined") { implicit s =>
+  fixture.test("start async batch, then trampolined") { implicit s =>
     var effect = 0
     s.executeAsyncBatch { () =>
       effect += 1
@@ -314,7 +311,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 3)
   }
 
-  test("maxImmediateTasks") { implicit ec =>
+  fixture.test("maxImmediateTasks") { implicit ec =>
     var result: Int = 0
 
     def loop(): Future[Int] =

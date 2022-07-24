@@ -21,8 +21,8 @@ import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import scala.util.Success
 
-object TaskExecuteAsyncSuite extends BaseTestSuite {
-  test("Task.now.executeAsync should execute async") { implicit s =>
+class TaskExecuteAsyncSuite extends BaseTestSuite {
+  fixture.test("Task.now.executeAsync should execute async") { implicit s =>
     val t = Task.now(10).executeAsync
     val f = t.runToFuture
 
@@ -31,7 +31,7 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.now.executeOn should execute async if forceAsync = true") { implicit s =>
+  fixture.test("Task.now.executeOn should execute async if forceAsync = true") { implicit s =>
     val s2 = TestScheduler()
     val t = Task.now(10).executeOn(s2)
     val f = t.runToFuture
@@ -45,7 +45,7 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.now.executeOn should not execute async if forceAsync = false") { implicit s =>
+  fixture.test("Task.now.executeOn should not execute async if forceAsync = false") { implicit s =>
     val s2 = TestScheduler()
     val t = Task.now(10).executeOn(s2, forceAsync = false)
     val f = t.runToFuture
@@ -53,7 +53,7 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.create.executeOn should execute async") { implicit s =>
+  fixture.test("Task.create.executeOn should execute async") { implicit s =>
     val s2 = TestScheduler()
     val source = Task.cancelable0[Int] { (_, cb) =>
       cb.onSuccess(10); Task.unit
@@ -70,7 +70,7 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("executeAsync should be stack safe, test 1") { implicit s =>
+  fixture.test("executeAsync should be stack safe, testAsync 1") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
     var task = Task.eval(1)
     for (_ <- 0 until count) task = task.executeAsync
@@ -80,7 +80,7 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Success(1)))
   }
 
-  test("Task.executeOn should be stack safe, test 2") { implicit s =>
+  fixture.test("Task.executeOn should be stack safe, testAsync 2") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
     var task = Task.eval(1)
     for (_ <- 0 until count) task = task.executeOn(s)
@@ -90,7 +90,7 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Success(1)))
   }
 
-  test("executeAsync should be stack safe, test 3") { implicit s =>
+  fixture.test("executeAsync should be stack safe, testAsync 3") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 5000
 
     def loop(n: Int): Task[Int] =

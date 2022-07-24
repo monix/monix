@@ -17,17 +17,17 @@
 
 package monix.execution
 
-import java.util.concurrent.atomic.AtomicLong
-import minitest.TestSuite
 import monix.execution.BufferCapacity.{ Bounded, Unbounded }
 import monix.execution.ChannelType.{ MPMC, MPSC, SPMC, SPSC }
-import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
+import monix.execution.internal.Platform
+
+import java.util.concurrent.atomic.AtomicLong
 import scala.collection.immutable.Queue
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object AsyncQueueFakeSuite extends BaseAsyncQueueSuite[TestScheduler] {
+class AsyncQueueFakeSuite extends BaseAsyncQueueSuite[TestScheduler] {
   def setup() = TestScheduler()
 
   def tearDown(env: TestScheduler): Unit =
@@ -40,14 +40,14 @@ object AsyncQueueFakeSuite extends BaseAsyncQueueSuite[TestScheduler] {
       else
         Future.successful(())
 
-    test(name) { implicit ec =>
+    fixture.test(name) { implicit ec =>
       repeatTest(f(ec), times)
       ec.tick(1.day)
     }
   }
 }
 
-object AsyncQueueGlobalSuite extends BaseAsyncQueueSuite[Scheduler] {
+class AsyncQueueGlobalSuite extends BaseAsyncQueueSuite[Scheduler] {
   def setup() = Scheduler.global
   def tearDown(env: Scheduler): Unit = ()
 
@@ -60,13 +60,14 @@ object AsyncQueueGlobalSuite extends BaseAsyncQueueSuite[Scheduler] {
       else
         Future.successful(())
 
-    testAsync(name) { implicit ec =>
+    fixture.test(name) { implicit ec =>
       repeatTest(f(ec), times)
     }
   }
 }
 
 abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
+
   val repeatForFastTests = {
     if (Platform.isJVM) 1000 else 100
   }

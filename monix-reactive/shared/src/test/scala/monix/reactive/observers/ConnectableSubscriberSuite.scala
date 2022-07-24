@@ -17,21 +17,17 @@
 
 package monix.reactive.observers
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
-import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.Observer
 import scala.collection.mutable.ArrayBuffer
 
-object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty)
-  }
+class ConnectableSubscriberSuite extends BaseTestSuite {
 
-  test("should block onNext until connect") { implicit s =>
+  fixture.test("should block onNext until connect") { implicit s =>
     val received = ArrayBuffer.empty[Int]
     var wasCompleted = false
 
@@ -65,7 +61,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted, "downstream should be completed")
   }
 
-  test("should emit pushed items immediately after connect") { implicit s =>
+  fixture.test("should emit pushed items immediately after connect") { implicit s =>
     val received = ArrayBuffer.empty[Int]
     var wasCompleted = false
 
@@ -89,7 +85,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, false)
   }
 
-  test("should not allow pushFirst after connect") { implicit s =>
+  fixture.test("should not allow pushFirst after connect") { implicit s =>
     val downstream = create(new Observer[Int] {
       def onError(ex: Throwable): Unit = ()
       def onComplete(): Unit = ()
@@ -105,7 +101,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     ()
   }
 
-  test("should not allow pushFirstAll after connect") { implicit s =>
+  fixture.test("should not allow pushFirstAll after connect") { implicit s =>
     val downstream = create(new Observer[Int] {
       def onError(ex: Throwable): Unit = ()
       def onComplete(): Unit = ()
@@ -122,7 +118,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     ()
   }
 
-  test("should schedule pushComplete") { implicit s =>
+  fixture.test("should schedule pushComplete") { implicit s =>
     val received = ArrayBuffer.empty[Int]
     var wasCompleted = false
 
@@ -148,7 +144,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, true)
   }
 
-  test("should not allow pushComplete after connect") { implicit s =>
+  fixture.test("should not allow pushComplete after connect") { implicit s =>
     val downstream = create(new Observer[Int] {
       def onError(ex: Throwable): Unit = ()
       def onComplete(): Unit = ()
@@ -165,7 +161,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     ()
   }
 
-  test("should schedule pushError") { implicit s =>
+  fixture.test("should schedule pushError") { implicit s =>
     val received = ArrayBuffer.empty[Int]
     var errorThrown: Throwable = null
 
@@ -191,7 +187,7 @@ object ConnectableSubscriberSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  test("should not allow pushError after connect") { implicit s =>
+  fixture.test("should not allow pushError after connect") { implicit s =>
     val downstream = create(new Observer[Int] {
       def onError(ex: Throwable): Unit = ()
       def onComplete(): Unit = ()

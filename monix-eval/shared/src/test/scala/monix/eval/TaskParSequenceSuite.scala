@@ -22,8 +22,8 @@ import monix.execution.internal.Platform
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskParSequenceSuite extends BaseTestSuite {
-  test("Task.parSequence should execute in parallel for async tasks") { implicit s =>
+class TaskParSequenceSuite extends BaseTestSuite {
+  fixture.test("Task.parSequence should execute in parallel for async tasks") { implicit s =>
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),
       Task.evalAsync(2).delayExecution(1.second),
@@ -39,7 +39,7 @@ object TaskParSequenceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(Seq(1, 2, 3))))
   }
 
-  test("Task.parSequence should onError if one of the tasks terminates in error") { implicit s =>
+  fixture.test("Task.parSequence should onError if one of the tasks terminates in error") { implicit s =>
     val ex = DummyException("dummy")
     val seq = Seq(
       Task.evalAsync(3).delayExecution(3.seconds),
@@ -56,7 +56,7 @@ object TaskParSequenceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Task.parSequence should be canceled") { implicit s =>
+  fixture.test("Task.parSequence should be canceled") { implicit s =>
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),
       Task.evalAsync(2).delayExecution(1.second),
@@ -74,7 +74,7 @@ object TaskParSequenceSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("Task.parSequence should be stack safe for synchronous tasks") { implicit s =>
+  fixture.test("Task.parSequence should be stack safe for synchronous tasks") { implicit s =>
     val count = if (Platform.isJVM) 200000 else 5000
     val tasks = for (_ <- 0 until count) yield Task.now(1)
     val composite = Task.parSequence(tasks).map(_.sum)
@@ -83,7 +83,7 @@ object TaskParSequenceSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Success(count)))
   }
 
-  test("Task.parSequence runAsync multiple times") { implicit s =>
+  fixture.test("Task.parSequence runAsync multiple times") { implicit s =>
     var effect = 0
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
     val task2 = task1.map { x =>

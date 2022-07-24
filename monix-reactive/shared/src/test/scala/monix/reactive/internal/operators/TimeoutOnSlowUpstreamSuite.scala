@@ -25,7 +25,7 @@ import monix.reactive.subjects.PublishSubject
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
-object TimeoutOnSlowUpstreamSuite extends BaseOperatorSuite {
+class TimeoutOnSlowUpstreamSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val source = Observable.now(sourceCount.toLong).delayOnComplete(1.hour)
     val o = source.timeoutOnSlowUpstream(1.second).onErrorRecoverWith {
@@ -51,7 +51,7 @@ object TimeoutOnSlowUpstreamSuite extends BaseOperatorSuite {
     Seq(Sample(o, 1, 1, 0.seconds, 0.seconds))
   }
 
-  test("should emit timeout after time passes") { implicit s =>
+  fixture.test("should emit timeout after time passes") { implicit s =>
     val p = PublishSubject[Int]()
     var received = 0
     var errorThrown: Throwable = null

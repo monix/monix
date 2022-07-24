@@ -23,8 +23,8 @@ import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
 
-object TaskConnectionSuite extends BaseTestSuite {
-  test("initial push") { implicit s =>
+class TaskConnectionSuite extends BaseTestSuite {
+  fixture.test("initial push") { implicit s =>
     var effect = 0
     val initial = Task { effect += 1 }
 
@@ -39,7 +39,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("cancels Task after being canceled") { implicit s =>
+  fixture.test("cancels Task after being canceled") { implicit s =>
     var effect = 0
     val initial = Task { effect += 1 }
 
@@ -52,7 +52,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("cancels Cancelable after being canceled") { implicit s =>
+  fixture.test("cancels Cancelable after being canceled") { implicit s =>
     var effect = 0
     val initial = Cancelable { () =>
       effect += 1
@@ -67,7 +67,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("cancels CancelableF after being canceled") { implicit s =>
+  fixture.test("cancels CancelableF after being canceled") { implicit s =>
     val initial = TaskConnection()
 
     val c = TaskConnection()
@@ -79,7 +79,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assert(initial.isCanceled, "initial.isCanceled")
   }
 
-  test("push two, pop one") { implicit s =>
+  fixture.test("push two, pop one") { implicit s =>
     var effect = 0
     val initial1 = Task { effect += 1 }
     val initial2 = Task { effect += 2 }
@@ -96,7 +96,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("cancel the second time is a no-op") { implicit s =>
+  fixture.test("cancel the second time is a no-op") { implicit s =>
     var effect = 0
     val c = TaskConnection()
     c.push(Task { effect += 1 })
@@ -107,7 +107,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("push two, pop two") { implicit s =>
+  fixture.test("push two, pop two") { implicit s =>
     var effect = 0
     val initial1 = Task { effect += 1 }
     val initial2 = Task { effect += 2 }
@@ -123,7 +123,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(effect, 0)
   }
 
-  test("push(Cancelable)") { implicit s =>
+  fixture.test("push(Cancelable)") { implicit s =>
     val c = TaskConnection()
     val bc = BooleanCancelable()
     c.push(bc)
@@ -136,7 +136,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assert(bc.isCanceled, "bc.isCanceled")
   }
 
-  test("push(Cancelable) then pop") { implicit s =>
+  fixture.test("push(Cancelable) then pop") { implicit s =>
     val c = TaskConnection()
     val bc = BooleanCancelable()
 
@@ -154,7 +154,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assert(bc.isCanceled, "bc.isCanceled")
   }
 
-  test("push(CancelToken)") { implicit s =>
+  fixture.test("push(CancelToken)") { implicit s =>
     val c = TaskConnection()
     val bc = TaskConnection()
     c.push(bc)
@@ -167,7 +167,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assert(bc.isCanceled, "bc.isCanceled")
   }
 
-  test("push(CancelToken) then pop") { implicit s =>
+  fixture.test("push(CancelToken) then pop") { implicit s =>
     val c = TaskConnection()
     val bc = TaskConnection()
 
@@ -186,19 +186,19 @@ object TaskConnectionSuite extends BaseTestSuite {
     assert(bc.isCanceled, "bc.isCanceled")
   }
 
-  test("pop when self is empty") { _ =>
+  fixture.test("pop when self is empty") { _ =>
     val sc = TaskConnection()
     assertEquals(sc.pop(), Task.unit)
   }
 
-  test("pop when self is canceled") { implicit s =>
+  fixture.test("pop when self is canceled") { implicit s =>
     val sc = TaskConnection()
     sc.cancel.runAsyncAndForget
     s.tick()
     assertEquals(sc.pop(), Task.unit)
   }
 
-  test("cancel mixture") { implicit s =>
+  fixture.test("cancel mixture") { implicit s =>
     val count = 100
     var effect = 0
     val cancelables = (0 until count).map(_ => BooleanCancelable())
@@ -225,7 +225,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(effect, 100)
   }
 
-  test("cancel mixture after being cancelled") { implicit s =>
+  fixture.test("cancel mixture after being cancelled") { implicit s =>
     val count = 100
     var effect = 0
     val cancelables = (0 until count).map(_ => BooleanCancelable())
@@ -253,7 +253,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(effect, 100)
   }
 
-  test("tryReactivate") { implicit s =>
+  fixture.test("tryReactivate") { implicit s =>
     val ref = TaskConnection()
     val c1 = BooleanCancelable()
     ref.push(c1)
@@ -276,7 +276,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assert(TaskConnection.uncancelable.tryReactivate())
   }
 
-  test("toCancelable") { implicit s =>
+  fixture.test("toCancelable") { implicit s =>
     val ref = TaskConnection()
     val cancelRef = ref.toCancelable
 
@@ -289,12 +289,12 @@ object TaskConnectionSuite extends BaseTestSuite {
     assert(c1.isCanceled, "c1.isCanceled")
   }
 
-  test("uncancelable ref is shared") { _ =>
+  fixture.test("uncancelable ref is shared") { _ =>
     val t = TaskConnection.uncancelable
     assertEquals(t, TaskConnection.uncancelable)
   }
 
-  test("uncancelable ops") { implicit s =>
+  fixture.test("uncancelable ops") { implicit s =>
     val t = TaskConnection.uncancelable
     assert(!t.isCanceled, "!t.isCanceled")
 
@@ -328,7 +328,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(t.toCancelable, Cancelable.empty)
   }
 
-  test("throwing error in Task on cancel all") { implicit s =>
+  fixture.test("throwing error in Task on cancel all") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy)
 
@@ -339,7 +339,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("throwing multiple errors in Tasks on cancel all") { implicit s =>
+  fixture.test("throwing multiple errors in Tasks on cancel all") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val task1 = Task.raiseError(dummy1)
     val dummy2 = DummyException("dummy2")
@@ -363,7 +363,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     }
   }
 
-  test("throwing error in Task after cancel") { implicit s =>
+  fixture.test("throwing error in Task after cancel") { implicit s =>
     val c = TaskConnection()
     c.cancel.runAsyncAndForget; s.tick()
 
@@ -374,7 +374,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("throwing error in Cancelable on cancel all") { implicit s =>
+  fixture.test("throwing error in Cancelable on cancel all") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Cancelable(() => throw dummy)
 
@@ -385,7 +385,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("throwing multiple errors in Cancelables on cancel all") { implicit s =>
+  fixture.test("throwing multiple errors in Cancelables on cancel all") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val task1 = Cancelable(() => throw dummy1)
     val dummy2 = DummyException("dummy2")
@@ -409,7 +409,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     }
   }
 
-  test("throwing error in Cancelable after cancel") { implicit s =>
+  fixture.test("throwing error in Cancelable after cancel") { implicit s =>
     val c = TaskConnection()
     c.cancel.runAsyncAndForget; s.tick()
 

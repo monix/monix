@@ -17,10 +17,10 @@
 
 package monix.execution.cancelables
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.TestUtils
 
-object ChainedCancelableJVMSuite extends SimpleTestSuite with TestUtils {
+class ChainedCancelableJVMSuite extends BaseTestSuite with TestUtils {
   test("chain strong reference") {
     val source = ChainedCancelable()
     val child = ChainedCancelable()

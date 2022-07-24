@@ -17,13 +17,13 @@
 
 package monix.catnap
 import cats.effect.IO
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.schedulers.ReferenceSchedulerSuite.DummyScheduler
 
 import scala.concurrent.duration._
 import scala.util.Success
 
-class ReferenceSchedulerEffectSuite extends SimpleTestSuite {
+class ReferenceSchedulerEffectSuite extends BaseTestSuite {
   test("clock.monotonic") {
     val s = new DummyScheduler
     val clock = SchedulerEffect.clock[IO](s)

@@ -26,7 +26,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 
-object GroupBySuite extends BaseOperatorSuite {
+class GroupBySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable
       .range(0L, sourceCount.toLong)
@@ -57,7 +57,7 @@ object GroupBySuite extends BaseOperatorSuite {
     Sample(o, 0, 0, Zero, Zero)
   }
 
-  test("on complete the key should get recycled") { implicit s =>
+  fixture.test("on complete the key should get recycled") { implicit s =>
     var received = 0
     var wasCompleted = 0
     var fallbackTick = 0
@@ -71,8 +71,10 @@ object GroupBySuite extends BaseOperatorSuite {
     val ch = PublishSubject[Int]()
     val obs = ch
       .groupBy(_ % 2)
-      .mergeMap(_.timeoutOnSlowUpstream(10.seconds)
-        .onErrorFallbackTo(fallbackObservable))
+      .mergeMap(
+        _.timeoutOnSlowUpstream(10.seconds)
+          .onErrorFallbackTo(fallbackObservable)
+      )
 
     obs.unsafeSubscribeFn(new Observer[Int] {
       def onNext(elem: Int): Future[Ack] =
@@ -109,7 +111,7 @@ object GroupBySuite extends BaseOperatorSuite {
     assertEquals(fallbackTick, 3)
   }
 
-  test("on error groups should also error") { implicit s =>
+  fixture.test("on error groups should also error") { implicit s =>
     var groupsErrored = 0
 
     Observable(1, 2, 3)

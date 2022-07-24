@@ -17,17 +17,11 @@
 
 package monix.reactive.subjects
 
-import minitest.TestSuite
-import monix.execution.schedulers.TestScheduler
+import monix.execution.BaseTestSuite
 
-object VarSubjectSuite extends TestSuite[TestScheduler] {
+class VarSubjectSuite extends BaseTestSuite {
 
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
-
-  test("initial value is emitted on subscribe") { implicit s =>
+  fixture.test("initial value is emitted on subscribe") { implicit s =>
     val var0 = Var(0)
     var emitted: Option[Int] = None
 
@@ -42,7 +36,7 @@ object VarSubjectSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("new value is emitted on update") { implicit s =>
+  fixture.test("new value is emitted on update") { implicit s =>
     val var0 = Var(0)
     var emitted: Option[Int] = None
 

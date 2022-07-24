@@ -19,14 +19,14 @@ package monix.reactive.observers
 
 import java.io.{ OutputStream, PrintStream }
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observer
 import monix.execution.exceptions.DummyException
 import monix.execution.atomic.AtomicInt
 
-object DumpObserverSuite extends SimpleTestSuite {
+class DumpObserverSuite extends BaseTestSuite {
   def dummyOut(count: AtomicInt = null) = {
     val out = new OutputStream { def write(b: Int) = () }
     new PrintStream(out) {

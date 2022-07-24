@@ -17,25 +17,19 @@
 
 package monix.reactive.observers
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.eval.Coeval
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.AtomicLong
 import monix.execution.internal.{ Platform, RunnableAction }
-import monix.execution.schedulers.TestScheduler
 import monix.execution.{ Ack, Scheduler }
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.ClearBufferAndSignal
 import monix.execution.exceptions.DummyException
 
 import scala.concurrent.{ Future, Promise }
-
-object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
-
+object OverflowStrategyClearBufferAndSignalSuite {
   def buildNewWithSignal(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
 
     BufferedSubscriber(Subscriber(underlying, s), ClearBufferAndSignal(bufferSize, nr => Coeval(Some(nr.toInt))))
@@ -48,8 +42,12 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
       ClearBufferAndSignal(bufferSize, nr => Coeval { log.set(nr); None })
     )
   }
+}
 
-  test("should not lose events, test 1") { implicit s =>
+class OverflowStrategyClearBufferAndSignalSuite extends BaseTestSuite {
+  import OverflowStrategyClearBufferAndSignalSuite._
+
+  fixture.test("should not lose events, test 1") { implicit s =>
     var number = 0
     var wasCompleted = false
 
@@ -78,7 +76,7 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     assert(wasCompleted)
   }
 
-  test("should not lose events, test 2") { implicit s =>
+  fixture.test("should not lose events, test 2") { implicit s =>
     var number = 0
     var completed = false
 
@@ -114,7 +112,7 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     assertEquals(number, 10000)
   }
 
-  test("should drop old events when over capacity and signal") { implicit s =>
+  fixture.test("should drop old events when over capacity and signal") { implicit s =>
     var received = 0
     var wasCompleted = false
     val promise = Promise[Ack]()
@@ -153,7 +151,7 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     assert(wasCompleted, "wasCompleted should be true")
   }
 
-  test("should drop old events when over capacity and log") { implicit s =>
+  fixture.test("should drop old events when over capacity and log") { implicit s =>
     var received = 0
     var wasCompleted = false
     val promise = Promise[Ack]()
@@ -187,9 +185,9 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
 
     if (Platform.isJVM) {
       assertEquals(received, 28 + (2000 to 2004).sum)
-      assertEquals(log.get(), 2000)
+      assertEquals(log.get(), 2000L)
     } else {
-      assertEquals(log.get(), 2002)
+      assertEquals(log.get(), 2002L)
       assertEquals(received, 28 + (2002 to 2004).sum)
     }
 
@@ -197,7 +195,7 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     assert(wasCompleted, "wasCompleted should be true")
   }
 
-  test("should send onError when empty") { implicit s =>
+  fixture.test("should send onError when empty") { implicit s =>
     var errorThrown: Throwable = null
     val buffer = buildNewWithSignal(
       5,
@@ -219,7 +217,7 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     assertEquals(r, Stop)
   }
 
-  test("should send onError when in flight") { implicit s =>
+  fixture.test("should send onError when in flight") { implicit s =>
     var errorThrown: Throwable = null
     val buffer = buildNewWithSignal(
       5,
@@ -239,7 +237,7 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  test("should send onError when at capacity") { implicit s =>
+  fixture.test("should send onError when at capacity") { implicit s =>
     var errorThrown: Throwable = null
     val promise = Promise[Ack]()
 
@@ -263,7 +261,7 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  test("should do onComplete only after all the queue was drained") { implicit s =>
+  fixture.test("should do onComplete only after all the queue was drained") { implicit s =>
     var sum = 0L
     var wasCompleted = false
     val startConsuming = Promise[Continue.type]()
@@ -289,7 +287,7 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     assert(sum == (0 until 9999).sum)
   }
 
-  test("should do onComplete only after all the queue was drained, test2") { implicit s =>
+  fixture.test("should do onComplete only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     var wasCompleted = false
 
@@ -313,7 +311,7 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     assert(sum == (0 until 9999).sum)
   }
 
-  test("should do onError only after the queue was drained") { implicit s =>
+  fixture.test("should do onError only after the queue was drained") { implicit s =>
     var sum = 0L
     var errorThrown: Throwable = null
     val startConsuming = Promise[Continue.type]()
@@ -339,7 +337,7 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
-  test("should do onError only after all the queue was drained, test2") { implicit s =>
+  fixture.test("should do onError only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     var errorThrown: Throwable = null
 
@@ -363,7 +361,7 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
     assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
-  test("should do synchronous execution in batches") { implicit s =>
+  fixture.test("should do synchronous execution in batches") { implicit s =>
     var received = 0L
     var wasCompleted = false
 
@@ -381,7 +379,7 @@ object OverflowStrategyClearBufferAndSignalSuite extends TestSuite[TestScheduler
 
     for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i)
     buffer.onComplete()
-    assertEquals(received, 0)
+    assertEquals(received, 0L)
 
     s.tickOne()
     assertEquals(received, Platform.recommendedBatchSize.toLong)

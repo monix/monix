@@ -17,9 +17,9 @@
 
 package monix.execution.internal
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 
-object MathSuite extends SimpleTestSuite {
+class MathSuite extends BaseTestSuite {
   test("roundToPowerOf2(int)") {
     assertEquals(math.roundToPowerOf2(1), 1)
     assertEquals(math.roundToPowerOf2(2), 2)
@@ -32,13 +32,13 @@ object MathSuite extends SimpleTestSuite {
   }
 
   test("roundToPowerOf2(long)") {
-    assertEquals(math.roundToPowerOf2(1L), 1)
-    assertEquals(math.roundToPowerOf2(2L), 2)
-    assertEquals(math.roundToPowerOf2(3L), 4)
-    assertEquals(math.roundToPowerOf2(4L), 4)
-    assertEquals(math.roundToPowerOf2(5L), 4)
-    assertEquals(math.roundToPowerOf2(1023L), 1024)
-    assertEquals(math.roundToPowerOf2(1200L), 1024)
+    assertEquals(math.roundToPowerOf2(1L), 1L)
+    assertEquals(math.roundToPowerOf2(2L), 2L)
+    assertEquals(math.roundToPowerOf2(3L), 4L)
+    assertEquals(math.roundToPowerOf2(4L), 4L)
+    assertEquals(math.roundToPowerOf2(5L), 4L)
+    assertEquals(math.roundToPowerOf2(1023L), 1024L)
+    assertEquals(math.roundToPowerOf2(1200L), 1024L)
     assertEquals(math.roundToPowerOf2(Int.MaxValue.toLong), 1L << 31)
   }
 
@@ -54,13 +54,13 @@ object MathSuite extends SimpleTestSuite {
   }
 
   test("nextPowerOf2(long)") {
-    assertEquals(math.nextPowerOf2(1L), 1)
-    assertEquals(math.nextPowerOf2(2L), 2)
-    assertEquals(math.nextPowerOf2(3L), 4)
-    assertEquals(math.nextPowerOf2(4L), 4)
-    assertEquals(math.nextPowerOf2(5L), 8)
-    assertEquals(math.nextPowerOf2(1023L), 1024)
-    assertEquals(math.nextPowerOf2(1200L), 2048)
+    assertEquals(math.nextPowerOf2(1L), 1L)
+    assertEquals(math.nextPowerOf2(2L), 2L)
+    assertEquals(math.nextPowerOf2(3L), 4L)
+    assertEquals(math.nextPowerOf2(4L), 4L)
+    assertEquals(math.nextPowerOf2(5L), 8L)
+    assertEquals(math.nextPowerOf2(1023L), 1024L)
+    assertEquals(math.nextPowerOf2(1200L), 2048L)
     assertEquals(math.nextPowerOf2(Int.MaxValue.toLong), 1L << 31)
   }
 }

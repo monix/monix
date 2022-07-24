@@ -18,17 +18,17 @@
 package monix.reactive
 
 import cats.Eq
-import minitest.TestSuite
-import minitest.laws.Checkers
 import monix.eval.Task
-import monix.execution.Scheduler
+import monix.execution.{ Scheduler, TestSuite }
 import monix.execution.schedulers.SchedulerService
+import munit.Location
 
+import scala.concurrent.ExecutionContext.global
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Future }
 import scala.util.{ Failure, Success }
 
-trait BaseConcurrencySuite extends TestSuite[SchedulerService] with Checkers with ArbitraryInstancesBase {
+trait BaseConcurrencySuite extends TestSuite[SchedulerService] with ArbitraryInstancesBase {
 
   def setup(): SchedulerService = {
     Scheduler.computation(parallelism = 4, name = "concurrency-tests", daemonic = true)

@@ -17,21 +17,17 @@
 
 package monix.reactive.consumers
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.{ Consumer, Observable }
 
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object CompleteConsumerSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class CompleteConsumerSuite extends BaseTestSuite {
 
-  test("should run to completion") { implicit s =>
+  fixture.test("should run to completion") { implicit s =>
     val obs = Observable(1) ++ Observable.now(2).delayExecution(3.seconds)
     val f = obs.consumeWith(Consumer.complete).runToFuture
 
@@ -39,7 +35,7 @@ object CompleteConsumerSuite extends TestSuite[TestScheduler] {
     s.tick(3.seconds); assertEquals(f.value, Some(Success(())))
   }
 
-  test("should trigger error") { implicit s =>
+  fixture.test("should trigger error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable.raiseError(ex).consumeWith(Consumer.complete).runToFuture
     s.tick(); assertEquals(f.value, Some(Failure(ex)))

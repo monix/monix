@@ -17,23 +17,19 @@
 
 package monix.reactive.internal.builders
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.FutureUtils.extensions._
 import monix.execution.internal.Platform
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.observers.Subscriber
 import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object RangeObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should not have pending tasks left")
-  }
+class RangeObservableSuite extends BaseTestSuite {
 
-  test("should do increments and synchronous observers") { implicit s =>
+  fixture.test("should do increments and synchronous observers") { implicit s =>
     var wasCompleted = false
     var sum = 0L
 
@@ -49,11 +45,11 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable): Unit = ()
       })
 
-    assertEquals(sum, 45)
+    assertEquals(sum, 45L)
     assertEquals(wasCompleted, true)
   }
 
-  test("should do decrements and synchronous observers") { implicit s =>
+  fixture.test("should do decrements and synchronous observers") { implicit s =>
     var wasCompleted = false
     var sum = 0L
 
@@ -69,11 +65,11 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable): Unit = ()
       })
 
-    assertEquals(sum, 45)
+    assertEquals(sum, 45L)
     assertEquals(wasCompleted, true)
   }
 
-  test("should do back-pressure") { implicit s =>
+  fixture.test("should do back-pressure") { implicit s =>
     var wasCompleted = false
     var received = 0L
     var sum = 0L
@@ -93,15 +89,15 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable): Unit = ()
       })
 
-    assertEquals(sum, 0); assertEquals(received, 1)
-    s.tick(1.second); assertEquals(sum, 1); assertEquals(received, 2)
-    s.tick(1.second); assertEquals(sum, 3); assertEquals(received, 3)
-    s.tick(1.second); assertEquals(sum, 6); assertEquals(received, 4)
-    s.tick(1.second); assertEquals(sum, 10); assertEquals(received, 4)
+    assertEquals(sum, 0L); assertEquals(received, 1L)
+    s.tick(1.second); assertEquals(sum, 1L); assertEquals(received, 2L)
+    s.tick(1.second); assertEquals(sum, 3L); assertEquals(received, 3L)
+    s.tick(1.second); assertEquals(sum, 6L); assertEquals(received, 4L)
+    s.tick(1.second); assertEquals(sum, 10L); assertEquals(received, 4L)
     assert(wasCompleted)
   }
 
-  test("should throw if step is zero") { implicit s =>
+  fixture.test("should throw if step is zero") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable.range(0L, 10L, 0L)
       ()
@@ -109,7 +105,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     ()
   }
 
-  test("should do synchronous execution in batches") { implicit s =>
+  fixture.test("should do synchronous execution in batches") { implicit s =>
     val batchSize = s.executionModel.recommendedBatchSize
     var received = 0
 
@@ -123,7 +119,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("should be cancelable") { implicit s =>
+  fixture.test("should be cancelable") { implicit s =>
     var received = 0
     var wasCompleted = 0
     val source = Observable.range(0L, Platform.recommendedBatchSize.toLong * 10)
@@ -147,7 +143,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 0)
   }
 
-  test("should complete when Long.MaxValue is reached") { implicit s =>
+  fixture.test("should complete when Long.MaxValue is reached") { implicit s =>
     var wasCompleted = false
     var elements = List.empty[Long]
 
@@ -173,7 +169,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, true)
   }
 
-  test("should complete when Long.MinValue is reached") { implicit s =>
+  fixture.test("should complete when Long.MinValue is reached") { implicit s =>
     var wasCompleted = false
     var elements = List.empty[Long]
 

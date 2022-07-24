@@ -25,15 +25,15 @@ import monix.execution.exceptions.DummyException
 import monix.tail.batches.{ Batch, BatchCursor }
 import scala.util.Failure
 
-object IterantFoldLeftSuite extends BaseTestSuite {
-  test("Iterant[Task].toListL (foldLeftL)") { implicit s =>
+class IterantFoldLeftSuite extends BaseTestSuite {
+  fixture.test("Iterant[Task].toListL (foldLeftL)") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val result = arbitraryListToIterant[Task, Int](list, idx, allowErrors = false).toListL
       result <-> Task.now(list)
     }
   }
 
-  test("Iterant[Task].toListL (foldLeftL, async)") { implicit s =>
+  fixture.test("Iterant[Task].toListL (foldLeftL, async)") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val result = arbitraryListToIterant[Task, Int](list, idx, allowErrors = false)
         .mapEval(x => Task.evalAsync(x))
@@ -43,7 +43,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Task].foldLeftL ends in error") { implicit s =>
+  fixture.test("Iterant[Task].foldLeftL ends in error") { implicit s =>
     val b = Iterant[Task]
     val dummy = DummyException("dummy")
     var effect = 0
@@ -61,7 +61,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assertEquals(effect, 2)
   }
 
-  test("Iterant[Task].foldLeftL protects against user code in the seed") { implicit s =>
+  fixture.test("Iterant[Task].foldLeftL protects against user code in the seed") { implicit s =>
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Task.evalAsync { wasCanceled = true }
@@ -72,7 +72,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assert(!wasCanceled, "wasCanceled should be false")
   }
 
-  test("Iterant[Task].foldLeftL protects against user code in function f") { implicit s =>
+  fixture.test("Iterant[Task].foldLeftL protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Task.evalAsync { wasCanceled = true }
@@ -83,7 +83,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assert(wasCanceled, "wasCanceled should be true")
   }
 
-  test("Iterant[Task].foldLeftL (async) protects against user code in function f") { implicit s =>
+  fixture.test("Iterant[Task].foldLeftL (async) protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
     val c = Task.evalAsync { effect += 1 }
@@ -100,7 +100,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Iterant[Task].foldLeftL should protect against broken batches") { implicit s =>
+  fixture.test("Iterant[Task].foldLeftL should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionCursor(dummy)
@@ -110,7 +110,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Task].foldLeftL should protect against broken generators") { implicit s =>
+  fixture.test("Iterant[Task].foldLeftL should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val generator = new ThrowExceptionBatch(dummy)
@@ -120,21 +120,21 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Coeval].toList (Comonad)") { implicit s =>
+  fixture.test("Iterant[Coeval].toList (Comonad)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Coeval].fromIterable(list).toListL.value()
       result == list
     }
   }
 
-  test("Iterant[Coeval].foldLeft (Comonad)") { implicit s =>
+  fixture.test("Iterant[Coeval].foldLeft (Comonad)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Coeval].fromIterable(list).foldLeftL(0)(_ + _).value()
       result == list.sum
     }
   }
 
-  test("Iterant[Coeval].toListL (foldLeftL, lazy)") { implicit s =>
+  fixture.test("Iterant[Coeval].toListL (foldLeftL, lazy)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Coeval]
         .fromIterable(list)
@@ -145,7 +145,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Coeval].foldLeftL ends in error") { implicit s =>
+  fixture.test("Iterant[Coeval].foldLeftL ends in error") { implicit s =>
     val b = Iterant[Coeval]
     val dummy = DummyException("dummy")
     var effect = 0
@@ -156,7 +156,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assertEquals(effect, 2)
   }
 
-  test("Iterant[Coeval].foldLeftL protects against user code in the seed") { implicit s =>
+  fixture.test("Iterant[Coeval].foldLeftL protects against user code in the seed") { implicit s =>
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
@@ -166,7 +166,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assert(!wasCanceled, "wasCanceled should be false")
   }
 
-  test("Iterant[Coeval].foldLeftL protects against user code in function f") { implicit s =>
+  fixture.test("Iterant[Coeval].foldLeftL protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
@@ -176,7 +176,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assert(wasCanceled, "wasCanceled should be true")
   }
 
-  test("Iterant[Coeval].foldLeftL (batched) protects against user code in function f") { implicit s =>
+  fixture.test("Iterant[Coeval].foldLeftL (batched) protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
     var wasCanceled = false
     val c = Coeval { wasCanceled = true }
@@ -186,7 +186,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assert(wasCanceled, "wasCanceled should be true")
   }
 
-  test("Iterant[Coeval].foldLeftL (async) protects against user code in function f") { implicit s =>
+  fixture.test("Iterant[Coeval].foldLeftL (async) protects against user code in function f") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
     val c = Coeval { effect += 1 }
@@ -203,7 +203,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Iterant[Coeval].foldLeftL should protect against broken batches") { implicit s =>
+  fixture.test("Iterant[Coeval].foldLeftL should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor: BatchCursor[Int] = new ThrowExceptionCursor(dummy)
@@ -213,7 +213,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Coeval].foldLeftL should protect against broken generators") { implicit s =>
+  fixture.test("Iterant[Coeval].foldLeftL should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val generator: Batch[Int] = new ThrowExceptionBatch(dummy)
@@ -223,26 +223,26 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Coeval, Int].foldL is consistent with foldLeftL") { implicit s =>
+  fixture.test("Iterant[Coeval, Int].foldL is consistent with foldLeftL") { implicit s =>
     check1 { (stream: Iterant[Coeval, Int]) =>
       stream.foldL <-> stream.foldLeftL(0)(_ + _)
     }
   }
 
-  test("Iterant[Coeval, Int].sumL is consistent with foldLeftL") { implicit s =>
+  fixture.test("Iterant[Coeval, Int].sumL is consistent with foldLeftL") { implicit s =>
     check1 { (stream: Iterant[Coeval, Int]) =>
       stream.sumL <-> stream.foldLeftL(0)(_ + _)
     }
   }
 
-  test("Iterant.countL consistent with List.length") { implicit s =>
+  fixture.test("Iterant.countL consistent with List.length") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val i = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
       i.countL <-> Coeval(list.length.toLong)
     }
   }
 
-  test("earlyStop gets called for failing `rest` on Next node") { implicit s =>
+  fixture.test("earlyStop gets called for failing `rest` on Next node") { implicit s =>
     var effect = 0
 
     def stop(i: Int): Coeval[Unit] = Coeval { effect += i }
@@ -255,7 +255,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assertEquals(effect, 6)
   }
 
-  test("earlyStop doesn't get called for Last node") { implicit s =>
+  fixture.test("earlyStop doesn't get called for Last node") { implicit s =>
     var effect = 0
 
     def stop(i: Int): Coeval[Unit] = Coeval { effect += i }
@@ -268,7 +268,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assertEquals(effect, 3)
   }
 
-  test("foldLeftL handles Scope's release before the rest of the stream") { implicit s =>
+  fixture.test("foldLeftL handles Scope's release before the rest of the stream") { implicit s =>
     val triggered = Atomic(false)
     val fail = DummyException("fail")
 
@@ -291,7 +291,7 @@ object IterantFoldLeftSuite extends BaseTestSuite {
     assertEquals(stream.toListL.value(), List(1))
   }
 
-  test("foldLeftL handles Scope's release after use is finished") { implicit s =>
+  fixture.test("foldLeftL handles Scope's release after use is finished") { implicit s =>
     val triggered = Atomic(false)
     val fail = DummyException("fail")
 

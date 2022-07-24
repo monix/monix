@@ -23,7 +23,7 @@ import monix.reactive.{ Observable, Observer }
 
 import scala.concurrent.duration._
 
-object IntersperseSuite extends BaseOperatorSuite {
+class IntersperseSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Option {
     val sample = Observable.range(0L, sourceCount.toLong).intersperse(1L)
     Sample(sample, count(sourceCount), sum(sourceCount).toLong, 0.seconds, 0.seconds)
@@ -44,7 +44,7 @@ object IntersperseSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
-  test("start is the first emitted element") { implicit s =>
+  fixture.test("start is the first emitted element") { implicit s =>
     val obs = PublishSubject[Int]()
 
     var received = Vector.empty[Int]
@@ -69,7 +69,7 @@ object IntersperseSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("end is the last emitted element") { implicit s =>
+  fixture.test("end is the last emitted element") { implicit s =>
     val obs = PublishSubject[Int]()
 
     var received = Vector.empty[Int]
@@ -94,7 +94,7 @@ object IntersperseSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("separator is paired with emitted elements") { implicit s =>
+  fixture.test("separator is paired with emitted elements") { implicit s =>
     val obs = PublishSubject[Int]()
 
     var received = Vector.empty[Int]
@@ -123,7 +123,7 @@ object IntersperseSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("do not emit if upstream emits nothing") { implicit s =>
+  fixture.test("do not emit if upstream emits nothing") { implicit s =>
     val obs = PublishSubject[Int]()
 
     var received = Vector.empty[Int]
@@ -142,7 +142,7 @@ object IntersperseSuite extends BaseOperatorSuite {
       })
 
     obs.onComplete(); s.tick()
-    assertEquals(received, List())
+    assertEquals(received, Vector())
     assert(wasCompleted)
   }
 }

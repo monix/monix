@@ -21,7 +21,7 @@ import monix.execution.Ack
 import monix.execution.Scheduler.Implicits.global
 import monix.execution.Ack.Continue
 import monix.reactive.Observer
-import monix.reactiveTests.SubscriberWhiteBoxAsyncTest.Value
+import monix.reactiveTests.SubscriberWhiteBoxtestAsync.Value
 import org.reactivestreams.tck.SubscriberWhiteboxVerification.WhiteboxSubscriberProbe
 import org.reactivestreams.tck.SubscriberWhiteboxVerification
 import org.reactivestreams.{ Subscriber, Subscription }
@@ -30,8 +30,7 @@ import org.scalatestplus.testng.TestNGSuiteLike
 import scala.concurrent.Future
 import scala.util.Random
 
-class SubscriberWhiteBoxAsyncTest extends SubscriberWhiteboxVerification[Value](env())
-  with TestNGSuiteLike {
+class SubscriberWhiteBoxtestAsync extends SubscriberWhiteboxVerification[Value](env()) with TestNGSuiteLike {
 
   def createSubscriber(probe: WhiteboxSubscriberProbe[Value]): Subscriber[Value] = {
     val underlying = Observer.toReactiveSubscriber(new Observer[Value] {
@@ -77,6 +76,6 @@ class SubscriberWhiteBoxAsyncTest extends SubscriberWhiteboxVerification[Value](
   }
 }
 
-object SubscriberWhiteBoxAsyncTest {
+object SubscriberWhiteBoxtestAsync {
   case class Value(nr: Int)
 }

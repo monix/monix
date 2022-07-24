@@ -22,7 +22,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration.Duration.Zero
 import scala.util.Success
 
-object CacheSuite extends BaseOperatorSuite {
+class CacheSuite extends BaseOperatorSuite {
   def createObservable(c: Int) = Some {
     val o = Observable.range(0, c.toLong).cache
     Sample(o, c, (c * (c - 1) / 2).toLong, Zero, Zero)
@@ -32,7 +32,7 @@ object CacheSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
   def cancelableObservables() = Seq.empty
 
-  test("should work with limited capacity") { implicit s =>
+  fixture.test("should work with limited capacity") { implicit s =>
     val observable = Observable(1, 2, 3, 4, 5, 6).cache(2)
     val f = observable.sumL.runToFuture
 
@@ -40,7 +40,7 @@ object CacheSuite extends BaseOperatorSuite {
     assertEquals(f.value, Some(Success(11)))
   }
 
-  test("should require capacity > 0") { implicit s =>
+  fixture.test("should require capacity > 0") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable.empty[Int].cache(0)
       ()

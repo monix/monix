@@ -22,8 +22,8 @@ import cats.laws.discipline._
 import monix.execution.internal.Platform
 import scala.util.{ Failure, Success }
 
-object TaskMapBothSuite extends BaseTestSuite {
-  test("if both tasks are synchronous, then mapBoth forks") { implicit s =>
+class TaskMapBothSuite extends BaseTestSuite {
+  fixture.test("if both tasks are synchronous, then mapBoth forks") { implicit s =>
     val ta = Task.eval(1)
     val tb = Task.eval(2)
 
@@ -34,7 +34,7 @@ object TaskMapBothSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(3)))
   }
 
-  test("sum two async tasks") { implicit s =>
+  fixture.test("sum two async tasks") { implicit s =>
     val ta = Task.evalAsync(1)
     val tb = Task.evalAsync(2)
 
@@ -43,7 +43,7 @@ object TaskMapBothSuite extends BaseTestSuite {
     assertEquals(f.value.get, Success(3))
   }
 
-  test("sum two synchronous tasks") { implicit s =>
+  fixture.test("sum two synchronous tasks") { implicit s =>
     val ta = Task.eval(1)
     val tb = Task.eval(2)
 
@@ -52,7 +52,7 @@ object TaskMapBothSuite extends BaseTestSuite {
     assertEquals(f.value.get, Success(3))
   }
 
-  test("should be stack-safe for synchronous tasks") { implicit s =>
+  fixture.test("should be stack-safe for synchronous tasks") { implicit s =>
     val count = 10000
     val tasks = (0 until count).map(x => Task.eval(x))
     val init = Task.eval(0L)
@@ -61,10 +61,10 @@ object TaskMapBothSuite extends BaseTestSuite {
     val result = sum.runToFuture
 
     s.tick()
-    assertEquals(result.value.get, Success(count * (count - 1) / 2))
+    assertEquals(result.value.get, Success(count * (count - 1L) / 2))
   }
 
-  test("should be stack-safe for asynchronous tasks") { implicit s =>
+  fixture.test("should be stack-safe for asynchronous tasks") { implicit s =>
     val count = 10000
     val tasks = (0 until count).map(x => Task.evalAsync(x))
     val init = Task.eval(0L)
@@ -73,10 +73,10 @@ object TaskMapBothSuite extends BaseTestSuite {
     val result = sum.runToFuture
 
     s.tick()
-    assertEquals(result.value.get, Success(count * (count - 1) / 2))
+    assertEquals(result.value.get, Success(count * (count - 1L) / 2))
   }
 
-  test("should have a stack safe cancelable") { implicit sc =>
+  fixture.test("should have a stack safe cancelable") { implicit sc =>
     val count = if (Platform.isJVM) 10000 else 1000
 
     val tasks = (0 until count).map(_ => Task.never[Int])
@@ -91,21 +91,21 @@ object TaskMapBothSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("sum random synchronous tasks") { implicit s =>
+  fixture.test("sum random synchronous tasks") { implicit s =>
     check1 { (numbers: List[Int]) =>
       val sum = numbers.foldLeft(Task.now(0))((acc, t) => Task.mapBoth(acc, Task.eval(t))(_ + _))
       sum <-> Task.now(numbers.sum)
     }
   }
 
-  test("sum random asynchronous tasks") { implicit s =>
+  fixture.test("sum random asynchronous tasks") { implicit s =>
     check1 { (numbers: List[Int]) =>
       val sum = numbers.foldLeft(Task.evalAsync(0))((acc, t) => Task.mapBoth(acc, Task.evalAsync(t))(_ + _))
       sum <-> Task.evalAsync(numbers.sum)
     }
   }
 
-  test("both task can fail with error") { implicit s =>
+  fixture.test("both task can fail with error") { implicit s =>
     val err1 = new RuntimeException("Error 1")
     val t1 = Task.defer(Task.raiseError[Int](err1)).executeAsync
     val err2 = new RuntimeException("Error 2")

@@ -33,119 +33,119 @@ abstract class BatchSuite[A: ClassTag](
 
   def fromList(list: List[A]): Batch
 
-  test("batch.toList") { _ =>
+  test("batch.toList") {
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.toList == list
     }
   }
 
-  test("batch.toArray") { _ =>
+  test("batch.toArray") {
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.toArray.toList == list
     }
   }
 
-  test("batch.drop(2).toArray") { _ =>
+  test("batch.drop(2).toArray") {
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.drop(2).toArray.toList == list.drop(2)
     }
   }
 
-  test("batch.take(2).toArray") { _ =>
+  test("batch.take(2).toArray") {
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.take(2).toArray.toList == list.take(2)
     }
   }
 
-  test("batch.drop(2).toIterable") { _ =>
+  test("batch.drop(2).toIterable") {
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.drop(2).toIterable.toList == list.drop(2)
     }
   }
 
-  test("batch.take(2).toIterable") { _ =>
+  test("batch.take(2).toIterable") {
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.take(2).toIterable.toList == list.take(2)
     }
   }
 
-  test("batch.drop(5).toList") { _ =>
+  test("batch.drop(5).toList") {
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.drop(5).toList == list.drop(5)
     }
   }
 
-  test("batch.drop(1000).toList") { _ =>
+  test("batch.drop(1000).toList") {
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.drop(1000).toList == list.drop(1000)
     }
   }
 
-  test("batch.take(5).toList") { _ =>
+  test("batch.take(5).toList") {
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.drop(5).toList == list.drop(5)
     }
   }
 
-  test("batch.take(1000).toList") { _ =>
+  test("batch.take(1000).toList") {
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.drop(1000).toList == list.drop(1000)
     }
   }
 
-  test("batch.take(5).drop(5).toList") { _ =>
+  test("batch.take(5).drop(5).toList") {
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.take(5).drop(5).toList == Nil
     }
   }
 
-  test("batch.drop(5).take(5).toList") { _ =>
+  test("batch.drop(5).take(5).toList") {
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.drop(5).take(5).toList == list.slice(5, 10)
     }
   }
 
-  test("batch.slice(5,5).toList") { _ =>
+  test("batch.slice(5,5).toList") {
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.slice(5, 5).toList == list.slice(5, 5)
     }
   }
 
-  test("batch.slice(5,10).toList") { _ =>
+  test("batch.slice(5,10).toList") {
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.slice(5, 10).toList == list.slice(5, 10)
     }
   }
 
-  test("batch.map") { _ =>
+  test("batch.map") {
     check2 { (list: List[A], f: A => A) =>
       val batch = fromList(list)
       batch.map(f).toList == list.map(f)
     }
   }
 
-  test("batch.filter") { _ =>
+  test("batch.filter") {
     check2 { (list: List[A], f: A => Boolean) =>
       val batch = fromList(list)
       batch.filter(f).toList == list.filter(f)
     }
   }
 
-  test("batch.collect") { _ =>
+  test("batch.collect") {
     check3 { (list: List[A], p: A => Boolean, f: A => A) =>
       val pf: PartialFunction[A, A] = { case x if p(x) => f(x) }
       val batch = fromList(list)
@@ -153,28 +153,28 @@ abstract class BatchSuite[A: ClassTag](
     }
   }
 
-  test("batch.toIterable") { _ =>
+  test("batch.toIterable") {
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.toIterable.toList == list
     }
   }
 
-  test("Batch.fromArray") { _ =>
+  test("Batch.fromArray") {
     check1 { (array: Array[A]) =>
       Batch.fromArray(array).toArray.toSeq == array.toSeq
     }
   }
 }
 
-object ArrayBatchSuite extends BatchSuite[Int] {
+class ArrayBatchSuite extends BatchSuite[Int] {
   type Batch = ArrayBatch[Int]
 
   override def fromList(list: List[Int]): Batch =
     Batch.fromArray(list.toArray)
 }
 
-object ArraySliceBatchSuite extends BatchSuite[Int] {
+class ArraySliceBatchSuite extends BatchSuite[Int] {
   type Batch = ArrayBatch[Int]
 
   override def fromList(list: List[Int]): Batch = {
@@ -184,56 +184,56 @@ object ArraySliceBatchSuite extends BatchSuite[Int] {
   }
 }
 
-object BatchIterableSuite extends BatchSuite[Int] {
+class BatchIterableSuite extends BatchSuite[Int] {
   type Batch = batches.Batch[Int]
 
   override def fromList(list: List[Int]): Batch =
     Batch.fromIterable(list, 4)
 }
 
-object SeqBatchSuite extends BatchSuite[Int] {
+class SeqBatchSuite extends BatchSuite[Int] {
   type Batch = SeqBatch[Int]
 
   override def fromList(list: List[Int]): Batch =
     new SeqBatch[Int](list, 4)
 }
 
-object BooleansBatchSuite extends BatchSuite[Boolean] {
+class BooleansBatchSuite extends BatchSuite[Boolean] {
   type Batch = BooleansBatch
 
   override def fromList(list: List[Boolean]): BooleansBatch =
     Batch.booleans(list.toArray)
 }
 
-object BytesBatchSuite extends BatchSuite[Byte] {
+class BytesBatchSuite extends BatchSuite[Byte] {
   type Batch = BytesBatch
 
   override def fromList(list: List[Byte]): BytesBatch =
     Batch.bytes(list.toArray)
 }
 
-object CharsBatchSuite extends BatchSuite[Char] {
+class CharsBatchSuite extends BatchSuite[Char] {
   type Batch = CharsBatch
 
   override def fromList(list: List[Char]): CharsBatch =
     Batch.chars(list.toArray)
 }
 
-object IntegersBatchSuite extends BatchSuite[Int] {
+class IntegersBatchSuite extends BatchSuite[Int] {
   type Batch = IntegersBatch
 
   override def fromList(list: List[Int]): IntegersBatch =
     Batch.integers(list.toArray)
 }
 
-object LongsBatchSuite extends BatchSuite[Long] {
+class LongsBatchSuite extends BatchSuite[Long] {
   type Batch = LongsBatch
 
   override def fromList(list: List[Long]): LongsBatch =
     Batch.longs(list.toArray)
 }
 
-object DoublesBatchSuite extends BatchSuite[Double] {
+class DoublesBatchSuite extends BatchSuite[Double] {
   type Batch = DoublesBatch
 
   override def fromList(list: List[Double]): DoublesBatch =

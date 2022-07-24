@@ -19,33 +19,30 @@ package monix.catnap
 
 import cats.effect.{ ContextShift, IO }
 import cats.implicits._
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.internal.Platform
-import monix.execution.schedulers.TestScheduler
+
 import scala.concurrent.{ ExecutionContext, Promise }
 import scala.util.{ Random, Success }
 
-object SemaphoreSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(env: TestScheduler): Unit =
-    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
+class SemaphoreSuite extends BaseTestSuite {
 
   implicit def contextShift(implicit ec: ExecutionContext): ContextShift[IO] =
     IO.contextShift(ec)
 
-  test("simple greenLight") { implicit s =>
+  fixture.test("simple greenLight") { implicit s =>
     val semaphore = Semaphore.unsafe[IO](provisioned = 4)
     val future = semaphore.withPermit(IO.shift *> IO(100)).unsafeToFuture()
 
-    assertEquals(semaphore.available.unsafeRunSync(), 3)
+    assertEquals(semaphore.available.unsafeRunSync(), 3L)
     assert(!future.isCompleted, "!future.isCompleted")
 
     s.tick()
     assertEquals(future.value, Some(Success(100)))
-    assertEquals(semaphore.available.unsafeRunSync(), 4)
+    assertEquals(semaphore.available.unsafeRunSync(), 4L)
   }
 
-  test("should back-pressure when full") { implicit s =>
+  fixture.test("should back-pressure when full") { implicit s =>
     val semaphore = Semaphore.unsafe[IO](provisioned = 2)
 
     val p1 = Promise[Int]()
@@ -54,25 +51,25 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     val f2 = semaphore.withPermit(IO.fromFuture(IO.pure(p2.future))).unsafeToFuture()
 
     s.tick()
-    assertEquals(semaphore.available.unsafeRunSync(), 0)
+    assertEquals(semaphore.available.unsafeRunSync(), 0L)
 
     val f3 = semaphore.withPermit(IO(3)).unsafeToFuture()
 
     s.tick()
     assertEquals(f3.value, None)
-    assertEquals(semaphore.available.unsafeRunSync(), 0)
+    assertEquals(semaphore.available.unsafeRunSync(), 0L)
 
     p1.success(1); s.tick()
-    assertEquals(semaphore.available.unsafeRunSync(), 1)
+    assertEquals(semaphore.available.unsafeRunSync(), 1L)
     assertEquals(f1.value, Some(Success(1)))
     assertEquals(f3.value, Some(Success(3)))
 
     p2.success(2); s.tick()
     assertEquals(f2.value, Some(Success(2)))
-    assertEquals(semaphore.available.unsafeRunSync(), 2)
+    assertEquals(semaphore.available.unsafeRunSync(), 2L)
   }
 
-  testAsync("real async test of many futures") { _ =>
+  fixture.test("real async test of many futures") { _ =>
     // Executing Futures on the global scheduler!
     import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -89,7 +86,7 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("await for release of all active and pending permits") { implicit s =>
+  fixture.test("await for release of all active and pending permits") { implicit s =>
     val semaphore = Semaphore.unsafe[IO](provisioned = 2)
     val p1 = semaphore.acquire.unsafeToFuture()
     assertEquals(p1.value, Some(Success(())))
@@ -126,7 +123,7 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     assert(all3.isCompleted, "all3.isCompleted")
   }
 
-  test("acquire is cancelable") { implicit s =>
+  fixture.test("acquire is cancelable") { implicit s =>
     val semaphore = Semaphore.unsafe[IO](provisioned = 2)
 
     val p1 = semaphore.acquire.unsafeToFuture()
@@ -137,20 +134,20 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     val p3 = Promise[Unit]()
     val cancel = semaphore.acquire.unsafeRunCancelable { _ => p3.success(()); () }
     assert(!p3.isCompleted, "!p3.isCompleted")
-    assertEquals(semaphore.available.unsafeRunSync(), 0)
+    assertEquals(semaphore.available.unsafeRunSync(), 0L)
 
     cancel.unsafeRunSync()
     semaphore.release.unsafeToFuture(); s.tick()
-    assertEquals(semaphore.available.unsafeRunSync(), 1)
+    assertEquals(semaphore.available.unsafeRunSync(), 1L)
     semaphore.release.unsafeRunSync(); s.tick()
-    assertEquals(semaphore.available.unsafeRunSync(), 2)
+    assertEquals(semaphore.available.unsafeRunSync(), 2L)
 
     s.tick()
-    assertEquals(semaphore.available.unsafeRunSync(), 2)
+    assertEquals(semaphore.available.unsafeRunSync(), 2L)
     assert(!p3.isCompleted, "!p3.isCompleted")
   }
 
-  testAsync("withPermitN / awaitAvailable concurrent test") { _ =>
+  fixture.test("withPermitN / awaitAvailable concurrent test") { _ =>
     // Executing Futures on the global scheduler!
     import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -184,7 +181,7 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     task.unsafeToFuture()
   }
 
-  test("withPermitN has FIFO priority") { implicit s =>
+  fixture.test("withPermitN has FIFO priority") { implicit s =>
     val sem = Semaphore.unsafe[IO](provisioned = 0)
 
     val f1 = sem.withPermitN(3)(IO(1 + 1)).unsafeToFuture()
@@ -204,9 +201,9 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     assertEquals(f2.value, Some(Success(2)))
   }
 
-  test("withPermitN is cancelable (1)") { implicit s =>
+  fixture.test("withPermitN is cancelable (1)") { implicit s =>
     val sem = Semaphore.unsafe[IO](provisioned = 0)
-    assertEquals(sem.count.unsafeRunSync(), 0)
+    assertEquals(sem.count.unsafeRunSync(), 0L)
 
     val p1 = Promise[Int]()
     val cancel = sem.withPermitN(3)(IO(1 + 1)).unsafeRunCancelable { r => p1.complete(r.toTry); () }
@@ -214,10 +211,10 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
 
     assertEquals(p1.future.value, None)
     assertEquals(f2.value, None)
-    assertEquals(sem.count.unsafeRunSync(), -6)
+    assertEquals(sem.count.unsafeRunSync(), -6L)
 
     cancel.unsafeRunAsyncAndForget(); s.tick()
-    assertEquals(sem.count.unsafeRunSync(), -3)
+    assertEquals(sem.count.unsafeRunSync(), -3L)
 
     sem.releaseN(3).unsafeRunAsyncAndForget()
     s.tick()
@@ -226,22 +223,22 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
     assertEquals(f2.value, Some(Success(2)))
   }
 
-  test("withPermitN is cancelable (2)") { implicit s =>
+  fixture.test("withPermitN is cancelable (2)") { implicit s =>
     val sem = Semaphore.unsafe[IO](provisioned = 1)
 
     val p1 = Promise[Int]()
     val cancel = sem.withPermitN(3)(IO(1 + 1)).unsafeRunCancelable { r => p1.complete(r.toTry); () }
     val f2 = sem.withPermitN(3)(IO(1 + 1)).unsafeToFuture()
-    assertEquals(sem.count.unsafeRunSync(), -5)
+    assertEquals(sem.count.unsafeRunSync(), -5L)
 
     sem.releaseN(1).unsafeRunAsyncAndForget()
-    assertEquals(sem.count.unsafeRunSync(), -4)
+    assertEquals(sem.count.unsafeRunSync(), -4L)
 
     assertEquals(p1.future.value, None)
     assertEquals(f2.value, None)
 
     cancel.unsafeRunAsyncAndForget(); s.tick()
-    assertEquals(sem.count.unsafeRunSync(), -1)
+    assertEquals(sem.count.unsafeRunSync(), -1L)
 
     sem.releaseN(1).unsafeRunAsyncAndForget()
     s.tick()

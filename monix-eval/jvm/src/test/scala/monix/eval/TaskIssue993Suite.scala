@@ -17,17 +17,15 @@
 
 package monix.eval
 
-import minitest.SimpleTestSuite
 import monix.execution.{ ExecutionModel, Scheduler }
 import monix.execution.schedulers.SchedulerService
 import monix.execution.misc.Local
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
-/**
-  * [[https://github.com/monix/monix/pull/993]]
+/** [[https://github.com/monix/monix/pull/993]]
   */
-object TaskIssue993Suite extends SimpleTestSuite {
+class TaskIssue993Suite extends BaseTestSuite {
   def loop[A, S](self: Task[A], initial: S)(f: (A, S, S => Task[S]) => Task[S]): Task[S] =
     self.flatMap { a =>
       f(a, initial, loop(self, _)(f))

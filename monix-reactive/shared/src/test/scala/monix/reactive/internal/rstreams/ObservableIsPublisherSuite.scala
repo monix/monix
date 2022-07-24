@@ -17,29 +17,20 @@
 
 package monix.reactive.internal.rstreams
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.rstreams.SingleAssignSubscription
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.subjects.PublishSubject
 import org.reactivestreams.{ Subscriber, Subscription }
 
 import scala.util.Success
 
-object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
-    s.state.lastReportedError match {
-      case null =>
-        assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-      case error =>
-        throw error
-    }
-  }
+class ObservableIsPublisherSuite extends BaseTestSuite {
 
-  test("should work with stop-and-wait back-pressure, test 1") { implicit scheduler =>
+  fixture.test("should work with stop-and-wait back-pressure, test 1") { implicit scheduler =>
     var wasCompleted = false
     var sum = 0L
 
@@ -72,7 +63,7 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, 5000 * 9999L)
   }
 
-  test("should work with stop-and-wait back-pressure, test 2") { implicit s =>
+  fixture.test("should work with stop-and-wait back-pressure, test 2") { implicit s =>
     val out = PublishSubject[Long]()
 
     val subscription = SingleAssignSubscription()
@@ -102,44 +93,44 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
     // Pushing first element, should be back-pressured
     val f1 = out.onNext(1); s.tick()
     assertEquals(f1.value, None)
-    assertEquals(streamed, 1)
-    assertEquals(received, 0)
+    assertEquals(streamed, 1L)
+    assertEquals(received, 0L)
 
     // Making request for exactly one event
     subscription.request(1); s.tick()
     assertEquals(f1.value, Some(Success(Continue)))
-    assertEquals(received, 1)
+    assertEquals(received, 1L)
 
     // Pushing second element, should be back-pressured
     val f2 = out.onNext(1); s.tick()
     assertEquals(f2.value, None)
-    assertEquals(streamed, 2)
-    assertEquals(received, 1)
+    assertEquals(streamed, 2L)
+    assertEquals(received, 1L)
 
     // Making request for exactly one event
     subscription.request(1); s.tick()
     assertEquals(f2.value, Some(Success(Continue)))
-    assertEquals(received, 2)
+    assertEquals(received, 2L)
 
     // Pushing third element, should be back-pressured
     val f3 = out.onNext(1); s.tick()
     assertEquals(f3.value, None)
-    assertEquals(streamed, 3)
-    assertEquals(received, 2)
+    assertEquals(streamed, 3L)
+    assertEquals(received, 2L)
 
     // Pushing onComplete before f3 is done
     out.onComplete(); s.tick()
-    assertEquals(received, 2)
+    assertEquals(received, 2L)
     assert(!wasCompleted, "!wasCompleted")
 
     // Requesting event should unblock both onNext and onComplete
     subscription.request(1); s.tick()
     assertEquals(f3.value, Some(Success(Continue)))
-    assertEquals(received, 3)
+    assertEquals(received, 3L)
     assert(wasCompleted, "wasCompleted")
   }
 
-  test("should work in batches of 1000, test 1") { implicit scheduler =>
+  fixture.test("should work in batches of 1000, test 1") { implicit scheduler =>
     val range = 10000L
     val chunkSize = 1000
 
@@ -182,7 +173,7 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("should work in batches of 1000, test 2") { implicit scheduler =>
+  fixture.test("should work in batches of 1000, test 2") { implicit scheduler =>
     val range = 10000L
     val chunkSize = 1000
 

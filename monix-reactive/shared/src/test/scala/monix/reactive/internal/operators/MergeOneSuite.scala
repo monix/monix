@@ -30,7 +30,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 
-object MergeOneSuite extends BaseOperatorSuite {
+class MergeOneSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0L, sourceCount.toLong).mergeMap(i => Observable.now(i))
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -94,7 +94,7 @@ object MergeOneSuite extends BaseOperatorSuite {
     )
   }
 
-  test("filter can be expressed in terms of mergeMap, without ordering") { implicit s =>
+  fixture.test("filter can be expressed in terms of mergeMap, without ordering") { implicit s =>
     val obs1 = Observable.range(0, 100).filter(_ % 2 == 0)
     val obs2 = Observable.range(0, 100).mergeMap(x => if (x % 2 == 0) now(x) else empty)
 
@@ -106,7 +106,7 @@ object MergeOneSuite extends BaseOperatorSuite {
     assertEquals(lst1.value.get, lst2.value.get)
   }
 
-  test("map can be expressed in terms of mergeMap, without ordering") { implicit s =>
+  fixture.test("map can be expressed in terms of mergeMap, without ordering") { implicit s =>
     val obs1 = Observable.range(0, 100).map(_ + 10)
     val obs2 = Observable.range(0, 100).mergeMap(x => now(x + 10))
 
@@ -118,7 +118,7 @@ object MergeOneSuite extends BaseOperatorSuite {
     assertEquals(lst1.value.get, lst2.value.get)
   }
 
-  test("should wait the completion of the current, before subscribing to the next") { implicit s =>
+  fixture.test("should wait the completion of the current, before subscribing to the next") { implicit s =>
     var obs2WasStarted = false
     var received = 0L
     var wasCompleted = false
@@ -145,11 +145,11 @@ object MergeOneSuite extends BaseOperatorSuite {
       })
 
     s.tickOne()
-    assertEquals(received, 0)
+    assertEquals(received, 0L)
     obs1.onNext(10)
-    assertEquals(received, 10)
+    assertEquals(received, 10L)
     val f = obs1.onNext(1000)
-    assertEquals(received, 1010)
+    assertEquals(received, 1010L)
 
     f.onComplete(_ => obs1.onComplete())
     s.tick()
@@ -157,11 +157,11 @@ object MergeOneSuite extends BaseOperatorSuite {
 
     s.tick(1.second)
     assert(obs2WasStarted)
-    assertEquals(received, 1010 + 99 * 50)
+    assertEquals(received, 1010 + 99 * 50L)
     assert(wasCompleted)
   }
 
-  test("should interrupt the streaming on error") { implicit s =>
+  fixture.test("should interrupt the streaming on error") { implicit s =>
     var obs1WasStarted = false
     var obs2WasStarted = false
     var wasThrown: Throwable = null

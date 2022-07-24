@@ -22,7 +22,7 @@ import monix.execution.exceptions.DummyException
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object TakeLastSuite extends BaseOperatorSuite {
+class TakeLastSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int) =
     if (sourceCount == 1) 9 else (1 until sourceCount * 2).takeRight(sourceCount).sum
 
@@ -65,7 +65,7 @@ object TakeLastSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
-  test("takeLast(0) shouldn't subscribe to the source at all") { implicit s =>
+  fixture.test("takeLast(0) shouldn't subscribe to the source at all") { implicit s =>
     var counter = 0
 
     def inc() = {

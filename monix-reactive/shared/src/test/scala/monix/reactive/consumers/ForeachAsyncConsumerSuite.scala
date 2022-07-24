@@ -18,22 +18,18 @@
 package monix.reactive.consumers
 
 import cats.effect.IO
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.eval.Task
 import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.{ Consumer, Observable }
 
 import scala.concurrent.Future
 import scala.util.{ Failure, Success }
 
-object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class ForeachAsyncConsumerSuite extends BaseTestSuite {
 
-  test("should sum a cats.effect.IO stream") { implicit s =>
+  fixture.test("should sum a cats.effect.IO stream") { implicit s =>
     val count = 10000L
     val obs = Observable.range(0, count)
     var sum = 0L
@@ -49,7 +45,7 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, count * (count - 1) / 2)
   }
 
-  test("should sum a long stream") { implicit s =>
+  fixture.test("should sum a long stream") { implicit s =>
     val count = 10000L
     val obs = Observable.range(0, count)
     var sum = 0L
@@ -65,7 +61,7 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, count * (count - 1) / 2)
   }
 
-  test("should interrupt with error") { implicit s =>
+  fixture.test("should interrupt with error") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
     var sum = 0L
@@ -80,7 +76,7 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("should protect against user error") { implicit s =>
+  fixture.test("should protect against user error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable
       .now(1)
@@ -91,14 +87,16 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("should cancel the last task that started execution") { implicit s =>
+  fixture.test("should cancel the last task that started execution") { implicit s =>
     var cancelled = false
     val f = Observable(1)
-      .consumeWith(Consumer.foreachTask(_ =>
-        Task.never.doOnCancel(Task {
-          cancelled = true
-        })
-      ))
+      .consumeWith(
+        Consumer.foreachTask(_ =>
+          Task.never.doOnCancel(Task {
+            cancelled = true
+          })
+        )
+      )
       .runToFuture
 
     s.tick()
@@ -107,16 +105,15 @@ object ForeachAsyncConsumerSuite extends TestSuite[TestScheduler] {
     assert(cancelled)
   }
 
-  test("should suspend effects encountered during the stream") { implicit s =>
+  fixture.test("should suspend effects encountered during the stream") { implicit s =>
     val dummyException = DummyException("Boom!")
 
     val f: Future[Unit] = {
       Observable(1)
         .consumeWith(
-          Consumer.foreachTask(_ =>
-            Task.raiseError(dummyException)
-          )
-        ).runToFuture
+          Consumer.foreachTask(_ => Task.raiseError(dummyException))
+        )
+        .runToFuture
     }
 
     s.tick()

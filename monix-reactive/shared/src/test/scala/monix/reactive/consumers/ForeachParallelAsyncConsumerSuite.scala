@@ -17,25 +17,21 @@
 
 package monix.reactive.consumers
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.{ Consumer, Observable }
 import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 
-object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class ForeachParallelAsyncConsumerSuite extends BaseTestSuite {
 
-  test("should sum a long stream") { implicit s =>
+  fixture.test("should sum a long stream") { implicit s =>
     val count = 10000L
     val obs = Observable.range(0, count)
     val sum = Atomic(0L)
@@ -51,7 +47,7 @@ object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
     assertEquals(sum.get(), count * (count - 1) / 2)
   }
 
-  test("should interrupt with error") { implicit s =>
+  fixture.test("should interrupt with error") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
     val sum = Atomic(0L)
@@ -66,7 +62,7 @@ object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("should protect against user error") { implicit s =>
+  fixture.test("should protect against user error") { implicit s =>
     val ex = DummyException("dummy")
     var mainWasCanceled = false
 

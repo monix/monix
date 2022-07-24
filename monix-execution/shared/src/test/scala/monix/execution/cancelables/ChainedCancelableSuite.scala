@@ -17,10 +17,10 @@
 
 package monix.execution.cancelables
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.Cancelable
 
-object ChainedCancelableSuite extends SimpleTestSuite {
+class ChainedCancelableSuite extends BaseTestSuite {
   test("cancel()") {
     var effect = 0
     val sub = BooleanCancelable(() => effect += 1)

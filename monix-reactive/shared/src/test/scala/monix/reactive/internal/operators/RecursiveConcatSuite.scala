@@ -21,7 +21,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration.Duration.Zero
 import scala.util.Success
 
-object RecursiveConcatSuite extends BaseOperatorSuite {
+class RecursiveConcatSuite extends BaseOperatorSuite {
   def range(from: Long, until: Long): Observable[Long] =
     Observable.defer {
       Observable.now(from) ++ (
@@ -47,7 +47,7 @@ object RecursiveConcatSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def cancelableObservables() = Seq.empty
 
-  test("stack safety") { implicit s =>
+  fixture.test("stack safety") { implicit s =>
     val count = 10000
     val f = range(0, count.toLong).sumL.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(sum(count.toLong))))
@@ -59,7 +59,7 @@ object RecursiveConcatSuite extends BaseOperatorSuite {
     loop(1)
   }
 
-  test("laziness of ++'s param") { implicit s =>
+  fixture.test("laziness of ++'s param") { implicit s =>
     val count = 1000000L
 
     val f = nats.take(count).sumL.runToFuture; s.tick()

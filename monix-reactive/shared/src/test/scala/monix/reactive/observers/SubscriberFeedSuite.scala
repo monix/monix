@@ -23,8 +23,8 @@ import monix.execution.compat.internal.toIterator
 import monix.reactive.BaseTestSuite
 import scala.concurrent.Future
 
-object SubscriberFeedSuite extends BaseTestSuite {
-  test("feed synchronous iterable") { s =>
+class SubscriberFeedSuite extends BaseTestSuite {
+  fixture.test("feed synchronous iterable") { s =>
     check1 { (xs: List[Int]) =>
       var sum = 0
       val downstream = new Subscriber.Sync[Int] {
@@ -44,7 +44,7 @@ object SubscriberFeedSuite extends BaseTestSuite {
     }
   }
 
-  test("feed asynchronous iterable") { s =>
+  fixture.test("feed asynchronous iterable") { s =>
     check1 { (xs: List[Int]) =>
       var sum = 0
       val downstream = new Subscriber[Int] {
@@ -64,7 +64,7 @@ object SubscriberFeedSuite extends BaseTestSuite {
     }
   }
 
-  test("feed synchronous iterator") { s =>
+  fixture.test("feed synchronous iterator") { s =>
     check1 { (xs: List[Int]) =>
       var sum = 0
       val downstream = new Subscriber.Sync[Int] {
@@ -84,7 +84,7 @@ object SubscriberFeedSuite extends BaseTestSuite {
     }
   }
 
-  test("feed asynchronous iterator") { s =>
+  fixture.test("feed asynchronous iterator") { s =>
     check1 { (xs: List[Int]) =>
       var sum = 0
       val downstream = new Subscriber[Int] {
@@ -104,7 +104,7 @@ object SubscriberFeedSuite extends BaseTestSuite {
     }
   }
 
-  test("stop observable synchronously") { s =>
+  fixture.test("stop observable synchronously") { s =>
     check1 { (xs: List[Int]) =>
       var sum = 0
       val downstream = new Subscriber.Sync[Int] {
@@ -122,7 +122,7 @@ object SubscriberFeedSuite extends BaseTestSuite {
     }
   }
 
-  test("stop observable asynchronously") { s =>
+  fixture.test("stop observable asynchronously") { s =>
     check1 { (xs: List[Int]) =>
       var sum = 0
       val downstream = new Subscriber[Int] {
@@ -140,7 +140,7 @@ object SubscriberFeedSuite extends BaseTestSuite {
     }
   }
 
-  test("should be cancelable") { s =>
+  fixture.test("should be cancelable") { s =>
     check1 { (xs: List[Int]) =>
       var sum = 0
       val downstream = new Subscriber[Int] {

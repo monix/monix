@@ -17,20 +17,16 @@
 
 package monix.reactive.internal.builders
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.{ Observable, Observer }
 import scala.concurrent.{ Future, Promise }
 
-object NowObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
-  }
+class NowObservableSuite extends BaseTestSuite {
 
-  test("should emit one value synchronously") { implicit s =>
+  fixture.test("should emit one value synchronously") { implicit s =>
     var received = 0
     var completed = false
 
@@ -53,7 +49,7 @@ object NowObservableSuite extends TestSuite[TestScheduler] {
     assert(completed)
   }
 
-  test("should not do back-pressure on onComplete") { implicit s =>
+  fixture.test("should not do back-pressure on onComplete") { implicit s =>
     val p = Promise[Continue.type]()
     var onCompleteCalled = false
     var received = 0
@@ -81,7 +77,7 @@ object NowObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 2)
   }
 
-  test("should still send onComplete even if canceled synchronously") { implicit s =>
+  fixture.test("should still send onComplete even if canceled synchronously") { implicit s =>
     var onCompleteCalled = false
     Observable
       .now(1)
@@ -95,7 +91,7 @@ object NowObservableSuite extends TestSuite[TestScheduler] {
     assert(onCompleteCalled)
   }
 
-  test("should still send onComplete if canceled asynchronously") { implicit s =>
+  fixture.test("should still send onComplete if canceled asynchronously") { implicit s =>
     val p = Promise[Ack]()
     var onCompleteCalled = false
 

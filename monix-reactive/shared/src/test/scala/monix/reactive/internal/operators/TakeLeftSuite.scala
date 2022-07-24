@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.{ Future, Promise }
 
-object TakeLeftSuite extends BaseOperatorSuite {
+class TakeLeftSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int): Long = sourceCount.toLong * (sourceCount + 1) / 2
   def count(sourceCount: Int) = sourceCount
 
@@ -59,7 +59,7 @@ object TakeLeftSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
 
-  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  fixture.test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 
@@ -80,11 +80,11 @@ object TakeLeftSuite extends BaseOperatorSuite {
         s.tick(waitForNext)
 
       case _ =>
-        fail()
+        fail("")
     }
   }
 
-  test("take(0) shouldn't subscribe to the source at all") { implicit s =>
+  fixture.test("take(0) shouldn't subscribe to the source at all") { implicit s =>
     var counter = 0
 
     def inc() = {

@@ -30,7 +30,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ Await, Future, Promise }
 import scala.util.Random
 
-object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencySuite {
+class OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencySuite {
   def buildNewForInt(bufferSize: Int, underlying: Observer[Int])(implicit s: Scheduler) = {
     BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Coeval(Some(nr.toInt))))
   }
@@ -39,7 +39,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     BufferedSubscriber(Subscriber(underlying, s), DropNewAndSignal(bufferSize, nr => Coeval(Some(nr))))
   }
 
-  test("merge test should work") { implicit s =>
+  fixture.test("merge test should work") { implicit s =>
     val num = 100000
     val source = Observable.repeat(1L).take(num.toLong)
     val f = Observable
@@ -49,10 +49,10 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
       .runAsyncGetFirst
 
     val result = Await.result(f, 30.seconds)
-    assertEquals(result, Some(num * 3))
+    assertEquals(result, Some(num * 3).map(_.toLong))
   }
 
-  test("should not lose events, test 1") { implicit s =>
+  fixture.test("should not lose events, test 1") { implicit s =>
     var number = 0
     val completed = new CountDownLatch(1)
 
@@ -79,7 +79,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     assert(number == 100000)
   }
 
-  test("should not lose events, test 2") { implicit s =>
+  fixture.test("should not lose events, test 2") { implicit s =>
     var number = 0
     val completed = new CountDownLatch(1)
 
@@ -111,7 +111,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     assertEquals(number, 10000)
   }
 
-  test("should not lose events with async subscriber from one publisher") { implicit s =>
+  fixture.test("should not lose events with async subscriber from one publisher") { implicit s =>
     // Repeating because of possible problems
     for (_ <- 0 until 100) {
       val completed = new CountDownLatch(1)
@@ -158,7 +158,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     }
   }
 
-  test("should drop incoming when over capacity") { implicit s =>
+  fixture.test("should drop incoming when over capacity") { implicit s =>
     // repeating test 100 times because of problems
     for (_ <- 0 until 100) {
       var received = 0
@@ -204,7 +204,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     }
   }
 
-  test("should send onError when empty") { implicit s =>
+  fixture.test("should send onError when empty") { implicit s =>
     val latch = new CountDownLatch(1)
     val buffer = buildNewForInt(
       5,
@@ -226,7 +226,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     assertEquals(r, Stop)
   }
 
-  test("should send onError when in flight") { implicit s =>
+  fixture.test("should send onError when in flight") { implicit s =>
     val latch = new CountDownLatch(1)
     val buffer = buildNewForInt(
       5,
@@ -245,7 +245,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
-  test("should send onError when at capacity") { implicit s =>
+  fixture.test("should send onError when at capacity") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
 
@@ -272,7 +272,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
-  test("should send onComplete when empty") { implicit s =>
+  fixture.test("should send onComplete when empty") { implicit s =>
     val latch = new CountDownLatch(1)
     val buffer = buildNewForInt(
       5,
@@ -287,7 +287,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
-  test("should send onComplete when in flight") { implicit s =>
+  fixture.test("should send onComplete when in flight") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
     val buffer = buildNewForInt(
@@ -304,7 +304,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
-  test("should send onComplete when at capacity") { implicit s =>
+  fixture.test("should send onComplete when at capacity") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
     val buffer = buildNewForInt(
@@ -328,7 +328,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
-  test("should do onComplete only after all the queue was drained") { implicit s =>
+  fixture.test("should do onComplete only after all the queue was drained") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue.type]()
@@ -353,7 +353,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     assert(sum == (0 until 9999).sum)
   }
 
-  test("should do onComplete only after all the queue was drained, test2") { implicit s =>
+  fixture.test("should do onComplete only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
 
@@ -376,7 +376,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     assert(sum == (0 until 9999).sum)
   }
 
-  test("should do onError only after the queue was drained") { implicit s =>
+  fixture.test("should do onError only after the queue was drained") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue.type]()
@@ -401,7 +401,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
     assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
-  test("should do onError only after all the queue was drained, test2") { implicit s =>
+  fixture.test("should do onError only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
 

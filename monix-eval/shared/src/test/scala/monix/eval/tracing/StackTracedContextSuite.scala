@@ -20,14 +20,13 @@ package monix.eval.tracing
 import monix.eval.BaseTestSuite
 import monix.eval.internal.StackTracedContext
 
-/**
-  * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
+/** All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
   */
-object StackTracedContextSuite extends BaseTestSuite {
+class StackTracedContextSuite extends BaseTestSuite {
   val traceBufferSize: Int = 1 << monix.eval.internal.TracingPlatform.traceBufferLogSize
   val stackTrace = new Throwable().getStackTrace.toList
 
-  test("push traces") { _ =>
+  test("push traces") {
     val ctx = new StackTracedContext()
 
     val t1 = TaskEvent.StackTrace(stackTrace)
@@ -42,7 +41,7 @@ object StackTracedContextSuite extends BaseTestSuite {
     assertEquals(trace.omitted, 0)
   }
 
-  test("track omitted frames") { _ =>
+  test("track omitted frames") {
     val ctx = new StackTracedContext()
 
     for (_ <- 0 until (traceBufferSize + 10)) {

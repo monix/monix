@@ -23,7 +23,7 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.duration._
 import scala.util.Random
 
-object MergeDelayErrorOneSuite extends BaseOperatorSuite {
+class MergeDelayErrorOneSuite extends BaseOperatorSuite {
   case class SomeException(value: Long) extends RuntimeException
 
   def create(sourceCount: Int, ex: Throwable = null) = Some {
@@ -75,7 +75,7 @@ object MergeDelayErrorOneSuite extends BaseOperatorSuite {
     )
   }
 
-  test("error emitted by the source should also be delayed") { implicit s =>
+  fixture.test("error emitted by the source should also be delayed") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var received = 0
     var receivedSum = 0L

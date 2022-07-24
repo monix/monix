@@ -22,7 +22,7 @@ import monix.reactive.OverflowStrategy.Unbounded
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 
-object AsyncBoundarySuite extends BaseOperatorSuite {
+class AsyncBoundarySuite extends BaseOperatorSuite {
   def count(sourceCount: Int) = sourceCount
   def sum(sourceCount: Int): Long = sourceCount.toLong * (sourceCount + 1) / 2
 

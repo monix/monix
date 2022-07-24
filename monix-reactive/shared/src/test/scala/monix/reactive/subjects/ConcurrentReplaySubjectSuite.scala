@@ -21,7 +21,7 @@ import monix.execution.Scheduler
 import monix.reactive.MulticastStrategy
 import monix.reactive.OverflowStrategy.Unbounded
 
-object ConcurrentReplaySubjectSuite extends BaseConcurrentSubjectSuite {
+class ConcurrentReplaySubjectSuite extends BaseConcurrentSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
     val c = ConcurrentSubject[Long](MulticastStrategy.replay, Unbounded)
     Sample(c, expectedElems.sum)

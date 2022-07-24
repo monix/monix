@@ -20,11 +20,12 @@ package monix.eval
 import monix.execution.schedulers.TestScheduler
 import scala.util.Success
 
-object TaskAsyncBoundarySuite extends BaseTestSuite {
-  test("Task.asyncBoundary should work") { implicit s =>
+class TaskAsyncBoundarySuite extends BaseTestSuite {
+  fixture.test("Task.asyncBoundary should work") { implicit s =>
     val io = TestScheduler()
     var effect = 0
-    val f = Task.eval { effect += 1; effect }
+    val f = Task
+      .eval { effect += 1; effect }
       .executeOn(io)
       .asyncBoundary
       .map(_ + 1)
@@ -42,12 +43,13 @@ object TaskAsyncBoundarySuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(2)))
   }
 
-  test("Task.asyncBoundary(other) should work") { implicit s1 =>
+  fixture.test("Task.asyncBoundary(other) should work") { implicit s1 =>
     val io = TestScheduler()
     val s2 = TestScheduler()
 
     var effect = 0
-    val f = Task.eval { effect += 1; effect }
+    val f = Task
+      .eval { effect += 1; effect }
       .executeOn(io)
       .asyncBoundary(s2)
       .map(_ + 1)
@@ -67,7 +69,7 @@ object TaskAsyncBoundarySuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(2)))
   }
 
-  testAsync("Task.asyncBoundary should preserve locals") { _ =>
+  fixture.test("Task.asyncBoundary should preserve locals") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
@@ -82,7 +84,7 @@ object TaskAsyncBoundarySuite extends BaseTestSuite {
     }
   }
 
-  testAsync("Task.asyncBoundary(scheduler) should preserve locals") { _ =>
+  fixture.test("Task.asyncBoundary(scheduler) should preserve locals") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
@@ -97,7 +99,7 @@ object TaskAsyncBoundarySuite extends BaseTestSuite {
     }
   }
 
-  test("Task.asyncBoundary is stack safe in flatMap loops, test 1") { implicit sc =>
+  fixture.test("Task.asyncBoundary is stack safe in flatMap loops, testAsync 1") { implicit sc =>
     def loop(n: Int, acc: Long): Task[Long] =
       Task.unit.asyncBoundary.flatMap { _ =>
         if (n > 0)
@@ -107,10 +109,10 @@ object TaskAsyncBoundarySuite extends BaseTestSuite {
       }
 
     val f = loop(10000, 0).runToFuture; sc.tick()
-    assertEquals(f.value, Some(Success(10000)))
+    assertEquals(f.value, Some(Success(10000L)))
   }
 
-  test("Task.asyncBoundary is stack safe in flatMap loops, test 2") { implicit sc =>
+  fixture.test("Task.asyncBoundary is stack safe in flatMap loops, testAsync 2") { implicit sc =>
     def loop(n: Int, acc: Long): Task[Long] =
       Task.unit.flatMap { _ =>
         if (n > 0)
@@ -121,6 +123,6 @@ object TaskAsyncBoundarySuite extends BaseTestSuite {
 
     val f = loop(10000, 0).runToFuture
     sc.tick()
-    assertEquals(f.value, Some(Success(10000)))
+    assertEquals(f.value, Some(Success(10000L)))
   }
 }

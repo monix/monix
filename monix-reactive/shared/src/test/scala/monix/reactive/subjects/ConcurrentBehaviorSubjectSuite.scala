@@ -21,7 +21,7 @@ import monix.execution.Scheduler
 import monix.reactive.{ MulticastStrategy, OverflowStrategy }
 import OverflowStrategy.Unbounded
 
-object ConcurrentBehaviorSubjectSuite extends BaseConcurrentSubjectSuite {
+class ConcurrentBehaviorSubjectSuite extends BaseConcurrentSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
     val c = ConcurrentSubject(MulticastStrategy.behavior[Long](-1))
     Sample(c, expectedElems.lastOption.getOrElse(-1))

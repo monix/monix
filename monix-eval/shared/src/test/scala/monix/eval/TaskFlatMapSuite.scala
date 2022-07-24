@@ -25,8 +25,8 @@ import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import scala.util.{ Failure, Random, Success, Try }
 
-object TaskFlatMapSuite extends BaseTestSuite {
-  test("runAsync flatMap loop is not cancelable if autoCancelableRunLoops=false") { implicit s =>
+class TaskFlatMapSuite extends BaseTestSuite {
+  fixture.test("runAsync flatMap loop is not cancelable if autoCancelableRunLoops=false") { implicit s =>
     implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
     val maxCount = Platform.recommendedBatchSize * 4
 
@@ -43,7 +43,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("runAsync flatMap loop is cancelable if ExecutionModel permits") { implicit s =>
+  fixture.test("runAsync flatMap loop is cancelable if ExecutionModel permits") { implicit s =>
     val maxCount = Platform.recommendedBatchSize * 4
     val expected = Platform.recommendedBatchSize
 
@@ -67,7 +67,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
     assertEquals(f.value, None)
   }
 
-  test("runAsync(callback) flatMap loop is cancelable if ExecutionModel permits") { implicit s =>
+  fixture.test("runAsync(callback) flatMap loop is cancelable if ExecutionModel permits") { implicit s =>
     val maxCount = Platform.recommendedBatchSize * 4
     val expected = Platform.recommendedBatchSize
 
@@ -96,45 +96,45 @@ object TaskFlatMapSuite extends BaseTestSuite {
     assertEquals(atomic.get(), expected)
   }
 
-  test("redeemWith derives flatMap") { implicit s =>
+  fixture.test("redeemWith derives flatMap") { implicit s =>
     check2 { (fa: Task[Int], f: Int => Task[Int]) =>
       fa.redeemWith(Task.raiseError, f) <-> fa.flatMap(f)
     }
   }
 
-  test("redeemWith derives onErrorHandleWith") { implicit s =>
+  fixture.test("redeemWith derives onErrorHandleWith") { implicit s =>
     check2 { (fa: Task[Int], f: Throwable => Task[Int]) =>
       fa.redeemWith(f, Task.pure) <-> fa.onErrorHandleWith(f)
     }
   }
 
-  test("redeem derives map") { implicit s =>
+  fixture.test("redeem derives map") { implicit s =>
     check2 { (fa: Task[Int], f: Int => Int) =>
       fa.redeem(e => throw e, f) <-> fa.map(f)
     }
   }
 
-  test("redeem derives onErrorHandle") { implicit s =>
+  fixture.test("redeem derives onErrorHandle") { implicit s =>
     check2 { (fa: Task[Int], f: Throwable => Int) =>
       fa.redeem(f, x => x) <-> fa.onErrorHandle(f)
     }
   }
 
-  test("redeemWith can recover") { implicit s =>
+  fixture.test("redeemWith can recover") { implicit s =>
     val dummy = new DummyException("dummy")
     val task = Task.raiseError[Int](dummy).redeemWith(_ => Task.now(1), Task.now)
     val f = task.runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("redeem can recover") { implicit s =>
+  fixture.test("redeem can recover") { implicit s =>
     val dummy = new DummyException("dummy")
     val task = Task.raiseError[Int](dummy).redeem(_ => 1, identity)
     val f = task.runToFuture
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test(">> is stack safe for infinite loops") { implicit s =>
+  fixture.test(">> is stack safe for infinite loops") { implicit s =>
     var wasCancelled = false
     def looped: Task[Unit] = Task.cancelBoundary >> looped
     val future = looped.doOnCancel(Task { wasCancelled = true }).runToFuture
@@ -143,7 +143,7 @@ object TaskFlatMapSuite extends BaseTestSuite {
     assert(wasCancelled)
   }
 
-  test("flatMapLoop enables loops") { implicit s =>
+  fixture.test("flatMapLoop enables loops") { implicit s =>
     val random = Task(Random.nextInt())
     val loop = random.flatMapLoop(Vector.empty[Int]) { (a, list, continue) =>
       val newList = list :+ a
@@ -159,13 +159,13 @@ object TaskFlatMapSuite extends BaseTestSuite {
     assertEquals(f.value.get.get.size, 5)
   }
 
-  test("fa *> fb <-> fa.flatMap(_ => fb)") { implicit s =>
+  fixture.test("fa *> fb <-> fa.flatMap(_ => fb)") { implicit s =>
     check2 { (fa: Task[Int], fb: Task[Int]) =>
       fa *> fb <-> fa.flatMap(_ => fb)
     }
   }
 
-  test("fa <* fb <-> fa.flatMap(a => fb.map(_ => a))") { implicit s =>
+  fixture.test("fa <* fb <-> fa.flatMap(a => fb.map(_ => a))") { implicit s =>
     check2 { (fa: Task[Int], fb: Task[Int]) =>
       fa <* fb <-> fa.flatMap(a => fb.map(_ => a))
     }

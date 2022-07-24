@@ -26,7 +26,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 
-object Zip2Suite extends BaseOperatorSuite {
+class Zip2Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o1 = Observable.range(0L, sourceCount.toLong)
     val o2 = Observable.range(0, sourceCount.toLong + 2)
@@ -71,7 +71,7 @@ object Zip2Suite extends BaseOperatorSuite {
     Seq(Sample(sample1, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("self starts before other and finishes before other") { implicit s =>
+  fixture.test("self starts before other and finishes before other") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -105,7 +105,7 @@ object Zip2Suite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("self signals error and interrupts the stream before it starts") { implicit s =>
+  fixture.test("self signals error and interrupts the stream before it starts") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -131,7 +131,7 @@ object Zip2Suite extends BaseOperatorSuite {
     assert(wasCanceled)
   }
 
-  test("other signals error and interrupts the stream before it starts") { implicit s =>
+  fixture.test("other signals error and interrupts the stream before it starts") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -139,9 +139,11 @@ object Zip2Suite extends BaseOperatorSuite {
     var wasCanceled = false
     var received = (0, 0)
 
-    obs2.doOnEarlyStopF { () =>
-      wasCanceled = true
-    }.zip(obs1)
+    obs2
+      .doOnEarlyStopF { () =>
+        wasCanceled = true
+      }
+      .zip(obs1)
       .unsafeSubscribeFn(new Observer[(Int, Int)] {
         def onNext(elem: (Int, Int)) = { received = elem; Continue }
         def onError(ex: Throwable) = wasThrown = ex
@@ -156,7 +158,7 @@ object Zip2Suite extends BaseOperatorSuite {
     assert(wasCanceled)
   }
 
-  test("should not back-pressure self.onError") { implicit s =>
+  fixture.test("should not back-pressure self.onError") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -181,7 +183,7 @@ object Zip2Suite extends BaseOperatorSuite {
     s.tick(1.second)
   }
 
-  test("should not back-pressure other.onError") { implicit s =>
+  fixture.test("should not back-pressure other.onError") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 

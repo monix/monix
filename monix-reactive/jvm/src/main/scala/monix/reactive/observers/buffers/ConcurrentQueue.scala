@@ -26,10 +26,10 @@ import monix.execution.internal.jctools.queues.MessagePassingQueue.Consumer
 import monix.execution.internal.jctools.queues.atomic.{ MpscAtomicArrayQueue, MpscLinkedAtomicQueue }
 import scala.collection.mutable
 
-/** A simple internal interface providing the needed commonality between
-  * Java's `util.AbstractQueue` and the JCTools `MessagePassingQueue`.
+/** A simple internal interface providing the needed commonality between Java's `util.AbstractQueue` and the JCTools
+  * `MessagePassingQueue`.
   */
-private[buffers] abstract class ConcurrentQueue[A] {
+abstract private[buffers] class ConcurrentQueue[A] {
   def isEmpty: Boolean
   def poll(): A
   def offer(elem: A): Boolean
@@ -37,6 +37,7 @@ private[buffers] abstract class ConcurrentQueue[A] {
 }
 
 private[buffers] object ConcurrentQueue {
+
   /** Builds a concurrent queue with a limited capacity. */
   def limited[A](capacity: Int): ConcurrentQueue[A] = {
     val maxCapacity = math.max(4, nextPowerOf2(capacity))

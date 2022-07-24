@@ -18,19 +18,15 @@
 package monix.catnap
 
 import cats.effect._
-import cats.implicits._
-import minitest.TestSuite
 import monix.catnap.CircuitBreaker.{ Closed, Open }
+import monix.execution.BaseTestSuite
 import monix.execution.exceptions.{ DummyException, ExecutionRejectedException }
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object CircuitBreakerSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(env: TestScheduler): Unit =
-    assert(env.state.tasks.isEmpty, "There should be no tasks left!")
+class CircuitBreakerSuite extends BaseTestSuite {
 
   implicit def timer(implicit ec: TestScheduler): Timer[IO] =
     SchedulerEffect.timerLiftIO[IO](ec)
@@ -38,7 +34,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
   implicit def contextShift(implicit ec: TestScheduler): ContextShift[IO] =
     SchedulerEffect.contextShift[IO](ec)(IO.ioEffect)
 
-  test("should work for successful async tasks") { implicit s =>
+  fixture.test("should work for successful async tasks") { implicit s =>
     val circuitBreaker = CircuitBreaker.unsafe[IO](
       maxFailures = 5,
       resetTimeout = 1.minute
@@ -54,7 +50,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 10000)
   }
 
-  test("should work for successful immediate tasks") { implicit s =>
+  fixture.test("should work for successful immediate tasks") { implicit s =>
     val circuitBreaker = CircuitBreaker.unsafe[IO](
       maxFailures = 5,
       resetTimeout = 1.minute
@@ -69,7 +65,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 10000)
   }
 
-  test("should be stack safe for successful async tasks (flatMap)") { implicit s =>
+  fixture.test("should be stack safe for successful async tasks (flatMap)") { implicit s =>
     val circuitBreaker = CircuitBreaker.unsafe[IO](
       maxFailures = 5,
       resetTimeout = 1.minute
@@ -88,7 +84,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(100000)))
   }
 
-  test("should be stack safe for successful async tasks (inner protect calls)") { implicit s =>
+  fixture.test("should be stack safe for successful async tasks (inner protect calls)") { implicit s =>
     val circuitBreaker = CircuitBreaker
       .of[IO](
         maxFailures = 5,
@@ -108,7 +104,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(100000)))
   }
 
-  test("should be stack safe for successful immediate tasks (flatMap)") { implicit s =>
+  fixture.test("should be stack safe for successful immediate tasks (flatMap)") { implicit s =>
     val circuitBreaker = CircuitBreaker
       .of[IO](
         maxFailures = 5,
@@ -129,7 +125,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(100000)))
   }
 
-  test("should be stack safe for successful immediate tasks (defer)") { implicit s =>
+  fixture.test("should be stack safe for successful immediate tasks (defer)") { implicit s =>
     val circuitBreaker = CircuitBreaker
       .of[IO](
         maxFailures = 5,
@@ -149,7 +145,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(100000)))
   }
 
-  test("complete workflow with failures and exponential backoff") { implicit s =>
+  fixture.test("complete workflow with failures and exponential backoff") { implicit s =>
     var openedCount = 0
     var closedCount = 0
     var halfOpenCount = 0
@@ -298,7 +294,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     assertEquals(closedCount, 1)
   }
 
-  test("validate parameters") { implicit s =>
+  fixture.test("validate parameters") { implicit s =>
     intercept[IllegalArgumentException] {
       // Positive maxFailures
       CircuitBreaker.unsafe[IO](
@@ -340,7 +336,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     ()
   }
 
-  test("awaitClose") { implicit s =>
+  fixture.test("awaitClose") { implicit s =>
     val cb = CircuitBreaker.unsafe[IO](1, 1.second)
 
     val dummy = DummyException("dummy")
@@ -379,7 +375,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     assertEquals(f3.value, Some(Success(1)))
   }
 
-  test("works with Sync only") { implicit s =>
+  fixture.test("works with Sync only") { implicit s =>
     implicit val clock: Clock[SyncIO] = SchedulerEffect.clock[SyncIO](s)
     val cb = CircuitBreaker.unsafe[SyncIO](1, 1.second)
 
@@ -403,7 +399,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     assertEquals(f3, Right(1))
   }
 
-  test("awaitClose with Sync instance override") { implicit s =>
+  fixture.test("awaitClose with Sync instance override") { implicit s =>
     // Trying to override the Sync[IO] instance.
     import Overrides.syncIO
     assertEquals(Sync[IO], syncIO)
@@ -412,7 +408,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     awaitCloseSuccessfulTest(s, cb)
   }
 
-  test("awaitClose with polymorphic code") { implicit s =>
+  fixture.test("awaitClose with polymorphic code") { implicit s =>
     // Forcing the use of Sync[IO]
     def mkInstance[F[_]](implicit F: Sync[F], clock: Clock[F]) =
       CircuitBreaker.unsafe[F](1, 1.second)
@@ -442,7 +438,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("awaitClose works when instance was built with Sync[F]") { implicit s =>
+  fixture.test("awaitClose works when instance was built with Sync[F]") { implicit s =>
     // Overriding Sync[IO]
     import Overrides.syncIO
     // Forcing the use of Sync[IO]
@@ -470,7 +466,7 @@ object CircuitBreakerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("canceled tasks in half-open state should open with old timeout") { implicit s =>
+  fixture.test("canceled tasks in half-open state should open with old timeout") { implicit s =>
     import scala.concurrent.duration._
 
     val scenario = for {

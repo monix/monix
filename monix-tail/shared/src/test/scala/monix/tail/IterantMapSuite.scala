@@ -24,21 +24,21 @@ import monix.execution.exceptions.DummyException
 import monix.tail.batches.{ Batch, BatchCursor }
 import scala.util.Failure
 
-object IterantMapSuite extends BaseTestSuite {
-  test("Iterant[Task].map equivalence with List.map") { implicit s =>
+class IterantMapSuite extends BaseTestSuite {
+  fixture.test("Iterant[Task].map equivalence with List.map") { implicit s =>
     check2 { (stream: Iterant[Task, Int], f: Int => Long) =>
       stream.map(f).toListL <->
         stream.toListL.map((list: List[Int]) => list.map(f))
     }
   }
 
-  test("Iterant[Task].map can handle errors") { implicit s =>
+  fixture.test("Iterant[Task].map can handle errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Task].raiseError[Int](dummy)
     assertEquals(stream, stream.map(identity))
   }
 
-  test("Iterant[Task].next.map guards against direct user code errors") { implicit s =>
+  fixture.test("Iterant[Task].next.map guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
@@ -52,7 +52,7 @@ object IterantMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("Iterant[Task].nextCursor.map guards against direct user code errors") { implicit s =>
+  fixture.test("Iterant[Task].nextCursor.map guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
@@ -66,7 +66,7 @@ object IterantMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("Iterant[Task].map should protect against direct exceptions") { implicit s =>
+  fixture.test("Iterant[Task].map should protect against direct exceptions") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       var effect = 0
@@ -84,7 +84,7 @@ object IterantMapSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Task].map should protect against broken batches") { implicit s =>
+  fixture.test("Iterant[Task].map should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionCursor(dummy)
@@ -94,7 +94,7 @@ object IterantMapSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Task].map should protect against broken generators") { implicit s =>
+  fixture.test("Iterant[Task].map should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionBatch(dummy)
@@ -104,20 +104,20 @@ object IterantMapSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Coeval].map equivalence with List.map") { implicit s =>
+  fixture.test("Iterant[Coeval].map equivalence with List.map") { implicit s =>
     check2 { (stream: Iterant[Coeval, Int], f: Int => Long) =>
       stream.map(f).toListL <->
         stream.toListL.map((list: List[Int]) => list.map(f))
     }
   }
 
-  test("Iterant[Coeval].map can handle errors") { implicit s =>
+  fixture.test("Iterant[Coeval].map can handle errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Coeval].raiseError[Int](dummy)
     assertEquals(stream, stream.map(identity))
   }
 
-  test("Iterant[Coeval].next.map guards against direct user code errors") { _ =>
+  test("Iterant[Coeval].next.map guards against direct user code errors") {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
@@ -130,7 +130,7 @@ object IterantMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("Iterant[Coeval].nextCursor.map guards against direct user code errors") { _ =>
+  test("Iterant[Coeval].nextCursor.map guards against direct user code errors") {
     val dummy = DummyException("dummy")
     var isCanceled = false
 
@@ -143,7 +143,7 @@ object IterantMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  test("Iterant[Coeval].map should protect against direct exceptions") { implicit s =>
+  fixture.test("Iterant[Coeval].map should protect against direct exceptions") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
@@ -153,7 +153,7 @@ object IterantMapSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Coeval].map should protect against broken batches") { implicit s =>
+  fixture.test("Iterant[Coeval].map should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor: BatchCursor[Int] = new ThrowExceptionCursor(dummy)
@@ -163,7 +163,7 @@ object IterantMapSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant[Coeval].map should protect against broken generators") { implicit s =>
+  fixture.test("Iterant[Coeval].map should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor: Batch[Int] = new ThrowExceptionBatch(dummy)
@@ -173,13 +173,15 @@ object IterantMapSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.foreach") { implicit s =>
+  fixture.test("Iterant.foreach") { implicit s =>
     check1 { (iter: Iterant[Coeval, Int]) =>
       val fa = Coeval.suspend {
         var sum = 0
-        iter.foreach { e =>
-          sum += e
-        }.map(_ => sum)
+        iter
+          .foreach { e =>
+            sum += e
+          }
+          .map(_ => sum)
       }
 
       fa <-> iter.foldLeftL(0)(_ + _)

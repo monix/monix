@@ -21,7 +21,7 @@ import monix.execution.Ack.Continue
 import monix.reactive.{ Observable, Observer }
 import scala.concurrent.duration.Duration.Zero
 
-object MaxBySuite extends BaseOperatorSuite {
+class MaxBySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int): Option[Sample] = Some {
     val o = Observable.range(0, sourceCount.toLong + 1).maxBy[Long](x => x + 1)
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
@@ -46,7 +46,7 @@ object MaxBySuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("empty observable should be empty") { implicit s =>
+  fixture.test("empty observable should be empty") { implicit s =>
     val source: Observable[Long] = Observable.empty
     var received = 0
     var wasCompleted = false

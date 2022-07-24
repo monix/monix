@@ -18,10 +18,10 @@
 package monix.execution.schedulers
 
 import java.util.concurrent.{ CountDownLatch, Executors, TimeUnit }
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.{ Scheduler, UncaughtExceptionReporter }
 
-object TestSchedulerCompanionSuite extends SimpleTestSuite {
+class TestSchedulerCompanionSuite extends BaseTestSuite {
   test("scheduler builder, apply, test 1") {
     val service = Executors.newSingleThreadScheduledExecutor()
     val ec = scala.concurrent.ExecutionContext.Implicits.global

@@ -23,7 +23,7 @@ import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 import scala.concurrent.duration._
 
-object OnErrorRetryUnlimitedSuite extends BaseOperatorSuite {
+class OnErrorRetryUnlimitedSuite extends BaseOperatorSuite {
   def create(sourceCount: Int, maxSubscriptions: Int, ex: Throwable) = {
     var subscriptions = 0
     new Observable[Long] {

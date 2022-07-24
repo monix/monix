@@ -23,7 +23,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object ZipListSuite extends BaseOperatorSuite {
+class ZipListSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val source = Observable.range(0L, sourceCount.toLong)
     val o = Observable.zipList(source, source, source, source, source, source).map {

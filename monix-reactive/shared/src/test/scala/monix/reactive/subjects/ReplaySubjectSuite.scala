@@ -25,7 +25,7 @@ import monix.reactive.{ Consumer, Observable, Observer }
 import scala.concurrent.Future
 import scala.util.Success
 
-object ReplaySubjectSuite extends BaseSubjectSuite {
+class ReplaySubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
     val s = ReplaySubject[Long]()
     Sample(s, expectedElems.sum)
@@ -36,7 +36,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
     Some(Sample(s, expectedElems.sum))
   }
 
-  test("subscribers should get everything") { implicit s =>
+  fixture.test("subscribers should get everything") { implicit s =>
     var completed = 0
 
     def create(expectedSum: Long) = new Observer.Sync[Int] {
@@ -72,7 +72,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
     assertEquals(completed, 4)
   }
 
-  test("should work synchronously for synchronous subscribers, but after first onNext") { implicit s =>
+  fixture.test("should work synchronously for synchronous subscribers, but after first onNext") { implicit s =>
     val subject = ReplaySubject[Int]()
     var received = 0
     var wasCompleted = 0
@@ -99,7 +99,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
     assertEquals(wasCompleted, 10)
   }
 
-  test("should work with asynchronous subscribers") { implicit s =>
+  fixture.test("should work with asynchronous subscribers") { implicit s =>
     val subject = ReplaySubject[Int]()
     var received = 0
     var wasCompleted = 0
@@ -128,7 +128,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
     assertEquals(wasCompleted, 10)
   }
 
-  test("subscribe after complete should complete immediately") { implicit s =>
+  fixture.test("subscribe after complete should complete immediately") { implicit s =>
     val subject = ReplaySubject[Int]()
     subject.onComplete()
 
@@ -142,7 +142,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
     assert(wasCompleted)
   }
 
-  test("onError should terminate current and future subscribers") { implicit s =>
+  fixture.test("onError should terminate current and future subscribers") { implicit s =>
     val subject = ReplaySubject[Int]()
     val dummy = DummyException("dummy")
     var elemsReceived = 0
@@ -176,7 +176,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
     assertEquals(errorsReceived, 11)
   }
 
-  test("can stop streaming while connecting") { implicit s =>
+  fixture.test("can stop streaming while connecting") { implicit s =>
     val subject = ReplaySubject[Int](10, 20, 30)
 
     val future1 = subject.take(3L).sum.runAsyncGetFirst
@@ -191,7 +191,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
     assertEquals(subject.size, 0)
   }
 
-  test("unsubscribe after onComplete") { implicit s =>
+  fixture.test("unsubscribe after onComplete") { implicit s =>
     var result: Int = 0
     val subject = ReplaySubject[Int]()
     val c = subject.subscribe { e =>
@@ -206,7 +206,7 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
     assertEquals(result, 1)
   }
 
-  test("Observable.replay should replay all of the elements") { implicit s =>
+  fixture.test("Observable.replay should replay all of the elements") { implicit s =>
     var foreachSum = 0
     var consumerSum = 0
     var subscribeSum = 0
@@ -226,23 +226,24 @@ object ReplaySubjectSuite extends BaseSubjectSuite {
     assertEquals(subscribeSum, 21)
   }
 
-  test("Observable.replay(bufferSize) should replay elements from the end up to the buffer size") { implicit s =>
-    var foreachSum = 0
-    var consumerSum = 0
-    var subscribeSum = 0
+  fixture.test("Observable.replay(bufferSize) should replay elements from the end up to the buffer size") {
+    implicit s =>
+      var foreachSum = 0
+      var consumerSum = 0
+      var subscribeSum = 0
 
-    val observable = Observable(1, 2, 3, 4, 5, 6).replay(3)
-    // Start the streaming
-    observable.connect()
+      val observable = Observable(1, 2, 3, 4, 5, 6).replay(3)
+      // Start the streaming
+      observable.connect()
 
-    observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runToFuture
-    observable.foreach(e => foreachSum += e)
-    observable.subscribe { e =>
-      subscribeSum += e; Continue
-    }
+      observable.consumeWith(Consumer.foreach(e => consumerSum += e)).runToFuture
+      observable.foreach(e => foreachSum += e)
+      observable.subscribe { e =>
+        subscribeSum += e; Continue
+      }
 
-    assertEquals(foreachSum, 15)
-    assertEquals(consumerSum, 15)
-    assertEquals(subscribeSum, 15)
+      assertEquals(foreachSum, 15)
+      assertEquals(consumerSum, 15)
+      assertEquals(subscribeSum, 15)
   }
 }

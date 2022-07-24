@@ -21,7 +21,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 
-object WithLatestFromSuite extends BaseOperatorSuite {
+class WithLatestFromSuite extends BaseOperatorSuite {
   def count(sourceCount: Int) = sourceCount
   def sum(sourceCount: Int): Long =
     sourceCount.toLong * (sourceCount + 1) / 2 + sourceCount * 10

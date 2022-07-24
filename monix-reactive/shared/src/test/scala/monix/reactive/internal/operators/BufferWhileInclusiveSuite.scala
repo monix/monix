@@ -29,7 +29,7 @@ import scala.concurrent.duration._
 
 import scala.util.Success
 
-object BufferWhileInclusiveSuite extends BaseOperatorSuite {
+class BufferWhileInclusiveSuite extends BaseOperatorSuite {
   val waitNext = Duration.Zero
   val waitFirst = Duration.Zero
 
@@ -88,7 +88,7 @@ object BufferWhileInclusiveSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("should emit buffer onComplete") { implicit s =>
+  fixture.test("should emit buffer onComplete") { implicit s =>
     val count = 157
     val obs = Observable.range(1L, count.toLong * 10).bufferWhileInclusive(_ % 20 != 0).map(_.sum)
 
@@ -114,7 +114,7 @@ object BufferWhileInclusiveSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("should drop buffer onError") { implicit s =>
+  fixture.test("should drop buffer onError") { implicit s =>
     val count = 157
     val dummy = DummyException("dummy")
     val obs = createObservableEndingInError(Observable.range(0L, count.toLong * 10), dummy)
@@ -143,7 +143,7 @@ object BufferWhileInclusiveSuite extends BaseOperatorSuite {
     assertEquals(errorThrown, dummy)
   }
 
-  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  fixture.test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 
@@ -164,11 +164,11 @@ object BufferWhileInclusiveSuite extends BaseOperatorSuite {
         s.tick(waitForNext)
 
       case _ =>
-        fail()
+        fail("")
     }
   }
 
-  test("should work for scaladoc example") { implicit s =>
+  fixture.test("should work for scaladoc example") { implicit s =>
     val f =
       Observable(1, 1, 1, 2, 2, 1, 3)
         .bufferWhileInclusive(_ == 1)

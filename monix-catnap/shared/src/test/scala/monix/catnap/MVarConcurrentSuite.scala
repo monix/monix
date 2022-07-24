@@ -20,20 +20,19 @@ package monix.catnap
 import cats.effect.concurrent.{ Deferred, Ref }
 import cats.effect.{ ContextShift, IO, Timer }
 import cats.implicits._
-import minitest.SimpleTestSuite
-import monix.execution.Scheduler
+import monix.execution.{ BaseTestSuite, Scheduler }
 import monix.execution.internal.Platform
 
 import scala.concurrent.duration._
 
-object MVarConcurrentSuite extends BaseMVarSuite {
+class MVarConcurrentSuite extends BaseMVarSuite {
   def init[A](a: A): IO[MVar[IO, A]] =
     MVar[IO](OrElse.primary(IO.ioConcurrentEffect)).of(a)(cs)
 
   def empty[A]: IO[MVar[IO, A]] =
     MVar[IO](OrElse.primary(IO.ioConcurrentEffect)).empty[A]()(cs)
 
-  testAsync("swap is cancelable on take") {
+  test("swap is cancelable on take") {
     val task = for {
       mVar     <- empty[Int]
       finished <- Deferred.uncancelable[IO, Int]
@@ -49,7 +48,7 @@ object MVarConcurrentSuite extends BaseMVarSuite {
     }
   }
 
-  testAsync("modify is cancelable on take") {
+  test("modify is cancelable on take") {
     val task = for {
       mVar     <- empty[Int]
       finished <- Deferred.uncancelable[IO, String]
@@ -65,7 +64,7 @@ object MVarConcurrentSuite extends BaseMVarSuite {
     }
   }
 
-  testAsync("modify is cancelable on f") {
+  test("modify is cancelable on f") {
     val task = for {
       mVar     <- empty[Int]
       finished <- Deferred.uncancelable[IO, String]
@@ -83,14 +82,14 @@ object MVarConcurrentSuite extends BaseMVarSuite {
   }
 }
 
-object MVarAsyncSuite extends BaseMVarSuite {
+class MVarAsyncSuite extends BaseMVarSuite {
   def init[A](a: A): IO[MVar[IO, A]] =
     MVar[IO](OrElse.secondary(IO.ioEffect)).of(a)
 
   def empty[A]: IO[MVar[IO, A]] =
     MVar[IO](OrElse.secondary(IO.ioEffect)).empty[A]()
 
-  testAsync("put; take; modify; put") {
+  test("put; take; modify; put") {
     val task = for {
       mVar  <- empty[Int]
       _     <- mVar.put(10)
@@ -106,7 +105,7 @@ object MVarAsyncSuite extends BaseMVarSuite {
     }
   }
 
-  testAsync("modify replaces the original value of the mvar on error") {
+  test("modify replaces the original value of the mvar on error") {
     val error = new Exception("Boom!")
     val task = for {
       mVar     <- empty[Int]
@@ -123,7 +122,7 @@ object MVarAsyncSuite extends BaseMVarSuite {
   }
 }
 
-abstract class BaseMVarSuite extends SimpleTestSuite {
+abstract class BaseMVarSuite extends BaseTestSuite {
   implicit def executionContext: Scheduler =
     Scheduler.Implicits.global
   implicit val timer: Timer[IO] =
@@ -134,7 +133,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
   def init[A](a: A): IO[MVar[IO, A]]
   def empty[A]: IO[MVar[IO, A]]
 
-  testAsync("empty; put; take; put; take") {
+  test("empty; put; take; put; take") {
     val task = for {
       av   <- empty[Int]
       isE1 <- av.isEmpty
@@ -150,7 +149,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("empty; tryPut; tryPut; tryTake; tryTake; put; take") {
+  test("empty; tryPut; tryPut; tryTake; tryTake; put; take") {
     val task = for {
       av   <- empty[Int]
       isE1 <- av.isEmpty
@@ -168,7 +167,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("empty; take; put; take; put") {
+  test("empty; take; put; take; put") {
     val task = for {
       av <- empty[Int]
       f1 <- av.take.start
@@ -184,7 +183,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("empty; put; put; put; take; take; take") {
+  test("empty; put; put; put; take; take; take") {
     val task = for {
       av <- empty[Int]
       f1 <- av.put(10).start
@@ -203,7 +202,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("empty; take; take; take; put; put; put") {
+  test("empty; take; take; take; put; put; put") {
     val task = for {
       av <- empty[Int]
       f1 <- av.take.start
@@ -222,7 +221,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("initial; take; put; take") {
+  test("initial; take; put; take") {
     val task = for {
       av  <- init(10)
       isE <- av.isEmpty
@@ -236,7 +235,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("initial; read; take") {
+  test("initial; read; take") {
     val task = for {
       av   <- init(10)
       read <- av.read
@@ -248,7 +247,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("empty; read; put") {
+  test("empty; read; put") {
     val task = for {
       av   <- empty[Int]
       read <- av.read.start
@@ -261,7 +260,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("put(null) works") {
+  test("put(null) works") {
     val task = empty[String].flatMap { mvar =>
       mvar.put(null) *> mvar.read
     }
@@ -270,7 +269,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("producer-consumer parallel loop") {
+  test("producer-consumer parallel loop") {
     // Signaling option, because we need to detect completion
     type Channel[A] = MVar[IO, Option[A]]
 
@@ -308,7 +307,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("stack overflow test") {
+  test("stack overflow test") {
     // Signaling option, because we need to detect completion
     type Channel[A] = MVar[IO, Option[A]]
     val count = 10000
@@ -341,7 +340,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("take/put test is stack safe") {
+  test("take/put test is stack safe") {
     def loop(n: Int, acc: Int)(ch: MVar[IO, Int]): IO[Int] =
       if (n <= 0) IO.pure(acc)
       else
@@ -378,7 +377,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     (count, readLoop(count, 0), writeLoop(count))
   }
 
-  testAsync("put is stack safe when repeated sequentially") {
+  test("put is stack safe when repeated sequentially") {
     val task = for {
       channel <- empty[Int]
       (count, reads, writes) = testStackSequential(channel)
@@ -391,7 +390,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("take is stack safe when repeated sequentially") {
+  test("take is stack safe when repeated sequentially") {
     val task = for {
       channel <- empty[Int]
       (count, reads, writes) = testStackSequential(channel)
@@ -405,7 +404,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("concurrent take and put") {
+  test("concurrent take and put") {
     val count = if (Platform.isJVM) 10000 else 1000
     val task = for {
       mVar <- empty[Int]
@@ -427,7 +426,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("put is cancelable") {
+  test("put is cancelable") {
     val task = for {
       mVar <- init(0)
       _    <- mVar.put(1).start
@@ -445,7 +444,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("take is cancelable") {
+  test("take is cancelable") {
     val task = for {
       mVar <- empty[Int]
       t1   <- mVar.take.start
@@ -464,7 +463,7 @@ abstract class BaseMVarSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("read is cancelable") {
+  test("read is cancelable") {
     val task = for {
       mVar     <- empty[Int]
       finished <- Deferred.uncancelable[IO, Int]

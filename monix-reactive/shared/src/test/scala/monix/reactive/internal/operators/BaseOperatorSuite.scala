@@ -48,40 +48,34 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
     }
   }
 
-  /** Returns an observable that emits from its data-source
-    * the specified `sourceCount` number of items. The `sourceCount`
-    * is not necessarily equal to the number of elements emitted by
-    * the resulting observable, being just a way to randomly vary
-    * the events being emitted.
+  /** Returns an observable that emits from its data-source the specified `sourceCount` number of items. The
+    * `sourceCount` is not necessarily equal to the number of elements emitted by the resulting observable, being just a
+    * way to randomly vary the events being emitted.
     */
   def createObservable(sourceCount: Int): Option[Sample]
 
-  /** Optionally build an observable that simulates an error in user
-    * code (if such a thing is possible for the tested operator.
+  /** Optionally build an observable that simulates an error in user code (if such a thing is possible for the tested
+    * operator.
     *
-    * It first emits elements, followed by an error triggered
-    * within the user-provided portion of the operator.
+    * It first emits elements, followed by an error triggered within the user-provided portion of the operator.
     */
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample]
 
-  /** Optionally builds an observable that first emits the
-    * items and then ends in error triggered by user code
-    * (only for operators that execute user specified code).
+  /** Optionally builds an observable that first emits the items and then ends in error triggered by user code (only for
+    * operators that execute user specified code).
     */
   def observableInError(sourceCount: Int, ex: Throwable): Option[Sample]
 
-  /** Optionally return a sequence of observables
-    * that can be canceled.
+  /** Optionally return a sequence of observables that can be canceled.
     */
   def cancelableObservables(): Seq[Sample]
 
-  /**
-    * Helper for quickly creating an observable ending with onError.
+  /** Helper for quickly creating an observable ending with onError.
     */
   def createObservableEndingInError(source: Observable[Long], ex: Throwable): Observable[Long] =
     source.endWithError(ex)
 
-  test("should emit exactly the requested elements") { implicit s =>
+  fixture.test("should emit exactly the requested elements") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var received = 0
     var wasCompleted = false
@@ -106,7 +100,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
     }
   }
 
-  test("should work for synchronous observers") { implicit s =>
+  fixture.test("should work for synchronous observers") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var received = 0
     var total = 0L
@@ -135,7 +129,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
     }
   }
 
-  test("should work for asynchronous observers") { implicit s =>
+  fixture.test("should work for asynchronous observers") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var received = 0
     var total = 0L
@@ -173,7 +167,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
     }
   }
 
-  test("should back-pressure all the way") { implicit s =>
+  fixture.test("should back-pressure all the way") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var p = Promise[Continue.type]()
     var wasCompleted = false
@@ -213,7 +207,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
     }
   }
 
-  test("should protect user-level code") { implicit s =>
+  fixture.test("should protect user-level code") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
 
     brokenUserCodeObservable(sourceCount, DummyException("dummy")) match {
@@ -246,7 +240,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
     }
   }
 
-  test("should not break the contract on user-level error") { implicit s =>
+  fixture.test("should not break the contract on user-level error") { implicit s =>
     brokenUserCodeObservable(1, DummyException("dummy")) match {
       case None => ignore()
       case Some(Sample(obs, count, _, waitForFirst, waitForNext)) =>
@@ -274,7 +268,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
     }
   }
 
-  test("onError should work") { implicit s =>
+  fixture.test("onError should work") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
 
     observableInError(sourceCount, DummyException("dummy")) match {
@@ -320,7 +314,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
     }
   }
 
-  test("should stop on first onNext") { implicit s =>
+  fixture.test("should stop on first onNext") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
 
     createObservable(sourceCount) match {
@@ -352,7 +346,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
     }
   }
 
-  test("should be cancelable") { implicit s =>
+  fixture.test("should be cancelable") { implicit s =>
     val observables = cancelableObservables()
     if (observables.isEmpty) ignore()
 

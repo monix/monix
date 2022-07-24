@@ -17,22 +17,18 @@
 
 package monix.reactive.internal.builders
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.duration.MILLISECONDS
 
-object StateActionObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class StateActionObservableSuite extends BaseTestSuite {
 
-  test("first execution is sync") { implicit s =>
+  fixture.test("first execution is sync") { implicit s =>
     var received = 0
     Observable
       .fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
@@ -43,7 +39,7 @@ object StateActionObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 1)
   }
 
-  test("should do synchronous execution in batches") { implicit s =>
+  fixture.test("should do synchronous execution in batches") { implicit s =>
     var received = 0
     Observable
       .fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
@@ -59,7 +55,7 @@ object StateActionObservableSuite extends TestSuite[TestScheduler] {
     ()
   }
 
-  test("fromStateAction should be cancelable") { implicit s =>
+  fixture.test("fromStateAction should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 

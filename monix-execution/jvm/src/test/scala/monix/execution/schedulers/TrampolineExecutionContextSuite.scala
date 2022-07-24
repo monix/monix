@@ -17,9 +17,9 @@
 
 package monix.execution.schedulers
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 
-object TrampolineExecutionContextSuite extends SimpleTestSuite {
+class TrampolineExecutionContextSuite extends BaseTestSuite {
   test("TrampolineExecutionContext.immediate works") {
     val ctx = TrampolineExecutionContext.immediate
     var effect = 0

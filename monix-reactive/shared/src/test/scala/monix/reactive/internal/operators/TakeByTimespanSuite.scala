@@ -23,7 +23,7 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object TakeByTimespanSuite extends BaseOperatorSuite {
+class TakeByTimespanSuite extends BaseOperatorSuite {
   val waitFirst = Duration.Zero
   val waitNext = 1.second
 
@@ -64,7 +64,7 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
     Seq(Sample(s, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("should complete even if no element was emitted") { implicit s =>
+  fixture.test("should complete even if no element was emitted") { implicit s =>
     var wasCompleted = false
 
     Observable.never
@@ -81,7 +81,7 @@ object TakeByTimespanSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("should cancel if downstream cancels") { implicit s =>
+  fixture.test("should cancel if downstream cancels") { implicit s =>
     var received = 0
 
     Observable

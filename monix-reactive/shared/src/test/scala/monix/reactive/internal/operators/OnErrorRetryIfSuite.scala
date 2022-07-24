@@ -22,7 +22,7 @@ import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import scala.concurrent.duration.{ Duration, _ }
 
-object OnErrorRetryIfSuite extends BaseOperatorSuite {
+class OnErrorRetryIfSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val retriesCount = Atomic(0)
     val ex = DummyException("expected")

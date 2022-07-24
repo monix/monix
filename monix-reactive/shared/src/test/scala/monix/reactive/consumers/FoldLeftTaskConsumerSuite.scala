@@ -25,8 +25,8 @@ import monix.execution.exceptions.DummyException
 import monix.reactive.{ BaseTestSuite, Consumer, Observable }
 import scala.util.{ Failure, Success }
 
-object FoldLeftTaskConsumerSuite extends BaseTestSuite {
-  test("should sum a long stream") { implicit s =>
+class FoldLeftTaskConsumerSuite extends BaseTestSuite {
+  fixture.test("should sum a long stream") { implicit s =>
     val count = 10000L
     val obs = Observable.range(0, count)
     val f = obs
@@ -40,7 +40,7 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(count * (count - 1) / 2)))
   }
 
-  test("should interrupt with error") { implicit s =>
+  fixture.test("should interrupt with error") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
     val f = obs
@@ -54,7 +54,7 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("should protect against user simple error") { implicit s =>
+  fixture.test("should protect against user simple error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable
       .now(1)
@@ -65,7 +65,7 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("should protect against user task error") { implicit s =>
+  fixture.test("should protect against user task error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable
       .now(1)
@@ -76,7 +76,7 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("foldLeftTask <-> foldLeftEval") { implicit s =>
+  fixture.test("foldLeftTask <-> foldLeftEval") { implicit s =>
     check1 { (source: Observable[Int]) =>
       val fa1 = source.consumeWith(Consumer.foldLeftTask(0L)((s, a) => Task.evalAsync(s + a)))
       val fa2 = source.consumeWith(Consumer.foldLeftEval(0L)((s, a) => IO(s + a)))
@@ -84,15 +84,17 @@ object FoldLeftTaskConsumerSuite extends BaseTestSuite {
     }
   }
 
-  test("should cancel the last task that started execution") { implicit s =>
+  fixture.test("should cancel the last task that started execution") { implicit s =>
     var cancelled = false
     val f = Observable
       .range(1, 5)
-      .consumeWith(Consumer.foldLeftTask(0L)((_, _) =>
-        Task.never.doOnCancel(Task {
-          cancelled = true
-        })
-      ))
+      .consumeWith(
+        Consumer.foldLeftTask(0L)((_, _) =>
+          Task.never.doOnCancel(Task {
+            cancelled = true
+          })
+        )
+      )
       .runToFuture
 
     s.tick()

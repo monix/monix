@@ -17,54 +17,33 @@
 
 package monix.execution
 
-import minitest.TestSuite
+import monix.execution.CallbackSuite.TestCallback
 import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, DummyException }
-import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.Promise
 import scala.util.{ Failure, Success, Try }
 
-object CallbackSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(env: TestScheduler): Unit =
-    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
+class CallbackSuite extends BaseTestSuite {
 
-  case class TestCallback(success: Int => Unit = _ => (), error: Throwable => Unit = _ => ())
-    extends Callback[Throwable, Int] {
-
-    var successCalled = false
-    var errorCalled = false
-
-    override def onSuccess(value: Int): Unit = {
-      successCalled = true
-      success(value)
-    }
-
-    override def onError(ex: Throwable): Unit = {
-      errorCalled = true
-      error(ex)
-    }
-  }
-
-  test("onValue should invoke onSuccess") { _ =>
+  fixture.test("onValue should invoke onSuccess") { _ =>
     val callback = TestCallback()
     callback.onSuccess(1)
     assert(callback.successCalled)
   }
 
-  test("apply Success(value) should invoke onSuccess") { _ =>
+  fixture.test("apply Success(value) should invoke onSuccess") { _ =>
     val callback = TestCallback()
     callback(Success(1))
     assert(callback.successCalled)
   }
 
-  test("apply Failure(ex) should invoke onError") { _ =>
+  fixture.test("apply Failure(ex) should invoke onError") { _ =>
     val callback = TestCallback()
     callback(Failure(new IllegalStateException()))
     assert(callback.errorCalled)
   }
 
-  test("contramap should pipe onError") { _ =>
+  fixture.test("contramap should pipe onError") { _ =>
     var result = Option.empty[Try[Int]]
     val callback = TestCallback(
       { v =>
@@ -82,14 +61,14 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     assertEquals(result, Some(Failure(dummy)))
   }
 
-  test("contramap should invoke function before invoking callback") { _ =>
+  fixture.test("contramap should invoke function before invoking callback") { _ =>
     val callback = TestCallback()
     val stringCallback = callback.contramap[String](_.toInt)
     stringCallback.onSuccess("1")
     assert(callback.successCalled)
   }
 
-  test("Callback.fromPromise (success)") { _ =>
+  test("Callback.fromPromise (success)") {
     val p = Promise[Int]()
     val cb = Callback.fromPromise(p)
 
@@ -100,7 +79,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     ()
   }
 
-  test("Callback.fromPromise (failure)") { _ =>
+  test("Callback.fromPromise (failure)") {
     val p = Promise[Int]()
     val cb = Callback.fromPromise(p)
 
@@ -113,7 +92,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     ()
   }
 
-  test("Callback.empty reports errors") { implicit s =>
+  fixture.test("Callback.empty reports errors") { implicit s =>
     val empty = Callback.empty[Throwable, Int]
     val dummy = DummyException("dummy")
     empty.onError(dummy)
@@ -121,7 +100,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("Callback.safe protects against errors in onSuccess") { implicit s =>
+  fixture.test("Callback.safe protects against errors in onSuccess") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -144,7 +123,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 1)
   }
 
-  test("Callback.safe protects against errors in onError") { implicit s =>
+  fixture.test("Callback.safe protects against errors in onError") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
     var effect = 0
@@ -169,7 +148,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     assertEquals(effect, 1)
   }
 
-  test("callback(Right(a))") { _ =>
+  test("callback(Right(a))") {
     val p = Promise[Int]()
     val cb = Callback.fromPromise(p)
 
@@ -177,7 +156,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     assertEquals(p.future.value, Some(Success(10)))
   }
 
-  test("callback(Left(e))") { _ =>
+  test("callback(Left(e))") {
     val p = Promise[Int]()
     val cb = Callback.fromPromise(p)
     val err = DummyException("dummy")
@@ -186,7 +165,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     assertEquals(p.future.value, Some(Failure(err)))
   }
 
-  test("fromAttempt success") { _ =>
+  test("fromAttempt success") {
     val p = Promise[Int]()
     val cb = Callback.fromAttempt[Throwable, Int] {
       case Right(a) => p.success(a); ()
@@ -197,7 +176,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     assertEquals(p.future.value, Some(Success(10)))
   }
 
-  test("fromAttempt error") { _ =>
+  test("fromAttempt error") {
     val p = Promise[Int]()
     val cb = Callback.fromAttempt[Throwable, Int] {
       case Right(a) => p.success(a); ()
@@ -207,5 +186,24 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     val err = DummyException("dummy")
     cb.onError(err)
     assertEquals(p.future.value, Some(Failure(err)))
+  }
+}
+
+object CallbackSuite {
+  case class TestCallback(success: Int => Unit = _ => (), error: Throwable => Unit = _ => ())
+    extends Callback[Throwable, Int] {
+
+    var successCalled = false
+    var errorCalled = false
+
+    override def onSuccess(value: Int): Unit = {
+      successCalled = true
+      success(value)
+    }
+
+    override def onError(ex: Throwable): Unit = {
+      errorCalled = true
+      error(ex)
+    }
   }
 }

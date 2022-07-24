@@ -17,22 +17,18 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Ack.Continue
 import monix.execution.{ Ack, Scheduler }
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object DelayOnCompleteSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class DelayOnCompleteSuite extends BaseTestSuite {
 
-  test("delayOnComplete should work") { s =>
+  fixture.test("delayOnComplete should work") { s =>
     val obs = Observable.now(1).delayOnComplete(1.second)
     var received = 0
     var wasCompleted = 0
@@ -56,7 +52,7 @@ object DelayOnCompleteSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 1)
   }
 
-  test("delayOnComplete should be cancelable #1") { s =>
+  fixture.test("delayOnComplete should be cancelable #1") { s =>
     val obs = Observable
       .now(1)
       .delayOnNext(1.second)
@@ -83,7 +79,7 @@ object DelayOnCompleteSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 0)
   }
 
-  test("delayOnComplete should be cancelable #2") { s =>
+  fixture.test("delayOnComplete should be cancelable #2") { s =>
     val obs = Observable
       .now(1)
       .delayOnComplete(1.second)

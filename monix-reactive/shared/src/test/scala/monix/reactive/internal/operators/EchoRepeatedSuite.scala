@@ -25,7 +25,7 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object EchoRepeatedSuite extends BaseOperatorSuite {
+class EchoRepeatedSuite extends BaseOperatorSuite {
   def waitFirst = 1.second
   def waitNext = 1.second
 
@@ -61,7 +61,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     }
   }
 
-  test("should timeout on inactivity and start emitting") { implicit s =>
+  fixture.test("should timeout on inactivity and start emitting") { implicit s =>
     val channel = PublishSubject[Int]()
     var received = 0
     var wasCompleted = false
@@ -94,7 +94,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     assertEquals(wasCompleted, true)
   }
 
-  test("time for processing upstream messages should be ignored") { implicit s =>
+  fixture.test("time for processing upstream messages should be ignored") { implicit s =>
     val channel = PublishSubject[Int]()
     var received = 0
     var wasCompleted = false
@@ -135,7 +135,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     assertEquals(wasCompleted, true)
   }
 
-  test("interval should be at fixed rate") { implicit s =>
+  fixture.test("interval should be at fixed rate") { implicit s =>
     val channel = PublishSubject[Int]()
     var received = 0
     var wasCompleted = false
@@ -169,7 +169,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     assertEquals(wasCompleted, true)
   }
 
-  test("new item should interrupt the streaming") { implicit s =>
+  fixture.test("new item should interrupt the streaming") { implicit s =>
     val channel = PublishSubject[Int]()
     var received = 0
     var wasCompleted = false
@@ -213,8 +213,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     assertEquals(wasCompleted, true)
   }
 
-  /** Optionally return a sequence of observables
-    * that can be canceled.
+  /** Optionally return a sequence of observables that can be canceled.
     */
   override def cancelableObservables() = {
     val sample = Observable

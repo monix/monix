@@ -24,8 +24,8 @@ import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import scala.util.Failure
 
-object IterantCompleteLSuite extends BaseTestSuite {
-  test("completedL works") { implicit s =>
+class IterantCompleteLSuite extends BaseTestSuite {
+  fixture.test("completedL works") { implicit s =>
     check1 { (iter: Iterant[Coeval, Int]) =>
       var effect = 0
       val trigger = iter.onErrorIgnore ++ Iterant[Coeval].suspend {
@@ -38,7 +38,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
     }
   }
 
-  test("BatchCursor.completedL protects against errors") { implicit s =>
+  fixture.test("BatchCursor.completedL protects against errors") { implicit s =>
     val dummy = DummyException("dummy")
     val cursor = ThrowExceptionCursor[Int](dummy)
     var earlyStop = false
@@ -51,7 +51,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
     assert(earlyStop, "earlyStop")
   }
 
-  test("Batch.completedL protects against errors") { implicit s =>
+  fixture.test("Batch.completedL protects against errors") { implicit s =>
     val dummy = DummyException("dummy")
     val batch = ThrowExceptionBatch[Int](dummy)
     var earlyStop = false
@@ -64,7 +64,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
     assert(earlyStop, "earlyStop")
   }
 
-  test("resource gets released for failing `rest` on Next node") { implicit s =>
+  fixture.test("resource gets released for failing `rest` on Next node") { implicit s =>
     var effect = 0
 
     def stop(i: Int): Coeval[Unit] =
@@ -79,7 +79,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
     assertEquals(effect, 6)
   }
 
-  test("completedL handles Scope's release before the rest of the stream") { implicit s =>
+  fixture.test("completedL handles Scope's release before the rest of the stream") { implicit s =>
     val triggered = Atomic(false)
     val fail = DummyException("fail")
 
@@ -102,7 +102,7 @@ object IterantCompleteLSuite extends BaseTestSuite {
     assertEquals(stream.completedL.value(), ())
   }
 
-  test("completedL handles Scope's release after use is finished") { implicit s =>
+  fixture.test("completedL handles Scope's release after use is finished") { implicit s =>
     val triggered = Atomic(false)
     val fail = DummyException("fail")
 

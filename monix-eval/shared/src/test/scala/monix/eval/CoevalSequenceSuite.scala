@@ -20,22 +20,22 @@ package monix.eval
 import cats.laws._
 import cats.laws.discipline._
 
-object CoevalSequenceSuite extends BaseTestSuite {
-  test("Coeval.sequence") { _ =>
+class CoevalSequenceSuite extends BaseTestSuite {
+  test("Coeval.sequence") {
     check1 { (numbers: List[Int]) =>
       val coeval = Coeval.sequence(numbers.map(x => Coeval(x)))
       coeval <-> Coeval(numbers)
     }
   }
 
-  test("Coeval.traverse") { _ =>
+  test("Coeval.traverse") {
     check1 { (numbers: List[Int]) =>
       val coeval = Coeval.traverse(numbers)(x => Coeval(x))
       coeval <-> Coeval(numbers)
     }
   }
 
-  test("Coeval.zipList") { _ =>
+  test("Coeval.zipList") {
     check1 { (numbers: List[Int]) =>
       val coeval = Coeval.zipList(numbers.map(x => Coeval(x)): _*)
       coeval <-> Coeval(numbers)

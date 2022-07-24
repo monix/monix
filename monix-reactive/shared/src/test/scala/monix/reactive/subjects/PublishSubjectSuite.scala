@@ -25,7 +25,7 @@ import monix.reactive.{ Observable, Observer, OverflowStrategy }
 import scala.concurrent.Future
 import scala.util.Success
 
-object PublishSubjectSuite extends BaseSubjectSuite {
+class PublishSubjectSuite extends BaseSubjectSuite {
   implicit val os: OverflowStrategy[Nothing] = OverflowStrategy.Default
 
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
@@ -38,7 +38,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
     Some(Sample(s, expectedElems.sum))
   }
 
-  test("issue #50") { implicit s =>
+  fixture.test("issue #50") { implicit s =>
     val p = PublishSubject[Int]()
     var received = 0
 
@@ -62,7 +62,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
     assertEquals(received, 1)
   }
 
-  test("should emit from the point of subscription forward") { implicit s =>
+  fixture.test("should emit from the point of subscription forward") { implicit s =>
     val subject = PublishSubject[Int]()
     assertEquals(subject.onNext(1), Continue)
     assertEquals(subject.onNext(2), Continue)
@@ -89,7 +89,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
     assert(wasCompleted)
   }
 
-  test("should work synchronously for synchronous subscribers") { implicit s =>
+  fixture.test("should work synchronously for synchronous subscribers") { implicit s =>
     val subject = PublishSubject[Int]()
     var received = 0
     var wasCompleted = 0
@@ -114,7 +114,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
     assertEquals(wasCompleted, 10)
   }
 
-  test("should work with asynchronous subscribers") { implicit s =>
+  fixture.test("should work with asynchronous subscribers") { implicit s =>
     val subject = PublishSubject[Int]()
     var received = 0
     var wasCompleted = 0
@@ -143,7 +143,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
     assertEquals(wasCompleted, 10)
   }
 
-  test("subscribe after complete should complete immediately") { implicit s =>
+  fixture.test("subscribe after complete should complete immediately") { implicit s =>
     val subject = PublishSubject[Int]()
     subject.onComplete()
 
@@ -157,7 +157,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
     assert(wasCompleted)
   }
 
-  test("onError should terminate current and future subscribers") { implicit s =>
+  fixture.test("onError should terminate current and future subscribers") { implicit s =>
     val subject = PublishSubject[Int]()
     val dummy = DummyException("dummy")
     var elemsReceived = 0
@@ -189,7 +189,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
     assertEquals(errorsReceived, 11)
   }
 
-  test("unsubscribe after onComplete") { implicit s =>
+  fixture.test("unsubscribe after onComplete") { implicit s =>
     var result: Int = 0
     val subject = PublishSubject[Int]()
     val c = subject.subscribe { e =>

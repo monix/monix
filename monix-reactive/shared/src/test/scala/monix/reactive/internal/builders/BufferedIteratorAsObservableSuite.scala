@@ -18,11 +18,11 @@
 package monix.reactive.internal.builders
 
 import cats.effect.Resource
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.{ APIContractViolationException, DummyException }
-import monix.execution.schedulers.TestScheduler
 import monix.execution.{ Ack, ExecutionModel, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -31,13 +31,9 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Success
 
-object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
-  }
+class BufferedIteratorAsObservableSuite extends BaseTestSuite {
 
-  test("yields a single subscriber observable") { implicit s =>
+  fixture.test("yields a single subscriber observable") { implicit s =>
     var errorThrown: Throwable = null
     val obs = Observable.fromIteratorBufferedUnsafe(Seq(1, 2, 3).iterator, 1)
     obs.unsafeSubscribeFn(Subscriber.empty(s))
@@ -56,7 +52,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assert(errorThrown.isInstanceOf[APIContractViolationException])
   }
 
-  test("fromIteratorBuffered(resource) should call finalizer") { implicit s =>
+  fixture.test("fromIteratorBuffered(resource) should call finalizer") { implicit s =>
     var onFinishCalled = 0
     var onCompleteCalled = 0
     var sum = 0
@@ -86,7 +82,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, n * (n - 1) / 2)
   }
 
-  test("fromIteratorBuffered(resource) should back-pressure onNext before calling finalizer") { implicit s =>
+  fixture.test("fromIteratorBuffered(resource) should back-pressure onNext before calling finalizer") { implicit s =>
     var onFinishCalled = 0
     var onCompleteCalled = 0
     var sum = 0
@@ -112,7 +108,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(onFinishCalled, 1)
   }
 
-  test("onFinish should be called upon onError") { implicit s =>
+  fixture.test("onFinish should be called upon onError") { implicit s =>
     val ex = DummyException("dummy")
     var onFinishCalled = 0
     var onErrorCalled: Throwable = null
@@ -140,7 +136,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(onFinishCalled, 1)
   }
 
-  test("onFinish should be called upon Stop") { implicit s =>
+  fixture.test("onFinish should be called upon Stop") { implicit s =>
     var onFinishCalled = 0
     var onCompleteCalled = 0
     var sum = 0
@@ -166,7 +162,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(onFinishCalled, 1)
   }
 
-  test("onFinish should be called upon subscription cancel") { implicit s =>
+  fixture.test("onFinish should be called upon subscription cancel") { implicit s =>
     var onFinishCalled = 0
     var onCompleteCalled = 0
     var received = 0
@@ -192,7 +188,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(onFinishCalled, 1)
   }
 
-  test("onFinish should be called if onNext triggers error before boundary") { implicit s =>
+  fixture.test("onFinish should be called if onNext triggers error before boundary") { implicit s =>
     val ex = DummyException("dummy")
     var onFinishCalled = 0
     var received = 0
@@ -223,7 +219,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(wasThrown, ex)
   }
 
-  test("onFinish should be called if onNext triggers error after boundary") { implicit s =>
+  fixture.test("onFinish should be called if onNext triggers error after boundary") { implicit s =>
     val ex = DummyException("dummy")
     var onFinishCalled = 0
     var received = 0
@@ -254,7 +250,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(wasThrown, ex)
   }
 
-  test("onFinish should be called if onNext triggers error asynchronously") { implicit s =>
+  fixture.test("onFinish should be called if onNext triggers error asynchronously") { implicit s =>
     val ex = DummyException("dummy")
     var onFinishCalled = 0
     var received = 0
@@ -287,7 +283,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(wasThrown, ex)
   }
 
-  test("onFinish throwing just before onComplete") { implicit s =>
+  fixture.test("onFinish throwing just before onComplete") { implicit s =>
     val ex = DummyException("ex")
     var wasThrown: Throwable = null
     var sum = 0
@@ -319,7 +315,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, n * (n - 1) / 2)
   }
 
-  test("onFinish throwing after Stop") { implicit s =>
+  fixture.test("onFinish throwing after Stop") { implicit s =>
     val ex = DummyException("ex")
     var onCompleteCalled = 0
     var received = 0
@@ -352,7 +348,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("fromIteratorBufferedUnsafe insert asynchronous boundaries in BatchedExecution") { s =>
+  fixture.test("fromIteratorBufferedUnsafe insert asynchronous boundaries in BatchedExecution") { s =>
     implicit val sc = s.withExecutionModel(ExecutionModel.Default)
 
     var onCompleteCalled = 0
@@ -388,7 +384,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(onCompleteCalled, 1)
   }
 
-  test("emits buffers") { implicit s =>
+  fixture.test("emits buffers") { implicit s =>
     import monix.execution.compat.internal.toSeq
 
     val seq = 0 to 10

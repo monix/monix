@@ -17,9 +17,9 @@
 
 package monix.execution.rstreams
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 
-object SingleAssignSubscriptionSuite extends SimpleTestSuite {
+class SingleAssignSubscriptionSuite extends BaseTestSuite {
   test("should call cancel on assignment") {
     val ref = SingleAssignSubscription()
     ref.cancel()
@@ -44,7 +44,7 @@ object SingleAssignSubscriptionSuite extends SimpleTestSuite {
       def cancel() = ()
     }
 
-    assertEquals(wasRequested, 300)
+    assertEquals(wasRequested, 300L)
   }
 
   test("cancel should have priority on assignment") {
@@ -62,7 +62,7 @@ object SingleAssignSubscriptionSuite extends SimpleTestSuite {
     }
 
     assert(wasCanceled, "wasCanceled should be true")
-    assertEquals(wasRequested, 0)
+    assertEquals(wasRequested, 0L)
   }
 
   test("request and cancel after assignment should work") {
@@ -80,6 +80,6 @@ object SingleAssignSubscriptionSuite extends SimpleTestSuite {
     ref.cancel()
 
     assert(wasCanceled, "wasCanceled should be true")
-    assertEquals(wasRequested, 300)
+    assertEquals(wasRequested, 300L)
   }
 }

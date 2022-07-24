@@ -22,8 +22,8 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.{ Coeval, Task }
 
-object IterantLiftMapSuite extends BaseTestSuite {
-  test("liftMap(f) converts Iterant[Coeval, ?] to Iterant[Task, ?]") { implicit s =>
+class IterantLiftMapSuite extends BaseTestSuite {
+  fixture.test("liftMap(f) converts Iterant[Coeval, ?] to Iterant[Task, ?]") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val source = arbitraryListToIterant[Coeval, Int](list, idx)
       val expected = arbitraryListToIterant[Task, Int](list, idx)
@@ -33,7 +33,7 @@ object IterantLiftMapSuite extends BaseTestSuite {
     }
   }
 
-  test("liftMap(f) converts Iterant[Task, ?] to Iterant[IO, ?]") { implicit s =>
+  fixture.test("liftMap(f) converts Iterant[Task, ?] to Iterant[IO, ?]") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val source = arbitraryListToIterant[Task, Int](list, idx)
       val expected = arbitraryListToIterant[IO, Int](list, idx)

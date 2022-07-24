@@ -17,40 +17,33 @@
 
 package monix.execution
 
-import minitest.TestSuite
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.TestScheduler
 import monix.execution.internal.Platform
-
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Failure, Success, Try }
 
-object AckSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
-  }
+class AckSuite extends BaseTestSuite {
 
   val stackSafeLoopN: Int = if (Platform.isJVM) 100000 else 5000
 
-  test("Continue defaults") { _ =>
+  test("Continue defaults") {
     assert(Continue.isCompleted, "Continue.isCompleted")
     assertEquals(Continue.value, Some(Success(Continue)))
   }
 
-  test("Stop defaults") { _ =>
+  test("Stop defaults") {
     assert(Stop.isCompleted, "Stop.isCompleted")
     assertEquals(Stop.value, Some(Success(Stop)))
   }
 
-  test("syncOnContinue(Continue) should execute synchronously #1") { implicit s =>
+  fixture.test("syncOnContinue(Continue) should execute synchronously #1") { implicit s =>
     var triggered = false
     Continue.syncOnContinue { triggered = true }
     assert(triggered, "triggered")
   }
 
-  test("syncOnContinue(Continue) should execute synchronously #2") { implicit s =>
+  fixture.test("syncOnContinue(Continue) should execute synchronously #2") { implicit s =>
     val continue: Future[Ack] = Continue
     var triggered = false
     val trigger: () => Unit = {
@@ -62,7 +55,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(triggered, "triggered")
   }
 
-  test("syncOnContinue(Future.successful(Continue)) should execute trampolined") { implicit s =>
+  fixture.test("syncOnContinue(Future.successful(Continue)) should execute trampolined") { implicit s =>
     def loop(source: Future[Ack], n: Int): Future[Ack] =
       source.syncOnContinue {
         if (n > 0) { loop(source, n - 1); () }
@@ -74,7 +67,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(triggered, "triggered")
   }
 
-  test("syncOnContinue(Future(Continue)) should execute async") { implicit s =>
+  fixture.test("syncOnContinue(Future(Continue)) should execute async") { implicit s =>
     var triggered = false
     val continue: Future[Ack] = Future(Continue)
     continue.syncOnContinue { triggered = true }
@@ -84,14 +77,14 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(triggered, "triggered")
   }
 
-  test("syncOnContinue(Stop) should execute synchronously #1") { implicit s =>
+  fixture.test("syncOnContinue(Stop) should execute synchronously #1") { implicit s =>
     var triggered = false
     (Stop: Future[Ack]).syncOnContinue { triggered = true }
     assert(!triggered, "!triggered")
     assert(s.state.tasks.isEmpty, "there should be no async task registered")
   }
 
-  test("syncOnContinue(Stop) should execute synchronously #2") { implicit s =>
+  fixture.test("syncOnContinue(Stop) should execute synchronously #2") { implicit s =>
     val cancel: Future[Ack] = Stop
     var triggered = false
     val trigger: () => Unit = {
@@ -104,7 +97,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "there should be no async task registered")
   }
 
-  test("syncOnContinue(Future.successful(Stop)) should execute trampolined") { implicit s =>
+  fixture.test("syncOnContinue(Future.successful(Stop)) should execute trampolined") { implicit s =>
     var triggered = false
     val stop = Future.successful(Stop: Ack)
     stop.syncOnContinue { triggered = true }
@@ -112,7 +105,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("syncOnContinue(Future(Stop)) should execute async") { implicit s =>
+  fixture.test("syncOnContinue(Future(Stop)) should execute async") { implicit s =>
     var triggered = false
     Future(Stop: Ack).syncOnContinue { triggered = true }
     assert(s.state.tasks.nonEmpty, "async tasks should be registered")
@@ -120,19 +113,19 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(!triggered, "!triggered")
   }
 
-  test("syncOnContinue(Continue) should protect against user errors") { implicit s =>
+  fixture.test("syncOnContinue(Continue) should protect against user errors") { implicit s =>
     val ex = new RuntimeException("dummy")
     Continue.syncOnContinue { throw ex }
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("syncOnContinue(Future.successful(Continue)) should protect against user errors") { implicit s =>
+  fixture.test("syncOnContinue(Future.successful(Continue)) should protect against user errors") { implicit s =>
     val ex = new RuntimeException("dummy")
     Future.successful(Continue).syncOnContinue { throw ex }
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("syncOnStopOrFailure(Stop) should execute synchronously") { implicit s =>
+  fixture.test("syncOnStopOrFailure(Stop) should execute synchronously") { implicit s =>
     var triggered = false
     Stop.syncOnStopOrFailure { ex =>
       if (ex.isEmpty) triggered = true
@@ -141,7 +134,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "there should be no async tasks registered")
   }
 
-  test("syncOnStopOrFailure(Future(Stop)) should execute asynchronously") { implicit s =>
+  fixture.test("syncOnStopOrFailure(Future(Stop)) should execute asynchronously") { implicit s =>
     var triggered = false
     Future(Stop).syncOnStopOrFailure { ex =>
       if (ex.isEmpty) triggered = true
@@ -153,7 +146,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "there should be no async tasks registered")
   }
 
-  test("syncOnStopOrFailure(Future.successful(Stop)) should execute trampolined") { implicit s =>
+  fixture.test("syncOnStopOrFailure(Future.successful(Stop)) should execute trampolined") { implicit s =>
     def loop(source: Future[Ack], n: Int): Future[Ack] =
       source.syncOnStopOrFailure { _ =>
         if (n > 0) { loop(source, n - 1); () }
@@ -166,7 +159,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(triggered, "triggered")
   }
 
-  test("syncOnStopOrFailure(Continue) should execute synchronously") { implicit s =>
+  fixture.test("syncOnStopOrFailure(Continue) should execute synchronously") { implicit s =>
     var triggered = false
     (Continue: Ack).syncOnStopOrFailure { ex =>
       if (ex.isEmpty) triggered = true
@@ -175,7 +168,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "there should be no async tasks registered")
   }
 
-  test("syncOnStopOrFailure(Future.successful(Continue)) should execute trampolined") { implicit s =>
+  fixture.test("syncOnStopOrFailure(Future.successful(Continue)) should execute trampolined") { implicit s =>
     var triggered = false
     (Future.successful(Continue): Future[Ack]).syncOnStopOrFailure { ex =>
       triggered = ex.isEmpty
@@ -184,7 +177,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "there should be async tasks registered")
   }
 
-  test("syncOnStopOrFailure(Future(Continue)) should execute asynchronously") { implicit s =>
+  fixture.test("syncOnStopOrFailure(Future(Continue)) should execute asynchronously") { implicit s =>
     var triggered = false
     (Future(Continue): Future[Ack]).syncOnStopOrFailure { ex =>
       if (ex.isEmpty) triggered = true
@@ -196,7 +189,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("syncOnStopOrFailure(Future.failed(ex)) should execute trampolined") { implicit s =>
+  fixture.test("syncOnStopOrFailure(Future.failed(ex)) should execute trampolined") { implicit s =>
     var triggered = false
     val ex = new RuntimeException("dummy")
     val ack: Future[Ack] = Future.failed(ex)
@@ -206,7 +199,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(triggered, true)
   }
 
-  test("syncOnStopOrFailure(Future(throw ex)) should execute") { implicit s =>
+  fixture.test("syncOnStopOrFailure(Future(throw ex)) should execute") { implicit s =>
     var triggered = false
     val ex = new RuntimeException("dummy")
     val ack: Future[Ack] = Future { throw ex }
@@ -220,7 +213,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(triggered, true)
   }
 
-  test("syncOnStopOrFailure(Stop) should protect against user errors") { implicit s =>
+  fixture.test("syncOnStopOrFailure(Stop) should protect against user errors") { implicit s =>
     val ex = new RuntimeException("dummy")
     Stop.syncOnStopOrFailure { _ =>
       throw ex
@@ -228,7 +221,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("syncOnStopOrFailure(Future(Stop)) should protect against user errors") { implicit s =>
+  fixture.test("syncOnStopOrFailure(Future(Stop)) should protect against user errors") { implicit s =>
     val ex = new RuntimeException("dummy")
     Future(Stop).syncOnStopOrFailure { _ =>
       throw ex
@@ -237,7 +230,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("syncOnStopOrFailure(Future.failed(ex)) should protect against user errors") { implicit s =>
+  fixture.test("syncOnStopOrFailure(Future.failed(ex)) should protect against user errors") { implicit s =>
     val ex = new RuntimeException("dummy")
     val source = Future.failed[Ack](new RuntimeException("first"))
     source.syncOnStopOrFailure { _ =>
@@ -246,7 +239,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("syncOnStopOrFailure(Future(throw ex)) should protect against user errors") { implicit s =>
+  fixture.test("syncOnStopOrFailure(Future(throw ex)) should protect against user errors") { implicit s =>
     val ex = new RuntimeException("dummy")
     val source = Future[Ack](throw new RuntimeException("first"))
     source.syncOnStopOrFailure { _ =>
@@ -256,7 +249,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("syncMap(Continue) should execute synchronously") { implicit s =>
+  fixture.test("syncMap(Continue) should execute synchronously") { implicit s =>
     var triggered = false
     val source: Future[Ack] = Continue
 
@@ -272,7 +265,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "there should be no async tasks registered")
   }
 
-  test("syncMap(Stop) should execute synchronously") { implicit s =>
+  fixture.test("syncMap(Stop) should execute synchronously") { implicit s =>
     var triggered = false
     val source: Future[Ack] = Stop
 
@@ -288,7 +281,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "there should be no async tasks registered")
   }
 
-  test("syncMap should protect against exceptions") { implicit s =>
+  fixture.test("syncMap should protect against exceptions") { implicit s =>
     val dummy = new RuntimeException("dummy")
     val result = (Continue: Future[Ack]).syncMap { _ =>
       throw dummy
@@ -298,7 +291,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("syncMap(Future.successful(Continue)) should execute trampolined") { implicit s =>
+  fixture.test("syncMap(Future.successful(Continue)) should execute trampolined") { implicit s =>
     var triggered = false
     val source: Future[Ack] = Future.successful(Continue)
 
@@ -314,7 +307,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(triggered, true)
   }
 
-  test("syncMap(Future.successful(Stop)) should execute trampolined") { implicit s =>
+  fixture.test("syncMap(Future.successful(Stop)) should execute trampolined") { implicit s =>
     var triggered = false
     val source: Future[Ack] = Future.successful(Stop)
 
@@ -330,7 +323,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(triggered, true)
   }
 
-  test("syncMap(Continue) with impure function") { implicit s =>
+  fixture.test("syncMap(Continue) with impure function") { implicit s =>
     var triggered = false
     val source: Future[Ack] = Continue
     val fn: Ack => Ack = {
@@ -349,7 +342,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(result, Stop)
   }
 
-  test("syncMap(Future(Continue)) with impure function") { implicit s =>
+  fixture.test("syncMap(Future(Continue)) with impure function") { implicit s =>
     var triggered = false
     val source: Future[Ack] = Future(Continue)
     val fn: Ack => Ack = {
@@ -370,7 +363,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(result.syncTryFlatten, Stop)
   }
 
-  test("syncFlatMap(Continue) should execute synchronously") { implicit s =>
+  fixture.test("syncFlatMap(Continue) should execute synchronously") { implicit s =>
     var triggered = false
     val source: Future[Ack] = Continue
 
@@ -386,7 +379,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "there should be no async tasks registered")
   }
 
-  test("syncFlatMap(Stop) should execute synchronously") { implicit s =>
+  fixture.test("syncFlatMap(Stop) should execute synchronously") { implicit s =>
     var triggered = false
     val source: Future[Ack] = Stop
 
@@ -402,7 +395,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "there should be no async tasks registered")
   }
 
-  test("syncFlatMap should protect against exceptions") { implicit s =>
+  fixture.test("syncFlatMap should protect against exceptions") { implicit s =>
     val dummy = new RuntimeException("dummy")
     val result = (Continue: Future[Ack]).syncFlatMap { _ =>
       throw dummy
@@ -412,7 +405,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("syncFlatMap(Future.successful(Continue)) should execute trampolined") { implicit s =>
+  fixture.test("syncFlatMap(Future.successful(Continue)) should execute trampolined") { implicit s =>
     def loop(f: Future[Ack], n: Int): Future[Ack] =
       if (n > 0) f.syncFlatMap(_ => loop(f, n - 1))
       else f
@@ -432,7 +425,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(triggered, true)
   }
 
-  test("syncFlatMap(Future.successful(Stop)) should execute trampolined") { implicit s =>
+  fixture.test("syncFlatMap(Future.successful(Stop)) should execute trampolined") { implicit s =>
     def loop(f: Future[Ack], n: Int): Future[Ack] =
       if (n > 0) f.syncFlatMap(_ => loop(f, n - 1))
       else f
@@ -452,7 +445,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(triggered, true)
   }
 
-  test("syncFlatMap(Continue) with impure function") { implicit s =>
+  fixture.test("syncFlatMap(Continue) with impure function") { implicit s =>
     var triggered = false
     val source: Future[Ack] = Continue
     val fn: Ack => Ack = {
@@ -471,7 +464,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(result, Stop)
   }
 
-  test("syncFlatMap(Future(Continue)) with impure function") { implicit s =>
+  fixture.test("syncFlatMap(Future(Continue)) with impure function") { implicit s =>
     var triggered = false
     val source: Future[Ack] = Future(Continue)
     val fn: Ack => Ack = {
@@ -492,96 +485,96 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(result.syncTryFlatten, Stop)
   }
 
-  test("syncTryFlatten(Continue)") { implicit s =>
+  fixture.test("syncTryFlatten(Continue)") { implicit s =>
     val f = Continue.syncTryFlatten
     assertEquals(f, Continue)
   }
 
-  test("syncTryFlatten(Stop)") { implicit s =>
+  fixture.test("syncTryFlatten(Stop)") { implicit s =>
     val f = Stop.syncTryFlatten
     assertEquals(f, Stop)
   }
 
-  test("syncTryFlatten(Future.successful(Continue))") { implicit s =>
+  fixture.test("syncTryFlatten(Future.successful(Continue))") { implicit s =>
     val f = Future.successful(Continue).syncTryFlatten
     assertEquals(f, Continue)
   }
 
-  test("syncTryFlatten(Future(Continue))") { implicit s =>
+  fixture.test("syncTryFlatten(Future(Continue))") { implicit s =>
     val source = Future(Continue)
     val f = source.syncTryFlatten
     assertEquals(f, source)
     s.tick()
   }
 
-  test("syncTryFlatten(Stop)") { implicit s =>
+  fixture.test("syncTryFlatten(Stop)") { implicit s =>
     val f = Stop.syncTryFlatten
     assertEquals(f, Stop)
   }
 
-  test("syncTryFlatten(Future.successful(Stop))") { implicit s =>
+  fixture.test("syncTryFlatten(Future.successful(Stop))") { implicit s =>
     val f = Future.successful(Stop).syncTryFlatten
     assertEquals(f, Stop)
   }
 
-  test("syncTryFlatten(Future(Stop))") { implicit s =>
+  fixture.test("syncTryFlatten(Future(Stop))") { implicit s =>
     val source = Future(Stop)
     val f = source.syncTryFlatten
     assertEquals(f, source)
     s.tick()
   }
 
-  test("isSynchronous(Future(Continue)) == false") { _ =>
+  fixture.test("isSynchronous(Future(Continue)) == false") { _ =>
     val f: Future[Ack] = Future.successful(Continue)
     assert(!f.isSynchronous)
   }
 
-  test("isSynchronous(Continue) == true") { _ =>
+  fixture.test("isSynchronous(Continue) == true") { _ =>
     val f: Future[Ack] = Continue
     assert(f.isSynchronous)
   }
 
-  test("isSynchronous(Future(Stop)) == false") { _ =>
+  fixture.test("isSynchronous(Future(Stop)) == false") { _ =>
     val f: Future[Ack] = Future.successful(Stop)
     assert(!f.isSynchronous)
   }
 
-  test("isSynchronous(Stop) == true") { _ =>
+  fixture.test("isSynchronous(Stop) == true") { _ =>
     val f: Future[Ack] = Stop
     assert(f.isSynchronous)
   }
 
-  test("isSynchronous(failure) == false") { _ =>
+  fixture.test("isSynchronous(failure) == false") { _ =>
     val f: Future[Ack] = Future.failed(new RuntimeException)
     assert(!f.isSynchronous)
   }
 
-  test("isSynchronous(impure Future(Continue)) == false") { _ =>
+  fixture.test("isSynchronous(impure Future(Continue)) == false") { _ =>
     def f: Future[Ack] = Future.successful(Continue)
     assert(!f.isSynchronous)
   }
 
-  test("isSynchronous(impure Continue) == true") { _ =>
+  fixture.test("isSynchronous(impure Continue) == true") { _ =>
     def f: Future[Ack] = Continue
     assert(f.isSynchronous)
   }
 
-  test("isSynchronous(impure Future(Stop)) == false") { _ =>
+  fixture.test("isSynchronous(impure Future(Stop)) == false") { _ =>
     def f: Future[Ack] = Future.successful(Stop)
     assert(!f.isSynchronous)
   }
 
-  test("isSynchronous(impure Stop) == true") { _ =>
+  fixture.test("isSynchronous(impure Stop) == true") { _ =>
     def f: Future[Ack] = Stop
     assert(f.isSynchronous)
   }
 
-  test("isSynchronous(impure failure) == false") { _ =>
+  fixture.test("isSynchronous(impure failure) == false") { _ =>
     def f: Future[Ack] = Future.failed(new RuntimeException)
     assert(!f.isSynchronous)
   }
 
-  test("continue.syncOnComplete(clean)") { implicit s =>
+  fixture.test("continue.syncOnComplete(clean)") { implicit s =>
     val ack: Ack = Continue
     var triggered = false
 
@@ -593,7 +586,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(triggered, "should have been sync")
   }
 
-  test("stop.syncOnComplete(clean)") { implicit s =>
+  fixture.test("stop.syncOnComplete(clean)") { implicit s =>
     val ack: Ack = Stop
     var triggered = false
 
@@ -605,7 +598,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(triggered, "should have been sync")
   }
 
-  test("continue.syncOnComplete(unclean)") { implicit s =>
+  fixture.test("continue.syncOnComplete(unclean)") { implicit s =>
     val ack: Ack = Continue
     var triggered = false
 
@@ -619,7 +612,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(triggered, "should have been sync")
   }
 
-  test("stop.syncOnComplete(unclean)") { implicit s =>
+  fixture.test("stop.syncOnComplete(unclean)") { implicit s =>
     val ack: Ack = Stop
     var triggered = false
 
@@ -633,7 +626,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(triggered, "should have been sync")
   }
 
-  test("future(continue).syncOnComplete(clean)") { implicit s =>
+  fixture.test("future(continue).syncOnComplete(clean)") { implicit s =>
     val ack: Future[Ack] = Future(Continue)
     var triggered = false
 
@@ -647,7 +640,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(triggered, "should have been async")
   }
 
-  test("future(stop).syncOnComplete(clean)") { implicit s =>
+  fixture.test("future(stop).syncOnComplete(clean)") { implicit s =>
     val ack: Future[Ack] = Future(Stop)
     var triggered = false
 
@@ -661,7 +654,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(triggered, "should have been async")
   }
 
-  test("future(continue).syncOnComplete(unclean)") { implicit s =>
+  fixture.test("future(continue).syncOnComplete(unclean)") { implicit s =>
     val ack: Future[Ack] = Future(Continue)
     var triggered = false
 
@@ -678,7 +671,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(triggered, "should have been async")
   }
 
-  test("future(stop).syncOnComplete(unclean)") { implicit s =>
+  fixture.test("future(stop).syncOnComplete(unclean)") { implicit s =>
     val ack: Future[Ack] = Future(Stop)
     var triggered = false
 
@@ -695,7 +688,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assert(triggered, "should have been async")
   }
 
-  test("syncOnComplete protects against immediate errors") { implicit s =>
+  fixture.test("syncOnComplete protects against immediate errors") { implicit s =>
     val dummy = new DummyException("dummy")
     Continue.syncOnComplete { _ =>
       throw dummy
@@ -703,7 +696,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("syncOnComplete protects against async errors") { implicit s =>
+  fixture.test("syncOnComplete protects against async errors") { implicit s =>
     val dummy = new DummyException("dummy")
     Future(Continue).syncOnComplete { _ =>
       throw dummy
@@ -712,7 +705,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("Continue.syncOnContinueFollow") { _ =>
+  fixture.test("Continue.syncOnContinueFollow") { _ =>
     val ack: Future[Ack] = Continue
     val p = Promise[Int]()
 
@@ -721,7 +714,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("Stop.syncOnContinueFollow") { implicit s =>
+  fixture.test("Stop.syncOnContinueFollow") { implicit s =>
     val ack: Future[Ack] = Stop
     val p = Promise[Int]()
 
@@ -730,7 +723,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(p.future.value, None)
   }
 
-  test("Future(Continue).syncOnContinueFollow") { implicit s =>
+  fixture.test("Future(Continue).syncOnContinueFollow") { implicit s =>
     val ack: Future[Ack] = Future(Continue)
     val p = Promise[Int]()
 
@@ -742,7 +735,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("Future(Stop).syncOnContinueFollow") { implicit s =>
+  fixture.test("Future(Stop).syncOnContinueFollow") { implicit s =>
     val ack: Future[Ack] = Future(Stop)
     val p = Promise[Int]()
 
@@ -751,7 +744,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(p.future.value, None)
   }
 
-  test("Continue.syncOnStopFollow") { implicit s =>
+  fixture.test("Continue.syncOnStopFollow") { implicit s =>
     val ack: Future[Ack] = Continue
     val p = Promise[Int]()
 
@@ -760,7 +753,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(p.future.value, None)
   }
 
-  test("Stop.syncOnStopFollow") { _ =>
+  fixture.test("Stop.syncOnStopFollow") { _ =>
     val ack: Future[Ack] = Stop
     val p = Promise[Int]()
 
@@ -769,7 +762,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("Future(Continue).syncOnStopFollow") { implicit s =>
+  fixture.test("Future(Continue).syncOnStopFollow") { implicit s =>
     val ack: Future[Ack] = Future(Continue)
     val p = Promise[Int]()
 
@@ -778,7 +771,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(p.future.value, None)
   }
 
-  test("Future(Stop).syncOnStopFollow") { implicit s =>
+  fixture.test("Future(Stop).syncOnStopFollow") { implicit s =>
     val ack: Future[Ack] = Future(Stop)
     val p = Promise[Int]()
 
@@ -787,7 +780,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("syncTryFlatten works for synchronous failure") { implicit s =>
+  fixture.test("syncTryFlatten works for synchronous failure") { implicit s =>
     val dummy = new RuntimeException("dummy")
     val f: Future[Ack] = Future.failed(dummy)
 
@@ -796,7 +789,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("Continue.transform") { implicit s =>
+  fixture.test("Continue.transform") { implicit s =>
     val f1 = Continue.transform { _ =>
       Success(1)
     }
@@ -817,7 +810,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
-  test("Continue.transformWith") { implicit s =>
+  fixture.test("Continue.transformWith") { implicit s =>
     val f1 = Continue.transformWith { _ =>
       Future.successful(1)
     }
@@ -838,7 +831,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
-  test("Continue.transformWith is stack safe") { implicit s =>
+  fixture.test("Continue.transformWith is stack safe") { implicit s =>
     def loop(n: Int): Future[Ack] =
       if (n <= 0) Continue
       else
@@ -851,7 +844,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(Continue)))
   }
 
-  test("Stop.transform") { implicit s =>
+  fixture.test("Stop.transform") { implicit s =>
     val f1 = Stop.transform { _ =>
       Success(1)
     }
@@ -872,7 +865,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
-  test("Stop.transformWith") { implicit s =>
+  fixture.test("Stop.transformWith") { implicit s =>
     val f1 = Stop.transformWith { _ =>
       Future.successful(1)
     }
@@ -893,7 +886,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(f3.value, Some(Failure(dummy)))
   }
 
-  test("Stop.transformWith is stack safe") { implicit s =>
+  fixture.test("Stop.transformWith is stack safe") { implicit s =>
     def loop(n: Int): Future[Ack] =
       if (n <= 0) Stop
       else

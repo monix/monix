@@ -24,8 +24,8 @@ import scala.util.Success
 import scala.concurrent.duration._
 import monix.catnap.SchedulerEffect
 
-object IntervalIntervalSuite extends BaseTestSuite {
-  test("Iterant[Task].intervalWithFixedDelay(1.second, 2.seconds)") { implicit s =>
+class IntervalIntervalSuite extends BaseTestSuite {
+  fixture.test("Iterant[Task].intervalWithFixedDelay(1.second, 2.seconds)") { implicit s =>
     var effect = 0
     val lst = Iterant[Task]
       .intervalWithFixedDelay(1.second, 2.seconds)
@@ -54,10 +54,10 @@ object IntervalIntervalSuite extends BaseTestSuite {
     s.tick(2.seconds)
     assertEquals(effect, 5)
 
-    assertEquals(lst.value, Some(Success(List(0, 1, 2, 3, 4))))
+    assertEquals(lst.value, Some(Success(List(0L, 1L, 2L, 3L, 4L))))
   }
 
-  test("Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)") { s =>
+  fixture.test("Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)") { s =>
     implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
@@ -88,10 +88,10 @@ object IntervalIntervalSuite extends BaseTestSuite {
     s.tick(2.seconds)
     assertEquals(effect, 5)
 
-    assertEquals(lst.value, Some(Success(List(0, 1, 2, 3, 4))))
+    assertEquals(lst.value, Some(Success(List(0L, 1L, 2L, 3L, 4L))))
   }
 
-  test("Iterant[Task].intervalWithFixedDelay(2.seconds)") { implicit s =>
+  fixture.test("Iterant[Task].intervalWithFixedDelay(2.seconds)") { implicit s =>
     var effect = 0
     val lst = Iterant[Task]
       .intervalWithFixedDelay(2.seconds)
@@ -114,10 +114,10 @@ object IntervalIntervalSuite extends BaseTestSuite {
     s.tick(2.seconds)
     assertEquals(effect, 5)
 
-    assertEquals(lst.value, Some(Success(List(0, 1, 2, 3, 4))))
+    assertEquals(lst.value, Some(Success(List(0L, 1L, 2L, 3L, 4L))))
   }
 
-  test("Iterant[IO].intervalWithFixedDelay(2.seconds)") { s =>
+  fixture.test("Iterant[IO].intervalWithFixedDelay(2.seconds)") { s =>
     implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
@@ -142,10 +142,10 @@ object IntervalIntervalSuite extends BaseTestSuite {
     s.tick(2.seconds)
     assertEquals(effect, 5)
 
-    assertEquals(lst.value, Some(Success(List(0, 1, 2, 3, 4))))
+    assertEquals(lst.value, Some(Success(List(0L, 1L, 2L, 3L, 4L))))
   }
 
-  test("Iterant[Task].intervalAtFixedRate(1.second)") { implicit s =>
+  fixture.test("Iterant[Task].intervalAtFixedRate(1.second)") { implicit s =>
     var effect = 0
     val lst = Iterant[Task]
       .intervalAtFixedRate(1.second)
@@ -165,10 +165,10 @@ object IntervalIntervalSuite extends BaseTestSuite {
     s.tick(1.second)
     assertEquals(effect, 3)
 
-    assertEquals(lst.value, Some(Success(List(0, 1, 2))))
+    assertEquals(lst.value, Some(Success(List(0L, 1L, 2L))))
   }
 
-  test("Iterant[IO].intervalAtFixedRate(1.second)") { s =>
+  fixture.test("Iterant[IO].intervalAtFixedRate(1.second)") { s =>
     implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
@@ -194,10 +194,10 @@ object IntervalIntervalSuite extends BaseTestSuite {
     s.tick(1.second)
     assertEquals(effect, 3)
 
-    assertEquals(lst.value, Some(Success(List(0, 1, 2))))
+    assertEquals(lst.value, Some(Success(List(0L, 1L, 2L))))
   }
 
-  test("Iterant[Task].intervalAtFixedRate(2.seconds, 1.second)") { implicit s =>
+  fixture.test("Iterant[Task].intervalAtFixedRate(2.seconds, 1.second)") { implicit s =>
     var effect = 0
     val lst = Iterant[Task]
       .intervalAtFixedRate(2.seconds, 1.second)
@@ -219,10 +219,10 @@ object IntervalIntervalSuite extends BaseTestSuite {
     s.tick(1.second)
     assertEquals(effect, 3)
 
-    assertEquals(lst.value, Some(Success(List(0, 1, 2))))
+    assertEquals(lst.value, Some(Success(List(0L, 1L, 2L))))
   }
 
-  test("Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)") { s =>
+  fixture.test("Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)") { s =>
     implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
@@ -250,10 +250,10 @@ object IntervalIntervalSuite extends BaseTestSuite {
     s.tick(1.second)
     assertEquals(effect, 3)
 
-    assertEquals(lst.value, Some(Success(List(0, 1, 2))))
+    assertEquals(lst.value, Some(Success(List(0L, 1L, 2L))))
   }
 
-  test("Iterant[Task].intervalAtFixedRate accounts for time it takes task to finish") { implicit s =>
+  fixture.test("Iterant[Task].intervalAtFixedRate accounts for time it takes task to finish") { implicit s =>
     var effect = 0
     val lst = Iterant[Task]
       .intervalAtFixedRate(1.second)
@@ -274,10 +274,10 @@ object IntervalIntervalSuite extends BaseTestSuite {
     s.tick(2.seconds)
     assertEquals(effect, 3)
 
-    assertEquals(lst.value, Some(Success(List(0, 1, 2))))
+    assertEquals(lst.value, Some(Success(List(0L, 1L, 2L))))
   }
 
-  test("Iterant[IO].intervalAtFixedRate accounts for time it takes task to finish") { s =>
+  fixture.test("Iterant[IO].intervalAtFixedRate accounts for time it takes task to finish") { s =>
     implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
@@ -304,6 +304,6 @@ object IntervalIntervalSuite extends BaseTestSuite {
     s.tick(2.seconds)
     assertEquals(effect, 3)
 
-    assertEquals(lst.value, Some(Success(List(0, 1, 2))))
+    assertEquals(lst.value, Some(Success(List(0L, 1L, 2L))))
   }
 }

@@ -27,7 +27,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 
-object MergePrioritizedListSuite extends BaseOperatorSuite {
+class MergePrioritizedListSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) =
     Some {
       val sources = (1 to sourceCount).map(i => (i, Observable.fromIterable(Seq.fill(4)(i.toLong))))
@@ -58,11 +58,11 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
     )
   }
 
-  test("should return Observable.empty if sources empty") { implicit s =>
+  fixture.test("should return Observable.empty if sources empty") { implicit s =>
     assertEquals(Observable.mergePrioritizedList(), Observable.empty)
   }
 
-  test("should pick items in priority order") { implicit s =>
+  fixture.test("should pick items in priority order") { implicit s =>
     val sources = (1 to 10).map(i => (i, Observable.now(i * 1L)))
     val source = Observable.mergePrioritizedList(sources: _*)
     var last = 0L
@@ -87,7 +87,7 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should push all items downstream before calling onComplete") { implicit s =>
+  fixture.test("should push all items downstream before calling onComplete") { implicit s =>
     val source =
       Observable.mergePrioritizedList((1, Observable.now(1L)), (1, Observable.now(1L)), (1, Observable.now(1L)))
     var count = 0L
@@ -114,7 +114,7 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should complete all upstream onNext promises when downstream stops early") { implicit s =>
+  fixture.test("should complete all upstream onNext promises when downstream stops early") { implicit s =>
     val sources = (1 to 10).map(i => (i, new OnNextExposingObservable(i * 1L)))
     val source = Observable.mergePrioritizedList(sources: _*)
 
@@ -135,7 +135,7 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
     sources.foreach(src => assert(src._2.onNextRes.exists(_.isCompleted), "source promise completed"))
   }
 
-  test("should complete all upstream onNext promises when downstream errors early") { implicit s =>
+  fixture.test("should complete all upstream onNext promises when downstream errors early") { implicit s =>
     val sources = (1 to 10).map(i => (i, new OnNextExposingObservable(i * 1L)))
     val source = Observable.mergePrioritizedList(sources: _*)
 

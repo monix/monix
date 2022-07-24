@@ -19,7 +19,7 @@ package monix.tail
 
 import cats.implicits._
 import cats.effect.{ ContextShift, IO, Timer }
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import monix.catnap.ProducerF
 import monix.execution.BufferCapacity.{ Bounded, Unbounded }
 import monix.execution.ChannelType.{ MultiProducer, SingleProducer }
@@ -27,7 +27,7 @@ import monix.execution.internal.Platform
 import monix.execution.{ BufferCapacity, Scheduler }
 import monix.catnap.SchedulerEffect
 
-object IterantChannelSuite extends SimpleTestSuite {
+class IterantChannelSuite extends BaseTestSuite {
   implicit val ec: Scheduler = Scheduler.global
 
   implicit def contextShift(implicit s: Scheduler): ContextShift[IO] =
@@ -36,7 +36,7 @@ object IterantChannelSuite extends SimpleTestSuite {
     SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
   def testIO(name: String)(f: => IO[Unit]) =
-    testAsync(name)(f.unsafeToFuture())
+    test(name)(f.unsafeToFuture())
 
   testIO("concurrent sum; producers=4, consumers=4, capacity=Bounded(16)") {
     testConcurrentSum(
@@ -110,7 +110,12 @@ object IterantChannelSuite extends SimpleTestSuite {
     )
   }
 
-  def testConcurrentSum(producers: Int, consumers: Int, capacity: BufferCapacity, count: Int) = {
+  def testConcurrentSum(
+    producers: Int,
+    consumers: Int,
+    capacity: BufferCapacity,
+    count: Int
+  ) = {
 
     def produce(channel: ProducerF[IO, Option[Throwable], Int]): IO[Unit] = {
       def loop(channel: ProducerF[IO, Option[Throwable], Int], n: Int): IO[Unit] =

@@ -17,8 +17,8 @@
 
 package monix.execution.atomic
 
-import minitest.SimpleTestSuite
 import monix.execution.atomic.PaddingStrategy._
+import munit.FunSuite
 
 abstract class AtomicNumberSuite[A, R <: AtomicNumber[A]](
   builder: AtomicBuilder[A, R],
@@ -29,8 +29,9 @@ abstract class AtomicNumberSuite[A, R <: AtomicNumber[A]](
   hasOverflow: Boolean = true,
   allowPlatformIntrinsics: Boolean,
   allowUnsafe: Boolean
-)(implicit ev: Numeric[A])
-  extends SimpleTestSuite {
+)(
+  implicit ev: Numeric[A]
+) extends FunSuite {
 
   def Atomic(initial: A): R = {
     if (allowUnsafe)
@@ -39,6 +40,7 @@ abstract class AtomicNumberSuite[A, R <: AtomicNumber[A]](
       builder.buildSafeInstance(initial, strategy)
   }
 
+  def ignore(): Unit = assume(false, "")
   val zero = ev.zero
   val one = ev.one
   val two = ev.plus(ev.one, ev.one)
@@ -382,11 +384,11 @@ abstract class AtomicFloatSuite(strategy: PaddingStrategy, allowPlatformIntrinsi
 
 // -- NoPadding (Java 8)
 
-object AtomicDoubleNoPaddingSuite
+class AtomicDoubleNoPaddingSuite
   extends AtomicDoubleSuite(NoPadding, allowPlatformIntrinsics = true, allowUnsafe = true)
-object AtomicFloatNoPaddingSuite extends AtomicFloatSuite(NoPadding, allowPlatformIntrinsics = true, allowUnsafe = true)
+class AtomicFloatNoPaddingSuite extends AtomicFloatSuite(NoPadding, allowPlatformIntrinsics = true, allowUnsafe = true)
 
-object AtomicLongNoPaddingSuite
+class AtomicLongNoPaddingSuite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     NoPadding,
@@ -397,7 +399,7 @@ object AtomicLongNoPaddingSuite
     allowUnsafe = true
   )
 
-object AtomicIntNoPaddingSuite
+class AtomicIntNoPaddingSuite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     NoPadding,
@@ -408,7 +410,7 @@ object AtomicIntNoPaddingSuite
     allowUnsafe = true
   )
 
-object AtomicShortNoPaddingSuite
+class AtomicShortNoPaddingSuite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     NoPadding,
@@ -419,7 +421,7 @@ object AtomicShortNoPaddingSuite
     allowUnsafe = true
   )
 
-object AtomicByteNoPaddingSuite
+class AtomicByteNoPaddingSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     NoPadding,
@@ -430,7 +432,7 @@ object AtomicByteNoPaddingSuite
     allowUnsafe = true
   )
 
-object AtomicCharNoPaddingSuite
+class AtomicCharNoPaddingSuite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     NoPadding,
@@ -441,7 +443,7 @@ object AtomicCharNoPaddingSuite
     allowUnsafe = true
   )
 
-object AtomicNumberAnyNoPaddingSuite
+class AtomicNumberAnyNoPaddingSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     NoPadding,
@@ -454,10 +456,10 @@ object AtomicNumberAnyNoPaddingSuite
 
 // -- Left64 (Java 8)
 
-object AtomicDoubleLeft64Suite extends AtomicDoubleSuite(Left64, allowPlatformIntrinsics = true, allowUnsafe = true)
-object AtomicFloatLeft64Suite extends AtomicFloatSuite(Left64, allowPlatformIntrinsics = true, allowUnsafe = true)
+class AtomicDoubleLeft64Suite extends AtomicDoubleSuite(Left64, allowPlatformIntrinsics = true, allowUnsafe = true)
+class AtomicFloatLeft64Suite extends AtomicFloatSuite(Left64, allowPlatformIntrinsics = true, allowUnsafe = true)
 
-object AtomicLongLeft64Suite
+class AtomicLongLeft64Suite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     Left64,
@@ -468,7 +470,7 @@ object AtomicLongLeft64Suite
     allowUnsafe = true
   )
 
-object AtomicIntLeft64Suite
+class AtomicIntLeft64Suite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     Left64,
@@ -479,7 +481,7 @@ object AtomicIntLeft64Suite
     allowUnsafe = true
   )
 
-object AtomicShortLeft64Suite
+class AtomicShortLeft64Suite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     Left64,
@@ -490,7 +492,7 @@ object AtomicShortLeft64Suite
     allowUnsafe = true
   )
 
-object AtomicByteLeft64Suite
+class AtomicByteLeft64Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     Left64,
@@ -501,7 +503,7 @@ object AtomicByteLeft64Suite
     allowUnsafe = true
   )
 
-object AtomicCharLeft64Suite
+class AtomicCharLeft64Suite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     Left64,
@@ -512,7 +514,7 @@ object AtomicCharLeft64Suite
     allowUnsafe = true
   )
 
-object AtomicNumberAnyLeft64Suite
+class AtomicNumberAnyLeft64Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Left64,
@@ -525,10 +527,10 @@ object AtomicNumberAnyLeft64Suite
 
 // -- Right64 (Java 8)
 
-object AtomicDoubleRight64Suite extends AtomicDoubleSuite(Right64, allowPlatformIntrinsics = true, allowUnsafe = true)
-object AtomicFloatRight64Suite extends AtomicFloatSuite(Right64, allowPlatformIntrinsics = true, allowUnsafe = true)
+class AtomicDoubleRight64Suite extends AtomicDoubleSuite(Right64, allowPlatformIntrinsics = true, allowUnsafe = true)
+class AtomicFloatRight64Suite extends AtomicFloatSuite(Right64, allowPlatformIntrinsics = true, allowUnsafe = true)
 
-object AtomicLongRight64Suite
+class AtomicLongRight64Suite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     Right64,
@@ -539,7 +541,7 @@ object AtomicLongRight64Suite
     allowUnsafe = true
   )
 
-object AtomicIntRight64Suite
+class AtomicIntRight64Suite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     Right64,
@@ -550,7 +552,7 @@ object AtomicIntRight64Suite
     allowUnsafe = true
   )
 
-object AtomicShortRight64Suite
+class AtomicShortRight64Suite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     Right64,
@@ -561,7 +563,7 @@ object AtomicShortRight64Suite
     allowUnsafe = true
   )
 
-object AtomicByteRight64Suite
+class AtomicByteRight64Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     Right64,
@@ -572,7 +574,7 @@ object AtomicByteRight64Suite
     allowUnsafe = true
   )
 
-object AtomicCharRight64Suite
+class AtomicCharRight64Suite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     Right64,
@@ -583,7 +585,7 @@ object AtomicCharRight64Suite
     allowUnsafe = true
   )
 
-object AtomicNumberAnyRight64Suite
+class AtomicNumberAnyRight64Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Right64,
@@ -596,12 +598,12 @@ object AtomicNumberAnyRight64Suite
 
 // -- LeftRight128 (Java 8)
 
-object AtomicDoubleLeftRight128Suite
+class AtomicDoubleLeftRight128Suite
   extends AtomicDoubleSuite(LeftRight128, allowPlatformIntrinsics = true, allowUnsafe = true)
-object AtomicFloatLeftRight128Suite
+class AtomicFloatLeftRight128Suite
   extends AtomicFloatSuite(LeftRight128, allowPlatformIntrinsics = true, allowUnsafe = true)
 
-object AtomicLongLeftRight128Suite
+class AtomicLongLeftRight128Suite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     LeftRight128,
@@ -612,7 +614,7 @@ object AtomicLongLeftRight128Suite
     allowUnsafe = true
   )
 
-object AtomicIntLeftRight128Suite
+class AtomicIntLeftRight128Suite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     LeftRight128,
@@ -623,7 +625,7 @@ object AtomicIntLeftRight128Suite
     allowUnsafe = true
   )
 
-object AtomicShortLeftRight128Suite
+class AtomicShortLeftRight128Suite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     LeftRight128,
@@ -634,7 +636,7 @@ object AtomicShortLeftRight128Suite
     allowUnsafe = true
   )
 
-object AtomicByteLeftRight128Suite
+class AtomicByteLeftRight128Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     LeftRight128,
@@ -645,7 +647,7 @@ object AtomicByteLeftRight128Suite
     allowUnsafe = true
   )
 
-object AtomicCharLeftRight128Suite
+class AtomicCharLeftRight128Suite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     LeftRight128,
@@ -656,7 +658,7 @@ object AtomicCharLeftRight128Suite
     allowUnsafe = true
   )
 
-object AtomicNumberAnyLeftRight128Suite
+class AtomicNumberAnyLeftRight128Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     LeftRight128,
@@ -669,10 +671,10 @@ object AtomicNumberAnyLeftRight128Suite
 
 // -- Left128 (Java 8)
 
-object AtomicDoubleLeft128Suite extends AtomicDoubleSuite(Left128, allowPlatformIntrinsics = true, allowUnsafe = true)
-object AtomicFloatLeft128Suite extends AtomicFloatSuite(Left128, allowPlatformIntrinsics = true, allowUnsafe = true)
+class AtomicDoubleLeft128Suite extends AtomicDoubleSuite(Left128, allowPlatformIntrinsics = true, allowUnsafe = true)
+class AtomicFloatLeft128Suite extends AtomicFloatSuite(Left128, allowPlatformIntrinsics = true, allowUnsafe = true)
 
-object AtomicLongLeft128Suite
+class AtomicLongLeft128Suite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     Left128,
@@ -683,7 +685,7 @@ object AtomicLongLeft128Suite
     allowUnsafe = true
   )
 
-object AtomicIntLeft128Suite
+class AtomicIntLeft128Suite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     Left128,
@@ -694,7 +696,7 @@ object AtomicIntLeft128Suite
     allowUnsafe = true
   )
 
-object AtomicShortLeft128Suite
+class AtomicShortLeft128Suite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     Left128,
@@ -705,7 +707,7 @@ object AtomicShortLeft128Suite
     allowUnsafe = true
   )
 
-object AtomicByteLeft128Suite
+class AtomicByteLeft128Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     Left128,
@@ -716,7 +718,7 @@ object AtomicByteLeft128Suite
     allowUnsafe = true
   )
 
-object AtomicCharLeft128Suite
+class AtomicCharLeft128Suite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     Left128,
@@ -727,7 +729,7 @@ object AtomicCharLeft128Suite
     allowUnsafe = true
   )
 
-object AtomicNumberAnyLeft128Suite
+class AtomicNumberAnyLeft128Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Left128,
@@ -740,10 +742,10 @@ object AtomicNumberAnyLeft128Suite
 
 // -- Right128 (Java 8)
 
-object AtomicDoubleRight128Suite extends AtomicDoubleSuite(Right128, allowPlatformIntrinsics = true, allowUnsafe = true)
-object AtomicFloatRight128Suite extends AtomicFloatSuite(Right128, allowPlatformIntrinsics = true, allowUnsafe = true)
+class AtomicDoubleRight128Suite extends AtomicDoubleSuite(Right128, allowPlatformIntrinsics = true, allowUnsafe = true)
+class AtomicFloatRight128Suite extends AtomicFloatSuite(Right128, allowPlatformIntrinsics = true, allowUnsafe = true)
 
-object AtomicLongRight128Suite
+class AtomicLongRight128Suite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     Right128,
@@ -754,7 +756,7 @@ object AtomicLongRight128Suite
     allowUnsafe = true
   )
 
-object AtomicIntRight128Suite
+class AtomicIntRight128Suite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     Right128,
@@ -765,7 +767,7 @@ object AtomicIntRight128Suite
     allowUnsafe = true
   )
 
-object AtomicShortRight128Suite
+class AtomicShortRight128Suite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     Right128,
@@ -776,7 +778,7 @@ object AtomicShortRight128Suite
     allowUnsafe = true
   )
 
-object AtomicByteRight128Suite
+class AtomicByteRight128Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     Right128,
@@ -787,7 +789,7 @@ object AtomicByteRight128Suite
     allowUnsafe = true
   )
 
-object AtomicCharRight128Suite
+class AtomicCharRight128Suite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     Right128,
@@ -798,7 +800,7 @@ object AtomicCharRight128Suite
     allowUnsafe = true
   )
 
-object AtomicNumberAnyRight128Suite
+class AtomicNumberAnyRight128Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Right128,
@@ -811,12 +813,12 @@ object AtomicNumberAnyRight128Suite
 
 // -- LeftRight256 (Java 8)
 
-object AtomicDoubleLeftRight256Suite
+class AtomicDoubleLeftRight256Suite
   extends AtomicDoubleSuite(LeftRight256, allowPlatformIntrinsics = true, allowUnsafe = true)
-object AtomicFloatLeftRight256Suite
+class AtomicFloatLeftRight256Suite
   extends AtomicFloatSuite(LeftRight256, allowPlatformIntrinsics = true, allowUnsafe = true)
 
-object AtomicLongLeftRight256Suite
+class AtomicLongLeftRight256Suite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     LeftRight256,
@@ -827,7 +829,7 @@ object AtomicLongLeftRight256Suite
     allowUnsafe = true
   )
 
-object AtomicIntLeftRight256Suite
+class AtomicIntLeftRight256Suite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     LeftRight256,
@@ -838,7 +840,7 @@ object AtomicIntLeftRight256Suite
     allowUnsafe = true
   )
 
-object AtomicShortLeftRight256Suite
+class AtomicShortLeftRight256Suite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     LeftRight256,
@@ -849,7 +851,7 @@ object AtomicShortLeftRight256Suite
     allowUnsafe = true
   )
 
-object AtomicByteLeftRight256Suite
+class AtomicByteLeftRight256Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     LeftRight256,
@@ -860,7 +862,7 @@ object AtomicByteLeftRight256Suite
     allowUnsafe = true
   )
 
-object AtomicCharLeftRight256Suite
+class AtomicCharLeftRight256Suite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     LeftRight256,
@@ -871,7 +873,7 @@ object AtomicCharLeftRight256Suite
     allowUnsafe = true
   )
 
-object AtomicNumberAnyLeftRight256Suite
+class AtomicNumberAnyLeftRight256Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     LeftRight256,
@@ -886,12 +888,12 @@ object AtomicNumberAnyLeftRight256Suite
 
 // -- NoPadding (Java 7)
 
-object AtomicDoubleNoPaddingJava7Suite
+class AtomicDoubleNoPaddingJava7Suite
   extends AtomicDoubleSuite(NoPadding, allowPlatformIntrinsics = false, allowUnsafe = true)
-object AtomicFloatNoPaddingJava7Suite
+class AtomicFloatNoPaddingJava7Suite
   extends AtomicFloatSuite(NoPadding, allowPlatformIntrinsics = false, allowUnsafe = true)
 
-object AtomicLongNoPaddingJava7Suite
+class AtomicLongNoPaddingJava7Suite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     NoPadding,
@@ -902,7 +904,7 @@ object AtomicLongNoPaddingJava7Suite
     allowUnsafe = true
   )
 
-object AtomicIntNoPaddingJava7Suite
+class AtomicIntNoPaddingJava7Suite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     NoPadding,
@@ -913,7 +915,7 @@ object AtomicIntNoPaddingJava7Suite
     allowUnsafe = true
   )
 
-object AtomicShortNoPaddingJava7Suite
+class AtomicShortNoPaddingJava7Suite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     NoPadding,
@@ -924,7 +926,7 @@ object AtomicShortNoPaddingJava7Suite
     allowUnsafe = true
   )
 
-object AtomicByteNoPaddingJava7Suite
+class AtomicByteNoPaddingJava7Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     NoPadding,
@@ -935,7 +937,7 @@ object AtomicByteNoPaddingJava7Suite
     allowUnsafe = true
   )
 
-object AtomicCharNoPaddingJava7Suite
+class AtomicCharNoPaddingJava7Suite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     NoPadding,
@@ -946,7 +948,7 @@ object AtomicCharNoPaddingJava7Suite
     allowUnsafe = true
   )
 
-object AtomicNumberAnyNoPaddingJava7Suite
+class AtomicNumberAnyNoPaddingJava7Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     NoPadding,
@@ -959,11 +961,11 @@ object AtomicNumberAnyNoPaddingJava7Suite
 
 // -- Left64 (Java 7)
 
-object AtomicDoubleLeft64Java7Suite
+class AtomicDoubleLeft64Java7Suite
   extends AtomicDoubleSuite(Left64, allowPlatformIntrinsics = false, allowUnsafe = true)
-object AtomicFloatLeft64Java7Suite extends AtomicFloatSuite(Left64, allowPlatformIntrinsics = false, allowUnsafe = true)
+class AtomicFloatLeft64Java7Suite extends AtomicFloatSuite(Left64, allowPlatformIntrinsics = false, allowUnsafe = true)
 
-object AtomicLongLeft64Java7Suite
+class AtomicLongLeft64Java7Suite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     Left64,
@@ -974,7 +976,7 @@ object AtomicLongLeft64Java7Suite
     allowUnsafe = true
   )
 
-object AtomicIntLeft64Java7Suite
+class AtomicIntLeft64Java7Suite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     Left64,
@@ -985,7 +987,7 @@ object AtomicIntLeft64Java7Suite
     allowUnsafe = true
   )
 
-object AtomicShortLeft64Java7Suite
+class AtomicShortLeft64Java7Suite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     Left64,
@@ -996,7 +998,7 @@ object AtomicShortLeft64Java7Suite
     allowUnsafe = true
   )
 
-object AtomicByteLeft64Java7Suite
+class AtomicByteLeft64Java7Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     Left64,
@@ -1007,7 +1009,7 @@ object AtomicByteLeft64Java7Suite
     allowUnsafe = true
   )
 
-object AtomicCharLeft64Java7Suite
+class AtomicCharLeft64Java7Suite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     Left64,
@@ -1018,7 +1020,7 @@ object AtomicCharLeft64Java7Suite
     allowUnsafe = true
   )
 
-object AtomicNumberAnyLeft64Java7Suite
+class AtomicNumberAnyLeft64Java7Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Left64,
@@ -1031,12 +1033,12 @@ object AtomicNumberAnyLeft64Java7Suite
 
 // -- Right64 (Java 7)
 
-object AtomicDoubleRight64Java7Suite
+class AtomicDoubleRight64Java7Suite
   extends AtomicDoubleSuite(Right64, allowPlatformIntrinsics = false, allowUnsafe = true)
-object AtomicFloatRight64Java7Suite
+class AtomicFloatRight64Java7Suite
   extends AtomicFloatSuite(Right64, allowPlatformIntrinsics = false, allowUnsafe = true)
 
-object AtomicLongRight64Java7Suite
+class AtomicLongRight64Java7Suite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     Right64,
@@ -1047,7 +1049,7 @@ object AtomicLongRight64Java7Suite
     allowUnsafe = true
   )
 
-object AtomicIntRight64Java7Suite
+class AtomicIntRight64Java7Suite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     Right64,
@@ -1058,7 +1060,7 @@ object AtomicIntRight64Java7Suite
     allowUnsafe = true
   )
 
-object AtomicShortRight64Java7Suite
+class AtomicShortRight64Java7Suite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     Right64,
@@ -1069,7 +1071,7 @@ object AtomicShortRight64Java7Suite
     allowUnsafe = true
   )
 
-object AtomicByteRight64Java7Suite
+class AtomicByteRight64Java7Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     Right64,
@@ -1080,7 +1082,7 @@ object AtomicByteRight64Java7Suite
     allowUnsafe = true
   )
 
-object AtomicCharRight64Java7Suite
+class AtomicCharRight64Java7Suite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     Right64,
@@ -1091,7 +1093,7 @@ object AtomicCharRight64Java7Suite
     allowUnsafe = true
   )
 
-object AtomicNumberAnyRight64Java7Suite
+class AtomicNumberAnyRight64Java7Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Right64,
@@ -1104,12 +1106,12 @@ object AtomicNumberAnyRight64Java7Suite
 
 // -- LeftRight128 (Java 7)
 
-object AtomicDoubleLeftRight128Java7Suite
+class AtomicDoubleLeftRight128Java7Suite
   extends AtomicDoubleSuite(LeftRight128, allowPlatformIntrinsics = false, allowUnsafe = true)
-object AtomicFloatLeftRight128Java7Suite
+class AtomicFloatLeftRight128Java7Suite
   extends AtomicFloatSuite(LeftRight128, allowPlatformIntrinsics = false, allowUnsafe = true)
 
-object AtomicLongLeftRight128Java7Suite
+class AtomicLongLeftRight128Java7Suite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     LeftRight128,
@@ -1120,7 +1122,7 @@ object AtomicLongLeftRight128Java7Suite
     allowUnsafe = true
   )
 
-object AtomicIntLeftRight128Java7Suite
+class AtomicIntLeftRight128Java7Suite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     LeftRight128,
@@ -1131,7 +1133,7 @@ object AtomicIntLeftRight128Java7Suite
     allowUnsafe = true
   )
 
-object AtomicShortLeftRight128Java7Suite
+class AtomicShortLeftRight128Java7Suite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     LeftRight128,
@@ -1142,7 +1144,7 @@ object AtomicShortLeftRight128Java7Suite
     allowUnsafe = true
   )
 
-object AtomicByteLeftRight128Java7Suite
+class AtomicByteLeftRight128Java7Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     LeftRight128,
@@ -1153,7 +1155,7 @@ object AtomicByteLeftRight128Java7Suite
     allowUnsafe = true
   )
 
-object AtomicCharLeftRight128Java7Suite
+class AtomicCharLeftRight128Java7Suite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     LeftRight128,
@@ -1164,7 +1166,7 @@ object AtomicCharLeftRight128Java7Suite
     allowUnsafe = true
   )
 
-object AtomicNumberAnyLeftRight128Java7Suite
+class AtomicNumberAnyLeftRight128Java7Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     LeftRight128,
@@ -1177,12 +1179,12 @@ object AtomicNumberAnyLeftRight128Java7Suite
 
 // -- Left128 (Java 7)
 
-object AtomicDoubleLeft128Java7Suite
+class AtomicDoubleLeft128Java7Suite
   extends AtomicDoubleSuite(Left128, allowPlatformIntrinsics = false, allowUnsafe = true)
-object AtomicFloatLeft128Java7Suite
+class AtomicFloatLeft128Java7Suite
   extends AtomicFloatSuite(Left128, allowPlatformIntrinsics = false, allowUnsafe = true)
 
-object AtomicLongLeft128Java7Suite
+class AtomicLongLeft128Java7Suite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     Left128,
@@ -1193,7 +1195,7 @@ object AtomicLongLeft128Java7Suite
     allowUnsafe = true
   )
 
-object AtomicIntLeft128Java7Suite
+class AtomicIntLeft128Java7Suite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     Left128,
@@ -1204,7 +1206,7 @@ object AtomicIntLeft128Java7Suite
     allowUnsafe = true
   )
 
-object AtomicShortLeft128Java7Suite
+class AtomicShortLeft128Java7Suite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     Left128,
@@ -1215,7 +1217,7 @@ object AtomicShortLeft128Java7Suite
     allowUnsafe = true
   )
 
-object AtomicByteLeft128Java7Suite
+class AtomicByteLeft128Java7Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     Left128,
@@ -1226,7 +1228,7 @@ object AtomicByteLeft128Java7Suite
     allowUnsafe = true
   )
 
-object AtomicCharLeft128Java7Suite
+class AtomicCharLeft128Java7Suite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     Left128,
@@ -1237,7 +1239,7 @@ object AtomicCharLeft128Java7Suite
     allowUnsafe = true
   )
 
-object AtomicNumberAnyLeft128Java7Suite
+class AtomicNumberAnyLeft128Java7Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Left128,
@@ -1250,12 +1252,12 @@ object AtomicNumberAnyLeft128Java7Suite
 
 // -- Right128 (Java 7)
 
-object AtomicDoubleRight128Java7Suite
+class AtomicDoubleRight128Java7Suite
   extends AtomicDoubleSuite(Right128, allowPlatformIntrinsics = false, allowUnsafe = true)
-object AtomicFloatRight128Java7Suite
+class AtomicFloatRight128Java7Suite
   extends AtomicFloatSuite(Right128, allowPlatformIntrinsics = false, allowUnsafe = true)
 
-object AtomicLongRight128Java7Suite
+class AtomicLongRight128Java7Suite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     Right128,
@@ -1266,7 +1268,7 @@ object AtomicLongRight128Java7Suite
     allowUnsafe = true
   )
 
-object AtomicIntRight128Java7Suite
+class AtomicIntRight128Java7Suite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     Right128,
@@ -1277,7 +1279,7 @@ object AtomicIntRight128Java7Suite
     allowUnsafe = true
   )
 
-object AtomicShortRight128Java7Suite
+class AtomicShortRight128Java7Suite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     Right128,
@@ -1288,7 +1290,7 @@ object AtomicShortRight128Java7Suite
     allowUnsafe = true
   )
 
-object AtomicByteRight128Java7Suite
+class AtomicByteRight128Java7Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     Right128,
@@ -1299,7 +1301,7 @@ object AtomicByteRight128Java7Suite
     allowUnsafe = true
   )
 
-object AtomicCharRight128Java7Suite
+class AtomicCharRight128Java7Suite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     Right128,
@@ -1310,7 +1312,7 @@ object AtomicCharRight128Java7Suite
     allowUnsafe = true
   )
 
-object AtomicNumberAnyRight128Java7Suite
+class AtomicNumberAnyRight128Java7Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Right128,
@@ -1323,12 +1325,12 @@ object AtomicNumberAnyRight128Java7Suite
 
 // -- LeftRight256 (Java 7)
 
-object AtomicDoubleLeftRight256Java7Suite
+class AtomicDoubleLeftRight256Java7Suite
   extends AtomicDoubleSuite(LeftRight256, allowPlatformIntrinsics = false, allowUnsafe = true)
-object AtomicFloatLeftRight256Java7Suite
+class AtomicFloatLeftRight256Java7Suite
   extends AtomicFloatSuite(LeftRight256, allowPlatformIntrinsics = false, allowUnsafe = true)
 
-object AtomicLongLeftRight256Java7Suite
+class AtomicLongLeftRight256Java7Suite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     LeftRight256,
@@ -1339,7 +1341,7 @@ object AtomicLongLeftRight256Java7Suite
     allowUnsafe = true
   )
 
-object AtomicIntLeftRight256Java7Suite
+class AtomicIntLeftRight256Java7Suite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     LeftRight256,
@@ -1350,7 +1352,7 @@ object AtomicIntLeftRight256Java7Suite
     allowUnsafe = true
   )
 
-object AtomicShortLeftRight256Java7Suite
+class AtomicShortLeftRight256Java7Suite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     LeftRight256,
@@ -1361,7 +1363,7 @@ object AtomicShortLeftRight256Java7Suite
     allowUnsafe = true
   )
 
-object AtomicByteLeftRight256Java7Suite
+class AtomicByteLeftRight256Java7Suite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     LeftRight256,
@@ -1372,7 +1374,7 @@ object AtomicByteLeftRight256Java7Suite
     allowUnsafe = true
   )
 
-object AtomicCharLeftRight256Java7Suite
+class AtomicCharLeftRight256Java7Suite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     LeftRight256,
@@ -1383,7 +1385,7 @@ object AtomicCharLeftRight256Java7Suite
     allowUnsafe = true
   )
 
-object AtomicNumberAnyLeftRight256Java7Suite
+class AtomicNumberAnyLeftRight256Java7Suite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     LeftRight256,
@@ -1398,12 +1400,12 @@ object AtomicNumberAnyLeftRight256Java7Suite
 
 // -- NoPadding (Java X)
 
-object AtomicDoubleNoPaddingJavaXSuite
+class AtomicDoubleNoPaddingJavaXSuite
   extends AtomicDoubleSuite(NoPadding, allowPlatformIntrinsics = false, allowUnsafe = false)
-object AtomicFloatNoPaddingJavaXSuite
+class AtomicFloatNoPaddingJavaXSuite
   extends AtomicFloatSuite(NoPadding, allowPlatformIntrinsics = false, allowUnsafe = false)
 
-object AtomicLongNoPaddingJavaXSuite
+class AtomicLongNoPaddingJavaXSuite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     NoPadding,
@@ -1414,7 +1416,7 @@ object AtomicLongNoPaddingJavaXSuite
     allowUnsafe = false
   )
 
-object AtomicIntNoPaddingJavaXSuite
+class AtomicIntNoPaddingJavaXSuite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     NoPadding,
@@ -1425,7 +1427,7 @@ object AtomicIntNoPaddingJavaXSuite
     allowUnsafe = false
   )
 
-object AtomicShortNoPaddingJavaXSuite
+class AtomicShortNoPaddingJavaXSuite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     NoPadding,
@@ -1436,7 +1438,7 @@ object AtomicShortNoPaddingJavaXSuite
     allowUnsafe = false
   )
 
-object AtomicByteNoPaddingJavaXSuite
+class AtomicByteNoPaddingJavaXSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     NoPadding,
@@ -1447,7 +1449,7 @@ object AtomicByteNoPaddingJavaXSuite
     allowUnsafe = false
   )
 
-object AtomicCharNoPaddingJavaXSuite
+class AtomicCharNoPaddingJavaXSuite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     NoPadding,
@@ -1458,7 +1460,7 @@ object AtomicCharNoPaddingJavaXSuite
     allowUnsafe = false
   )
 
-object AtomicNumberAnyNoPaddingJavaXSuite
+class AtomicNumberAnyNoPaddingJavaXSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     NoPadding,
@@ -1471,12 +1473,11 @@ object AtomicNumberAnyNoPaddingJavaXSuite
 
 // -- Left64 (Java X)
 
-object AtomicDoubleLeft64JavaXSuite
+class AtomicDoubleLeft64JavaXSuite
   extends AtomicDoubleSuite(Left64, allowPlatformIntrinsics = false, allowUnsafe = false)
-object AtomicFloatLeft64JavaXSuite
-  extends AtomicFloatSuite(Left64, allowPlatformIntrinsics = false, allowUnsafe = false)
+class AtomicFloatLeft64JavaXSuite extends AtomicFloatSuite(Left64, allowPlatformIntrinsics = false, allowUnsafe = false)
 
-object AtomicLongLeft64JavaXSuite
+class AtomicLongLeft64JavaXSuite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     Left64,
@@ -1487,7 +1488,7 @@ object AtomicLongLeft64JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicIntLeft64JavaXSuite
+class AtomicIntLeft64JavaXSuite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     Left64,
@@ -1498,7 +1499,7 @@ object AtomicIntLeft64JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicShortLeft64JavaXSuite
+class AtomicShortLeft64JavaXSuite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     Left64,
@@ -1509,7 +1510,7 @@ object AtomicShortLeft64JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicByteLeft64JavaXSuite
+class AtomicByteLeft64JavaXSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     Left64,
@@ -1520,7 +1521,7 @@ object AtomicByteLeft64JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicCharLeft64JavaXSuite
+class AtomicCharLeft64JavaXSuite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     Left64,
@@ -1531,7 +1532,7 @@ object AtomicCharLeft64JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicNumberAnyLeft64JavaXSuite
+class AtomicNumberAnyLeft64JavaXSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Left64,
@@ -1544,12 +1545,12 @@ object AtomicNumberAnyLeft64JavaXSuite
 
 // -- Right64 (Java X)
 
-object AtomicDoubleRight64JavaXSuite
+class AtomicDoubleRight64JavaXSuite
   extends AtomicDoubleSuite(Right64, allowPlatformIntrinsics = false, allowUnsafe = false)
-object AtomicFloatRight64JavaXSuite
+class AtomicFloatRight64JavaXSuite
   extends AtomicFloatSuite(Right64, allowPlatformIntrinsics = false, allowUnsafe = false)
 
-object AtomicLongRight64JavaXSuite
+class AtomicLongRight64JavaXSuite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     Right64,
@@ -1560,7 +1561,7 @@ object AtomicLongRight64JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicIntRight64JavaXSuite
+class AtomicIntRight64JavaXSuite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     Right64,
@@ -1571,7 +1572,7 @@ object AtomicIntRight64JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicShortRight64JavaXSuite
+class AtomicShortRight64JavaXSuite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     Right64,
@@ -1582,7 +1583,7 @@ object AtomicShortRight64JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicByteRight64JavaXSuite
+class AtomicByteRight64JavaXSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     Right64,
@@ -1593,7 +1594,7 @@ object AtomicByteRight64JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicCharRight64JavaXSuite
+class AtomicCharRight64JavaXSuite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     Right64,
@@ -1604,7 +1605,7 @@ object AtomicCharRight64JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicNumberAnyRight64JavaXSuite
+class AtomicNumberAnyRight64JavaXSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Right64,
@@ -1617,12 +1618,12 @@ object AtomicNumberAnyRight64JavaXSuite
 
 // -- LeftRight128 (Java X)
 
-object AtomicDoubleLeftRight128JavaXSuite
+class AtomicDoubleLeftRight128JavaXSuite
   extends AtomicDoubleSuite(LeftRight128, allowPlatformIntrinsics = false, allowUnsafe = false)
-object AtomicFloatLeftRight128JavaXSuite
+class AtomicFloatLeftRight128JavaXSuite
   extends AtomicFloatSuite(LeftRight128, allowPlatformIntrinsics = false, allowUnsafe = false)
 
-object AtomicLongLeftRight128JavaXSuite
+class AtomicLongLeftRight128JavaXSuite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     LeftRight128,
@@ -1633,7 +1634,7 @@ object AtomicLongLeftRight128JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicIntLeftRight128JavaXSuite
+class AtomicIntLeftRight128JavaXSuite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     LeftRight128,
@@ -1644,7 +1645,7 @@ object AtomicIntLeftRight128JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicShortLeftRight128JavaXSuite
+class AtomicShortLeftRight128JavaXSuite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     LeftRight128,
@@ -1655,7 +1656,7 @@ object AtomicShortLeftRight128JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicByteLeftRight128JavaXSuite
+class AtomicByteLeftRight128JavaXSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     LeftRight128,
@@ -1666,7 +1667,7 @@ object AtomicByteLeftRight128JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicCharLeftRight128JavaXSuite
+class AtomicCharLeftRight128JavaXSuite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     LeftRight128,
@@ -1677,7 +1678,7 @@ object AtomicCharLeftRight128JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicNumberAnyLeftRight128JavaXSuite
+class AtomicNumberAnyLeftRight128JavaXSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     LeftRight128,
@@ -1690,12 +1691,12 @@ object AtomicNumberAnyLeftRight128JavaXSuite
 
 // -- Left128 (Java X)
 
-object AtomicDoubleLeft128JavaXSuite
+class AtomicDoubleLeft128JavaXSuite
   extends AtomicDoubleSuite(Left128, allowPlatformIntrinsics = false, allowUnsafe = false)
-object AtomicFloatLeft128JavaXSuite
+class AtomicFloatLeft128JavaXSuite
   extends AtomicFloatSuite(Left128, allowPlatformIntrinsics = false, allowUnsafe = false)
 
-object AtomicLongLeft128JavaXSuite
+class AtomicLongLeft128JavaXSuite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     Left128,
@@ -1706,7 +1707,7 @@ object AtomicLongLeft128JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicIntLeft128JavaXSuite
+class AtomicIntLeft128JavaXSuite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     Left128,
@@ -1717,7 +1718,7 @@ object AtomicIntLeft128JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicShortLeft128JavaXSuite
+class AtomicShortLeft128JavaXSuite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     Left128,
@@ -1728,7 +1729,7 @@ object AtomicShortLeft128JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicByteLeft128JavaXSuite
+class AtomicByteLeft128JavaXSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     Left128,
@@ -1739,7 +1740,7 @@ object AtomicByteLeft128JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicCharLeft128JavaXSuite
+class AtomicCharLeft128JavaXSuite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     Left128,
@@ -1750,7 +1751,7 @@ object AtomicCharLeft128JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicNumberAnyLeft128JavaXSuite
+class AtomicNumberAnyLeft128JavaXSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Left128,
@@ -1763,12 +1764,12 @@ object AtomicNumberAnyLeft128JavaXSuite
 
 // -- Right128 (Java X)
 
-object AtomicDoubleRight128JavaXSuite
+class AtomicDoubleRight128JavaXSuite
   extends AtomicDoubleSuite(Right128, allowPlatformIntrinsics = false, allowUnsafe = false)
-object AtomicFloatRight128JavaXSuite
+class AtomicFloatRight128JavaXSuite
   extends AtomicFloatSuite(Right128, allowPlatformIntrinsics = false, allowUnsafe = false)
 
-object AtomicLongRight128JavaXSuite
+class AtomicLongRight128JavaXSuite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     Right128,
@@ -1779,7 +1780,7 @@ object AtomicLongRight128JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicIntRight128JavaXSuite
+class AtomicIntRight128JavaXSuite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     Right128,
@@ -1790,7 +1791,7 @@ object AtomicIntRight128JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicShortRight128JavaXSuite
+class AtomicShortRight128JavaXSuite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     Right128,
@@ -1801,7 +1802,7 @@ object AtomicShortRight128JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicByteRight128JavaXSuite
+class AtomicByteRight128JavaXSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     Right128,
@@ -1812,7 +1813,7 @@ object AtomicByteRight128JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicCharRight128JavaXSuite
+class AtomicCharRight128JavaXSuite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     Right128,
@@ -1823,7 +1824,7 @@ object AtomicCharRight128JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicNumberAnyRight128JavaXSuite
+class AtomicNumberAnyRight128JavaXSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     Right128,
@@ -1836,12 +1837,12 @@ object AtomicNumberAnyRight128JavaXSuite
 
 // -- LeftRight256 (Java X)
 
-object AtomicDoubleLeftRight256JavaXSuite
+class AtomicDoubleLeftRight256JavaXSuite
   extends AtomicDoubleSuite(LeftRight256, allowPlatformIntrinsics = false, allowUnsafe = false)
-object AtomicFloatLeftRight256JavaXSuite
+class AtomicFloatLeftRight256JavaXSuite
   extends AtomicFloatSuite(LeftRight256, allowPlatformIntrinsics = false, allowUnsafe = false)
 
-object AtomicLongLeftRight256JavaXSuite
+class AtomicLongLeftRight256JavaXSuite
   extends AtomicNumberSuite[Long, AtomicLong](
     Atomic.builderFor(0L),
     LeftRight256,
@@ -1852,7 +1853,7 @@ object AtomicLongLeftRight256JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicIntLeftRight256JavaXSuite
+class AtomicIntLeftRight256JavaXSuite
   extends AtomicNumberSuite[Int, AtomicInt](
     Atomic.builderFor(0),
     LeftRight256,
@@ -1863,7 +1864,7 @@ object AtomicIntLeftRight256JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicShortLeftRight256JavaXSuite
+class AtomicShortLeftRight256JavaXSuite
   extends AtomicNumberSuite[Short, AtomicShort](
     Atomic.builderFor(0.toShort),
     LeftRight256,
@@ -1874,7 +1875,7 @@ object AtomicShortLeftRight256JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicByteLeftRight256JavaXSuite
+class AtomicByteLeftRight256JavaXSuite
   extends AtomicNumberSuite[Byte, AtomicByte](
     Atomic.builderFor(0.toByte),
     LeftRight256,
@@ -1885,7 +1886,7 @@ object AtomicByteLeftRight256JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicCharLeftRight256JavaXSuite
+class AtomicCharLeftRight256JavaXSuite
   extends AtomicNumberSuite[Char, AtomicChar](
     Atomic.builderFor(0.toChar),
     LeftRight256,
@@ -1896,7 +1897,7 @@ object AtomicCharLeftRight256JavaXSuite
     allowUnsafe = false
   )
 
-object AtomicNumberAnyLeftRight256JavaXSuite
+class AtomicNumberAnyLeftRight256JavaXSuite
   extends AtomicNumberSuite[BoxedLong, AtomicNumberAny[BoxedLong]](
     AtomicBuilder.AtomicNumberBuilder[BoxedLong],
     LeftRight256,

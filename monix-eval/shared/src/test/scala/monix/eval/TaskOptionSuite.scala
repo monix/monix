@@ -19,14 +19,14 @@ package monix.eval
 
 import scala.util.Success
 
-object TaskOptionSuite extends BaseTestSuite {
-  test("Task.none should return a None") { implicit s =>
+class TaskOptionSuite extends BaseTestSuite {
+  fixture.test("Task.none should return a None") { implicit s =>
     val f = Task.none[Int].runToFuture
 
     assertEquals(f.value, Some(Success(None)))
   }
 
-  test("Task.some should return a Some") { implicit s =>
+  fixture.test("Task.some should return a Some") { implicit s =>
     val f = Task.some[Int](1).runToFuture
 
     assertEquals(f.value, Some(Success(Some(1))))

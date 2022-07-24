@@ -19,8 +19,8 @@ package monix.reactive
 
 import scala.util.Success
 
-object PipeSuite extends BaseTestSuite {
-  test("Pipe works for MulticastStrategy.publish") { implicit s =>
+class PipeSuite extends BaseTestSuite {
+  fixture.test("Pipe works for MulticastStrategy.publish") { implicit s =>
     val ref = Pipe(MulticastStrategy.publish[Int])
     val (in, out) = ref.multicast
     val f = out.sumL.runToFuture
@@ -38,7 +38,7 @@ object PipeSuite extends BaseTestSuite {
     assertEquals(g.value, Some(Success(0)))
   }
 
-  test("Pipe works for MulticastStrategy.behaviour") { implicit s =>
+  fixture.test("Pipe works for MulticastStrategy.behaviour") { implicit s =>
     val ref = Pipe(MulticastStrategy.behavior[Int](2))
     val (in, out) = ref.concurrent
     val f = out.sumL.runToFuture
@@ -52,7 +52,7 @@ object PipeSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(8)))
   }
 
-  test("Pipe works for MulticastStrategy.async") { implicit s =>
+  fixture.test("Pipe works for MulticastStrategy.async") { implicit s =>
     val ref = Pipe(MulticastStrategy.async[Int])
     val (in, out) = ref.concurrent
     val f = out.sumL.runToFuture
@@ -66,7 +66,7 @@ object PipeSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(3)))
   }
 
-  test("Pipe works for MulticastStrategy.replay") { implicit s =>
+  fixture.test("Pipe works for MulticastStrategy.replay") { implicit s =>
     val ref1 = Pipe(MulticastStrategy.replay[Int])
     val (in1, out1) = ref1.multicast
     val f1 = out1.sumL.runToFuture
@@ -98,7 +98,7 @@ object PipeSuite extends BaseTestSuite {
     assertEquals(g2.value, Some(Success(4)))
   }
 
-  test("Pipe works for MulticastStrategy.replayLimited") { implicit s =>
+  fixture.test("Pipe works for MulticastStrategy.replayLimited") { implicit s =>
     val ref1 = Pipe.replayLimited[Int](1)
     val (in1, out1) = ref1.multicast
     val f1 = out1.sumL.runToFuture

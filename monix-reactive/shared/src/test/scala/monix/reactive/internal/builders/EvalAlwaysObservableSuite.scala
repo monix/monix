@@ -17,20 +17,16 @@
 
 package monix.reactive.internal.builders
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 
-object EvalAlwaysObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class EvalAlwaysObservableSuite extends BaseTestSuite {
 
-  test("should work") { implicit s =>
+  fixture.test("should work") { implicit s =>
     var wasCompleted = 0
     var received = 0
 

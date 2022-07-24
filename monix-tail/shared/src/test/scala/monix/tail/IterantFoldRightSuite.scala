@@ -25,7 +25,7 @@ import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 
-object IterantFoldRightSuite extends BaseTestSuite {
+class IterantFoldRightSuite extends BaseTestSuite {
   def exists(ref: Iterant[Coeval, Int], p: Int => Boolean): Coeval[Boolean] =
     ref.foldRightL(Coeval(false)) { (e, next) =>
       if (p(e)) Coeval(true) else next
@@ -50,25 +50,25 @@ object IterantFoldRightSuite extends BaseTestSuite {
     }
   }
 
-  test("foldRightL can express existsL") { implicit s =>
+  fixture.test("foldRightL can express existsL") { implicit s =>
     check2 { (stream: Iterant[Coeval, Int], p: Int => Boolean) =>
       exists(stream, p) <-> stream.existsL(p)
     }
   }
 
-  test("foldRightL can express forallL") { implicit s =>
+  fixture.test("foldRightL can express forallL") { implicit s =>
     check2 { (stream: Iterant[Coeval, Int], p: Int => Boolean) =>
       forall(stream, p) <-> stream.forallL(p)
     }
   }
 
-  test("foldRightL can express ++") { implicit s =>
+  fixture.test("foldRightL can express ++") { implicit s =>
     check2 { (lh: Iterant[Coeval, Int], rh: Iterant[Coeval, Int]) =>
       concat(lh, rh) <-> lh ++ rh
     }
   }
 
-  test("foldRightL flavored ++ does acquisition and releases in order") { implicit s =>
+  fixture.test("foldRightL flavored ++ does acquisition and releases in order") { implicit s =>
     val state = Atomic(0)
 
     val lh = Iterant[Coeval].scopeS[Unit, Int](
@@ -101,7 +101,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(list, List(1, 2))
   }
 
-  test("foldRightL can short-circuit for exists") { implicit s =>
+  fixture.test("foldRightL can short-circuit for exists") { implicit s =>
     var effect = 0
     val ref = Iterant[Coeval].of(1, 2, 3, 4) ++ Iterant[Coeval].suspend(Coeval {
       effect += 1
@@ -117,7 +117,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("foldRightL protects against broken op") { implicit s =>
+  fixture.test("foldRightL protects against broken op") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -131,7 +131,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("foldRightL protects against broken cursors") { implicit s =>
+  fixture.test("foldRightL protects against broken cursors") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -145,7 +145,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("foldRightL protects against broken batches") { implicit s =>
+  fixture.test("foldRightL protects against broken batches") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -159,14 +159,14 @@ object IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("find (via foldRightL) is consistent with List.find") { implicit s =>
+  fixture.test("find (via foldRightL) is consistent with List.find") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
       val fa = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
       find(fa, p) <-> Coeval(list.find(p))
     }
   }
 
-  test("find (via foldRightL) can short-circuit, releasing only acquired resources") { implicit s =>
+  fixture.test("find (via foldRightL) can short-circuit, releasing only acquired resources") { implicit s =>
     var effect = 0
 
     val ref =
@@ -178,7 +178,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("find (via foldRightL) releases all resources when full stream is processed") { implicit s =>
+  fixture.test("find (via foldRightL) releases all resources when full stream is processed") { implicit s =>
     var effect = 0
 
     val ref =
@@ -190,7 +190,7 @@ object IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(effect, 2)
   }
 
-  test("find (via foldRightL) protects against user errors") { implicit s =>
+  fixture.test("find (via foldRightL) protects against user errors") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 

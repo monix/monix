@@ -22,20 +22,20 @@ import monix.execution.exceptions.CallbackCalledMultipleTimesException
 import monix.execution.schedulers.TestScheduler
 import scala.util.{ Failure, Success }
 
-object TaskCallbackSafetySuite extends BaseTestSuite {
-  test("Task.async's callback can be called multiple times") { implicit sc =>
+class TaskCallbackSafetySuite extends BaseTestSuite {
+  fixture.test("Task.async's callback can be called multiple times") { implicit sc =>
     runTestCanCallMultipleTimes(Task.async)
   }
 
-  test("Task.async0's callback can be called multiple times") { implicit sc =>
+  fixture.test("Task.async0's callback can be called multiple times") { implicit sc =>
     runTestCanCallMultipleTimes(r => Task.async0((_, cb) => r(cb)))
   }
 
-  test("Task.asyncF's callback can be called multiple times") { implicit sc =>
+  fixture.test("Task.asyncF's callback can be called multiple times") { implicit sc =>
     runTestCanCallMultipleTimes(r => Task.asyncF(cb => Task(r(cb))))
   }
 
-  test("Task.cancelable's callback can be called multiple times") { implicit sc =>
+  fixture.test("Task.cancelable's callback can be called multiple times") { implicit sc =>
     runTestCanCallMultipleTimes(r =>
       Task.cancelable { cb =>
         r(cb); Task.unit
@@ -43,7 +43,7 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
     )
   }
 
-  test("Task.cancelable0's callback can be called multiple times") { implicit sc =>
+  fixture.test("Task.cancelable0's callback can be called multiple times") { implicit sc =>
     runTestCanCallMultipleTimes(r =>
       Task.cancelable0 { (_, cb) =>
         r(cb); Task.unit
@@ -51,23 +51,23 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
     )
   }
 
-  test("Task.async's register throwing is signaled as error") { implicit sc =>
+  fixture.test("Task.async's register throwing is signaled as error") { implicit sc =>
     runTestRegisterCanThrow(Task.async)
   }
 
-  test("Task.async0's register throwing is signaled as error") { implicit sc =>
+  fixture.test("Task.async0's register throwing is signaled as error") { implicit sc =>
     runTestRegisterCanThrow(r => Task.async0((_, cb) => r(cb)))
   }
 
-  test("Task.asyncF's register throwing is signaled as error (1)") { implicit sc =>
+  fixture.test("Task.asyncF's register throwing is signaled as error (1)") { implicit sc =>
     runTestRegisterCanThrow(r => Task.asyncF(cb => Task(r(cb))))
   }
 
-  test("Task.asyncF's register throwing is signaled as error (2)") { implicit sc =>
+  fixture.test("Task.asyncF's register throwing is signaled as error (2)") { implicit sc =>
     runTestRegisterCanThrow(r => Task.asyncF(cb => { r(cb); Task.unit }))
   }
 
-  test("Task.cancelable's register throwing is signaled as error") { implicit sc =>
+  fixture.test("Task.cancelable's register throwing is signaled as error") { implicit sc =>
     runTestRegisterCanThrow(r =>
       Task.cancelable { cb =>
         r(cb); Task.unit
@@ -75,7 +75,7 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
     )
   }
 
-  test("Task.cancelable0's register throwing is signaled as error") { implicit sc =>
+  fixture.test("Task.cancelable0's register throwing is signaled as error") { implicit sc =>
     runTestRegisterCanThrow(r =>
       Task.cancelable0 { (_, cb) =>
         r(cb); Task.unit
@@ -83,23 +83,23 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
     )
   }
 
-  test("Task.async's register throwing, after result, is reported") { implicit sc =>
+  fixture.test("Task.async's register throwing, after result, is reported") { implicit sc =>
     runTestRegisterThrowingCanBeReported(Task.async)
   }
 
-  test("Task.async0's register throwing, after result, is reported") { implicit sc =>
+  fixture.test("Task.async0's register throwing, after result, is reported") { implicit sc =>
     runTestRegisterThrowingCanBeReported(r => Task.async0((_, cb) => r(cb)))
   }
 
-  test("Task.asyncF's register throwing, after result, is reported (1)") { implicit sc =>
+  fixture.test("Task.asyncF's register throwing, after result, is reported (1)") { implicit sc =>
     runTestRegisterThrowingCanBeReported(r => Task.asyncF(cb => Task(r(cb))))
   }
 
-  test("Task.asyncF's register throwing, after result, is reported (2)") { implicit sc =>
+  fixture.test("Task.asyncF's register throwing, after result, is reported (2)") { implicit sc =>
     runTestRegisterThrowingCanBeReported(r => Task.asyncF(cb => { r(cb); Task.unit }))
   }
 
-  test("Task.cancelable's register throwing, after result, is reported") { implicit sc =>
+  fixture.test("Task.cancelable's register throwing, after result, is reported") { implicit sc =>
     runTestRegisterThrowingCanBeReported(r =>
       Task.cancelable { cb =>
         r(cb); Task.unit
@@ -107,7 +107,7 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
     )
   }
 
-  test("Task.cancelable0's register throwing, after result, is reported") { implicit sc =>
+  fixture.test("Task.cancelable0's register throwing, after result, is reported") { implicit sc =>
     runTestRegisterThrowingCanBeReported(r =>
       Task.cancelable0 { (_, cb) =>
         r(cb); Task.unit
@@ -115,7 +115,9 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
     )
   }
 
-  def runTestRegisterCanThrow(create: (Callback[Throwable, Int] => Unit) => Task[Int])(
+  def runTestRegisterCanThrow(
+    create: (Callback[Throwable, Int] => Unit) => Task[Int]
+  )(
     implicit sc: TestScheduler
   ): Unit = {
 
@@ -135,7 +137,9 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
     assertEquals(sc.state.lastReportedError, null)
   }
 
-  def runTestRegisterThrowingCanBeReported(create: (Callback[Throwable, Int] => Unit) => Task[Int])(
+  def runTestRegisterThrowingCanBeReported(
+    create: (Callback[Throwable, Int] => Unit) => Task[Int]
+  )(
     implicit sc: TestScheduler
   ): Unit = {
 
@@ -156,7 +160,9 @@ object TaskCallbackSafetySuite extends BaseTestSuite {
     assertEquals(sc.state.lastReportedError, WrappedEx(10))
   }
 
-  def runTestCanCallMultipleTimes(create: (Callback[Throwable, Int] => Unit) => Task[Int])(
+  def runTestCanCallMultipleTimes(
+    create: (Callback[Throwable, Int] => Unit) => Task[Int]
+  )(
     implicit sc: TestScheduler
   ): Unit = {
 

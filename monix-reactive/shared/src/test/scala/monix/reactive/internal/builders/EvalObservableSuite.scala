@@ -24,8 +24,8 @@ import monix.execution.exceptions.DummyException
 import monix.reactive.{ BaseTestSuite, Observable }
 import scala.util.Success
 
-object EvalObservableSuite extends BaseTestSuite {
-  test("Observable.eval(now(value)) should work") { implicit s =>
+class EvalObservableSuite extends BaseTestSuite {
+  fixture.test("Observable.eval(now(value)) should work") { implicit s =>
     check1 { (value: Int) =>
       val obs1 = Observable.coeval(Coeval.now(value))
       val obs2 = Observable.now(value)
@@ -33,7 +33,7 @@ object EvalObservableSuite extends BaseTestSuite {
     }
   }
 
-  test("Observable.eval(eval(value)) should work") { implicit s =>
+  fixture.test("Observable.eval(eval(value)) should work") { implicit s =>
     check1 { (value: Int) =>
       val obs1 = Observable.coeval(Coeval.eval(value))
       val obs2 = Observable.eval(value)
@@ -41,7 +41,7 @@ object EvalObservableSuite extends BaseTestSuite {
     }
   }
 
-  test("Observable.eval(evalOnce(value)) should work") { implicit s =>
+  fixture.test("Observable.eval(evalOnce(value)) should work") { implicit s =>
     check1 { (value: Int) =>
       val obs1 = Observable.coeval(Coeval.evalOnce(value))
       val obs2 = Observable.evalOnce(value)
@@ -49,7 +49,7 @@ object EvalObservableSuite extends BaseTestSuite {
     }
   }
 
-  test("Observable.eval(raiseError(value)) should work") { implicit s =>
+  fixture.test("Observable.eval(raiseError(value)) should work") { implicit s =>
     check1 { (value: Int) =>
       val ex = DummyException(s"dummy $value")
       val obs1 = Observable.coeval[Int](Coeval.raiseError(ex))
@@ -58,7 +58,7 @@ object EvalObservableSuite extends BaseTestSuite {
     }
   }
 
-  test("Observable.delay is alias for eval") { implicit s =>
+  fixture.test("Observable.delay is alias for eval") { implicit s =>
     var effect = 0
     val obs = Observable.delay { effect += 1; effect }
     val f = obs.runAsyncGetFirst

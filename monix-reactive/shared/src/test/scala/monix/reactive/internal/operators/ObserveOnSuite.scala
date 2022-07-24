@@ -26,14 +26,14 @@ import monix.execution.schedulers.TestScheduler
 import monix.reactive.OverflowStrategy.Unbounded
 import monix.reactive.{ BaseTestSuite, Observable }
 
-object ObserveOnSuite extends BaseTestSuite {
-  test("equivalence with the source") { implicit s =>
+class ObserveOnSuite extends BaseTestSuite {
+  fixture.test("equivalence with the source") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       obs.observeOn(s) <-> obs
     }
   }
 
-  test("equivalence with the source when ending in error") { implicit s =>
+  fixture.test("equivalence with the source when ending in error") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       val dummy = DummyException("dummy")
       val source = obs.endWithError(dummy)
@@ -41,7 +41,7 @@ object ObserveOnSuite extends BaseTestSuite {
     }
   }
 
-  test("observes on the specified scheduler, with custom strategy") { implicit s =>
+  fixture.test("observes on the specified scheduler, with custom strategy") { implicit s =>
     val count = 4000L
     var signaledBefore = 0L
     var signaledAfter = 0L
@@ -63,7 +63,7 @@ object ObserveOnSuite extends BaseTestSuite {
     assertEquals(signaledAfter, count)
   }
 
-  test("observes on the specified scheduler, with default strategy") { implicit s =>
+  fixture.test("observes on the specified scheduler, with default strategy") { implicit s =>
     val count = Platform.recommendedBatchSize - 10
     var signaledBefore = 0L
     var signaledAfter = 0L
@@ -79,7 +79,7 @@ object ObserveOnSuite extends BaseTestSuite {
 
     s.tick()
     assertEquals(signaledBefore, count.toLong)
-    assertEquals(signaledAfter, 0)
+    assertEquals(signaledAfter, 0L)
 
     io.tick()
     assertEquals(signaledAfter, count.toLong)

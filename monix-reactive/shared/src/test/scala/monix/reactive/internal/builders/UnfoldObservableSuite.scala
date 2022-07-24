@@ -26,9 +26,9 @@ import monix.reactive.{ BaseTestSuite, Observable }
 
 import scala.concurrent.duration.MILLISECONDS
 
-object UnfoldObservableSuite extends BaseTestSuite {
+class UnfoldObservableSuite extends BaseTestSuite {
 
-  test("should be exception-proof") { implicit s =>
+  fixture.test("should be exception-proof") { implicit s =>
     val dummy = new RuntimeException("dummy")
     var received = 0
 
@@ -41,7 +41,7 @@ object UnfoldObservableSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("should execute 10 times then return None") { implicit s =>
+  fixture.test("should execute 10 times then return None") { implicit s =>
     var received = 0
 
     Observable.unfold(0)(i => if (i < 10) Some((i, i + 1)) else None).subscribe { (_: Int) =>
@@ -52,7 +52,7 @@ object UnfoldObservableSuite extends BaseTestSuite {
     assertEquals((0 until received).toList, (0 to 9).toList)
   }
 
-  test("should be cancelable") { implicit s =>
+  fixture.test("should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -79,7 +79,7 @@ object UnfoldObservableSuite extends BaseTestSuite {
     assert(!wasCompleted)
   }
 
-  test("unfold and fromStateAction results should be equal given generated inputs") { implicit s =>
+  fixture.test("unfold and fromStateAction results should be equal given generated inputs") { implicit s =>
     check2 { (s: Int, i: Int) =>
       val seed = s % (recommendedBatchSize * 2)
       val n = i % (recommendedBatchSize * 2)

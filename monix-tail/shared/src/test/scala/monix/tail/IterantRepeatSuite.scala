@@ -26,14 +26,14 @@ import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import monix.tail.batches.{ Batch, BatchCursor }
 
-object IterantRepeatSuite extends BaseTestSuite {
-  test("Iterant.repeat works for one item") { _ =>
+class IterantRepeatSuite extends BaseTestSuite {
+  test("Iterant.repeat works for one item") {
     val count = if (Platform.isJVM) 5000 else 500
     val r = Iterant[Coeval].pure(1).repeat.take(count).sumL.value()
     assertEquals(r, count)
   }
 
-  test("Iterant.repeat works for many many") { _ =>
+  test("Iterant.repeat works for many many") {
     val count = if (Platform.isJVM) 10 else 500
 
     check2 { (list: List[Int], index: Int) =>
@@ -54,7 +54,7 @@ object IterantRepeatSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.repeat terminates on exception") { implicit s =>
+  fixture.test("Iterant.repeat terminates on exception") { implicit s =>
     var effect = 0
     var values = List[Int]()
     val expectedValues = List.fill(6)(1)
@@ -62,21 +62,24 @@ object IterantRepeatSuite extends BaseTestSuite {
     val source = Iterant[Coeval].nextS(1, Coeval(Iterant[Coeval].empty[Int]))
 
     intercept[DummyException] {
-      source.repeat.map { x =>
-        if (effect == 6) throw dummy
-        else {
-          effect += 1
-          values ::= x
-          x
+      source.repeat
+        .map { x =>
+          if (effect == 6) throw dummy
+          else {
+            effect += 1
+            values ::= x
+            x
+          }
         }
-      }.toListL.value()
+        .toListL
+        .value()
       ()
     }
 
     assertEquals(values, expectedValues)
   }
 
-  test("Iterant.repeat protects against broken batches") { implicit s =>
+  fixture.test("Iterant.repeat protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
@@ -86,7 +89,7 @@ object IterantRepeatSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.repeat protects against broken cursors") { implicit s =>
+  fixture.test("Iterant.repeat protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
@@ -96,7 +99,7 @@ object IterantRepeatSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.repeat terminates streams that end in error") { _ =>
+  test("Iterant.repeat terminates streams that end in error") {
     check1 { (stream: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val fa = stream ++ Iterant[Coeval].raiseError[Int](dummy)
@@ -104,7 +107,7 @@ object IterantRepeatSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.repeat terminates if the source is empty") { implicit s =>
+  fixture.test("Iterant.repeat terminates if the source is empty") { implicit s =>
     val source1 = Iterant[Coeval].empty[Int]
     val source2 = Iterant[Coeval].suspendS(Coeval(source1))
     val source3 = Iterant[Coeval].nextCursorS[Int](BatchCursor(), Coeval(source2))
@@ -116,7 +119,7 @@ object IterantRepeatSuite extends BaseTestSuite {
     assertEquals(source4.repeat.toListL.value(), List.empty[Int])
   }
 
-  test("Iterant.repeat discards Scopes properly") { implicit s =>
+  fixture.test("Iterant.repeat discards Scopes properly") { implicit s =>
     val acquired = Atomic(0)
     val sum = Iterant
       .resource(Coeval(acquired.incrementAndGet()))(_ => Coeval(acquired.decrement()))
@@ -128,7 +131,7 @@ object IterantRepeatSuite extends BaseTestSuite {
     assertEquals(sum, 10)
   }
 
-  test("Iterant.repeatEval captures effects") { _ =>
+  test("Iterant.repeatEval captures effects") {
     check1 { (xs: Vector[Int]) =>
       val iterator = xs.iterator
       val evaluated = Iterant[Coeval]
@@ -139,7 +142,7 @@ object IterantRepeatSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.repeatEval terminates on exceptions") { _ =>
+  test("Iterant.repeatEval terminates on exceptions") {
     val dummy = DummyException("dummy")
     val xs = Iterant[Coeval].repeatEval[Int] {
       throw dummy
@@ -147,7 +150,7 @@ object IterantRepeatSuite extends BaseTestSuite {
     assert(xs === Iterant[Coeval].raiseError(dummy))
   }
 
-  test("Iterant.repeatEvalF repeats effectful values") { _ =>
+  test("Iterant.repeatEvalF repeats effectful values") {
     val repeats = 66
     var effect = 0
     val increment = Coeval { effect += 1 }
@@ -155,7 +158,7 @@ object IterantRepeatSuite extends BaseTestSuite {
     assertEquals(effect, repeats)
   }
 
-  test("Iterant.repeatEvalF terminates on exceptions raised in F") { _ =>
+  test("Iterant.repeatEvalF terminates on exceptions raised in F") {
     val dummy = DummyException("dummy")
     val xs = Iterant[Coeval].repeatEvalF(Coeval.raiseError[Int](dummy))
 

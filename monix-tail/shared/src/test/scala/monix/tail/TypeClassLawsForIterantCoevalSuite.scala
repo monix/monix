@@ -30,7 +30,7 @@ import cats.laws.discipline.{
 import cats.laws.discipline.arbitrary.catsLawsArbitraryForPartialFunction
 import monix.eval.Coeval
 
-object TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite {
+class TypeClassLawsForIterantCoevalSuite extends BaseLawsSuite {
   type F[α] = Iterant[Coeval, α]
 
   // Explicit instance due to weird implicit resolution problem

@@ -18,19 +18,15 @@
 package monix.catnap
 
 import cats.effect.{ ContextShift, IO }
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
 import scala.util.Success
 
-object TestSchedulerEffectSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.tasks.isEmpty)
-  }
+class TestSchedulerEffectSuite extends BaseTestSuite {
 
-  test("clock.monotonic") { s =>
+  fixture.test("clock.monotonic") { s =>
     val clock = SchedulerEffect.clock[IO](s)
     val fetch = clock.monotonic(MILLISECONDS)
 
@@ -43,7 +39,7 @@ object TestSchedulerEffectSuite extends TestSuite[TestScheduler] {
     assertEquals(fetch.unsafeRunSync(), 10300L)
   }
 
-  test("clock.realTime") { s =>
+  fixture.test("clock.realTime") { s =>
     val clock = SchedulerEffect.clock[IO](s)
     val fetch = clock.realTime(MILLISECONDS)
 
@@ -56,7 +52,7 @@ object TestSchedulerEffectSuite extends TestSuite[TestScheduler] {
     assertEquals(fetch.unsafeRunSync(), 10300L)
   }
 
-  test("timerLiftIO[IO]") { s =>
+  fixture.test("timerLiftIO[IO]") { s =>
     val timer = SchedulerEffect.timerLiftIO[IO](s)
     val clockMono = timer.clock.monotonic(MILLISECONDS)
     val clockReal = timer.clock.realTime(MILLISECONDS)
@@ -64,23 +60,23 @@ object TestSchedulerEffectSuite extends TestSuite[TestScheduler] {
     val f = timer.sleep(10.seconds).unsafeToFuture()
     assertEquals(f.value, None)
 
-    assertEquals(clockMono.unsafeRunSync(), 0)
-    assertEquals(clockReal.unsafeRunSync(), 0)
+    assertEquals(clockMono.unsafeRunSync(), 0L)
+    assertEquals(clockReal.unsafeRunSync(), 0L)
 
     s.tick(5.seconds)
     assertEquals(f.value, None)
 
-    assertEquals(clockMono.unsafeRunSync(), 5000)
-    assertEquals(clockReal.unsafeRunSync(), 5000)
+    assertEquals(clockMono.unsafeRunSync(), 5000L)
+    assertEquals(clockReal.unsafeRunSync(), 5000L)
 
     s.tick(5.seconds)
     assertEquals(f.value, Some(Success(())))
 
-    assertEquals(clockMono.unsafeRunSync(), 10000)
-    assertEquals(clockReal.unsafeRunSync(), 10000)
+    assertEquals(clockMono.unsafeRunSync(), 10000L)
+    assertEquals(clockReal.unsafeRunSync(), 10000L)
   }
 
-  test("timer[IO]") { s =>
+  fixture.test("timer[IO]") { s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val timer = SchedulerEffect.timer[IO](s)
@@ -90,23 +86,23 @@ object TestSchedulerEffectSuite extends TestSuite[TestScheduler] {
     val f = timer.sleep(10.seconds).unsafeToFuture()
     assertEquals(f.value, None)
 
-    assertEquals(clockMono.unsafeRunSync(), 0)
-    assertEquals(clockReal.unsafeRunSync(), 0)
+    assertEquals(clockMono.unsafeRunSync(), 0L)
+    assertEquals(clockReal.unsafeRunSync(), 0L)
 
     s.tick(5.seconds)
     assertEquals(f.value, None)
 
-    assertEquals(clockMono.unsafeRunSync(), 5000)
-    assertEquals(clockReal.unsafeRunSync(), 5000)
+    assertEquals(clockMono.unsafeRunSync(), 5000L)
+    assertEquals(clockReal.unsafeRunSync(), 5000L)
 
     s.tick(5.seconds)
     assertEquals(f.value, Some(Success(())))
 
-    assertEquals(clockMono.unsafeRunSync(), 10000)
-    assertEquals(clockReal.unsafeRunSync(), 10000)
+    assertEquals(clockMono.unsafeRunSync(), 10000L)
+    assertEquals(clockReal.unsafeRunSync(), 10000L)
   }
 
-  test("contextShift.shift") { s =>
+  fixture.test("contextShift.shift") { s =>
     val contextShift = SchedulerEffect.contextShift[IO](s)
 
     val f = contextShift.shift.unsafeToFuture()
@@ -116,7 +112,7 @@ object TestSchedulerEffectSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("contextShift.evalOn") { s =>
+  fixture.test("contextShift.evalOn") { s =>
     val contextShift = SchedulerEffect.contextShift[IO](s)
     val s2 = TestScheduler()
 

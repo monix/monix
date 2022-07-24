@@ -17,14 +17,14 @@
 
 package monix.eval
 
-object CoevalOptionSuite extends BaseTestSuite {
-  test("Coeval.none should return a Now with a None") { _ =>
+class CoevalOptionSuite extends BaseTestSuite {
+  test("Coeval.none should return a Now with a None") {
     val c = Coeval.none[Int]
 
     assertEquals(c.value(), None)
   }
 
-  test("Coeval.some should return a Now with a Some") { _ =>
+  test("Coeval.some should return a Now with a Some") {
     val c = Coeval.some[Int](1)
 
     assertEquals(c.value(), Some(1))

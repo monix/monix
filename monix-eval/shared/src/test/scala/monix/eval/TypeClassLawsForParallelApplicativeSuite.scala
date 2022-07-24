@@ -22,7 +22,7 @@ import cats.laws.discipline.CommutativeApplicativeTests
 import monix.catnap.internal.ParallelApplicative
 import monix.eval.instances.CatsParallelForTask
 
-object TypeClassLawsForParallelApplicativeSuite extends BaseLawsSuite {
+class TypeClassLawsForParallelApplicativeSuite extends BaseLawsSuite {
   implicit val ap: CommutativeApplicative[Task] =
     ParallelApplicative(new CatsParallelForTask)
 

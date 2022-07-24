@@ -33,8 +33,8 @@ import monix.reactive.{ BaseTestSuite, Consumer, Observable, Observer }
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Failure, Success }
 
-object LoadBalanceConsumerSuite extends BaseTestSuite {
-  test("trigger error when parallelism < 1") { implicit s =>
+class LoadBalanceConsumerSuite extends BaseTestSuite {
+  fixture.test("trigger error when parallelism < 1") { implicit s =>
     intercept[IllegalArgumentException] {
       Consumer.loadBalance(0, Consumer.head[Int])
       ()
@@ -42,7 +42,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     ()
   }
 
-  test("trigger error when array of consumers is empty") { implicit s =>
+  fixture.test("trigger error when array of consumers is empty") { implicit s =>
     intercept[IllegalArgumentException] {
       new LoadBalanceConsumer(1, Array.empty[Consumer[Int, Int]])
       ()
@@ -50,7 +50,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     ()
   }
 
-  test("aggregate all events") { implicit s =>
+  fixture.test("aggregate all events") { implicit s =>
     check2 { (source: Observable[Int], rndInt: Int) =>
       // Parallelism value will be between 1 and 16
       val parallelism = {
@@ -67,7 +67,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     }
   }
 
-  test("aggregate all events with subscribers that stop") { implicit s =>
+  fixture.test("aggregate all events with subscribers that stop") { implicit s =>
     check2 { (source: Observable[Int], rndInt: Int) =>
       // Parallelism value will be between 1 and 16
       val parallelism = {
@@ -87,7 +87,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     }
   }
 
-  test("keep subscribers busy until the end") { implicit s =>
+  fixture.test("keep subscribers busy until the end") { implicit s =>
     val iterations = 10000
     val expectedSum = iterations.toLong * (iterations - 1) / 2
     val ackPromise = Promise[Ack]()
@@ -120,7 +120,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     assertEquals(finishPromise.future.value, Some(Success(6)))
   }
 
-  test("a subscriber triggering an error in onNext will cancel everything") { implicit s =>
+  fixture.test("a subscriber triggering an error in onNext will cancel everything") { implicit s =>
     val iterations = 10000
     val ackPromise1 = Promise[Ack]()
     val ackPromise2 = Promise[Ack]()
@@ -166,7 +166,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  test("a subscriber triggering an error by callback will cancel everything") { implicit s =>
+  fixture.test("a subscriber triggering an error by callback will cancel everything") { implicit s =>
     val iterations = 10000
     val ackPromise1 = Promise[Ack]()
     val ackPromise2 = Promise[Ack]()
@@ -212,7 +212,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  test("a subscriber can cancel at any time") { implicit s =>
+  fixture.test("a subscriber can cancel at any time") { implicit s =>
     val sum = Atomic(0L)
     val wasCompleted = Atomic(0)
 
@@ -226,15 +226,15 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
 
     for (_ <- 0 until 4) assertEquals(subscriber.onNext(1), Continue)
     s.tick()
-    assertEquals(sum.get(), 4 + 2)
+    assertEquals(sum.get(), 4L + 2L)
 
     for (_ <- 0 until 4) assertEquals(subscriber.onNext(1), Continue)
     s.tick()
-    assertEquals(sum.get(), 8 + 2 + 2)
+    assertEquals(sum.get(), 8L + 2L + 2L)
 
     composite.cancel(); s.tick()
     for (_ <- 0 until 4) { assertEquals(subscriber.onNext(1), Continue); s.tick() }
-    assertEquals(sum.get(), 12 + 4)
+    assertEquals(sum.get(), 12L + 4L)
 
     subscriber.onComplete(); s.tick()
     assertEquals(wasCompleted.get(), 2)

@@ -17,24 +17,20 @@
 
 package monix.reactive.internal.builders
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.FutureUtils.extensions._
 import monix.execution.internal.Platform
-import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.{ Observable, Observer }
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object IterableAsObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
-  }
+class IterableAsObservableSuite extends BaseTestSuite {
 
-  test("first execution is sync") { implicit s =>
+  fixture.test("first execution is sync") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -54,7 +50,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, 15)
   }
 
-  test("should do synchronous execution in batches") { implicit s =>
+  fixture.test("should do synchronous execution in batches") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -78,7 +74,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("fromIterable should do back-pressure") { implicit s =>
+  fixture.test("fromIterable should do back-pressure") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -111,7 +107,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     s.tick(50.millis); assertEquals(sum, 15)
   }
 
-  test("fromIterable should do empty iterables synchronously") { implicit s =>
+  fixture.test("fromIterable should do empty iterables synchronously") { implicit s =>
     var wasCompleted = false
 
     Observable
@@ -125,7 +121,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("fromIterable should stop streaming on Stop") { implicit s =>
+  fixture.test("fromIterable should stop streaming on Stop") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -145,7 +141,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     assert(!wasCompleted)
   }
 
-  test("fromIterable should protect against broken iterable.next, synchronous version") { implicit s =>
+  fixture.test("fromIterable should protect against broken iterable.next, synchronous version") { implicit s =>
     var sum = 0
     var errorThrown: Throwable = null
 
@@ -184,7 +180,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  test("fromIterable should protect against broken iterable.next, asynchronous version") { implicit s =>
+  fixture.test("fromIterable should protect against broken iterable.next, asynchronous version") { implicit s =>
     var sum = 0
     var errorThrown: Throwable = null
 
@@ -220,7 +216,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  test("fromIterable should protect against broken iterable.hasNext, synchronous version") { implicit s =>
+  fixture.test("fromIterable should protect against broken iterable.hasNext, synchronous version") { implicit s =>
     var sum = 0
     var errorThrown: Throwable = null
 
@@ -252,7 +248,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  test("fromIterable should protect against broken iterable.hasNext, asynchronous version") { implicit s =>
+  fixture.test("fromIterable should protect against broken iterable.hasNext, asynchronous version") { implicit s =>
     var sum = 0
     var errorThrown: Throwable = null
 
@@ -284,7 +280,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  test("fromIterable should protect against broken iterable.hasNext, when iterable is empty") { implicit s =>
+  fixture.test("fromIterable should protect against broken iterable.hasNext, when iterable is empty") { implicit s =>
     var errorThrown: Throwable = null
 
     val iterable = new Iterable[Int] {
@@ -309,7 +305,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  test("fromIterable should be cancelable") { implicit s =>
+  fixture.test("fromIterable should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 

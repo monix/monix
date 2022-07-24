@@ -22,8 +22,8 @@ import monix.execution.exceptions.DummyException
 import concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskDeferActionSuite extends BaseTestSuite {
-  test("Task.deferAction works") { implicit s =>
+class TaskDeferActionSuite extends BaseTestSuite {
+  fixture.test("Task.deferAction works") { implicit s =>
     def measureLatency[A](source: Task[A]): Task[(A, Long)] =
       Task.deferAction { implicit s =>
         val start = s.clockMonotonic(MILLISECONDS)
@@ -37,10 +37,10 @@ object TaskDeferActionSuite extends BaseTestSuite {
     assertEquals(f.value, None)
 
     s.tick(1.second)
-    assertEquals(f.value, Some(Success(("hello", 1000))))
+    assertEquals(f.value, Some(Success(("hello", 1000L))))
   }
 
-  test("Task.deferAction protects against user error") { implicit s =>
+  fixture.test("Task.deferAction protects against user error") { implicit s =>
     val dummy = DummyException("dummy")
     val task = Task.deferAction(_ => throw dummy)
     val f = task.runToFuture
@@ -49,7 +49,7 @@ object TaskDeferActionSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.deferAction is stack safe") { implicit sc =>
+  fixture.test("Task.deferAction is stack safe") { implicit sc =>
     def loop(n: Int, acc: Int): Task[Int] =
       Task.deferAction { _ =>
         if (n > 0)
@@ -62,7 +62,7 @@ object TaskDeferActionSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10000)))
   }
 
-  testAsync("deferAction(local.write) works") { _ =>
+  test("deferAction(local.write) works") {
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 

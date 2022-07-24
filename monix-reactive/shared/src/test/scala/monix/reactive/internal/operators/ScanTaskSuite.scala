@@ -29,7 +29,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration._
 import scala.util.Failure
 
-object ScanTaskSuite extends BaseOperatorSuite {
+class ScanTaskSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable.range(0L, sourceCount.toLong).scanEval(Task.now(0L)) { (s, x) =>
       if (x % 2 == 0) Task.evalAsync(s + x) else Task.eval(s + x)
@@ -92,7 +92,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
     )
   }
 
-  test("should protect against errors in seed") { implicit s =>
+  fixture.test("should protect against errors in seed") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -108,7 +108,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
     assertEquals(effect, 1)
   }
 
-  test("should protect against exceptions thrown in op") { implicit s =>
+  fixture.test("should protect against exceptions thrown in op") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -124,7 +124,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
     assertEquals(effect, 2)
   }
 
-  test("should protect against errors raised in op") { implicit s =>
+  fixture.test("should protect against errors raised in op") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -140,7 +140,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
     assertEquals(effect, 2)
   }
 
-  test("back-pressure with onError") { implicit s =>
+  fixture.test("back-pressure with onError") { implicit s =>
     val dummy = DummyException("dummy")
     var sum = 0
     var effect = 0
@@ -174,7 +174,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("onError from source + error in task") { implicit s =>
+  fixture.test("onError from source + error in task") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
     var effect = 0
@@ -205,7 +205,7 @@ object ScanTaskSuite extends BaseOperatorSuite {
     assertEquals(s.state.lastReportedError, dummy1)
   }
 
-  test("error in task after user cancelled") { implicit s =>
+  fixture.test("error in task after user cancelled") { implicit s =>
     def delay[A](ex: Throwable): Task[A] =
       Task.async0 { (sc, cb) =>
         sc.scheduleOnce(1, TimeUnit.SECONDS, () => cb.onError(ex))
@@ -245,13 +245,13 @@ object ScanTaskSuite extends BaseOperatorSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("scanTask0.headL <-> seed") { implicit s =>
+  fixture.test("scanTask0.headL <-> seed") { implicit s =>
     check2 { (obs: Observable[Int], seed: Task[Int]) =>
       obs.scanEval0(seed)((a, b) => Task.pure(a + b)).headL <-> seed
     }
   }
 
-  test("scanTask0.drop(1) <-> scanTask") { implicit s =>
+  fixture.test("scanTask0.drop(1) <-> scanTask") { implicit s =>
     check2 { (obs: Observable[Int], seed: Task[Int]) =>
       obs.scanEval0(seed)((a, b) => Task.pure(a + b)).drop(1) <-> obs.scanEval(seed)((a, b) => Task.pure(a + b))
     }

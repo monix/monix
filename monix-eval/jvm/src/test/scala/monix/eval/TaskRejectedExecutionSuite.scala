@@ -18,13 +18,13 @@
 package monix.eval
 
 import java.util.concurrent.RejectedExecutionException
-import minitest.SimpleTestSuite
+
 import monix.execution.Scheduler
 import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.{ Await, ExecutionContext, Future }
 import scala.concurrent.duration._
 
-object TaskRejectedExecutionSuite extends SimpleTestSuite {
+class TaskRejectedExecutionSuite extends BaseTestSuite {
   val limited = Scheduler(new ExecutionContext {
     def execute(runnable: Runnable): Unit =
       throw new RejectedExecutionException()

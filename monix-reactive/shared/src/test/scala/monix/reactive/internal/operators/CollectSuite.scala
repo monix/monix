@@ -26,7 +26,7 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.duration._
 import scala.concurrent.{ Future, Promise }
 
-object CollectSuite extends BaseOperatorSuite {
+class CollectSuite extends BaseOperatorSuite {
   val waitFirst = Duration.Zero
   val waitNext = Duration.Zero
 
@@ -85,7 +85,7 @@ object CollectSuite extends BaseOperatorSuite {
     }
   }
 
-  override def cancelableObservables(): Seq[CollectSuite.Sample] = {
+  override def cancelableObservables(): Seq[Sample] = {
     val o = Observable
       .range(0, Platform.recommendedBatchSize.toLong)
       .delayOnNext(1.second)
@@ -94,7 +94,7 @@ object CollectSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  fixture.test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 
@@ -114,11 +114,11 @@ object CollectSuite extends BaseOperatorSuite {
         p.success(Continue)
         s.tick(waitForNext)
       case _ =>
-        fail()
+        fail("")
     }
   }
 
-  test("should only invoke the partial function once per element") { implicit s =>
+  fixture.test("should only invoke the partial function once per element") { implicit s =>
     var invocationCount = 0
     var result: Int = 0
     var wasCompleted = false

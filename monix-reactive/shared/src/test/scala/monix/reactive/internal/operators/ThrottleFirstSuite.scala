@@ -21,7 +21,7 @@ import monix.reactive.Observable
 
 import scala.concurrent.duration._
 
-object ThrottleFirstSuite extends BaseOperatorSuite {
+class ThrottleFirstSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     if (sourceCount == 1) {
       val o = Observable.now(100L).delayExecution(500.millis).throttleFirst(1.second)

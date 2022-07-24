@@ -19,10 +19,10 @@ package monix.catnap
 package cancelables
 
 import cats.effect.IO
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.exceptions.{ CompositeException, DummyException }
 
-object SingleAssignCancelableFSuite extends SimpleTestSuite {
+class SingleAssignCancelableFSuite extends BaseTestSuite {
   test("cancel") {
     var effect = 0
     val s = SingleAssignCancelableF[IO].unsafeRunSync()

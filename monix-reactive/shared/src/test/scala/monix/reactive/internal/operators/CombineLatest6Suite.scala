@@ -21,7 +21,7 @@ import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import scala.concurrent.duration._
 
-object CombineLatest6Suite extends BaseOperatorSuite {
+class CombineLatest6Suite extends BaseOperatorSuite {
   def waitFirst = Duration.Zero
   def waitNext = Duration.Zero
 

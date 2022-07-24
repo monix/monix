@@ -25,7 +25,7 @@ import monix.reactive.{ Consumer, Observable, Observer }
 import scala.concurrent.Future
 import scala.util.Success
 
-object BehaviorSubjectSuite extends BaseSubjectSuite {
+class BehaviorSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
     val s = BehaviorSubject[Long](-1)
     Sample(s, expectedElems.lastOption.getOrElse(-1))
@@ -36,7 +36,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     Some(Sample(s, expectedElems.sum))
   }
 
-  test("should work synchronously for synchronous subscribers") { implicit s =>
+  fixture.test("should work synchronously for synchronous subscribers") { implicit s =>
     val subject = BehaviorSubject[Int](10)
     var received = 0
     var wasCompleted = 0
@@ -62,7 +62,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     assertEquals(wasCompleted, 10)
   }
 
-  test("should work with asynchronous subscribers") { implicit s =>
+  fixture.test("should work with asynchronous subscribers") { implicit s =>
     val subject = BehaviorSubject[Int](10)
     var received = 0
     var wasCompleted = 0
@@ -91,7 +91,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     assertEquals(wasCompleted, 10)
   }
 
-  test("subscribe after complete should complete immediately") { implicit s =>
+  fixture.test("subscribe after complete should complete immediately") { implicit s =>
     val subject = BehaviorSubject[Int](10)
     var received = 0
     subject.onComplete()
@@ -107,7 +107,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     assertEquals(received, 10)
   }
 
-  test("onError should terminate current and future subscribers") { implicit s =>
+  fixture.test("onError should terminate current and future subscribers") { implicit s =>
     val subject = BehaviorSubject[Int](10)
     val dummy = DummyException("dummy")
     var elemsReceived = 0
@@ -140,7 +140,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     assertEquals(errorsReceived, 11)
   }
 
-  test("can stop streaming while connecting") { implicit s =>
+  fixture.test("can stop streaming while connecting") { implicit s =>
     val subject = BehaviorSubject[Int](10)
 
     val future1 = subject.runAsyncGetFirst
@@ -155,7 +155,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     assertEquals(subject.size, 0)
   }
 
-  test("unsubscribe after onComplete") { implicit s =>
+  fixture.test("unsubscribe after onComplete") { implicit s =>
     var result: Int = 0
     val subject = BehaviorSubject[Int](0)
     val c = subject.subscribe { e =>
@@ -170,7 +170,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     assertEquals(result, 1)
   }
 
-  test("Observable.behavior should emit only the latest element") { implicit s =>
+  fixture.test("Observable.behavior should emit only the latest element") { implicit s =>
     var foreachSum = 0
     var consumerSum = 0
     var subscribeSum = 0

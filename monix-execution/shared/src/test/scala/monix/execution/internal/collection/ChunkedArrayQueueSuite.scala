@@ -17,10 +17,10 @@
 
 package monix.execution.internal.collection
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import scala.collection.immutable.Queue
 
-object ChunkedArrayQueueSuite extends SimpleTestSuite {
+class ChunkedArrayQueueSuite extends BaseTestSuite {
   test("enqueue and dequeue 8 items") {
     val queue = ChunkedArrayQueue[Int](chunkSize = 8)
     var times = 0
@@ -36,7 +36,7 @@ object ChunkedArrayQueueSuite extends SimpleTestSuite {
       }
 
       assertEquals(list, (0 until 8).reverse.toList)
-      assertEquals(queue.dequeue(), null)
+      assertEquals(Option(queue.dequeue()), None)
       assert(queue.isEmpty, "queue.isEmpty")
 
       times += 1
@@ -58,7 +58,7 @@ object ChunkedArrayQueueSuite extends SimpleTestSuite {
       }
 
       assertEquals(list, (0 until 100).reverse.toList)
-      assertEquals(queue.dequeue(), null)
+      assertEquals(Option(queue.dequeue()), None)
       assert(queue.isEmpty, "queue.isEmpty")
 
       times += 1
@@ -71,7 +71,7 @@ object ChunkedArrayQueueSuite extends SimpleTestSuite {
     for (i <- 0 until 100) {
       queue.enqueue(i.asInstanceOf[AnyRef])
       assertEquals(queue.dequeue().asInstanceOf[Int], i)
-      assertEquals(queue.dequeue(), null)
+      assertEquals(Option(queue.dequeue()), None)
     }
   }
 
@@ -89,7 +89,7 @@ object ChunkedArrayQueueSuite extends SimpleTestSuite {
     }
 
     assertEquals(list.toList, (0 until 100).toList)
-    assertEquals(queue.dequeue(), null)
+    assertEquals(Option(queue.dequeue()), None)
     assert(queue.isEmpty, "queue.isEmpty")
     assert(!queue2.isEmpty, "!stack2.isEmpty")
   }
@@ -106,7 +106,7 @@ object ChunkedArrayQueueSuite extends SimpleTestSuite {
     }
 
     assertEquals(list.toList, expected)
-    assertEquals(queue.dequeue(), null)
+    assertEquals(Option(queue.dequeue()), None)
     assert(queue.isEmpty, "queue.isEmpty")
   }
 

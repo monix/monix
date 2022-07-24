@@ -21,8 +21,6 @@ import cats.Eq
 import cats.laws._
 //import cats.kernel.laws._
 
-import minitest.SimpleTestSuite
-import minitest.laws.Checkers
 import monix.execution.exceptions.DummyException
 import org.scalacheck.Test.Parameters
 import monix.execution.internal.Platform
@@ -34,7 +32,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionException, Future }
 import scala.util.{ Failure, Success, Try }
 
-trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstances {
+trait BaseLawsSuite extends BaseTestSuite with Checkers with ArbitraryInstances {
   override lazy val checkConfig: Parameters =
     Parameters.default
       .withMinSuccessfulTests(if (Platform.isJVM) 100 else 10)
@@ -66,6 +64,7 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
 }
 
 trait ArbitraryInstances extends ArbitraryInstancesBase {
+
   /** Syntax for equivalence in tests. */
   implicit def isEqListToProp[A](list: List[IsEq[A]])(implicit A: Eq[A]): Prop =
     Prop(list.forall(isEq => A.eqv(isEq.lhs, isEq.rhs)))

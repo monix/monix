@@ -17,13 +17,12 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.Continue
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 import scala.concurrent.duration._
 
-object DelayByTimespanSuite extends BaseOperatorSuite {
+class DelayByTimespanSuite extends BaseOperatorSuite {
   def createObservable(cnt: Int) = Some {
     val sourceCount = 20
     val source = Observable.range(0L, sourceCount.toLong)
@@ -47,15 +46,14 @@ object DelayByTimespanSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("works for empty observables triggering onComplete") { implicit s =>
+  fixture.test("works for empty observables triggering onComplete") { implicit s =>
     val source: Observable[Long] = Observable.empty.delayOnNext(1.second)
     var wasCompleted = 0
 
     source.unsafeSubscribeFn(new Subscriber[Long] {
       val scheduler = s
       def onNext(elem: Long) = {
-        if (1 == 1) fail("onNext should not happen")
-        Continue
+        fail("onNext should not happen")
       }
       def onError(ex: Throwable): Unit =
         fail("onError should not happen")
@@ -66,7 +64,7 @@ object DelayByTimespanSuite extends BaseOperatorSuite {
     assertEquals(wasCompleted, 1)
   }
 
-  test("works for empty observables triggering onError") { implicit s =>
+  fixture.test("works for empty observables triggering onError") { implicit s =>
     val dummy = DummyException("dummy")
     val source: Observable[Long] = Observable.raiseError(dummy).delayOnNext(1.second)
     var errorThrown: Throwable = null
@@ -74,8 +72,7 @@ object DelayByTimespanSuite extends BaseOperatorSuite {
     source.unsafeSubscribeFn(new Subscriber[Long] {
       val scheduler = s
       def onNext(elem: Long) = {
-        if (1 == 1) fail("onNext should not happen")
-        Continue
+        fail("onNext should not happen")
       }
 
       def onError(ex: Throwable): Unit =

@@ -17,10 +17,10 @@
 
 package monix.execution.rstreams
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import org.reactivestreams.{ Subscription => RSubscription }
 
-object SubscriptionSuite extends SimpleTestSuite {
+class SubscriptionSuite extends BaseTestSuite {
   test("wraps any subscription reference") {
     var cancelCalled: Int = 0
     var requestCalled: Long = 0
@@ -32,16 +32,16 @@ object SubscriptionSuite extends SimpleTestSuite {
         requestCalled += n
     })
 
-    assertEquals(requestCalled, 0)
+    assertEquals(requestCalled, 0L)
     assertEquals(cancelCalled, 0)
 
     sub.request(3)
     sub.request(7)
-    assertEquals(requestCalled, 10)
+    assertEquals(requestCalled, 10L)
     assertEquals(cancelCalled, 0)
 
     sub.cancel()
-    assertEquals(requestCalled, 10)
+    assertEquals(requestCalled, 10L)
     assertEquals(cancelCalled, 1)
   }
 

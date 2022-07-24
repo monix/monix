@@ -17,10 +17,9 @@
 
 package monix.eval
 
-import minitest.SimpleTestSuite
 import monix.execution.exceptions.DummyException
 
-object CoevalToStringSuite extends SimpleTestSuite {
+class CoevalToStringSuite extends BaseTestSuite {
   def assertContains[A](ref: Coeval[A], startStr: String): Unit = {
     val str = ref.toString
     assert(str.startsWith(startStr), s""""$str".startsWith("$startStr")""")

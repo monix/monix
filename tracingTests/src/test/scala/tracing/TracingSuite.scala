@@ -24,17 +24,16 @@ import scala.util.control.NoStackTrace
 import cats.syntax.all._
 import monix.execution.Scheduler
 
-/**
-  * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
+/** All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
   */
-object TracingSuite extends BaseTestSuite {
+class TracingSuite extends BaseTestSuite {
 
   implicit val s: Scheduler = Scheduler.global
 
   def traced[A](io: Task[A]): Task[TaskTrace] =
     io.flatMap(_ => Task.trace)
 
-  testAsync("traces are preserved across asynchronous boundaries") { _ =>
+  fixture.test("traces are preserved across asynchronous boundaries") { _ =>
     val task = for {
       a <- Task.pure(1)
       _ <- Task.shift
@@ -49,7 +48,7 @@ object TracingSuite extends BaseTestSuite {
     test
   }
 
-  testAsync("enhanced exceptions are not augmented more than once") { _ =>
+  fixture.test("enhanced exceptions are not augmented more than once") { _ =>
     val task = for {
       _  <- Task.pure(1)
       _  <- Task.pure(2)
@@ -68,7 +67,7 @@ object TracingSuite extends BaseTestSuite {
     }
   }
 
-  testAsync("enhanced exceptions is not applied when stack trace is empty") { _ =>
+  fixture.test("enhanced exceptions is not applied when stack trace is empty") { _ =>
     val task = for {
       e1 <- Task.raiseError(new EmptyException).attempt
     } yield e1

@@ -17,28 +17,19 @@
 
 package monix.reactive.internal.rstreams
 
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
+
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.{ Atomic, AtomicBoolean, AtomicInt }
-import monix.execution.schedulers.TestScheduler
 import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.{ Observable, Observer }
 import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 
 import scala.concurrent.{ Future, Promise }
 
-object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
-    s.state.lastReportedError match {
-      case null =>
-        assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-      case error =>
-        throw error
-    }
-  }
+class PublisherIsObservableSuite extends BaseTestSuite {
 
-  test("should work with stop-and-wait back-pressure") { implicit s =>
+  fixture.test("should work with stop-and-wait back-pressure") { implicit s =>
     val isPublisherActive = Atomic(true)
     val isObservableActive = Atomic(true)
     val ack = Atomic(Promise[Ack]())
@@ -64,7 +55,7 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
     assert(!isPublisherActive.get(), "!isPublisherActive")
   }
 
-  test("should work with back-pressure") { implicit s =>
+  fixture.test("should work with back-pressure") { implicit s =>
     val isPublisherActive = Atomic(true)
     val isObservableActive = Atomic(true)
     val ack = Atomic(Promise[Ack]())
@@ -91,7 +82,7 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
     assert(!isPublisherActive.get(), "!isPublisherActive")
   }
 
-  test("canceling observable should cancel publisher") { implicit s =>
+  fixture.test("canceling observable should cancel publisher") { implicit s =>
     val isPublisherActive = Atomic(true)
     val isObservableActive = Atomic(true)
     val ack = Atomic(Promise[Ack]())
@@ -116,7 +107,9 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
     ack: Atomic[Promise[Ack]],
     active: AtomicBoolean,
     received: AtomicInt
-  )(implicit s: Scheduler): Cancelable = {
+  )(
+    implicit s: Scheduler
+  ): Cancelable = {
 
     Observable
       .fromReactivePublisher(p, requestSize)
@@ -133,7 +126,11 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
       })
   }
 
-  private def createPublisher(isPublisherActive: AtomicBoolean, requested: AtomicInt, requestSize: Int)(
+  private def createPublisher(
+    isPublisherActive: AtomicBoolean,
+    requested: AtomicInt,
+    requestSize: Int
+  )(
     implicit s: Scheduler
   ): Publisher[Long] = {
 

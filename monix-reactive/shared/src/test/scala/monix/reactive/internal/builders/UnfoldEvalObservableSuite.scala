@@ -29,9 +29,9 @@ import monix.reactive.{ BaseTestSuite, Observable }
 
 import scala.concurrent.duration.MILLISECONDS
 
-object UnfoldEvalObservableSuite extends BaseTestSuite {
+class UnfoldEvalObservableSuite extends BaseTestSuite {
 
-  test("unfoldEval should be exception-proof") { implicit s =>
+  fixture.test("unfoldEval should be exception-proof") { implicit s =>
     val dummy = DummyException("dummy")
     var received = 0
 
@@ -44,7 +44,7 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("unfoldEval and fromAsyncStateAction results should be equal given generated inputs") { implicit s =>
+  fixture.test("unfoldEval and fromAsyncStateAction results should be equal given generated inputs") { implicit s =>
     check2 { (s: Int, i: Int) =>
       val seed = s % (recommendedBatchSize * 2)
       val n = i % (recommendedBatchSize * 2)
@@ -56,7 +56,7 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     }
   }
 
-  test("unfoldEval should be cancelable") { implicit s =>
+  fixture.test("unfoldEval should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -83,7 +83,7 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     assert(!wasCompleted)
   }
 
-  test("unfoldEvalF should be exception-proof") { implicit s =>
+  fixture.test("unfoldEvalF should be exception-proof") { implicit s =>
     val dummy = DummyException("dummy")
     var received = 0
 
@@ -96,7 +96,7 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("unfoldEvalF and fromAsyncStateActionF results should be equal given generated inputs") { implicit s =>
+  fixture.test("unfoldEvalF and fromAsyncStateActionF results should be equal given generated inputs") { implicit s =>
     check2 { (s: Int, i: Int) =>
       val seed = s % (recommendedBatchSize * 2)
       val n = i % (recommendedBatchSize * 2)
@@ -108,7 +108,7 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     }
   }
 
-  test("unfoldEvalF should be cancelable") { implicit s =>
+  fixture.test("unfoldEvalF should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 

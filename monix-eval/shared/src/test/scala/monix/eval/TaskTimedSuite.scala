@@ -22,9 +22,9 @@ import monix.execution.exceptions.DummyException
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskTimedSuite extends BaseTestSuite {
+class TaskTimedSuite extends BaseTestSuite {
 
-  test("Task.timed works for successful tasks") { implicit s =>
+  fixture.test("Task.timed works for successful tasks") { implicit s =>
     val task = Task.now("hello").delayExecution(2.second).timed
     val f = task.runToFuture
 
@@ -41,7 +41,7 @@ object TaskTimedSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(2.second -> "hello")))
   }
 
-  test("Task.timed doesn't time failed tasks") { implicit s =>
+  fixture.test("Task.timed doesn't time failed tasks") { implicit s =>
     val task = Task.raiseError(DummyException("dummy")).delayExecution(2.second).timed
     val f = task.runToFuture
 
@@ -58,7 +58,7 @@ object TaskTimedSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(DummyException("dummy"))))
   }
 
-  test("Task.timed could time errors if .attempt is called first") { implicit s =>
+  fixture.test("Task.timed could time errors if .attempt is called first") { implicit s =>
     val task = Task.raiseError(DummyException("dummy")).delayExecution(2.second).attempt.timed
     val f = task.runToFuture
 
@@ -75,7 +75,7 @@ object TaskTimedSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(2.second -> Left(DummyException("dummy")))))
   }
 
-  test("Task.timed is stack safe") { implicit sc =>
+  fixture.test("Task.timed is stack safe") { implicit sc =>
     def loop(n: Int, acc: Duration): Task[Duration] =
       Task.unit.delayResult(1.second).timed.flatMap {
         case (duration, _) =>

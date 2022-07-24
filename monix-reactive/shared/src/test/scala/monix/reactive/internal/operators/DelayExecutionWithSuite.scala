@@ -25,7 +25,7 @@ import monix.eval.Task
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object DelayExecutionWithSuite extends BaseOperatorSuite {
+class DelayExecutionWithSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val trigger = Task.now(1).delayExecution(1.second)
     val o = Observable.range(0L, sourceCount.toLong).delayExecutionWithF(trigger)
@@ -40,7 +40,7 @@ object DelayExecutionWithSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
-  test("it delays") { implicit s =>
+  fixture.test("it delays") { implicit s =>
     val obs = Observable.now(1).delayExecution(1.second)
     var wasCompleted = false
     var received = 0
@@ -62,7 +62,7 @@ object DelayExecutionWithSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("delayExecution.onFuture triggering an error") { implicit s =>
+  fixture.test("delayExecution.onFuture triggering an error") { implicit s =>
     val obs = Observable.now(1).delayExecutionWithF(Future { throw DummyException("dummy") })
 
     var errorThrown: Throwable = null

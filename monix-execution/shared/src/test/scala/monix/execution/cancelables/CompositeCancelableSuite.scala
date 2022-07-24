@@ -17,14 +17,13 @@
 
 package monix.execution.cancelables
 
-import minitest.SimpleTestSuite
-import minitest.laws.Checkers
+import monix.execution.BaseTestSuite
 import monix.execution.Cancelable
 import monix.execution.atomic.PaddingStrategy.LeftRight256
 
 import scala.collection.mutable.ListBuffer
 
-object CompositeCancelableSuite extends SimpleTestSuite with Checkers {
+class CompositeCancelableSuite extends BaseTestSuite {
   test("simple cancel") {
     val s = CompositeCancelable()
     val b1 = BooleanCancelable()
@@ -167,7 +166,7 @@ object CompositeCancelableSuite extends SimpleTestSuite with Checkers {
     assert(set3.forall(_.isCanceled), "set3.forall(_.isCanceled)")
 
     val set4 = List.fill(10)(BooleanCancelable())
-    assertEquals(cc.getAndSet(set4), Set.empty)
+    assertEquals(cc.getAndSet(set4), Set.empty[Cancelable])
     assert(set4.forall(_.isCanceled), "set4.forall(_.isCanceled)")
   }
 

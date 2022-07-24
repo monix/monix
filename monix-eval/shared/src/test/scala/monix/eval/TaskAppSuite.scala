@@ -18,13 +18,12 @@
 package monix.eval
 
 import cats.effect.{ ExitCode, IO }
-import minitest.SimpleTestSuite
 import monix.eval.Task.Options
 import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.Promise
 
-object TaskAppSuite extends SimpleTestSuite {
-  testAsync("run works") {
+class TaskAppSuite extends BaseTestSuite {
+  test("run works") {
     val wasExecuted = Promise[Boolean]()
     val app = new TaskApp {
       override def run(args: List[String]) =
@@ -40,7 +39,7 @@ object TaskAppSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("options are configurable") {
+  test("options are configurable") {
     val opts = Task.defaultOptions
     assert(!opts.localContextPropagation, "!opts.localContextPropagation")
     val opts2 = opts.enableLocalContextPropagation
@@ -63,7 +62,7 @@ object TaskAppSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("ConcurrentEffect[Task]") {
+  test("ConcurrentEffect[Task]") {
     val wasExecuted = Promise[Boolean]()
     val app = new TaskApp {
       def run(args: List[String]) = {

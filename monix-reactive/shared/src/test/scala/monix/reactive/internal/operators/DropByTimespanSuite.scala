@@ -21,7 +21,7 @@ import monix.reactive.Observable
 
 import scala.concurrent.duration._
 
-object DropByTimespanSuite extends BaseOperatorSuite {
+class DropByTimespanSuite extends BaseOperatorSuite {
   val waitFirst = 2500.millis
   val waitNext = 500.millis
 

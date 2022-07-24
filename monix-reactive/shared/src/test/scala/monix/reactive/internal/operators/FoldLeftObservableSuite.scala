@@ -24,7 +24,7 @@ import monix.execution.exceptions.DummyException
 import scala.concurrent.duration._
 import scala.util.Failure
 
-object FoldLeftObservableSuite extends BaseOperatorSuite {
+class FoldLeftObservableSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val obs = Observable.range(0L, sourceCount.toLong).foldLeft(0L)(_ + _)
     Sample(obs, 1, (sourceCount - 1) * sourceCount / 2, 0.seconds, 0.seconds)
@@ -45,20 +45,20 @@ object FoldLeftObservableSuite extends BaseOperatorSuite {
     Sample(obs, 0, 0, 0.seconds, 0.seconds)
   }
 
-  test("should trigger error if the initial state triggers errors") { implicit s =>
+  fixture.test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable(1, 2, 3, 4).foldLeft[Int](throw ex)(_ + _)
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("foldL is consistent with foldLeftL") { implicit s =>
+  fixture.test("foldL is consistent with foldLeftL") { implicit s =>
     check1 { (stream: Observable[Int]) =>
       stream.foldL <-> stream.foldLeftL(0)(_ + _)
     }
   }
 
-  test("foldL is consistent with sumL") { implicit s =>
+  fixture.test("foldL is consistent with sumL") { implicit s =>
     check1 { (stream: Observable[Int]) =>
       stream.foldL <-> stream.sumL
     }

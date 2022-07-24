@@ -22,8 +22,8 @@ import monix.reactive.{ BaseTestSuite, Observable }
 import scala.concurrent.duration._
 
 /** Tests for cancelling `concat` / `concatMap` and `mapTask`. */
-object ConcatCancellationSuite extends BaseTestSuite {
-  test("issue #468 - concat is cancellable") { implicit sc =>
+class ConcatCancellationSuite extends BaseTestSuite {
+  fixture.test("issue #468 - concat is cancellable") { implicit sc =>
     var items = 0
 
     val a = Observable.now(1L)
@@ -38,7 +38,7 @@ object ConcatCancellationSuite extends BaseTestSuite {
     assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("issue #468 - concatMap is cancellable") { implicit sc =>
+  fixture.test("issue #468 - concatMap is cancellable") { implicit sc =>
     val o = Observable.eval(1).executeAsync.flatMap { x =>
       Observable.now(x).delayExecution(1.second)
     }
@@ -50,7 +50,7 @@ object ConcatCancellationSuite extends BaseTestSuite {
     assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("issue #468 - flatScan is cancellable") { implicit sc =>
+  fixture.test("issue #468 - flatScan is cancellable") { implicit sc =>
     val o = Observable.eval(1).executeAsync.flatScan(0) { (_, x) =>
       Observable.now(x).delayExecution(1.second)
     }
@@ -62,7 +62,7 @@ object ConcatCancellationSuite extends BaseTestSuite {
     assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("issue #468 - mapTask is cancellable") { implicit sc =>
+  fixture.test("issue #468 - mapTask is cancellable") { implicit sc =>
     val o = Observable.eval(1).executeAsync.mapEval { x =>
       Task.now(x).delayExecution(1.second)
     }
@@ -74,7 +74,7 @@ object ConcatCancellationSuite extends BaseTestSuite {
     assert(sc.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("issue #468 - scanTask is cancellable") { implicit sc =>
+  fixture.test("issue #468 - scanTask is cancellable") { implicit sc =>
     val o = Observable.eval(1).executeAsync.scanEval(Task.now(0)) { (acc, x) =>
       Task.now(acc + x).delayExecution(1.second)
     }

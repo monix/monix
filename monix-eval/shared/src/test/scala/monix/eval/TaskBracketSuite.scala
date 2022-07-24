@@ -26,8 +26,8 @@ import monix.execution.internal.Platform
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskBracketSuite extends BaseTestSuite {
-  test("equivalence with onErrorHandleWith") { implicit sc =>
+class TaskBracketSuite extends BaseTestSuite {
+  fixture.test("equivalence with onErrorHandleWith") { implicit sc =>
     check2 { (task: Task[Int], f: Throwable => Task[Unit]) =>
       val expected = task.onErrorHandleWith(e => f(e) *> Task.raiseError(e))
       val received = task.bracketE(Task.now) {
@@ -38,7 +38,7 @@ object TaskBracketSuite extends BaseTestSuite {
     }
   }
 
-  test("equivalence with flatMap + transformWith") { implicit sc =>
+  fixture.test("equivalence with flatMap + transformWith") { implicit sc =>
     check3 { (acquire: Task[Int], f: Int => Task[Int], release: Int => Task[Unit]) =>
       val expected = acquire.flatMap { a =>
         f(a).redeemWith(
@@ -52,7 +52,7 @@ object TaskBracketSuite extends BaseTestSuite {
     }
   }
 
-  test("use is protected against user error") { implicit sc =>
+  fixture.test("use is protected against user error") { implicit sc =>
     val dummy = new DummyException("dummy")
     var input = Option.empty[(Int, Either[Option[Throwable], Int])]
 
@@ -67,7 +67,7 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("release is evaluated on success") { implicit sc =>
+  fixture.test("release is evaluated on success") { implicit sc =>
     var input = Option.empty[(Int, Either[Option[Throwable], Int])]
     val task = Task.evalAsync(1).bracketE(x => Task.evalAsync(x + 1)) { (a, i) =>
       Task.eval { input = Some((a, i)) }
@@ -80,7 +80,7 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(2)))
   }
 
-  test("release is evaluated on error") { implicit sc =>
+  fixture.test("release is evaluated on error") { implicit sc =>
     val dummy = new DummyException("dummy")
     var input = Option.empty[(Int, Either[Option[Throwable], Int])]
 
@@ -95,7 +95,7 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("release is evaluated on cancel") { implicit sc =>
+  fixture.test("release is evaluated on cancel") { implicit sc =>
     import scala.concurrent.duration._
     var input = Option.empty[(Int, Either[Option[Throwable], Int])]
 
@@ -115,7 +115,7 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(input, Some((1, Left(None))))
   }
 
-  test("if both use and release throw, report release error, signal use error") { implicit sc =>
+  fixture.test("if both use and release throw, report release error, signal use error") { implicit sc =>
     val useError = new DummyException("use")
     val releaseError = new DummyException("release")
 
@@ -153,7 +153,7 @@ object TaskBracketSuite extends BaseTestSuite {
     }
   }
 
-  test("bracket works with auto-cancelable run-loops") { implicit sc =>
+  fixture.test("bracket works with auto-cancelable run-loops") { implicit sc =>
     import concurrent.duration._
 
     var effect = 0
@@ -170,7 +170,7 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("bracket is stack safe (1)") { implicit sc =>
+  fixture.test("bracket is stack safe (1)") { implicit sc =>
     def loop(n: Int): Task[Unit] =
       if (n > 0)
         Task(n).bracket(n => Task(n - 1))(_ => Task.unit).flatMap(loop)
@@ -184,7 +184,7 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("bracket is stack safe (2)") { implicit sc =>
+  fixture.test("bracket is stack safe (2)") { implicit sc =>
     val cycles = if (Platform.isJVM) 100000 else 1000
     val bracket = Task.unit.bracket(_ => Task.unit)(_ => Task.unit)
     val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
@@ -196,7 +196,7 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("bracket is stack safe (3)") { implicit sc =>
+  fixture.test("bracket is stack safe (3)") { implicit sc =>
     val cycles = if (Platform.isJVM) 100000 else 1000
     val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
       acc.bracket(_ => Task.unit)(_ => Task.unit)
@@ -207,7 +207,7 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("bracket is stack safe (4)") { implicit sc =>
+  fixture.test("bracket is stack safe (4)") { implicit sc =>
     val cycles = if (Platform.isJVM) 100000 else 1000
     val task = (0 until cycles).foldLeft(Task.unit) { (acc, _) =>
       Task.unit.bracket(_ => acc)(_ => Task.unit)
@@ -218,7 +218,7 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("use is not evaluated on cancel") { implicit sc =>
+  fixture.test("use is not evaluated on cancel") { implicit sc =>
     import scala.concurrent.duration._
     var use = false
     var release = false
@@ -238,8 +238,7 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(release, true)
   }
 
-  test("cancel should wait for already started finalizers on success") { implicit sc =>
-
+  fixture.test("cancel should wait for already started finalizers on success") { implicit sc =>
     val fa = for {
       pa    <- Deferred[Task, Unit]
       fiber <- Task.unit.guarantee(pa.complete(()) >> Task.sleep(1.second)).start
@@ -256,7 +255,7 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("cancel should wait for already started finalizers on failure") { implicit sc =>
+  fixture.test("cancel should wait for already started finalizers on failure") { implicit sc =>
     val dummy = new RuntimeException("dummy")
 
     val fa = for {
@@ -275,8 +274,7 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("cancel should wait for already started use finalizers") { implicit sc =>
-
+  fixture.test("cancel should wait for already started use finalizers") { implicit sc =>
     val fa = for {
       pa <- Deferred[Task, Unit]
       fibA <- Task.unit
@@ -295,8 +293,7 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("second cancel should wait for use finalizers") { implicit sc =>
-
+  fixture.test("second cancel should wait for use finalizers") { implicit sc =>
     val fa = for {
       pa <- Deferred[Task, Unit]
       fiber <- Task.unit
@@ -315,8 +312,7 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("second cancel during acquire should wait for it and finalizers to complete") { implicit sc =>
-
+  fixture.test("second cancel during acquire should wait for it and finalizers to complete") { implicit sc =>
     val fa = for {
       pa <- Deferred[Task, Unit]
       fiber <- (pa.complete(()) >> Task.sleep(1.second))
@@ -338,9 +334,8 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("second cancel during acquire should wait for it and finalizers to complete (non-terminating)") {
+  fixture.test("second cancel during acquire should wait for it and finalizers to complete (non-terminating)") {
     implicit sc =>
-
       val fa = for {
         pa <- Deferred[Task, Unit]
         fiber <- (pa.complete(()) >> Task.sleep(1.second))
@@ -359,8 +354,7 @@ object TaskBracketSuite extends BaseTestSuite {
       assertEquals(f.value, None)
   }
 
-  test("Multiple cancel should not hang") { implicit sc =>
-
+  fixture.test("Multiple cancel should not hang") { implicit sc =>
     val fa = for {
       fiber <- Task.sleep(1.second).start
       _     <- fiber.cancel
@@ -373,8 +367,7 @@ object TaskBracketSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("bracket can be canceled while failing to acquire") { implicit sc =>
-
+  fixture.test("bracket can be canceled while failing to acquire") { implicit sc =>
     val task = (Task.sleep(2.second) *> Task.raiseError[Unit](DummyException("BOOM")))
       .bracket(_ => Task.unit)(_ => Task.unit)
 

@@ -24,8 +24,8 @@ import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success, Try }
 
-object TaskNowSuite extends BaseTestSuite {
-  test("Task.now should work synchronously") { implicit s =>
+class TaskNowSuite extends BaseTestSuite {
+  fixture.test("Task.now should work synchronously") { implicit s =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
 
@@ -35,7 +35,7 @@ object TaskNowSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success("result")))
   }
 
-  test("Task.now.runAsync: CancelableFuture should be synchronous for AlwaysAsyncExecution") { s =>
+  fixture.test("Task.now.runAsync: CancelableFuture should be synchronous for AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
 
     var wasTriggered = false
@@ -48,7 +48,7 @@ object TaskNowSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success("result")))
   }
 
-  test("Task.now.runAsync(callback) should work synchronously") { implicit s =>
+  fixture.test("Task.now.runAsync(callback) should work synchronously") { implicit s =>
     var result = Option.empty[Try[String]]
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }
@@ -60,7 +60,7 @@ object TaskNowSuite extends BaseTestSuite {
     assertEquals(result, Some(Success("result")))
   }
 
-  test("Task.now.runAsync(callback) should be asynchronous for AlwaysAsyncExecution") { s =>
+  fixture.test("Task.now.runAsync(callback) should be asynchronous for AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
 
     var result = Option.empty[Try[String]]
@@ -76,7 +76,7 @@ object TaskNowSuite extends BaseTestSuite {
     assertEquals(result, Some(Success("result")))
   }
 
-  test("Task.raiseError should work synchronously") { implicit s =>
+  fixture.test("Task.raiseError should work synchronously") { implicit s =>
     var wasTriggered = false
     val dummy = DummyException("dummy")
     def trigger(): Throwable = { wasTriggered = true; dummy }
@@ -87,7 +87,7 @@ object TaskNowSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.raiseError.runAsync: CancelableFuture should be synchronous for AlwaysAsyncExecution") { s =>
+  fixture.test("Task.raiseError.runAsync: CancelableFuture should be synchronous for AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
 
     val dummy = DummyException("dummy")
@@ -101,7 +101,7 @@ object TaskNowSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.raiseError.runAsync(callback) should work synchronously") { implicit s =>
+  fixture.test("Task.raiseError.runAsync(callback) should work synchronously") { implicit s =>
     var result = Option.empty[Try[String]]
     val dummy = DummyException("dummy")
     var wasTriggered = false
@@ -114,7 +114,7 @@ object TaskNowSuite extends BaseTestSuite {
     assertEquals(result, Some(Failure(dummy)))
   }
 
-  test("Task.raiseError.runAsync(callback) should be asynchronous for AlwaysAsyncExecution") { s =>
+  fixture.test("Task.raiseError.runAsync(callback) should be asynchronous for AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
 
     val dummy = DummyException("dummy")
@@ -131,28 +131,28 @@ object TaskNowSuite extends BaseTestSuite {
     assertEquals(result, Some(Failure(dummy)))
   }
 
-  test("Task.now.map should work") { implicit s =>
+  fixture.test("Task.now.map should work") { implicit s =>
     Coeval.now(1).map(_ + 1).value()
     check1 { (a: Int) =>
       Task.now(a).map(_ + 1) <-> Task.now(a + 1)
     }
   }
 
-  test("Task.raiseError.map should be the same as Task.raiseError") { implicit s =>
+  fixture.test("Task.raiseError.map should be the same as Task.raiseError") { implicit s =>
     check {
       val dummy = DummyException("dummy")
       Task.raiseError[Int](dummy).map(_ + 1) <-> Task.raiseError(dummy)
     }
   }
 
-  test("Task.raiseError.flatMap should be the same as Task.flatMap") { implicit s =>
+  fixture.test("Task.raiseError.flatMap should be the same as Task.flatMap") { implicit s =>
     check {
       val dummy = DummyException("dummy")
       Task.raiseError[Int](dummy).flatMap(Task.now) <-> Task.raiseError(dummy)
     }
   }
 
-  test("Task.raiseError.flatMap should be protected") { implicit s =>
+  fixture.test("Task.raiseError.flatMap should be protected") { implicit s =>
     check {
       val dummy = DummyException("dummy")
       val err = DummyException("err")
@@ -160,13 +160,13 @@ object TaskNowSuite extends BaseTestSuite {
     }
   }
 
-  test("Task.now.flatMap should protect against user code") { implicit s =>
+  fixture.test("Task.now.flatMap should protect against user code") { implicit s =>
     val ex = DummyException("dummy")
     val t = Task.now(1).flatMap[Int](_ => throw ex)
     check(t <-> Task.raiseError(ex))
   }
 
-  test("Task.now.flatMap should be tail recursive") { implicit s =>
+  fixture.test("Task.now.flatMap should be tail recursive") { implicit s =>
     def loop(n: Int, idx: Int): Task[Int] =
       Task.now(idx).flatMap { _ =>
         if (idx < n) loop(n, idx + 1).map(_ + 1)
@@ -183,7 +183,7 @@ object TaskNowSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(iterations * 2)))
   }
 
-  test("Task.now should not be cancelable") { implicit s =>
+  fixture.test("Task.now should not be cancelable") { implicit s =>
     val t = Task.now(10)
     val f = t.runToFuture
     f.cancel()
@@ -191,7 +191,7 @@ object TaskNowSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Task.raiseError should not be cancelable") { implicit s =>
+  fixture.test("Task.raiseError should not be cancelable") { implicit s =>
     val dummy = DummyException("dummy")
     val t = Task.raiseError(dummy)
     val f = t.runToFuture
@@ -200,12 +200,12 @@ object TaskNowSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("Task.now.coeval") { implicit s =>
+  fixture.test("Task.now.coeval") { implicit s =>
     val result = Task.now(100).runSyncStep
     assertEquals(result, Right(100))
   }
 
-  test("Task.raiseError.coeval") { implicit s =>
+  fixture.test("Task.raiseError.coeval") { implicit s =>
     val dummy = DummyException("dummy")
     val result = Task.raiseError(dummy).attempt.runSyncStep
     assertEquals(result, Right(Left(dummy)))

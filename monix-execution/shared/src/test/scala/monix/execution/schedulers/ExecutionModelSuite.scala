@@ -17,10 +17,10 @@
 
 package monix.execution.schedulers
 
-import minitest.SimpleTestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, BatchedExecution, SynchronousExecution }
 
-object ExecutionModelSuite extends SimpleTestSuite {
+class ExecutionModelSuite extends BaseTestSuite {
   test("SynchronousExecution") {
     val em = SynchronousExecution
     assert(em.isSynchronous)

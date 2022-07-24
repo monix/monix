@@ -19,12 +19,11 @@ package monix.eval
 
 import cats.Eval
 import cats.effect.SyncIO
-import minitest.SimpleTestSuite
 import monix.execution.exceptions.DummyException
 
 import scala.util.{ Failure, Success, Try }
 
-object CoevalLikeConversionsSuite extends SimpleTestSuite {
+class CoevalLikeConversionsSuite extends BaseTestSuite {
   test("Coeval.from(Coeval)") {
     val source = Coeval(1)
     val conv = Coeval.from(source)

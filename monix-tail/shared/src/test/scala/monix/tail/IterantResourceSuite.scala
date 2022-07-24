@@ -23,7 +23,7 @@ import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
 import monix.tail.batches.{ Batch, BatchCursor }
 
-object IterantResourceSuite extends BaseTestSuite {
+class IterantResourceSuite extends BaseTestSuite {
   class Resource(var acquired: Int = 0, var released: Int = 0) {
     def acquire: Coeval[Handle] =
       Coeval { acquired += 1 }.map(_ => Handle(this))
@@ -33,14 +33,14 @@ object IterantResourceSuite extends BaseTestSuite {
     def release = Coeval { r.released += 1 }
   }
 
-  test("Iterant.resource.flatMap(use) yields all elements `use` provides") { _ =>
+  test("Iterant.resource.flatMap(use) yields all elements `use` provides") {
     check1 { (source: Iterant[Coeval, Int]) =>
       val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval.unit).flatMap(_ => source)
       source <-> bracketed
     }
   }
 
-  test("Iterant.resource.flatMap(use) preserves earlyStop of stream returned from `use`") { _ =>
+  test("Iterant.resource.flatMap(use) preserves earlyStop of stream returned from `use`") {
     var earlyStopDone = false
     val bracketed = Iterant
       .resource(Coeval.unit)(_ => Coeval.unit)
@@ -56,7 +56,7 @@ object IterantResourceSuite extends BaseTestSuite {
     assert(earlyStopDone)
   }
 
-  test("Iterant.resource releases resource on normal completion") { _ =>
+  test("Iterant.resource releases resource on normal completion") {
     val rs = new Resource
     val bracketed = Iterant
       .resource(rs.acquire)(_.release)
@@ -67,7 +67,7 @@ object IterantResourceSuite extends BaseTestSuite {
     assertEquals(rs.released, 1)
   }
 
-  test("Iterant.resource releases resource on early stop") { _ =>
+  test("Iterant.resource releases resource on early stop") {
     val rs = new Resource
     val bracketed = Iterant
       .resource(rs.acquire)(_.release)
@@ -79,7 +79,7 @@ object IterantResourceSuite extends BaseTestSuite {
     assertEquals(rs.released, 1)
   }
 
-  test("Iterant.resource releases resource on exception") { _ =>
+  test("Iterant.resource releases resource on exception") {
     val rs = new Resource
     val error = DummyException("dummy")
 
@@ -95,7 +95,7 @@ object IterantResourceSuite extends BaseTestSuite {
     assertEquals(rs.released, 1)
   }
 
-  test("Iterant.resource.flatMap(use) releases resource if `use` throws") { _ =>
+  test("Iterant.resource.flatMap(use) releases resource if `use` throws") {
     val rs = new Resource
     val dummy = DummyException("dummy")
     val bracketed = Iterant.resource(rs.acquire)(_.release).flatMap { _ =>
@@ -110,7 +110,7 @@ object IterantResourceSuite extends BaseTestSuite {
     assertEquals(rs.released, 1)
   }
 
-  test("Iterant.resource does not call `release` if `acquire` has an error") { _ =>
+  test("Iterant.resource does not call `release` if `acquire` has an error") {
     val rs = new Resource
     val dummy = DummyException("dummy")
     val bracketed = Iterant
@@ -127,7 +127,7 @@ object IterantResourceSuite extends BaseTestSuite {
     assertEquals(rs.released, 0)
   }
 
-  test("resource(r)(_ => raiseError(e)).flatMap(_ => fa) <-> fa ++ raiseError(e)") { _ =>
+  test("resource(r)(_ => raiseError(e)).flatMap(_ => fa) <-> fa ++ raiseError(e)") {
     val dummy = DummyException("dummy")
     check1 { (fa: Iterant[Coeval, Int]) =>
       val lh = Iterant.resource(Coeval.unit)(_ => Coeval.raiseError(dummy)).flatMap(_ => fa)
@@ -136,7 +136,7 @@ object IterantResourceSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.resource nesting: outer releases even if inner release fails") { _ =>
+  test("Iterant.resource nesting: outer releases even if inner release fails") {
     var released = false
     val dummy = DummyException("dummy")
     val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval { released = true }).flatMap { _ =>
@@ -152,7 +152,7 @@ object IterantResourceSuite extends BaseTestSuite {
     assert(released)
   }
 
-  test("Iterant.resource.flatMap(child) calls release when child is broken") { _ =>
+  test("Iterant.resource.flatMap(child) calls release when child is broken") {
     var released = false
     val dummy = DummyException("dummy")
     val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval { released = true }).flatMap { _ =>
@@ -166,7 +166,7 @@ object IterantResourceSuite extends BaseTestSuite {
     assert(released)
   }
 
-  test("Iterant.resource nesting: inner releases even if outer release fails") { _ =>
+  test("Iterant.resource nesting: inner releases even if outer release fails") {
     var released = false
     val dummy = DummyException("dummy")
     val bracketed = Iterant.resource(Coeval.unit)(_ => Coeval.raiseError(dummy)).flatMap { _ =>
@@ -182,7 +182,7 @@ object IterantResourceSuite extends BaseTestSuite {
     assert(released)
   }
 
-  test("Iterant.resource handles broken batches & cursors") { _ =>
+  test("Iterant.resource handles broken batches & cursors") {
     val rs = new Resource
     val dummy = DummyException("dummy")
 
@@ -205,7 +205,7 @@ object IterantResourceSuite extends BaseTestSuite {
     assertEquals(rs.released, broken.length)
   }
 
-  test("Iterant.resource handles broken `next` continuations") { _ =>
+  test("Iterant.resource handles broken `next` continuations") {
     val rs = new Resource
     val dummy = DummyException("dummy")
     def withError(ctor: Coeval[Iterant[Coeval, Int]] => Iterant[Coeval, Int]) =
@@ -228,7 +228,7 @@ object IterantResourceSuite extends BaseTestSuite {
     assertEquals(rs.released, broken.length)
   }
 
-  test("Iterant.resource releases resource on all completion methods") { _ =>
+  test("Iterant.resource releases resource on all completion methods") {
     val rs = new Resource
     val completes: Array[Iterant[Coeval, Int] => Coeval[Unit]] =
       Array(
@@ -280,7 +280,7 @@ object IterantResourceSuite extends BaseTestSuite {
     assertEquals(rs.released, completes.length * 3)
   }
 
-  test("Iterant.resource does not require non-strict use") { _ =>
+  test("Iterant.resource does not require non-strict use") {
     var log = Vector[String]()
     def safeCloseable(key: String): Iterant[Coeval, Unit] =
       Iterant[Coeval]

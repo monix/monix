@@ -21,12 +21,11 @@ import monix.reactive.Observable
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object ZipWithIndexSuite extends BaseOperatorSuite {
+class ZipWithIndexSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {
-      val o = Observable.range(1, sourceCount.toLong + 1)
-        .zipWithIndex.map { case (elem, index) => elem + index }
+      val o = Observable.range(1, sourceCount.toLong + 1).zipWithIndex.map { case (elem, index) => elem + index }
 
       val c = sourceCount
       val sum = c * (c + 1) / 2 + c * (c - 1) / 2

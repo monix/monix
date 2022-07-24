@@ -23,7 +23,7 @@ import monix.execution.atomic.Atomic
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object TakeWhileNotCanceledSuite extends BaseOperatorSuite {
+class TakeWhileNotCanceledSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int): Long =
     sourceCount.toLong * (sourceCount + 1) / 2
 

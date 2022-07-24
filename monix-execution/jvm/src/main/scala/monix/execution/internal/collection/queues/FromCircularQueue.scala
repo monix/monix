@@ -23,9 +23,10 @@ import monix.execution.atomic.internal.UnsafeAccess
 import monix.execution.internal.collection.LowLevelConcurrentQueue
 import monix.execution.internal.jctools.queues.MessagePassingQueue
 import sun.misc.Unsafe
+
 import scala.collection.mutable
 
-private[internal] abstract class FromCircularQueue[A](queue: MessagePassingQueue[A])
+abstract private[internal] class FromCircularQueue[A](queue: MessagePassingQueue[A])
   extends LowLevelConcurrentQueue[A] {
 
   def fenceOffer(): Unit
@@ -51,8 +52,8 @@ private[internal] abstract class FromCircularQueue[A](queue: MessagePassingQueue
 }
 
 private[internal] object FromCircularQueue {
-  /**
-    * Builds a [[FromCircularQueue]] instance.
+
+  /** Builds a [[FromCircularQueue]] instance.
     */
   def apply[A](queue: MessagePassingQueue[A], ct: ChannelType): FromCircularQueue[A] =
     ct match {
@@ -102,8 +103,7 @@ private[internal] object FromCircularQueue {
     def fencePoll(): Unit = UNSAFE.fullFence()
   }
 
-  private final class Java7[A](queue: MessagePassingQueue[A], ct: ChannelType)
-    extends FromCircularQueue[A](queue) {
+  private final class Java7[A](queue: MessagePassingQueue[A], ct: ChannelType) extends FromCircularQueue[A](queue) {
 
     def fenceOffer(): Unit =
       if (ct.producerType == SingleProducer) {

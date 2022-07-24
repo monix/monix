@@ -22,8 +22,8 @@ import monix.execution.exceptions.DummyException
 import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 
-object TaskCoevalDoOnFinishSuite extends BaseTestSuite {
-  test("Task.doOnFinish should work for successful values") { implicit s =>
+class TaskCoevalDoOnFinishSuite extends BaseTestSuite {
+  fixture.test("Task.doOnFinish should work for successful values") { implicit s =>
     val p = Promise[Option[Throwable]]()
 
     val task = Task.evalAsync(10).doOnFinish(s => Task.evalAsync { p.success(s); () })
@@ -33,7 +33,7 @@ object TaskCoevalDoOnFinishSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(None)))
   }
 
-  test("Task.doOnFinish should work for failures values") { implicit s =>
+  fixture.test("Task.doOnFinish should work for failures values") { implicit s =>
     val ex = DummyException("dummy")
     val p = Promise[Option[Throwable]]()
 
@@ -44,7 +44,7 @@ object TaskCoevalDoOnFinishSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(Some(ex))))
   }
 
-  test("Coeval.doOnFinish should work for successful values") { _ =>
+  test("Coeval.doOnFinish should work for successful values") {
     val p = Promise[Option[Throwable]]()
 
     val coeval = Coeval(10).doOnFinish(s => Coeval { p.success(s); () })
@@ -54,7 +54,7 @@ object TaskCoevalDoOnFinishSuite extends BaseTestSuite {
     assertEquals(p.future.value, Some(Success(None)))
   }
 
-  test("Coeval.doOnFinish should work for failures values") { _ =>
+  test("Coeval.doOnFinish should work for failures values") {
     val ex = DummyException("dummy")
     val p = Promise[Option[Throwable]]()
 

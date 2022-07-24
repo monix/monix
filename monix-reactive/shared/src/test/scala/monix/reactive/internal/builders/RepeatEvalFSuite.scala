@@ -18,11 +18,10 @@
 package monix.reactive.internal.builders
 
 import cats.effect.IO
-import minitest.TestSuite
+import monix.execution.BaseTestSuite
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
-import monix.execution.schedulers.TestScheduler
 import monix.reactive.{ Observable, Observer }
 import monix.execution.FutureUtils.extensions._
 import monix.execution.exceptions.DummyException
@@ -30,13 +29,9 @@ import monix.execution.exceptions.DummyException
 import scala.concurrent.duration._
 import scala.concurrent.Future
 
-object RepeatEvalFSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
-    assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
-  }
+class RepeatEvalFSuite extends BaseTestSuite {
 
-  test("should do sync evaluation in batches") { implicit s =>
+  fixture.test("should do sync evaluation in batches") { implicit s =>
     var wasCompleted = false
     var received = 0
 
@@ -62,7 +57,7 @@ object RepeatEvalFSuite extends TestSuite[TestScheduler] {
     ()
   }
 
-  test("should do back-pressure") { implicit s =>
+  fixture.test("should do back-pressure") { implicit s =>
     var wasCompleted = false
     var received = 0
 
@@ -95,7 +90,7 @@ object RepeatEvalFSuite extends TestSuite[TestScheduler] {
     assert(!wasCompleted)
   }
 
-  test("should lift errors raised in F") { implicit s =>
+  fixture.test("should lift errors raised in F") { implicit s =>
     val dummy = DummyException("dummy")
     var errorThrown: Throwable = null
 

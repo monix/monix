@@ -24,7 +24,7 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object SampleOnceSuite extends BaseOperatorSuite {
+class SampleOnceSuite extends BaseOperatorSuite {
   def waitFirst = 1.second
   def waitNext = 1.second
 
@@ -53,7 +53,7 @@ object SampleOnceSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
-  test("specified period should be respected if consumer is responsive") { implicit s =>
+  fixture.test("specified period should be respected if consumer is responsive") { implicit s =>
     val sub = PublishSubject[Long]()
     val obs = sub.sample(500.millis)
 
@@ -96,7 +96,7 @@ object SampleOnceSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("specified period should not be respected if consumer is not responsive") { implicit s =>
+  fixture.test("specified period should not be respected if consumer is not responsive") { implicit s =>
     val sub = PublishSubject[Long]()
     val obs = sub.sample(500.millis)
 
