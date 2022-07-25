@@ -141,6 +141,7 @@ Submit a PR ❤️
 - [AVSystem](https://www.avsystem.com)
 - [commercetools](https://commercetools.com)
 - [Coya](https://www.coya.com/)
+- [DigitalGenius](https://digitalgenius.com/)
 - [E.ON Connecting Energies](https://www.eon.com/)
 - [eBay Inc.](https://www.ebay.com)
 - [Eloquentix](http://eloquentix.com/)
