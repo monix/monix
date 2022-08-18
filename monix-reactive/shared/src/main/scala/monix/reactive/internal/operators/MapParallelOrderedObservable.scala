@@ -20,24 +20,24 @@ package monix.reactive.internal.operators
 import java.util.concurrent.ConcurrentLinkedQueue
 
 import monix.eval.Task
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.CompositeCancelable
 import monix.execution.AsyncSemaphore
 import monix.execution.ChannelType.MultiProducer
-import monix.execution.{Ack, Cancelable, CancelableFuture}
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
-import monix.reactive.{Observable, OverflowStrategy}
+import monix.execution.{ Ack, Cancelable, CancelableFuture }
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
+import monix.reactive.{ Observable, OverflowStrategy }
 
 import scala.concurrent.Future
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 private[reactive] final class MapParallelOrderedObservable[A, B](
   source: Observable[A],
   parallelism: Int,
   f: A => Task[B],
-  overflowStrategy: OverflowStrategy[B])
-  extends Observable[B] {
+  overflowStrategy: OverflowStrategy[B]
+) extends Observable[B] {
 
   override def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
     if (parallelism <= 0) {

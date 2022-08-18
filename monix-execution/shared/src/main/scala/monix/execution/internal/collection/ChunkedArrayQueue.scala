@@ -23,8 +23,8 @@ private[monix] final class ChunkedArrayQueue[A] private (
   initialTailIndex: Int,
   initialHeadArray: Array[AnyRef],
   initialHeadIndex: Int,
-  chunkSize: Int)
-  extends Serializable { self =>
+  chunkSize: Int
+) extends Serializable { self =>
 
   assert(chunkSize > 1, "chunkSize > 1")
 

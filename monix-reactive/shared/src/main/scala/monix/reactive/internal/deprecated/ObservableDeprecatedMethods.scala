@@ -17,9 +17,9 @@
 
 package monix.reactive.internal.deprecated
 
-import cats.effect.{Effect, ExitCase}
-import cats.{Monoid, Order}
-import monix.eval.{Task, TaskLike}
+import cats.effect.{ Effect, ExitCase }
+import cats.{ Monoid, Order }
+import monix.eval.{ Task, TaskLike }
 import monix.execution.Ack
 import monix.reactive.Observable
 import monix.reactive.internal.operators.DoOnTerminateOperator

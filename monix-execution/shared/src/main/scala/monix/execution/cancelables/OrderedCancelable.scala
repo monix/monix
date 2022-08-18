@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import monix.execution.atomic.{AtomicAny, PaddingStrategy}
+import monix.execution.atomic.{ AtomicAny, PaddingStrategy }
 import scala.annotation.tailrec
 
 /** Represents a [[monix.execution.Cancelable Cancelable]] whose
@@ -64,7 +64,7 @@ import scala.annotation.tailrec
   */
 final class OrderedCancelable private (initial: Cancelable) extends AssignableCancelable.Multi {
 
-  import OrderedCancelable.{Active, Cancelled, State}
+  import OrderedCancelable.{ Active, Cancelled, State }
 
   private[this] val state = {
     val ref = if (initial != null) initial else Cancelable.empty

@@ -17,7 +17,7 @@
 
 package monix.catnap.internal
 
-import cats.{CommutativeApplicative, Parallel}
+import cats.{ CommutativeApplicative, Parallel }
 
 /** Given a `cats.Parallel` instance for a type `F[_]`, builds
   * a parallel `cats.CommutativeApplicative[F]` out of it.

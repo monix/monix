@@ -24,7 +24,7 @@ import monix.reactive.Observer
 import monix.reactiveTests.SubscriberWhiteBoxAsyncTest.Value
 import org.reactivestreams.tck.SubscriberWhiteboxVerification.WhiteboxSubscriberProbe
 import org.reactivestreams.tck.SubscriberWhiteboxVerification
-import org.reactivestreams.{Subscriber, Subscription}
+import org.reactivestreams.{ Subscriber, Subscription }
 import org.scalatestplus.testng.TestNGSuiteLike
 
 import scala.concurrent.Future

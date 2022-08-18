@@ -20,10 +20,10 @@ package monix.catnap
 import java.util.concurrent.atomic.AtomicBoolean
 
 import cats.effect.concurrent.Deferred
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.{ ContextShift, IO, Timer }
 import cats.implicits._
 import minitest.TestSuite
-import monix.execution.{Scheduler, TestUtils}
+import monix.execution.{ Scheduler, TestUtils }
 import monix.execution.schedulers.SchedulerService
 
 import scala.concurrent.CancellationException

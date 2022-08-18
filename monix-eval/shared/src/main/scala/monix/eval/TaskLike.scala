@@ -18,7 +18,7 @@
 package monix.eval
 
 import cats.effect._
-import cats.{~>, Eval}
+import cats.{ ~>, Eval }
 import monix.catnap.FutureLift
 import monix.execution.CancelablePromise
 

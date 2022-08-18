@@ -22,7 +22,7 @@ import monix.execution.Callback
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 object TaskCancelableSuite extends BaseTestSuite {
   test("Task.cancelable0 should be stack safe on repeated, right-associated binds") { implicit s =>

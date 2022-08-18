@@ -17,13 +17,13 @@
 
 package monix.reactive.observers
 
-import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.{ CountDownLatch, TimeUnit }
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.exceptions.{BufferOverflowException, DummyException}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.exceptions.{ BufferOverflowException, DummyException }
 import monix.reactive.OverflowStrategy.Fail
-import monix.reactive.{BaseConcurrencySuite, Observer}
-import scala.concurrent.{Future, Promise}
+import monix.reactive.{ BaseConcurrencySuite, Observer }
+import scala.concurrent.{ Future, Promise }
 import scala.util.Random
 
 object OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {

@@ -18,13 +18,13 @@
 package monix.execution.internal.forkJoin
 
 import java.util.concurrent.ForkJoinPool.ForkJoinWorkerThreadFactory
-import java.util.concurrent.{ForkJoinPool, ForkJoinWorkerThread, ThreadFactory}
+import java.util.concurrent.{ ForkJoinPool, ForkJoinWorkerThread, ThreadFactory }
 
 private[monix] final class StandardWorkerThreadFactory(
   prefix: String,
   uncaught: Thread.UncaughtExceptionHandler,
-  daemonic: Boolean)
-  extends ThreadFactory with ForkJoinWorkerThreadFactory {
+  daemonic: Boolean
+) extends ThreadFactory with ForkJoinWorkerThreadFactory {
 
   def wire[T <: Thread](thread: T): T = {
     thread.setDaemon(daemonic)

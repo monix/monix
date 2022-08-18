@@ -20,12 +20,12 @@ package monix.catnap
 import cats.effect._
 import cats.implicits._
 import minitest.TestSuite
-import monix.catnap.CircuitBreaker.{Closed, Open}
-import monix.execution.exceptions.{DummyException, ExecutionRejectedException}
+import monix.catnap.CircuitBreaker.{ Closed, Open }
+import monix.execution.exceptions.{ DummyException, ExecutionRejectedException }
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object CircuitBreakerSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()

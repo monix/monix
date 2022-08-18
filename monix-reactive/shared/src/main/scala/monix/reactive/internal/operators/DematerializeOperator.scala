@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import monix.execution.Ack
 import monix.execution.Ack.Stop
 import monix.reactive.Notification
-import monix.reactive.Notification.{OnComplete, OnError, OnNext}
+import monix.reactive.Notification.{ OnComplete, OnError, OnNext }
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future

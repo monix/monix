@@ -23,7 +23,7 @@ import monix.execution.Ack.Stop
 import monix.execution.Cancelable
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.{Consumer, Observable}
+import monix.reactive.{ Consumer, Observable }
 import scala.concurrent.Promise
 import scala.util.Success
 

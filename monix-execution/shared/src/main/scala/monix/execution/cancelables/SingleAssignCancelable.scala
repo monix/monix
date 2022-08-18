@@ -110,7 +110,8 @@ final class SingleAssignCancelable private (extra: Cancelable) extends Assignabl
   private def raiseError(): Nothing = {
     throw new IllegalStateException(
       "Cannot assign to SingleAssignmentCancelable, " +
-        "as it was already assigned once")
+        "as it was already assigned once"
+    )
   }
 
   private[this] val state = AtomicAny(Empty: State)

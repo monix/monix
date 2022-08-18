@@ -17,10 +17,10 @@
 
 package monix.catnap
 
-import cats.effect.{Async, CancelToken, Concurrent, ContextShift}
+import cats.effect.{ Async, CancelToken, Concurrent, ContextShift }
 import monix.catnap.internal.AsyncUtils
 import monix.execution.Callback
-import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
+import monix.execution.annotations.{ UnsafeBecauseImpure, UnsafeProtocol }
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.internal.GenericSemaphore
@@ -67,9 +67,10 @@ import scala.concurrent.Promise
   * from FS2.
   */
 final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)(
-  implicit F: Concurrent[F] OrElse Async[F],
-  cs: ContextShift[F])
-  extends cats.effect.concurrent.Semaphore[F] {
+  implicit
+  F: Concurrent[F] OrElse Async[F],
+  cs: ContextShift[F]
+) extends cats.effect.concurrent.Semaphore[F] {
 
   private[this] implicit val F0: Async[F] = F.unify
 
@@ -232,8 +233,10 @@ object Semaphore {
     *        async boundaries after successful `acquire` operations, for safety
     */
   def apply[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(
-    implicit F: Concurrent[F] OrElse Async[F],
-    cs: ContextShift[F]): F[Semaphore[F]] = {
+    implicit
+    F: Concurrent[F] OrElse Async[F],
+    cs: ContextShift[F]
+  ): F[Semaphore[F]] = {
 
     F.unify.delay(new Semaphore[F](provisioned, ps))
   }
@@ -257,8 +260,10 @@ object Semaphore {
     */
   @UnsafeBecauseImpure
   def unsafe[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(
-    implicit F: Concurrent[F] OrElse Async[F],
-    cs: ContextShift[F]): Semaphore[F] =
+    implicit
+    F: Concurrent[F] OrElse Async[F],
+    cs: ContextShift[F]
+  ): Semaphore[F] =
     new Semaphore[F](provisioned, ps)
 
   implicit final class DeprecatedExtensions[F[_]](val source: Semaphore[F]) extends AnyVal {
@@ -274,10 +279,11 @@ object Semaphore {
   }
 
   private final class Impl[F[_]](provisioned: Long, ps: PaddingStrategy)(
-    implicit F: Concurrent[F] OrElse Async[F],
+    implicit
+    F: Concurrent[F] OrElse Async[F],
     F0: Async[F],
-    cs: ContextShift[F])
-    extends GenericSemaphore[F[Unit]](provisioned, ps) {
+    cs: ContextShift[F]
+  ) extends GenericSemaphore[F[Unit]](provisioned, ps) {
 
     val available: F[Long] = F0.delay(unsafeAvailable())
     val count: F[Long] = F0.delay(unsafeCount())

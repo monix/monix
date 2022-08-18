@@ -18,13 +18,13 @@
 package monix.reactive
 
 import monix.execution.ChannelType.MultiProducer
-import monix.execution.{ChannelType, Scheduler}
+import monix.execution.{ ChannelType, Scheduler }
 
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
-import monix.reactive.OverflowStrategy.{Synchronous, Unbounded}
-import monix.reactive.Pipe.{LiftedPipe, TransformedPipe}
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import monix.reactive.OverflowStrategy.{ Synchronous, Unbounded }
+import monix.reactive.Pipe.{ LiftedPipe, TransformedPipe }
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
 import monix.reactive.subjects._
 
 /** Represents a factory for an input/output channel for
@@ -82,7 +82,8 @@ abstract class Pipe[I, +O] extends Serializable {
     *        can be multi producer (the default) or single producer
     */
   def concurrent(strategy: Synchronous[I], producerType: ChannelType.ProducerSide)(
-    implicit s: Scheduler): (Observer.Sync[I], Observable[O]) = {
+    implicit s: Scheduler
+  ): (Observer.Sync[I], Observable[O]) = {
 
     val (in, out) = multicast(s)
     val buffer = BufferedSubscriber.synchronous[I](Subscriber(in, s), strategy, producerType)

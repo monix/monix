@@ -21,10 +21,10 @@ import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.extensions._
 import monix.execution.Scheduler
-import monix.reactive.Observable.{empty, now}
+import monix.reactive.Observable.{ empty, now }
 import monix.execution.exceptions.DummyException
 import monix.reactive.subjects.PublishSubject
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero

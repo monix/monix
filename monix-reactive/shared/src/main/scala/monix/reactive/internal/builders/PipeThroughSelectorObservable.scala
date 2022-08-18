@@ -17,19 +17,19 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.execution.cancelables.SingleAssignCancelable
 import scala.util.control.NonFatal
 import monix.reactive.observers.Subscriber
-import monix.reactive.{Observable, Pipe}
+import monix.reactive.{ Observable, Pipe }
 
 import scala.concurrent.Future
 
 private[reactive] final class PipeThroughSelectorObservable[A, B, C](
   source: Observable[A],
   pipe: Pipe[A, B],
-  f: Observable[B] => Observable[C])
-  extends Observable[C] {
+  f: Observable[B] => Observable[C]
+) extends Observable[C] {
 
   def unsafeSubscribeFn(out: Subscriber[C]): Cancelable = {
     import out.scheduler

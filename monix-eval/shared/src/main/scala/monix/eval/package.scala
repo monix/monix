@@ -22,7 +22,7 @@ import monix.catnap.CircuitBreaker
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
 
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.{ Duration, FiniteDuration }
 
 package object eval {
 
@@ -55,7 +55,8 @@ package object eval {
       onClosed: Task[Unit] = Task.unit,
       onHalfOpen: Task[Unit] = Task.unit,
       onOpen: Task[Unit] = Task.unit,
-      padding: PaddingStrategy = NoPadding): Task[CircuitBreaker[Task]] = {
+      padding: PaddingStrategy = NoPadding
+    ): Task[CircuitBreaker[Task]] = {
 
       // $COVERAGE-OFF$
       CircuitBreaker[Task].of(

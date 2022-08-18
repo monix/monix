@@ -19,8 +19,8 @@ package monix.execution.schedulers
 
 import java.util.concurrent.TimeUnit
 import minitest.SimpleTestSuite
-import monix.execution.{Cancelable, Features}
-import monix.execution.ExecutionModel.{AlwaysAsyncExecution, SynchronousExecution}
+import monix.execution.{ Cancelable, Features }
+import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, SynchronousExecution }
 import scala.concurrent.duration._
 
 object ReferenceSchedulerSuite extends SimpleTestSuite {

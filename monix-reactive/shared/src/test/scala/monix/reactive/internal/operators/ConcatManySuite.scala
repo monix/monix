@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 import scala.concurrent.duration._
 
 object ConcatManySuite extends BaseOperatorSuite {
@@ -71,7 +71,8 @@ object ConcatManySuite extends BaseOperatorSuite {
         Observable
           .range(0L, sourceCount.toLong)
           .map(_ => 1L)
-          .delayExecution(1.second))
+          .delayExecution(1.second)
+      )
 
     val count = Platform.recommendedBatchSize * 3
     Seq(Sample(o, count, count, 1.seconds, 0.seconds))

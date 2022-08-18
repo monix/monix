@@ -20,7 +20,7 @@ package monix.eval
 import monix.execution.exceptions.DummyException
 
 import concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskDoOnCancelSuite extends BaseTestSuite {
   test("doOnCancel should normally mirror the source") { implicit s =>

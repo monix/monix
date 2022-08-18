@@ -18,10 +18,10 @@
 package monix.reactive.observers
 
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import scala.util.control.NonFatal
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.util.Try
 
 /** A safe subscriber safe guards subscriber implementations, such that:

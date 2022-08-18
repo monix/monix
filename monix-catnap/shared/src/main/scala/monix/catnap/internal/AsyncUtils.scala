@@ -18,7 +18,7 @@
 package monix.catnap.internal
 
 import cats.implicits._
-import cats.effect.{Async, ExitCase}
+import cats.effect.{ Async, ExitCase }
 import monix.catnap.FutureLift
 import monix.execution.Callback
 import scala.concurrent.Promise

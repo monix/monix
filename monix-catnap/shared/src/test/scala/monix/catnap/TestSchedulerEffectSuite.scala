@@ -17,7 +17,7 @@
 
 package monix.catnap
 
-import cats.effect.{ContextShift, IO}
+import cats.effect.{ ContextShift, IO }
 import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
 

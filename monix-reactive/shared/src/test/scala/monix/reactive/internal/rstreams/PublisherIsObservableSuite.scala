@@ -18,14 +18,14 @@
 package monix.reactive.internal.rstreams
 
 import minitest.TestSuite
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.atomic.{Atomic, AtomicBoolean, AtomicInt}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.atomic.{ Atomic, AtomicBoolean, AtomicInt }
 import monix.execution.schedulers.TestScheduler
-import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.reactive.{Observable, Observer}
-import org.reactivestreams.{Publisher, Subscriber, Subscription}
+import monix.execution.{ Ack, Cancelable, Scheduler }
+import monix.reactive.{ Observable, Observer }
+import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -115,7 +115,8 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
     requestSize: Int,
     ack: Atomic[Promise[Ack]],
     active: AtomicBoolean,
-    received: AtomicInt)(implicit s: Scheduler): Cancelable = {
+    received: AtomicInt
+  )(implicit s: Scheduler): Cancelable = {
 
     Observable
       .fromReactivePublisher(p, requestSize)
@@ -133,7 +134,8 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
   }
 
   private def createPublisher(isPublisherActive: AtomicBoolean, requested: AtomicInt, requestSize: Int)(
-    implicit s: Scheduler): Publisher[Long] = {
+    implicit s: Scheduler
+  ): Publisher[Long] = {
 
     new Publisher[Long] {
       override def subscribe(subscriber: Subscriber[_ >: Long]): Unit =

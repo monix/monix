@@ -17,7 +17,7 @@
 
 package monix.reactive.observables
 
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import monix.execution.atomic.Atomic

@@ -21,7 +21,7 @@ import cats.laws._
 import cats.laws.discipline._
 
 import monix.execution.exceptions.DummyException
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object CoevalEvalOnceSuite extends BaseTestSuite {
   test("Coeval.evalOnce should work synchronously") { implicit s =>

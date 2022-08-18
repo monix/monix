@@ -19,10 +19,10 @@ package monix.eval
 
 import monix.execution.Callback
 import monix.execution.exceptions.DummyException
-import org.reactivestreams.{Subscriber, Subscription}
+import org.reactivestreams.{ Subscriber, Subscription }
 
 import scala.concurrent.Promise
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskMiscSuite extends BaseTestSuite {
   test("Task.attempt should succeed") { implicit s =>

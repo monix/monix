@@ -18,7 +18,7 @@
 package tracing
 
 import monix.eval.tracing.TaskTrace
-import monix.eval.{BaseTestSuite, Task}
+import monix.eval.{ BaseTestSuite, Task }
 
 import scala.util.control.NoStackTrace
 import cats.syntax.all._
@@ -51,13 +51,13 @@ object TracingSuite extends BaseTestSuite {
 
   testAsync("enhanced exceptions are not augmented more than once") { _ =>
     val task = for {
-      _ <- Task.pure(1)
-      _ <- Task.pure(2)
-      _ <- Task.pure(3)
-      _ <- Task.shift
-      _ <- Task.pure(1)
-      _ <- Task.pure(2)
-      _ <- Task.pure(3)
+      _  <- Task.pure(1)
+      _  <- Task.pure(2)
+      _  <- Task.pure(3)
+      _  <- Task.shift
+      _  <- Task.pure(1)
+      _  <- Task.pure(2)
+      _  <- Task.pure(3)
       e1 <- Task.raiseError(new Throwable("Encountered an error")).attempt
       e2 <- Task.pure(e1).rethrow.attempt
     } yield (e1, e2)

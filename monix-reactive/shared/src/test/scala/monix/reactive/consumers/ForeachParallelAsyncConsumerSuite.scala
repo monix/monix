@@ -25,9 +25,9 @@ import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.{Consumer, Observable}
+import monix.reactive.{ Consumer, Observable }
 import scala.concurrent.Promise
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
@@ -42,7 +42,8 @@ object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val f = obs
       .consumeWith(
         Consumer
-          .foreachParallelTask(10)(x => Task.evalAsync(sum.add(x))))
+          .foreachParallelTask(10)(x => Task.evalAsync(sum.add(x)))
+      )
       .runToFuture
 
     s.tick()
@@ -57,7 +58,8 @@ object ForeachParallelAsyncConsumerSuite extends TestSuite[TestScheduler] {
     val f = obs
       .consumeWith(
         Consumer
-          .foreachParallelTask(10)(x => Task.evalAsync(sum.add(x))))
+          .foreachParallelTask(10)(x => Task.evalAsync(sum.add(x)))
+      )
       .runToFuture
 
     s.tick()

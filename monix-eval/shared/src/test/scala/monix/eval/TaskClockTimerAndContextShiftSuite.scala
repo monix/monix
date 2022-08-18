@@ -19,12 +19,12 @@ package monix.eval
 
 import java.util.concurrent.TimeUnit
 
-import cats.effect.{Clock, ContextShift, Timer}
+import cats.effect.{ Clock, ContextShift, Timer }
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
   test("Task.clock is implicit") { _ =>

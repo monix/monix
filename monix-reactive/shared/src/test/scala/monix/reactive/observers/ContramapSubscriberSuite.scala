@@ -17,7 +17,7 @@
 
 package monix.reactive.observers
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.BaseTestSuite

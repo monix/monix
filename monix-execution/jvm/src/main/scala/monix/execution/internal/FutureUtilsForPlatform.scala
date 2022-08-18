@@ -20,8 +20,8 @@ package internal
 
 import java.util.concurrent.CompletableFuture
 import monix.execution.CancelableFuture
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.{ Failure, Success }
 
 private[execution] abstract class FutureUtilsForPlatform { self =>
   /**

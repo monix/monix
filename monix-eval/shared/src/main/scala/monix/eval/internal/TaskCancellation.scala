@@ -19,9 +19,9 @@ package monix.eval
 package internal
 
 import cats.effect.CancelToken
-import monix.eval.Task.{Async, Context}
-import monix.execution.{Callback, Scheduler}
-import monix.execution.atomic.{Atomic, AtomicBoolean}
+import monix.eval.Task.{ Async, Context }
+import monix.execution.{ Callback, Scheduler }
+import monix.execution.atomic.{ Atomic, AtomicBoolean }
 import monix.execution.schedulers.TrampolinedRunnable
 
 private[eval] object TaskCancellation {
@@ -91,14 +91,16 @@ private[eval] object TaskCancellation {
     conn: TaskConnection,
     conn2: TaskConnection,
     cb: Callback[Throwable, A],
-    e: Throwable): CancelToken[Task] = {
+    e: Throwable
+  ): CancelToken[Task] = {
 
     Task.suspend {
       if (waitsForResult.getAndSet(false))
         conn2.cancel.map { _ =>
           conn.tryReactivate()
           cb.onError(e)
-        } else
+        }
+      else
         Task.unit
     }
   }

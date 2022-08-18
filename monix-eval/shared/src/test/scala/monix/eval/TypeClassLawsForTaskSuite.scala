@@ -17,9 +17,9 @@
 
 package monix.eval
 
-import cats.effect.laws.discipline.{ConcurrentEffectTests, ConcurrentTests}
+import cats.effect.laws.discipline.{ ConcurrentEffectTests, ConcurrentTests }
 import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.{CoflatMapTests, CommutativeApplicativeTests, ParallelTests, SemigroupKTests}
+import cats.laws.discipline.{ CoflatMapTests, CommutativeApplicativeTests, ParallelTests, SemigroupKTests }
 
 object TypeClassLawsForTaskSuite
   extends BaseTypeClassLawsForTaskSuite()(

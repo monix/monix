@@ -17,7 +17,7 @@
 
 package monix.tail
 
-import cats.effect.{IO, Timer}
+import cats.effect.{ IO, Timer }
 import monix.eval.Task
 
 import scala.util.Success
@@ -177,7 +177,8 @@ object IntervalIntervalSuite extends BaseTestSuite {
       .mapEval(e =>
         timer.sleep(100.millis).map { _ =>
           effect += 1; e
-        })
+        }
+      )
       .take(3)
       .toListL
       .unsafeToFuture()
@@ -230,7 +231,8 @@ object IntervalIntervalSuite extends BaseTestSuite {
       .mapEval(e =>
         timer.sleep(100.millis).map { _ =>
           effect += 1; e
-        })
+        }
+      )
       .take(3)
       .toListL
       .unsafeToFuture()
@@ -284,7 +286,8 @@ object IntervalIntervalSuite extends BaseTestSuite {
       .mapEval(e =>
         timer.sleep(2.seconds).map { _ =>
           effect += 1; e
-        })
+        }
+      )
       .take(3)
       .toListL
       .unsafeToFuture()

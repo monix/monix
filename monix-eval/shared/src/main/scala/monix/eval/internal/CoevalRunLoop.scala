@@ -18,10 +18,10 @@
 package monix.eval.internal
 
 import monix.eval.Coeval
-import monix.eval.Coeval.{Always, Eager, Error, FlatMap, Map, Now, Suspend, Trace}
-import monix.eval.tracing.{CoevalEvent, CoevalTrace}
+import monix.eval.Coeval.{ Always, Eager, Error, FlatMap, Map, Now, Suspend, Trace }
+import monix.eval.tracing.{ CoevalEvent, CoevalTrace }
 import monix.execution.internal.collection.ChunkedArrayStack
-import monix.eval.internal.TracingPlatform.{enhancedExceptions, isStackTracing}
+import monix.eval.internal.TracingPlatform.{ enhancedExceptions, isStackTracing }
 
 import scala.reflect.NameTransformer
 import scala.util.control.NonFatal
@@ -43,7 +43,7 @@ private[eval] object CoevalRunLoop {
 
     while (true) {
       current match {
-        case bind@FlatMap(fa, bindNext, _) =>
+        case bind @ FlatMap(fa, bindNext, _) =>
           if (isStackTracing) {
             val trace = bind.trace
             if (tracingCtx eq null) tracingCtx = new CoevalStackTracedContext
@@ -195,10 +195,12 @@ private[eval] object CoevalRunLoop {
             case (methodSite, callSite) =>
               val op = NameTransformer.decode(methodSite.getMethodName)
 
-              new StackTraceElement(op + " @ " + callSite.getClassName,
+              new StackTraceElement(
+                op + " @ " + callSite.getClassName,
                 callSite.getMethodName,
                 callSite.getFileName,
-                callSite.getLineNumber)
+                callSite.getLineNumber
+              )
           }
           .toArray
         ex.setStackTrace(prefix ++ suffix)

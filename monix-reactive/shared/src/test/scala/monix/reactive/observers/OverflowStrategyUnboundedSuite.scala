@@ -19,14 +19,14 @@ package monix.reactive.observers
 
 import minitest.TestSuite
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.internal.{Platform, RunnableAction}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.internal.{ Platform, RunnableAction }
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.Unbounded
 import monix.execution.exceptions.DummyException
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -354,15 +354,18 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
     var received = 0L
     var wasCompleted = false
 
-    val buffer = BufferedSubscriber[Long](new Subscriber[Long] {
-      def onNext(elem: Long) = {
-        received += 1
-        Continue
-      }
-      def onError(ex: Throwable) = ()
-      def onComplete() = wasCompleted = true
-      val scheduler = s
-    }, Unbounded)
+    val buffer = BufferedSubscriber[Long](
+      new Subscriber[Long] {
+        def onNext(elem: Long) = {
+          received += 1
+          Continue
+        }
+        def onError(ex: Throwable) = ()
+        def onComplete() = wasCompleted = true
+        val scheduler = s
+      },
+      Unbounded
+    )
 
     for (i <- 0 until (Platform.recommendedBatchSize * 2)) buffer.onNext(i.toLong)
     buffer.onComplete()

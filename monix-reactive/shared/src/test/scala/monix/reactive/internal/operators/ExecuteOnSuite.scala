@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
-import monix.execution.{Ack, Scheduler}
+import monix.execution.{ Ack, Scheduler }
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.OverflowStrategy.Unbounded

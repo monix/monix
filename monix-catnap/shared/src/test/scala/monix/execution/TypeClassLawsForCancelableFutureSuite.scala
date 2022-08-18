@@ -16,12 +16,12 @@
  */
 
 package monix.execution
-import cats.laws.discipline.{CoflatMapTests, MonadErrorTests}
-import cats.{Eval, Monad, MonadError}
+import cats.laws.discipline.{ CoflatMapTests, MonadErrorTests }
+import cats.{ Eval, Monad, MonadError }
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TypeClassLawsForCancelableFutureSuite extends BaseLawsSuite {
   checkAllAsync("CoflatMap[CancelableFuture]") { implicit ec =>

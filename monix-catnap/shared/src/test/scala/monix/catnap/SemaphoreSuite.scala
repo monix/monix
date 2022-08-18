@@ -17,13 +17,13 @@
 
 package monix.catnap
 
-import cats.effect.{ContextShift, IO}
+import cats.effect.{ ContextShift, IO }
 import cats.implicits._
 import minitest.TestSuite
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import scala.concurrent.{ExecutionContext, Promise}
-import scala.util.{Random, Success}
+import scala.concurrent.{ ExecutionContext, Promise }
+import scala.util.{ Random, Success }
 
 object SemaphoreSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()

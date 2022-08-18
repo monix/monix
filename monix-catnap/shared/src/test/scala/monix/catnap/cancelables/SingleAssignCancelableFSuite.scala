@@ -20,7 +20,7 @@ package cancelables
 
 import cats.effect.IO
 import minitest.SimpleTestSuite
-import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.exceptions.{ CompositeException, DummyException }
 
 object SingleAssignCancelableFSuite extends SimpleTestSuite {
   test("cancel") {

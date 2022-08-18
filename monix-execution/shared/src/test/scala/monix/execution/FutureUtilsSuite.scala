@@ -22,8 +22,8 @@ import monix.execution.FutureUtils.extensions._
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
-import scala.concurrent.{Future, TimeoutException}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ Future, TimeoutException }
+import scala.util.{ Failure, Success, Try }
 
 object FutureUtilsSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -82,10 +82,12 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     val expected = 15
     val f = Future
       .delayedResult(50.millis)(expected)
-      .timeoutTo(100.millis, {
-        called = true
-        Future.failed(new RuntimeException)
-      })
+      .timeoutTo(
+        100.millis, {
+          called = true
+          Future.failed(new RuntimeException)
+        }
+      )
 
     s.tick(1.second)
     assertEquals(f.value, Some(Success(expected)))

@@ -17,12 +17,12 @@
 
 package monix.catnap
 
-import cats.effect.{Async, Clock, Concurrent, ExitCase, Sync}
+import cats.effect.{ Async, Clock, Concurrent, ExitCase, Sync }
 import cats.implicits._
 import monix.execution.CancelablePromise
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.atomic.{Atomic, AtomicAny, PaddingStrategy}
+import monix.execution.atomic.{ Atomic, AtomicAny, PaddingStrategy }
 import monix.execution.exceptions.ExecutionRejectedException
 import monix.execution.internal.Constants
 import scala.annotation.tailrec
@@ -203,7 +203,8 @@ final class CircuitBreaker[F[_]] private (
   onRejected: F[Unit],
   onClosed: F[Unit],
   onHalfOpen: F[Unit],
-  onOpen: F[Unit])(implicit F: Sync[F], clock: Clock[F]) {
+  onOpen: F[Unit]
+)(implicit F: Sync[F], clock: Clock[F]) {
 
   require(_maxFailures >= 0, "maxFailures >= 0")
   require(_exponentialBackoffFactor >= 1, "exponentialBackoffFactor >= 1")
@@ -357,7 +358,8 @@ final class CircuitBreaker[F[_]] private (
     task: F[A],
     resetTimeout: FiniteDuration,
     await: CancelablePromise[Unit],
-    lastStartedAt: Timestamp): F[A] =
+    lastStartedAt: Timestamp
+  ): F[A] =
     F.bracketCase(onHalfOpen)(_ => task) { (_, exit) =>
       exit match {
         case ExitCase.Canceled =>
@@ -417,7 +419,8 @@ final class CircuitBreaker[F[_]] private (
                 ExecutionRejectedException(
                   "Rejected because the CircuitBreaker is in the Open state, " +
                     s"attempting to close in $expiresInMillis millis"
-                ))
+                )
+              )
             }
           }
         }
@@ -429,7 +432,8 @@ final class CircuitBreaker[F[_]] private (
           F.raiseError(
             ExecutionRejectedException(
               "Rejected because the CircuitBreaker is in the HalfOpen state"
-            ))
+            )
+          )
         }
     }
 
@@ -457,7 +461,8 @@ final class CircuitBreaker[F[_]] private (
       onRejected = onRejected,
       onClosed = onClosed,
       onHalfOpen = onHalfOpen,
-      onOpen = onOpen)
+      onOpen = onOpen
+    )
   }
 
   /** Returns a new circuit breaker that wraps the state of the source
@@ -484,7 +489,8 @@ final class CircuitBreaker[F[_]] private (
       onRejected = onRejected,
       onClosed = onClosed,
       onHalfOpen = onHalfOpen,
-      onOpen = onOpen)
+      onOpen = onOpen
+    )
   }
 
   /** Returns a new circuit breaker that wraps the state of the source
@@ -512,7 +518,8 @@ final class CircuitBreaker[F[_]] private (
       onRejected = onRejected,
       onClosed = onClosed,
       onHalfOpen = onHalfOpen,
-      onOpen = onOpen)
+      onOpen = onOpen
+    )
   }
 
   /** Returns a new circuit breaker that wraps the state of the source
@@ -539,7 +546,8 @@ final class CircuitBreaker[F[_]] private (
       onRejected = onRejected,
       onClosed = onClosed,
       onHalfOpen = onHalfOpen,
-      onOpen = onOpen)
+      onOpen = onOpen
+    )
   }
 }
 
@@ -706,7 +714,8 @@ object CircuitBreaker extends CircuitBreakerDocs {
           onHalfOpen = onHalfOpen,
           onOpen = onOpen,
           padding = padding
-        ))
+        )
+      )
     }
 
     /** Unsafe builder, an alternative to [[of CircuitBreaker[F].of]] for
@@ -747,7 +756,11 @@ object CircuitBreaker extends CircuitBreakerDocs {
         onRejected = onRejected,
         onClosed = onClosed,
         onHalfOpen = onHalfOpen,
-        onOpen = onOpen)(F, clock)
+        onOpen = onOpen
+      )(
+        F,
+        clock
+      )
     }
   }
 
@@ -812,8 +825,8 @@ object CircuitBreaker extends CircuitBreakerDocs {
   final class Open private (
     val startedAt: Timestamp,
     val resetTimeout: FiniteDuration,
-    private[catnap] val awaitClose: CancelablePromise[Unit])
-    extends State {
+    private[catnap] val awaitClose: CancelablePromise[Unit]
+  ) extends State {
 
     /** The timestamp in milliseconds since the epoch, specifying
       * when the `Open` state is to transition to [[HalfOpen]].
@@ -826,8 +839,8 @@ object CircuitBreaker extends CircuitBreakerDocs {
     override def equals(other: Any): Boolean = other match {
       case that: Open =>
         startedAt == that.startedAt &&
-          resetTimeout == that.resetTimeout &&
-          awaitClose == that.awaitClose
+        resetTimeout == that.resetTimeout &&
+        awaitClose == that.awaitClose
       case _ =>
         false
     }
@@ -843,7 +856,8 @@ object CircuitBreaker extends CircuitBreakerDocs {
     private[catnap] def apply(
       startedAt: Timestamp,
       resetTimeout: FiniteDuration,
-      awaitClose: CancelablePromise[Unit]): Open =
+      awaitClose: CancelablePromise[Unit]
+    ): Open =
       new Open(startedAt, resetTimeout, awaitClose)
 
     /** Implements the pattern matching protocol. */
@@ -883,13 +897,13 @@ object CircuitBreaker extends CircuitBreakerDocs {
     */
   final class HalfOpen private (
     val resetTimeout: FiniteDuration,
-    private[catnap] val awaitClose: CancelablePromise[Unit])
-    extends State {
+    private[catnap] val awaitClose: CancelablePromise[Unit]
+  ) extends State {
 
     override def equals(other: Any): Boolean = other match {
       case that: HalfOpen =>
         resetTimeout == that.resetTimeout &&
-          awaitClose == that.awaitClose
+        awaitClose == that.awaitClose
       case _ =>
         false
     }

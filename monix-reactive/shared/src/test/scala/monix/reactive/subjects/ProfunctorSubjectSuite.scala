@@ -19,7 +19,7 @@ package monix.reactive.subjects
 
 import cats.implicits._
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.exceptions.DummyException
 import monix.reactive.Observer
 

@@ -20,7 +20,7 @@ package monix.eval.internal
 import cats.effect.CancelToken
 import monix.catnap.CancelableF
 import monix.eval.Task
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{ Cancelable, Scheduler }
 import monix.execution.internal.Platform
 
 import scala.collection.mutable.ListBuffer
@@ -39,7 +39,8 @@ private[eval] object UnsafeCancelUtils {
     * Internal API — very unsafe!
     */
   private[internal] def cancelAllUnsafe(
-    cursor: Iterable[AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ]): CancelToken[Task] = {
+    cursor: Iterable[AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ]
+  ): CancelToken[Task] = {
 
     if (cursor.isEmpty)
       Task.unit
@@ -54,7 +55,8 @@ private[eval] object UnsafeCancelUtils {
     * Internal API — very unsafe!
     */
   private[internal] def unsafeCancel(
-    task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ): CancelToken[Task] = {
+    task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */
+  ): CancelToken[Task] = {
 
     task match {
       case ref: Task[Unit] @unchecked =>
@@ -92,7 +94,8 @@ private[eval] object UnsafeCancelUtils {
     * Internal API — very unsafe!
     */
   private[internal] def triggerCancel(task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ )(
-    implicit s: Scheduler): Unit = {
+    implicit s: Scheduler
+  ): Unit = {
 
     task match {
       case ref: Task[Unit] @unchecked =>

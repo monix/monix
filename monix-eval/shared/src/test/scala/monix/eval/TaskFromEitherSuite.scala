@@ -17,11 +17,11 @@
 
 package monix.eval
 
-import monix.eval.Task.{Error, Now}
+import monix.eval.Task.{ Error, Now }
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskFromEitherSuite extends BaseTestSuite {
   test("Task.fromEither (`E <: Throwable` version) should returns a Now with a Right") { implicit s =>

@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.execution.Callback
-import monix.eval.Task.{Async, Context, ContextSwitch, FlatMap, Map}
+import monix.eval.Task.{ Async, Context, ContextSwitch, FlatMap, Map }
 import monix.eval.Task
 import scala.annotation.tailrec
 import scala.runtime.AbstractFunction2

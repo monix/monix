@@ -19,9 +19,9 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.reactive.Notification.{OnComplete, OnError, OnNext}
+import monix.reactive.Notification.{ OnComplete, OnError, OnNext }
 import monix.execution.exceptions.DummyException
-import monix.reactive.{Notification, Observable, Observer}
+import monix.reactive.{ Notification, Observable, Observer }
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero

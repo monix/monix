@@ -19,7 +19,7 @@ package monix.reactive.compression.internal.operators
 
 import java.nio.charset.StandardCharsets
 import java.time.Instant
-import java.util.zip.{CRC32, Deflater}
+import java.util.zip.{ CRC32, Deflater }
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue

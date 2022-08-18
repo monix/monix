@@ -17,8 +17,8 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.{Ack, Cancelable}
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.{ Ack, Cancelable }
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.CompositeCancelable
 import scala.util.control.NonFatal
 import monix.reactive.Observable
@@ -32,7 +32,8 @@ private[reactive] final class CombineLatest5Observable[A1, A2, A3, A4, A5, +R](
   obsA2: Observable[A2],
   obsA3: Observable[A3],
   obsA4: Observable[A4],
-  obsA5: Observable[A5])(f: (A1, A2, A3, A4, A5) => R)
+  obsA5: Observable[A5]
+)(f: (A1, A2, A3, A4, A5) => R)
   extends Observable[R] {
 
   def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {

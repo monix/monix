@@ -21,11 +21,11 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import minitest.SimpleTestSuite
-import monix.execution.{BufferCapacity, Scheduler}
+import monix.execution.{ BufferCapacity, Scheduler }
 import monix.execution.exceptions.DummyException
 import monix.execution.misc.Local
 import cats.implicits._
-import monix.catnap.{ConcurrentChannel, ConsumerF}
+import monix.catnap.{ ConcurrentChannel, ConsumerF }
 
 object TaskLocalSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
@@ -308,7 +308,8 @@ object TaskLocalSuite extends SimpleTestSuite {
       ch <- ConcurrentChannel[Task].withConfig[Unit, Int](
         ConsumerF.Config(
           capacity = BufferCapacity.Bounded(bufferSize).some
-        ))
+        )
+      )
       test = new Test(tl, ch)
       _ <- TaskLocal.isolate(test.produce) &> TaskLocal.isolate(test.consume)
     } yield ()

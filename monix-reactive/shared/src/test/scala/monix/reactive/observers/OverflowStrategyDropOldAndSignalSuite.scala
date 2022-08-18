@@ -19,17 +19,17 @@ package monix.reactive.observers
 
 import minitest.TestSuite
 import monix.eval.Coeval
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.MultiProducer
 import monix.execution.atomic.AtomicLong
-import monix.execution.internal.{Platform, RunnableAction}
+import monix.execution.internal.{ Platform, RunnableAction }
 import monix.execution.schedulers.TestScheduler
-import monix.execution.{Ack, Scheduler}
+import monix.execution.{ Ack, Scheduler }
 import monix.reactive.Observer
 import monix.reactive.OverflowStrategy.DropOldAndSignal
 import monix.execution.exceptions.DummyException
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -233,13 +233,16 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
 
   test("should send onError when in flight") { implicit s =>
     var errorThrown: Throwable = null
-    val buffer = buildNewWithSignal(5, new Observer[Int] {
-      def onError(ex: Throwable) = {
-        errorThrown = ex
+    val buffer = buildNewWithSignal(
+      5,
+      new Observer[Int] {
+        def onError(ex: Throwable) = {
+          errorThrown = ex
+        }
+        def onNext(elem: Int) = Continue
+        def onComplete() = throw new IllegalStateException()
       }
-      def onNext(elem: Int) = Continue
-      def onComplete() = throw new IllegalStateException()
-    })
+    )
 
     buffer.onNext(1)
     buffer.onError(DummyException("dummy"))
@@ -252,13 +255,16 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     var errorThrown: Throwable = null
     val promise = Promise[Ack]()
 
-    val buffer = buildNewWithSignal(5, new Observer[Int] {
-      def onError(ex: Throwable) = {
-        errorThrown = ex
+    val buffer = buildNewWithSignal(
+      5,
+      new Observer[Int] {
+        def onError(ex: Throwable) = {
+          errorThrown = ex
+        }
+        def onNext(elem: Int) = promise.future
+        def onComplete() = throw new IllegalStateException()
       }
-      def onNext(elem: Int) = promise.future
-      def onComplete() = throw new IllegalStateException()
-    })
+    )
 
     for (i <- 1 to 10) assertEquals(buffer.onNext(i), Continue)
     buffer.onError(DummyException("dummy"))
@@ -274,14 +280,17 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     var wasCompleted = false
     val startConsuming = Promise[Continue.type]()
 
-    val buffer = buildNewWithSignal(10000, new Observer[Int] {
-      def onNext(elem: Int) = {
-        sum += elem
-        startConsuming.future
+    val buffer = buildNewWithSignal(
+      10000,
+      new Observer[Int] {
+        def onNext(elem: Int) = {
+          sum += elem
+          startConsuming.future
+        }
+        def onError(ex: Throwable) = throw ex
+        def onComplete() = wasCompleted = true
       }
-      def onError(ex: Throwable) = throw ex
-      def onComplete() = wasCompleted = true
-    })
+    )
 
     (0 until 9999).foreach { x => buffer.onNext(x); () }
     buffer.onComplete()
@@ -296,14 +305,17 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var wasCompleted = false
 
-    val buffer = buildNewWithSignal(10000, new Observer[Int] {
-      def onNext(elem: Int) = {
-        sum += elem
-        Continue
+    val buffer = buildNewWithSignal(
+      10000,
+      new Observer[Int] {
+        def onNext(elem: Int) = {
+          sum += elem
+          Continue
+        }
+        def onError(ex: Throwable) = throw ex
+        def onComplete() = wasCompleted = true
       }
-      def onError(ex: Throwable) = throw ex
-      def onComplete() = wasCompleted = true
-    })
+    )
 
     (0 until 9999).foreach { x => buffer.onNext(x); () }
     buffer.onComplete()
@@ -343,14 +355,17 @@ object OverflowStrategyDropOldAndSignalSuite extends TestSuite[TestScheduler] {
     var sum = 0L
     var errorThrown: Throwable = null
 
-    val buffer = buildNewWithSignal(10000, new Observer[Int] {
-      def onNext(elem: Int) = {
-        sum += elem
-        Continue
+    val buffer = buildNewWithSignal(
+      10000,
+      new Observer[Int] {
+        def onNext(elem: Int) = {
+          sum += elem
+          Continue
+        }
+        def onError(ex: Throwable) = errorThrown = ex
+        def onComplete() = throw new IllegalStateException()
       }
-      def onError(ex: Throwable) = errorThrown = ex
-      def onComplete() = throw new IllegalStateException()
-    })
+    )
 
     (0 until 9999).foreach { x => buffer.onNext(x); () }
     buffer.onError(DummyException("dummy"))

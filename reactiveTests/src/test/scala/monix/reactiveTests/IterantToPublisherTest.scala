@@ -22,8 +22,8 @@ import monix.execution.Scheduler.Implicits.global
 import monix.eval.Task
 import monix.execution.exceptions.DummyException
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last}
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.tail.Iterant.{ Halt, Last }
+import monix.tail.batches.{ Batch, BatchCursor }
 import org.reactivestreams.Publisher
 import org.reactivestreams.tck.PublisherVerification
 import org.scalatestplus.testng.TestNGSuiteLike
@@ -38,8 +38,7 @@ class IterantToPublisherTest extends PublisherVerification[Long](env())
       val list: List[Long] = (0 until elements.toInt).map(_.toLong).toList
       arbitraryListToIterant[Task, Long](list, Random.nextInt(), allowErrors = false)
         .toReactivePublisher
-    }
-    else if (elements <= Int.MaxValue)
+    } else if (elements <= Int.MaxValue)
       repeat(1L).take(elements.toInt).toReactivePublisher
     else
       repeat(1L).toReactivePublisher
@@ -53,8 +52,9 @@ class IterantToPublisherTest extends PublisherVerification[Long](env())
       .toReactivePublisher
   }
 
-  def arbitraryListToIterant[F[_], A](list: List[A], idx: Int, allowErrors: Boolean = true)
-    (implicit F: Sync[F]): Iterant[F, A] = {
+  def arbitraryListToIterant[F[_], A](list: List[A], idx: Int, allowErrors: Boolean = true)(implicit
+    F: Sync[F]
+  ): Iterant[F, A] = {
 
     def loop(list: List[A], idx: Int): Iterant[F, A] =
       list match {
@@ -73,15 +73,15 @@ class IterantToPublisherTest extends PublisherVerification[Long](env())
         case ns =>
           math.abs(idx % 16) match {
             case 0 | 1 =>
-              Iterant[F].nextS(ns.head, F.delay(loop(ns.tail, idx+1)))
+              Iterant[F].nextS(ns.head, F.delay(loop(ns.tail, idx + 1)))
             case 2 | 3 =>
-              Iterant[F].suspend(F.delay(loop(list, idx+1)))
+              Iterant[F].suspend(F.delay(loop(list, idx + 1)))
             case 4 | 5 =>
               Iterant[F].suspendS(F.delay(loop(ns, idx + 1)))
             case n @ 6 =>
               val (headSeq, tail) = list.splitAt(3)
               val cursor = BatchCursor.fromIterator(headSeq.toVector.iterator, n - 2)
-              Iterant[F].nextCursorS(cursor, F.delay(loop(tail, idx+1)))
+              Iterant[F].nextCursorS(cursor, F.delay(loop(tail, idx + 1)))
             case n @ (7 | 8 | 9) =>
               val (headSeq, tail) = list.splitAt(3)
               val batch = Batch.fromSeq(headSeq.toVector, n - 6)

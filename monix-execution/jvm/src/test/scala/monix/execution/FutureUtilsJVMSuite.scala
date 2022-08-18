@@ -55,10 +55,12 @@ object FutureUtilsJVMSuite extends TestSuite[TestScheduler] {
           .delayedResult(originalTimeout) {
             15
           }
-          .timeoutTo(timeout, {
-            sideEffect.incrementAndGet()
-            Future.failed(TestException())
-          })(Scheduler.Implicits.global)
+          .timeoutTo(
+            timeout, {
+              sideEffect.incrementAndGet()
+              Future.failed(TestException())
+            }
+          )(Scheduler.Implicits.global)
         _ <- FutureUtils.delayedResult(100.millis)(()) // wait for all concurrent processes
       } yield ()).map { _ =>
         success.incrementAndGet()

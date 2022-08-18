@@ -39,7 +39,8 @@ object DebounceSuite extends BaseOperatorSuite {
       Observable
         .interval(2.seconds)
         .take(sourceCount.toLong),
-      ex)
+      ex
+    )
       .debounce(1.second)
 
     val count = sourceCount - 1

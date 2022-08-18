@@ -21,7 +21,7 @@ import cats.Monoid
 import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Task
-import monix.reactive.{BaseTestSuite, Observable}
+import monix.reactive.{ BaseTestSuite, Observable }
 
 object ScanMapSuite extends BaseTestSuite {
 

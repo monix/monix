@@ -20,7 +20,7 @@ package monix.tail
 import cats.effect.IO
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 
 object IterantLiftMapSuite extends BaseTestSuite {
   test("liftMap(f) converts Iterant[Coeval, ?] to Iterant[Task, ?]") { implicit s =>

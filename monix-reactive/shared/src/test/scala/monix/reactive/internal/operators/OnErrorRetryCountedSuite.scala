@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
-import scala.concurrent.duration.{Duration, _}
+import scala.concurrent.duration.{ Duration, _ }
 
 object OnErrorRetryCountedSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {

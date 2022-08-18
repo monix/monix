@@ -18,7 +18,7 @@
 package monix.execution.atomic
 
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.internal.atomic.{BoxedInt, Factory}
+import monix.execution.internal.atomic.{ BoxedInt, Factory }
 
 /** Atomic references wrapping `Byte` values.
   *
@@ -29,10 +29,10 @@ final class AtomicByte private (private[this] val ref: BoxedInt) extends AtomicN
 
   private[this] val mask = 255
 
-  def get(): Byte = 
+  def get(): Byte =
     (ref.volatileGet() & mask).asInstanceOf[Byte]
 
-  def set(update: Byte): Unit = 
+  def set(update: Byte): Unit =
     ref.volatileSet(update.asInstanceOf[Int])
 
   def lazySet(update: Byte): Unit =
@@ -129,7 +129,8 @@ object AtomicByte {
         boxStrategyToPaddingStrategy(padding),
         true, // allowUnsafe
         allowPlatformIntrinsics
-      ))
+      )
+    )
 
   /** $createDesc
     *
@@ -153,6 +154,7 @@ object AtomicByte {
         boxStrategyToPaddingStrategy(padding),
         false, // allowUnsafe
         false // allowJava8Intrinsics
-      ))
+      )
+    )
   }
 }

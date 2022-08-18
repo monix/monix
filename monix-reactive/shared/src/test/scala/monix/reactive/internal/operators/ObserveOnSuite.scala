@@ -24,7 +24,7 @@ import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.OverflowStrategy.Unbounded
-import monix.reactive.{BaseTestSuite, Observable}
+import monix.reactive.{ BaseTestSuite, Observable }
 
 object ObserveOnSuite extends BaseTestSuite {
   test("equivalence with the source") { implicit s =>

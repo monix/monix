@@ -20,7 +20,7 @@ package batches
 
 import monix.execution.compat.internal._
 import monix.execution.internal.Platform.recommendedBatchSize
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 import scala.reflect.ClassTag
 
 /** Similar to Java's and Scala's `Iterator`, the `BatchCursor` type can

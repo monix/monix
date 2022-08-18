@@ -22,11 +22,11 @@ import cats.laws.discipline._
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 object CollectWhileSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int): Long =

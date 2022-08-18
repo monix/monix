@@ -17,11 +17,11 @@
 
 package monix.reactive
 
-import cats.{~>, Eval}
-import cats.effect.{IO, SyncIO}
-import monix.eval.{Coeval, Task, TaskLike}
+import cats.{ ~>, Eval }
+import cats.effect.{ IO, SyncIO }
+import monix.eval.{ Coeval, Task, TaskLike }
 import monix.reactive.internal.builders.EvalAlwaysObservable
-import org.reactivestreams.{Publisher => RPublisher}
+import org.reactivestreams.{ Publisher => RPublisher }
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.Future

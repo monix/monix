@@ -17,7 +17,7 @@
 
 package monix.eval
 
-import cats.effect.{Resource, SyncIO}
+import cats.effect.{ Resource, SyncIO }
 import minitest.SimpleTestSuite
 
 object CoevalConversionsKSuite extends SimpleTestSuite {

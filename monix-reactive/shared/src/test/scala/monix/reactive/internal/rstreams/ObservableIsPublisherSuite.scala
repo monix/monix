@@ -24,7 +24,7 @@ import monix.execution.rstreams.SingleAssignSubscription
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.subjects.PublishSubject
-import org.reactivestreams.{Subscriber, Subscription}
+import org.reactivestreams.{ Subscriber, Subscription }
 
 import scala.util.Success
 

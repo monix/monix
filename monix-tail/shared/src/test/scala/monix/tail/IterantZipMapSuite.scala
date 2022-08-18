@@ -19,7 +19,7 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
@@ -109,12 +109,15 @@ object IterantZipMapSuite extends BaseTestSuite {
         (_, _) => Coeval(triggered.set(true))
       )
 
-      val scope = Iterant[Coeval].concatS(Coeval(lh), Coeval {
-        if (!triggered.getAndSet(true))
-          Iterant[Coeval].raiseError[Int](fail)
-        else
-          Iterant[Coeval].empty[Int]
-      })
+      val scope = Iterant[Coeval].concatS(
+        Coeval(lh),
+        Coeval {
+          if (!triggered.getAndSet(true))
+            Iterant[Coeval].raiseError[Int](fail)
+          else
+            Iterant[Coeval].empty[Int]
+        }
+      )
 
       0 +: scope :+ 2
     }

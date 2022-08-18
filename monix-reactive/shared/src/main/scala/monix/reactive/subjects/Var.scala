@@ -17,8 +17,8 @@
 
 package monix.reactive.subjects
 
-import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.reactive.{Observable, OverflowStrategy}
+import monix.execution.{ Ack, Cancelable, Scheduler }
+import monix.reactive.{ Observable, OverflowStrategy }
 import monix.reactive.observers.Subscriber
 
 /** `Var` when subscribed, will emit the most recently emitted item by the source,

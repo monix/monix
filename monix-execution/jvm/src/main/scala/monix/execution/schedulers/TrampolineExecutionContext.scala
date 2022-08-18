@@ -20,7 +20,7 @@ package monix.execution.schedulers
 import monix.execution.internal.Trampoline
 
 import scala.util.control.NonFatal
-import scala.concurrent.{BlockContext, ExecutionContext, ExecutionContextExecutor}
+import scala.concurrent.{ BlockContext, ExecutionContext, ExecutionContextExecutor }
 
 /** A `scala.concurrentExecutionContext` implementation
   * that executes runnables immediately, on the current thread,

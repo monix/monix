@@ -21,7 +21,7 @@ import cats.laws._
 import cats.laws.discipline._
 
 import monix.execution.exceptions.DummyException
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object CoevalMiscSuite extends BaseTestSuite {
   test("Coeval.now.attempt should succeed") { implicit s =>

@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{ Cancelable, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 

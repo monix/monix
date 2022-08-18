@@ -17,7 +17,7 @@
 
 package monix.reactive
 
-import cats.laws.discipline.{ContravariantTests, ProfunctorTests}
+import cats.laws.discipline.{ ContravariantTests, ProfunctorTests }
 
 object TypeClassLawsForConsumerSuite extends BaseLawsTestSuite {
 
