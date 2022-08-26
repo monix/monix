@@ -102,7 +102,7 @@ lazy val kindProjectorCompilerPlugin =
 
 /** [[https://github.com/scalameta/munit]] */
 lazy val munitLib =
-  Def.setting { "org.scalameta" %%% "munit" % "1.0.0-M6" }
+  Def.setting { "org.scalameta" %%% "munit" % "0.7.29" }
 
 
 /** [[https://github.com/scala/scala-collection-compat]] */
