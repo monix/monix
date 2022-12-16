@@ -213,6 +213,57 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     assertEquals(wasCompleted, true)
   }
 
+  test("echo limit should be respected") { implicit s =>
+    val channel = PublishSubject[Int]()
+    var received = 0
+    var wasCompleted = false
+
+    channel
+      .echoRepeated(1.second, 2)
+      .unsafeSubscribeFn(new Observer[Int] {
+        def onNext(elem: Int): Future[Ack] =
+          Future.delayedResult(500.millis) {
+            received += elem
+            Continue
+          }
+
+        def onError(ex: Throwable): Unit = ()
+
+        def onComplete(): Unit = wasCompleted = true
+      })
+
+    channel.onNext(1)
+    assertEquals(received, 0)
+    s.tick(500.millis)
+    assertEquals(received, 1)
+
+    s.tick(1.second + 500.millis)
+    assertEquals(received, 2)
+    s.tick(1.second)
+    assertEquals(received, 3)
+    s.tick(1.second)
+    assertEquals(received, 3)
+    s.tick(1.second)
+    assertEquals(received, 3)
+    s.tick(1.second)
+    assertEquals(received, 3)
+    s.tick(1.second)
+    assertEquals(received, 3)
+    s.tick(400.millis)
+    assertEquals(received, 3)
+
+    channel.onNext(10)
+    s.tick(500.millis)
+    assertEquals(received, 13)
+    s.tick(500.millis)
+    assertEquals(received, 13)
+    s.tick(1.second)
+    assertEquals(received, 23)
+
+    channel.onComplete()
+    assertEquals(wasCompleted, true)
+  }
+
   /** Optionally return a sequence of observables
     * that can be canceled.
     */

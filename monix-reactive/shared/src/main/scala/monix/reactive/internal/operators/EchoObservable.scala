@@ -29,7 +29,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 import scala.util.Success
 
-private[reactive] final class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, onlyOnce: Boolean)
+private[reactive] final class EchoObservable[+A](source: Observable[A], timeout: FiniteDuration, times: Option[Int])
   extends Observable[A] {
 
   private[this] val timeoutMillis = timeout.toMillis
@@ -47,6 +47,7 @@ private[reactive] final class EchoObservable[+A](source: Observable[A], timeout:
       private[this] var lastTSInMillis: Long = 0L
       private[this] var isDone = false
       private[this] var hasValue = false
+      private[this] var remaining = times
 
       locally {
         scheduleNext(timeoutMillis)
@@ -95,7 +96,7 @@ private[reactive] final class EchoObservable[+A](source: Observable[A], timeout:
               // hasValue is set to false only if the onlyOnce param is
               // set to true (otherwise we keep repeating our current
               // value until a new one happens)
-              hasValue = !onlyOnce
+              hasValue = remaining.forall(_ > 1)
 
               // this call is actually synchronous because we're testing
               // for ack.isCompleted above, but doing it nonetheless because
@@ -112,7 +113,7 @@ private[reactive] final class EchoObservable[+A](source: Observable[A], timeout:
                         if (timeoutMillis > executionTime)
                           timeoutMillis - executionTime
                         else 0L
-
+                      remaining = remaining.map(_ - 1)
                       scheduleNext(delay)
                       Continue
 
@@ -162,6 +163,7 @@ private[reactive] final class EchoObservable[+A](source: Observable[A], timeout:
           if (isDone) Stop
           else {
             lastEvent = elem
+            remaining = times
             ack = signalNext(ack.syncTryFlatten)
             ack
           }
