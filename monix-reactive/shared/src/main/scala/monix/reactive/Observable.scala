@@ -1706,7 +1706,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        observable to echo the last item
     */
   final def echoOnce(timeout: FiniteDuration): Observable[A] =
-    new EchoObservable(self, timeout, onlyOnce = true)
+    new EchoObservable(self, timeout, times = Some(1))
 
   /** Mirror the source observable as long as the source keeps emitting
     * items, otherwise if `timeout` passes without the source emitting
@@ -1721,8 +1721,10 @@ abstract class Observable[+A] extends Serializable { self =>
     *        observable to start echoing the last item
     */
   final def echoRepeated(timeout: FiniteDuration): Observable[A] =
-    new EchoObservable(self, timeout, onlyOnce = false)
+    new EchoObservable(self, timeout, times = None)
 
+  final def echoRepeated(timeout: FiniteDuration, times: Int): Observable[A] =
+    new EchoObservable(self, timeout, times = Some(times))
   /** Creates a new Observable that emits the events of the source and
     * then it also emits the given elements (appended to the stream).
     */
