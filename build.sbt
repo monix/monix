@@ -39,7 +39,7 @@ addCommandAlias(
 // Dependencies - Versions
 
 val cats_Version              = "2.7.0"
-val catsEffect_Version        = "2.5.5"
+val catsEffect_Version        = "3.4.7"
 val fs2_Version               = "2.5.11"
 val jcTools_Version           = "3.3.0"
 val reactiveStreams_Version   = "1.0.3"
@@ -199,13 +199,13 @@ lazy val sharedSettings = pgpSettings ++ Seq(
 
   // Turning off fatal warnings for doc generation
   Compile / doc / tpolecatExcludeOptions ++= ScalacOptions.defaultConsoleExclude,
-  
+
   // Turn off annoyances in tests
   Test / tpolecatExcludeOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 12)) => 
+      case Some((2, 12)) =>
         ScalacOptions.defaultConsoleExclude
-      case _ => 
+      case _ =>
         Set(
           ScalacOptions.lintInferAny,
           ScalacOptions.warnUnusedImplicits,
@@ -215,7 +215,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
         )
     }
   },
-  
+
   // Silence everything in auto-generated files
   scalacOptions ++= {
     if (isDotty.value)
@@ -321,13 +321,13 @@ lazy val extraSourceSettings = {
       baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
     }
   )
-  
+
   val perVersion = Seq(Compile, Test).map { sc =>
     (sc / unmanagedSourceDirectories) ++= {
       (sc / unmanagedSourceDirectories).value.flatMap { dir =>
         if (dir.getPath().endsWith("scala"))
           scalaPartV.value.toList.flatMap {
-            case (major, minor) => 
+            case (major, minor) =>
               Seq(
                 new File(s"${dir.getPath}-$major"),
                 new File(s"${dir.getPath}-$major.$minor"),
@@ -338,7 +338,7 @@ lazy val extraSourceSettings = {
       }
     }
   }
-  
+
   shared ++ perVersion
 }
 
@@ -763,7 +763,7 @@ lazy val reactiveTests = project
   .settings(
     libraryDependencies ++= Seq(
       reactiveStreamsTCKLib % Test,
-      "org.scalatestplus" %% "testng-7-5" % "3.2.12.0" % Test,
+      "org.scalatestplus"  %% "testng-7-5" % "3.2.12.0" % Test,
     )
   )
 
