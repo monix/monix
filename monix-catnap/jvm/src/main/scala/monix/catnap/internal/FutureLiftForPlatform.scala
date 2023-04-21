@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +18,9 @@
 package monix.catnap
 package internal
 
-import java.util.concurrent.{CancellationException, CompletableFuture, CompletionException}
+import java.util.concurrent.{ CancellationException, CompletableFuture, CompletionException }
 import java.util.function.BiFunction
-import cats.effect.{Async, Concurrent}
+import cats.effect.{ Async, Concurrent }
 
 private[catnap] abstract class FutureLiftForPlatform {
   /**
@@ -51,7 +51,8 @@ private[catnap] abstract class FutureLiftForPlatform {
     * and [[javaCompletableToAsync]].
     */
   def javaCompletableToConcurrentOrAsync[F[_], A](fa: F[CompletableFuture[A]])(
-    implicit F: Concurrent[F] OrElse Async[F]): F[A] = {
+    implicit F: Concurrent[F] OrElse Async[F]
+  ): F[A] = {
 
     F.unify match {
       case ref: Concurrent[F] @unchecked => javaCompletableToConcurrent(fa)(ref)
@@ -65,7 +66,8 @@ private[catnap] abstract class FutureLiftForPlatform {
     * or `Async` data type.
     */
   implicit def javaCompletableLiftForConcurrentOrAsync[F[_]](
-    implicit F: Concurrent[F] OrElse Async[F]): FutureLift[F, CompletableFuture] = {
+    implicit F: Concurrent[F] OrElse Async[F]
+  ): FutureLift[F, CompletableFuture] = {
 
     F.unify match {
       case ref: Concurrent[F] @unchecked =>

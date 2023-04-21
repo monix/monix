@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,13 +17,13 @@
 
 package monix.catnap
 
-import cats.effect.{ContextShift, IO}
+import cats.effect.{ ContextShift, IO }
 import cats.implicits._
 import minitest.TestSuite
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import scala.concurrent.{ExecutionContext, Promise}
-import scala.util.{Random, Success}
+import scala.concurrent.{ ExecutionContext, Promise }
+import scala.util.{ Random, Success }
 
 object SemaphoreSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -160,7 +160,7 @@ object SemaphoreSuite extends TestSuite[TestScheduler] {
       val count = if (Platform.isJVM) 10000 else 50
       val allReleased = Promise[Unit]()
 
-      val task = semaphore.withPermit(IO.suspend {
+      val task = semaphore.withPermit(IO.defer {
         allReleased.completeWith(semaphore.awaitAvailable(available).unsafeToFuture())
 
         val futures = for (i <- 0 until count) yield {

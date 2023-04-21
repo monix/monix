@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,15 +19,16 @@ package monix.reactive.observers.buffers
 
 import monix.eval.Coeval
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.atomic.PaddingStrategy.{LeftRight128, LeftRight256}
-import monix.execution.atomic.{Atomic, AtomicInt}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.atomic.PaddingStrategy.{ LeftRight128, LeftRight256 }
+import monix.execution.atomic.{ Atomic, AtomicInt }
 
 import scala.util.control.NonFatal
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
+import scala.annotation.nowarn
 
 /** A high-performance and non-blocking [[BufferedSubscriber]]
   * implementation for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
@@ -37,8 +38,8 @@ import scala.util.{Failure, Success}
 private[observers] final class DropNewBufferedSubscriber[A] private (
   out: Subscriber[A],
   bufferSize: Int,
-  onOverflow: Long => Coeval[Option[A]] = null)
-  extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
+  @nowarn onOverflow: Long => Coeval[Option[A]] = null,
+) extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 
@@ -279,6 +280,7 @@ private[observers] object DropNewBufferedSubscriber {
   def withSignal[A](
     underlying: Subscriber[A],
     bufferSize: Int,
-    onOverflow: Long => Coeval[Option[A]]): DropNewBufferedSubscriber[A] =
+    onOverflow: Long => Coeval[Option[A]]
+  ): DropNewBufferedSubscriber[A] =
     new DropNewBufferedSubscriber[A](underlying, bufferSize, onOverflow)
 }

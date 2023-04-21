@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,9 +34,9 @@ object TransformerSuite extends BaseOperatorSuite {
 
   def createObservable(sourceCount: Int) = Some {
     val o =
-        Observable
-          .range(0L, sourceCount.toLong)
-          .transform(dummyTransformer)
+      Observable
+        .range(0L, sourceCount.toLong)
+        .transform(dummyTransformer)
 
     Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
   }
@@ -50,7 +50,7 @@ object TransformerSuite extends BaseOperatorSuite {
           createObservableEndingInError(Observable.now(1L), ex).transform(dummyTransformer)
         else
           createObservableEndingInError(Observable.range(1, sourceCount.toLong + 1, 1), ex)
-              .transform(dummyTransformer)
+            .transform(dummyTransformer)
 
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }

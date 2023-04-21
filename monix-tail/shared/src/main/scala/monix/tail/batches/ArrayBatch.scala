@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,8 +28,8 @@ final class ArrayBatch[@specialized(Boolean, Byte, Char, Int, Long, Double) A](
   ref: Array[A],
   offset: Int,
   length: Int,
-  newBuilder: () => ArrayBuilder[A])
-  extends Batch[A] {
+  newBuilder: () => ArrayBuilder[A]
+) extends Batch[A] {
 
   def this(ref: Array[A], offset: Int, length: Int)(implicit tag: ClassTag[A]) =
     this(ref, offset, length, () => ArrayBuilder.make[A])

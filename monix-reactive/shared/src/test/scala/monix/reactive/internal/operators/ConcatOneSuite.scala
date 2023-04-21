@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,15 +20,15 @@ package monix.reactive.internal.operators
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.extensions._
-import monix.execution.{Ack, Scheduler}
-import monix.reactive.Observable.{empty, now}
+import monix.execution.{ Ack, Scheduler }
+import monix.reactive.Observable.{ empty, now }
 import monix.execution.exceptions.DummyException
 import monix.reactive.subjects.PublishSubject
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.{Failure, Random, Try}
+import scala.util.{ Failure, Random, Try }
 
 object ConcatOneSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
@@ -134,7 +134,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
 
   test("filterEval can be expressed in terms of flatMap") { implicit s =>
     val obs1 = Observable.range(0, 100).filterEval(i => Task.pure(i % 2 == 0))
-    val obs2 = Observable.range(0, 100).flatMap(x => if (x          % 2 == 0) now(x) else empty)
+    val obs2 = Observable.range(0, 100).flatMap(x => if (x % 2 == 0) now(x) else empty)
 
     val lst1 = toList(obs1)
     val lst2 = toList(obs2)
@@ -146,7 +146,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
 
   test("filterEvalF can be expressed in terms of flatMap") { implicit s =>
     val obs1 = Observable.range(0, 100).filterEvalF[Try](i => Try(i % 2 == 0))
-    val obs2 = Observable.range(0, 100).flatMap(x => if (x          % 2 == 0) now(x) else empty)
+    val obs2 = Observable.range(0, 100).flatMap(x => if (x % 2 == 0) now(x) else empty)
 
     val lst1 = toList(obs1)
     val lst2 = toList(obs2)

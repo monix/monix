@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +18,7 @@
 package monix.catnap
 
 import cats.Applicative
-import cats.effect.{CancelToken, Sync}
-import cats.syntax.either._
+import cats.effect.{ CancelToken, Sync }
 import monix.catnap.cancelables.BooleanCancelableF
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.exceptions.CompositeException
@@ -42,10 +41,6 @@ trait CancelableF[F[_]] {
 }
 
 object CancelableF {
-
-  // ensure import cats.syntax.either._ is used
-  private val dummy = ().asRight
-
   /**
     * Given a token that does not guarantee idempotency, wraps it
     * in a [[CancelableF]] value that guarantees the given token

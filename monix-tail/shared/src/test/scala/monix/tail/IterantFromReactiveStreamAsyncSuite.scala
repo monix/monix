@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,9 +24,9 @@ import monix.execution.Scheduler.global
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import org.reactivestreams.{Publisher, Subscriber, Subscription}
+import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
   def setup(): Scheduler = global
@@ -181,8 +181,8 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
   }
 
   class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])(
-    implicit sc: Scheduler)
-    extends Publisher[Int] {
+    implicit sc: Scheduler
+  ) extends Publisher[Int] {
 
     def this(range: Range, finish: Option[Throwable])(implicit sc: Scheduler) =
       this(range.start, range.end, range.step, finish, null)
@@ -221,7 +221,8 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
                 }
               }
 
-              if (!isInRange(index.toLong, until.toLong, step.toLong) &&
+              if (
+                !isInRange(index.toLong, until.toLong, step.toLong) &&
                 !isCanceled &&
                 finished.compareAndSet(expect = false, update = true)
               ) {

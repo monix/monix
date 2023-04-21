@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.tail.internal
 import cats.effect.Async
 import monix.catnap.ConsumerF
 import monix.tail.Iterant
-import monix.tail.Iterant.{haltS, suspendS, Next, NextBatch}
+import monix.tail.Iterant.{ haltS, suspendS, Next, NextBatch }
 import monix.tail.batches.Batch
 
 private[tail] object IterantFromConsumer {
@@ -28,7 +28,8 @@ private[tail] object IterantFromConsumer {
     * Implementation for [[Iterant.fromConsumer]].
     */
   def apply[F[_], A](consumer: ConsumerF[F, Option[Throwable], A], maxBatchSize: Int)(
-    implicit F: Async[F]): Iterant[F, A] = {
+    implicit F: Async[F]
+  ): Iterant[F, A] = {
 
     suspendS(
       if (maxBatchSize > 1)
@@ -47,7 +48,8 @@ private[tail] object IterantFromConsumer {
   }
 
   private def loopMany[F[_], A](consumer: ConsumerF[F, Option[Throwable], A], maxBatchSize: Int)(
-    implicit F: Async[F]): F[Iterant[F, A]] = {
+    implicit F: Async[F]
+  ): F[Iterant[F, A]] = {
 
     F.map(consumer.pullMany(1, maxBatchSize)) {
       case Left(e) => haltS(e)

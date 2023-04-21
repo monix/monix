@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,15 +17,15 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
-import scala.util.{Failure, Try}
+import scala.util.{ Failure, Try }
 
 private[reactive] final class UnfoldObservable[S, A](seed: => S, f: S => Option[(A, S)]) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
@@ -48,7 +48,7 @@ private[reactive] final class UnfoldObservable[S, A](seed: => S, f: S => Option[
     extends Runnable {
     self =>
 
-    import o.{scheduler => s}
+    import o.{ scheduler => s }
 
     private[this] var seed = initialSeed
     private[this] val em = s.executionModel

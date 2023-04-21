@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +22,8 @@ import monix.execution.FutureUtils.extensions._
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
-import scala.concurrent.{Future, TimeoutException}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ Future, TimeoutException }
+import scala.util.{ Failure, Success, Try }
 
 object FutureUtilsSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -82,26 +82,19 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     val expected = 15
     val f = Future
       .delayedResult(50.millis)(expected)
-      .timeoutTo(100.millis, {
-        called = true
-        Future.failed(new RuntimeException)
-      })
+      .timeoutTo(
+        100.millis, {
+          called = true
+          Future.failed(new RuntimeException)
+        }
+      )
 
     s.tick(1.second)
     assertEquals(f.value, Some(Success(expected)))
     assertEquals(called, false)
   }
 
-  test("materialize synchronous") { implicit s =>
-    val f1 = Future.successful(1).materialize
-    assertEquals(f1.value, Some(Success(Success(1))))
-
-    val dummy = new RuntimeException("dummy")
-    val f2 = (Future.failed(dummy): Future[Int]).materialize
-    assertEquals(f2.value, Some(Success(Failure(dummy))))
-  }
-
-  test("materialize asynchronous") { implicit s =>
+  test("materialize") { implicit s =>
     val f1 = Future(1).materialize; s.tick()
     assertEquals(f1.value, Some(Success(Success(1))))
 
@@ -110,19 +103,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     assertEquals(f2.value, Some(Success(Failure(dummy))))
   }
 
-  test("dematerialize synchronous") { implicit s =>
-    val f1 = Future.successful(Success(1)).dematerialize
-    assertEquals(f1.value, Some(Success(1)))
-
-    val dummy = new RuntimeException("dummy")
-    val f2 = Future.successful(Failure(dummy)).dematerialize
-    assertEquals(f2.value, Some(Failure(dummy)))
-
-    val f3 = (Future.failed(dummy): Future[Try[Int]]).dematerialize
-    assertEquals(f3.value, Some(Failure(dummy)))
-  }
-
-  test("dematerialize asynchronous") { implicit s =>
+  test("dematerialize") { implicit s =>
     val f1 = Future(Success(1)).dematerialize; s.tick()
     assertEquals(f1.value, Some(Success(1)))
 

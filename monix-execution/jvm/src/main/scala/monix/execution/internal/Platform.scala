@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,8 @@
 package monix.execution.internal
 
 import monix.execution.schedulers.CanBlock
-import scala.concurrent.{Await, Awaitable}
+import scala.annotation.unused
+import scala.concurrent.{ Await, Awaitable }
 import scala.concurrent.duration.Duration
 import scala.util.Try
 
@@ -141,7 +142,7 @@ private[monix] object Platform {
     * This operation is only supported on top of the JVM, whereas for
     * JavaScript a dummy is provided.
     */
-  def await[A](fa: Awaitable[A], timeout: Duration)(implicit permit: CanBlock): A =
+  def await[A](fa: Awaitable[A], timeout: Duration)(implicit @unused permit: CanBlock): A =
     Await.result(fa, timeout)
 
   /** Composes multiple errors together, meant for those cases in which

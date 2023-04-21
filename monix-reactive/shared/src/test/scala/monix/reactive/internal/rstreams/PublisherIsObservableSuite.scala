@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,14 +18,14 @@
 package monix.reactive.internal.rstreams
 
 import minitest.TestSuite
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.atomic.{Atomic, AtomicBoolean, AtomicInt}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.atomic.{ Atomic, AtomicBoolean, AtomicInt }
 import monix.execution.schedulers.TestScheduler
-import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.reactive.{Observable, Observer}
-import org.reactivestreams.{Publisher, Subscriber, Subscription}
+import monix.execution.{ Ack, Cancelable, Scheduler }
+import monix.reactive.{ Observable, Observer }
+import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -115,7 +115,8 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
     requestSize: Int,
     ack: Atomic[Promise[Ack]],
     active: AtomicBoolean,
-    received: AtomicInt)(implicit s: Scheduler): Cancelable = {
+    received: AtomicInt
+  )(implicit s: Scheduler): Cancelable = {
 
     Observable
       .fromReactivePublisher(p, requestSize)
@@ -128,25 +129,27 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
         def onError(ex: Throwable): Unit =
           throw ex
         def onComplete(): Unit =
-          active := false
+          active.set(false)
       })
   }
 
   private def createPublisher(isPublisherActive: AtomicBoolean, requested: AtomicInt, requestSize: Int)(
-    implicit s: Scheduler): Publisher[Long] = {
+    implicit s: Scheduler
+  ): Publisher[Long] = {
 
     new Publisher[Long] {
       override def subscribe(subscriber: Subscriber[_ >: Long]): Unit =
         subscriber.onSubscribe(new Subscription {
           override def cancel(): Unit =
-            isPublisherActive := false
+            isPublisherActive.set(false)
 
           override def request(n: Long): Unit = {
             assertEquals(n, requestSize.toLong)
             requested.increment(requestSize)
             if (isPublisherActive.get()) {
               s.executeTrampolined { () =>
-                for (_ <- 0 until n.toInt) subscriber.onNext(1L)
+                for (_ <- 0 until n.toInt)
+                  subscriber.onNext(1L)
               }
             }
           }

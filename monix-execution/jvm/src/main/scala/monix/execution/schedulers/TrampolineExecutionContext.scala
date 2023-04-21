@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.execution.schedulers
 import monix.execution.internal.Trampoline
 
 import scala.util.control.NonFatal
-import scala.concurrent.{BlockContext, ExecutionContext, ExecutionContextExecutor}
+import scala.concurrent.{ BlockContext, ExecutionContext, ExecutionContextExecutor }
 
 /** A `scala.concurrentExecutionContext` implementation
   * that executes runnables immediately, on the current thread,
@@ -127,7 +127,7 @@ object TrampolineExecutionContext {
   private final class JVMOptimalTrampoline extends Trampoline {
     override def startLoop(runnable: Runnable, ec: ExecutionContext): Unit = {
       val parentContext = localContext.get()
-      localContext.set(trampolineContext(ec))
+      localContext.set(trampolineContext(parentContext, ec))
       try {
         super.startLoop(runnable, ec)
       } finally {
@@ -138,7 +138,7 @@ object TrampolineExecutionContext {
 
   private class JVMNormalTrampoline extends Trampoline {
     override def startLoop(runnable: Runnable, ec: ExecutionContext): Unit = {
-      BlockContext.withBlockContext(trampolineContext(ec)) {
+      BlockContext.withBlockContext(trampolineContext(BlockContext.current, ec)) {
         super.startLoop(runnable, ec)
       }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,12 +19,12 @@ package monix.reactive.internal.builders
 
 import monix.execution.Ack.Stop
 import monix.execution.atomic.PaddingStrategy.NoPadding
-import monix.execution.atomic.{Atomic, AtomicInt}
+import monix.execution.atomic.{ Atomic, AtomicInt }
 import monix.execution.cancelables.CompositeCancelable
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.observers.Subscriber
-import monix.reactive.{Observable, Observer}
-import scala.concurrent.{Future, Promise}
+import monix.reactive.{ Observable, Observer }
+import scala.concurrent.{ Future, Promise }
 
 private[reactive] final class FirstStartedObservable[A](source: Observable[A]*) extends Observable[A] {
 
@@ -68,7 +68,8 @@ private[reactive] final class FirstStartedObservable[A](source: Observable[A]*) 
     observer: Observer[A],
     finishLine: AtomicInt,
     idx: Int,
-    p: Promise[Int])(implicit s: Scheduler): Cancelable = {
+    p: Promise[Int]
+  )(implicit s: Scheduler): Cancelable = {
 
     observable.unsafeSubscribeFn(new Observer[A] {
       // for fast path

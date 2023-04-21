@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.execution.internal
 import monix.execution.internal.collection.ChunkedArrayQueue
 import scala.util.control.NonFatal
 import scala.annotation.tailrec
-import scala.concurrent.{BlockContext, CanAwait, ExecutionContext}
+import scala.concurrent.{ BlockContext, CanAwait, ExecutionContext }
 
 private[execution] class Trampoline {
   private def makeQueue(): ChunkedArrayQueue[Runnable] = ChunkedArrayQueue[Runnable](chunkSize = 16)
@@ -75,13 +75,17 @@ private[execution] class Trampoline {
     if (next ne null) immediateLoop(next, ec)
   }
 
-  protected final def trampolineContext(ec: ExecutionContext): BlockContext =
+  protected final def trampolineContext(parentContext: BlockContext, ec: ExecutionContext): BlockContext =
     new BlockContext {
       def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
         // In case of blocking, execute all scheduled local tasks on
         // a separate thread, otherwise we could end up with a dead-lock
         forkTheRest(ec)
-        thunk
+        if (parentContext ne null) {
+          parentContext.blockOn(thunk)
+        } else {
+          thunk
+        }
       }
     }
 }

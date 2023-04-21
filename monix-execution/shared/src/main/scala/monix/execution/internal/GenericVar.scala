@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.execution.internal
 
-import monix.execution.atomic.{AtomicAny, PaddingStrategy}
+import monix.execution.atomic.{ AtomicAny, PaddingStrategy }
 import monix.execution.internal.collection.LinkedMap
 import scala.annotation.tailrec
 
@@ -276,8 +276,8 @@ private[monix] object GenericVar {
     */
   private final case class WaitForPut[A](
     reads: LinkedMap[Id, Either[Nothing, A] => Unit],
-    takes: LinkedMap[Id, Either[Nothing, A] => Unit])
-    extends State[A]
+    takes: LinkedMap[Id, Either[Nothing, A] => Unit]
+  ) extends State[A]
 
   /** `AsyncVar` state signaling it has one or more values enqueued,
     * to be signaled on the next `take`.

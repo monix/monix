@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,21 +21,21 @@ import cats.laws._
 import cats.laws.discipline._
 
 object CoevalSequenceSuite extends BaseTestSuite {
-  test("Coeval.sequence") { implicit s =>
+  test("Coeval.sequence") { _ =>
     check1 { (numbers: List[Int]) =>
       val coeval = Coeval.sequence(numbers.map(x => Coeval(x)))
       coeval <-> Coeval(numbers)
     }
   }
 
-  test("Coeval.traverse") { implicit s =>
+  test("Coeval.traverse") { _ =>
     check1 { (numbers: List[Int]) =>
       val coeval = Coeval.traverse(numbers)(x => Coeval(x))
       coeval <-> Coeval(numbers)
     }
   }
 
-  test("Coeval.zipList") { implicit s =>
+  test("Coeval.zipList") { _ =>
     check1 { (numbers: List[Int]) =>
       val coeval = Coeval.zipList(numbers.map(x => Coeval(x)): _*)
       coeval <-> Coeval(numbers)

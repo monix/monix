@@ -17,7 +17,7 @@ jobs:
         java: [ 8, 11 ]
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
-        scala: [ 2.12.13, 3.0.0, 2.13.5 ]
+        scala: [ 2.12.17, 2.13.10, 3.2.2 ]
 
     env:
       CI: true
@@ -54,6 +54,13 @@ jobs:
           PLATFORM: ${{ matrix.java }}
           SBT_COMMAND: ci-jvm
 
+      - name: sbt reactiveTests/test
+        run: ./.github/scripts/exec-sbt-command
+        env:
+          SCALA_VERSION: ${{ matrix.scala }}
+          PLATFORM: ${{ matrix.java }}
+          SBT_COMMAND: "reactiveTests/test"
+
   js-tests:
     name: JS / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-20.04
@@ -63,9 +70,9 @@ jobs:
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
         include:
-          - { java: 8, scala: 2.12.13 }
-          - { java: 8, scala: 2.13.5 }
-          - { java: 8, scala: 3.0.0 }
+          - { java: 8, scala: 2.12.17 }
+          - { java: 8, scala: 2.13.10 }
+          - { java: 8, scala: 3.2.2 }
 
     env:
       CI: true
@@ -111,13 +118,17 @@ jobs:
   mima:
     name: Mima / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-20.04
+
+    env:
+      CI: true
+
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { java: 8, scala: 2.12.13 }
-          - { java: 8, scala: 2.13.5 }
-          - { java: 8, scala: 3.0.0 }
+          - { java: 8, scala: 2.12.17 }
+          - { java: 8, scala: 2.13.10 }
+          - { java: 8, scala: 3.2.2 }
 
     steps:
       - uses: actions/checkout@v2
@@ -151,16 +162,66 @@ jobs:
           SCALA_VERSION: ${{ matrix.scala }}
           SBT_COMMAND: mimaReportBinaryIssues
 
-  unidoc:
-    name: Unidoc / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
+  scalafmt:
+    name: Scalafmt / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-20.04
+
+    env:
+      CI: true
+
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { java: 8, scala: 2.13.5 }
-          # TODO: enable this after it works!
-          # - { java: 8, scala: 3.0.0 }
+          - { java: 11, scala: 2.12.17 }
+          - { java: 11, scala: 2.13.10 }
+          - { java: 11, scala: 3.2.2 }
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: "adopt@1.${{ matrix.java }}"
+
+      - name: Cache ivy2
+        uses: actions/cache@v1
+        with:
+          path: ~/.ivy2/cache
+          key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Cache coursier (linux)
+        if: contains(runner.os, 'linux')
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/coursier/v1
+          key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Cache sbt
+        uses: actions/cache@v1
+        with:
+          path: ~/.sbt
+          key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: sbt scalafmtCheckAll
+        run: |
+          ./.github/scripts/exec-sbt-command
+        env:
+          SCALA_VERSION: ${{ matrix.scala }}
+          SBT_COMMAND: scalafmtCheckAll
+
+  unidoc:
+    name: Unidoc / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
+    runs-on: ubuntu-20.04
+
+    env:
+      CI: true
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { java: 8, scala: 2.13.10 }
+          - { java: 8, scala: 3.2.2 }
 
     steps:
       - uses: actions/checkout@v2
@@ -196,17 +257,22 @@ jobs:
 
   all_tests:
     name: All Tests
-    needs: [ jvm-tests, js-tests, mima, unidoc ]
+    if: always()
+    needs: [ jvm-tests, js-tests, mima, scalafmt, unidoc ]
     runs-on: ubuntu-20.04
     steps:
-      - name: Ack
-        run: |
-          echo "All done."
+    - name: Validate required tests
+      uses: re-actors/alls-green@release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
 
   publish:
     name: Publish to Sonatype
     if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/series/4.x')
     needs: [ all_tests ]
+
+    env:
+      CI: true
 
     runs-on: ubuntu-20.04
     steps:
@@ -221,8 +287,6 @@ jobs:
       - name: Install GnuPG2
         run: |
           ./.github/scripts/setup-pgp
-        env:
-          PGP_SECRET: ${{ secrets.PGP_SECRET }}
 
       - name: .github/scripts/release
         run: |

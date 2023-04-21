@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@ import monix.execution.internal.Platform
 import scala.util.Success
 
 object CoevalMemoizeSuite extends BaseTestSuite {
-  test("Coeval.eval.memoize should work for first subscriber") { implicit s =>
+  test("Coeval.eval.memoize should work for first subscriber") { _ =>
     var effect = 0
     val coeval = Coeval.eval { effect += 1; effect }.memoize
 
@@ -31,7 +31,7 @@ object CoevalMemoizeSuite extends BaseTestSuite {
     assertEquals(f, Success(1))
   }
 
-  test("Coeval.eval.memoize should work for next subscribers") { implicit s =>
+  test("Coeval.eval.memoize should work for next subscribers") { _ =>
     var effect = 0
     val coeval = Coeval.eval { effect += 1; effect }.memoize
     coeval.runTry()
@@ -42,7 +42,7 @@ object CoevalMemoizeSuite extends BaseTestSuite {
     assertEquals(f2, Success(1))
   }
 
-  test("Coeval.evalOnce.memoize should work for first subscriber") { implicit s =>
+  test("Coeval.evalOnce.memoize should work for first subscriber") { _ =>
     var effect = 0
     val coeval = Coeval.evalOnce { effect += 1; effect }.memoize
 
@@ -50,7 +50,7 @@ object CoevalMemoizeSuite extends BaseTestSuite {
     assertEquals(f, Success(1))
   }
 
-  test("Coeval.evalOnce.memoize should work for next subscribers") { implicit s =>
+  test("Coeval.evalOnce.memoize should work for next subscribers") { _ =>
     var effect = 0
     val coeval = Coeval.evalOnce { effect += 1; effect }.memoize
     coeval.runTry()
@@ -61,16 +61,16 @@ object CoevalMemoizeSuite extends BaseTestSuite {
     assertEquals(f2, Success(1))
   }
 
-  test("Coeval.now.memoize should return self") { implicit s =>
+  test("Coeval.now.memoize should return self") { _ =>
     assertEquals(Coeval.now(10), Coeval.now(10).memoize)
   }
 
-  test("Coeval.error.memoize should return self") { implicit s =>
+  test("Coeval.error.memoize should return self") { _ =>
     val dummy = DummyException("dummy")
     assertEquals(Coeval.raiseError(dummy), Coeval.raiseError(dummy).memoize)
   }
 
-  test("Coeval.memoize should be stack safe") { implicit s =>
+  test("Coeval.memoize should be stack safe") { _ =>
     var effect = 0
     var coeval = Coeval { effect += 1; effect }
     val count = if (Platform.isJVM) 100000 else 5000
@@ -78,7 +78,7 @@ object CoevalMemoizeSuite extends BaseTestSuite {
     assertEquals(coeval.runTry(), Success(1))
   }
 
-  test("Coeval.apply.memoize effects") { implicit s =>
+  test("Coeval.apply.memoize effects") { _ =>
     var effect = 0
     val coeval1 = Coeval { effect += 1; 3 }.memoize
     val coeval2 = coeval1.map { x =>
@@ -94,7 +94,7 @@ object CoevalMemoizeSuite extends BaseTestSuite {
     assertEquals(result2, Success(4))
   }
 
-  test("Coeval.suspend.memoize effects") { implicit s =>
+  test("Coeval.suspend.memoize effects") { _ =>
     var effect = 0
     val coeval1 = Coeval.defer { effect += 1; Coeval.now(3) }.memoize
     val coeval2 = coeval1.map { x =>
@@ -110,7 +110,7 @@ object CoevalMemoizeSuite extends BaseTestSuite {
     assertEquals(result2, Success(4))
   }
 
-  test("Coeval.suspend.flatMap.memoize effects") { implicit s =>
+  test("Coeval.suspend.flatMap.memoize effects") { _ =>
     var effect = 0
     val coeval1 = Coeval.defer { effect += 1; Coeval.now(2) }
       .flatMap(x => Coeval.now(x + 1))

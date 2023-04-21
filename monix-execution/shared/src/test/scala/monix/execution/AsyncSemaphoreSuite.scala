@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,8 +20,8 @@ package monix.execution
 import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
 import monix.execution.internal.Platform
-import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.util.{Random, Success}
+import scala.concurrent.{ ExecutionContext, Future, Promise }
+import scala.util.{ Random, Success }
 
 object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -218,7 +218,7 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
         assertEquals(r, count)
         assertEquals(semaphore.available(), available)
       }
-    }    
+    }
   }
 
   def repeatTest(n: Int)(f: () => Future[Unit])(implicit ec: ExecutionContext): Future[Unit] =

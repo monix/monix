@@ -8,10 +8,14 @@ import scala.collection.mutable
 import scala.collection.immutable.SortedSet
 import scala.util.matching.Regex
 import scala.xml.Elem
-import scala.xml.transform.{RewriteRule, RuleTransformer}
+import scala.xml.transform.{ RewriteRule, RuleTransformer }
 
 final case class MonixScalaVersion(value: String) {
-  lazy val parts = value.split("[.]").filter(_.nonEmpty).toList
+  lazy val parts = 
+    value.split("[.]").filter(_.nonEmpty).toList
+  
+  def filterPrefix(prefix: String): Option[MonixScalaVersion] =
+    if (value.startsWith(prefix)) Some(this) else None
 }
 
 object MonixScalaVersion {
@@ -44,16 +48,14 @@ final case class MonixCrossModule(
 )
 
 object MonixBuildUtils {
-  /**
-    * Applies [[filterOutDependencyFromGeneratedPomXml]] to a list of multiple dependencies.
+  /** Applies [[filterOutDependencyFromGeneratedPomXml]] to a list of multiple dependencies.
     */
   def filterOutMultipleDependenciesFromGeneratedPomXml(list: List[(String, Regex)]*) =
     list.foldLeft(List.empty[Def.Setting[_]]) { (acc, elem) =>
-      acc ++ filterOutDependencyFromGeneratedPomXml(elem:_*)
+      acc ++ filterOutDependencyFromGeneratedPomXml(elem: _*)
     }
 
-  /**
-    * Filter out dependencies from the generated `pom.xml`.
+  /** Filter out dependencies from the generated `pom.xml`.
     *
     * E.g. to exclude Scoverage:
     * {{{
@@ -68,12 +70,14 @@ object MonixBuildUtils {
   def filterOutDependencyFromGeneratedPomXml(conditions: (String, Regex)*) = {
     def shouldExclude(e: Elem) =
       e.label == "dependency" && {
-        conditions.forall { case (key, regex) =>
-          e.child.exists(child => child.label == key && regex.findFirstIn(child.text).isDefined)
+        conditions.forall {
+          case (key, regex) =>
+            e.child.exists(child => child.label == key && regex.findFirstIn(child.text).isDefined)
         }
       }
 
-    if (conditions.isEmpty) Nil else {
+    if (conditions.isEmpty) Nil
+    else {
       Seq(
         // For evicting Scoverage out of the generated POM
         // See: https://github.com/scoverage/sbt-scoverage/issues/153
@@ -89,8 +93,7 @@ object MonixBuildUtils {
     }
   }
 
-  /**
-    * Reads the Scala versions from `.github/workflows/build.yml`.
+  /** Reads the Scala versions from `.github/workflows/build.yml`.
     */
   def readScalaVersionsFromBuildYaml(manifest: File): SortedSet[MonixScalaVersion] = {
     Using.fileInputStream(manifest) { fis =>
@@ -118,7 +121,7 @@ object MonixBuildUtils {
         .toSeq
 
       assert(scalaVersions.nonEmpty, "build.yml is corrupt, suitable scala_version_* keys missing")
-      SortedSet(scalaVersions:_*)
+      SortedSet(scalaVersions: _*)
     }
   }
 }

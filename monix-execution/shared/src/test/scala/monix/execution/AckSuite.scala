@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,13 +18,13 @@
 package monix.execution
 
 import minitest.TestSuite
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import monix.execution.internal.Platform
 
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ Future, Promise }
+import scala.util.{ Failure, Success, Try }
 
 object AckSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -531,52 +531,52 @@ object AckSuite extends TestSuite[TestScheduler] {
     s.tick()
   }
 
-  test("isSynchronous(Future(Continue)) == false") { implicit s =>
+  test("isSynchronous(Future(Continue)) == false") { _ =>
     val f: Future[Ack] = Future.successful(Continue)
     assert(!f.isSynchronous)
   }
 
-  test("isSynchronous(Continue) == true") { implicit s =>
+  test("isSynchronous(Continue) == true") { _ =>
     val f: Future[Ack] = Continue
     assert(f.isSynchronous)
   }
 
-  test("isSynchronous(Future(Stop)) == false") { implicit s =>
+  test("isSynchronous(Future(Stop)) == false") { _ =>
     val f: Future[Ack] = Future.successful(Stop)
     assert(!f.isSynchronous)
   }
 
-  test("isSynchronous(Stop) == true") { implicit s =>
+  test("isSynchronous(Stop) == true") { _ =>
     val f: Future[Ack] = Stop
     assert(f.isSynchronous)
   }
 
-  test("isSynchronous(failure) == false") { implicit s =>
+  test("isSynchronous(failure) == false") { _ =>
     val f: Future[Ack] = Future.failed(new RuntimeException)
     assert(!f.isSynchronous)
   }
 
-  test("isSynchronous(impure Future(Continue)) == false") { implicit s =>
+  test("isSynchronous(impure Future(Continue)) == false") { _ =>
     def f: Future[Ack] = Future.successful(Continue)
     assert(!f.isSynchronous)
   }
 
-  test("isSynchronous(impure Continue) == true") { implicit s =>
+  test("isSynchronous(impure Continue) == true") { _ =>
     def f: Future[Ack] = Continue
     assert(f.isSynchronous)
   }
 
-  test("isSynchronous(impure Future(Stop)) == false") { implicit s =>
+  test("isSynchronous(impure Future(Stop)) == false") { _ =>
     def f: Future[Ack] = Future.successful(Stop)
     assert(!f.isSynchronous)
   }
 
-  test("isSynchronous(impure Stop) == true") { implicit s =>
+  test("isSynchronous(impure Stop) == true") { _ =>
     def f: Future[Ack] = Stop
     assert(f.isSynchronous)
   }
 
-  test("isSynchronous(impure failure) == false") { implicit s =>
+  test("isSynchronous(impure failure) == false") { _ =>
     def f: Future[Ack] = Future.failed(new RuntimeException)
     assert(!f.isSynchronous)
   }
@@ -712,7 +712,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("Continue.syncOnContinueFollow") { implicit s =>
+  test("Continue.syncOnContinueFollow") { _ =>
     val ack: Future[Ack] = Continue
     val p = Promise[Int]()
 
@@ -760,7 +760,7 @@ object AckSuite extends TestSuite[TestScheduler] {
     assertEquals(p.future.value, None)
   }
 
-  test("Stop.syncOnStopFollow") { implicit s =>
+  test("Stop.syncOnStopFollow") { _ =>
     val ack: Future[Ack] = Stop
     val p = Promise[Int]()
 

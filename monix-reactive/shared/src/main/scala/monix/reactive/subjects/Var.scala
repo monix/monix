@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,8 +17,8 @@
 
 package monix.reactive.subjects
 
-import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.reactive.{Observable, OverflowStrategy}
+import monix.execution.{ Ack, Cancelable, Scheduler }
+import monix.reactive.{ Observable, OverflowStrategy }
 import monix.reactive.observers.Subscriber
 
 /** `Var` when subscribed, will emit the most recently emitted item by the source,

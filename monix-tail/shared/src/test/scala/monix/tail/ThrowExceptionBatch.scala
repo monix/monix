@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.tail
 
 import monix.execution.atomic.Atomic
-import monix.tail.batches.{BatchCursor, GenericBatch}
+import monix.tail.batches.{ BatchCursor, GenericBatch }
 
 /** Batch that throws exception on access. */
 final class ThrowExceptionBatch[A](ex: Throwable) extends GenericBatch[A] {

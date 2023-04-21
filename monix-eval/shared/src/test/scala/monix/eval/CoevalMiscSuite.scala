@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,21 +21,21 @@ import cats.laws._
 import cats.laws.discipline._
 
 import monix.execution.exceptions.DummyException
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object CoevalMiscSuite extends BaseTestSuite {
-  test("Coeval.now.attempt should succeed") { implicit s =>
+  test("Coeval.now.attempt should succeed") { _ =>
     val result = Coeval.now(1).attempt.value()
     assertEquals(result, Right(1))
   }
 
-  test("Coeval.raiseError.attempt should expose error") { implicit s =>
+  test("Coeval.raiseError.attempt should expose error") { _ =>
     val ex = DummyException("dummy")
     val result = Coeval.raiseError[Int](ex).attempt.value()
     assertEquals(result, Left(ex))
   }
 
-  test("Coeval.fail should expose error") { implicit s =>
+  test("Coeval.fail should expose error") { _ =>
     val dummy = DummyException("dummy")
     check1 { (fa: Coeval[Int]) =>
       val r = fa.map(_ => throw dummy).failed.value()
@@ -43,7 +43,7 @@ object CoevalMiscSuite extends BaseTestSuite {
     }
   }
 
-  test("Coeval.fail should fail for successful values") { implicit s =>
+  test("Coeval.fail should fail for successful values") { _ =>
     intercept[NoSuchElementException] {
       Coeval.eval(10).failed.value()
       ()
@@ -51,24 +51,24 @@ object CoevalMiscSuite extends BaseTestSuite {
     ()
   }
 
-  test("Coeval.map protects against user code") { implicit s =>
+  test("Coeval.map protects against user code") { _ =>
     val ex = DummyException("dummy")
     val result = Coeval.now(1).map(_ => throw ex).runTry()
     assertEquals(result, Failure(ex))
   }
 
-  test("Coeval.now.dematerialize") { implicit s =>
+  test("Coeval.now.dematerialize") { _ =>
     val result = Coeval.now(1).materialize.dematerialize.runTry()
     assertEquals(result, Success(1))
   }
 
-  test("Coeval.raiseError.dematerialize") { implicit s =>
+  test("Coeval.raiseError.dematerialize") { _ =>
     val ex = DummyException("dummy")
     val result = Coeval.raiseError[Int](ex).materialize.dematerialize.runTry()
     assertEquals(result, Failure(ex))
   }
 
-  test("Coeval.restartUntil") { implicit s =>
+  test("Coeval.restartUntil") { _ =>
     var i = 0
     val r = Coeval {
       i += 1; i
@@ -76,7 +76,7 @@ object CoevalMiscSuite extends BaseTestSuite {
     assertEquals(r, 11)
   }
 
-  test("Coeval.pure is an alias of now") { implicit s =>
+  test("Coeval.pure is an alias of now") { _ =>
     assertEquals(Coeval.pure(1), Coeval.now(1))
   }
 
@@ -89,14 +89,14 @@ object CoevalMiscSuite extends BaseTestSuite {
     assertEquals(fa.value(), 3)
   }
 
-  test("Coeval.flatten is equivalent with flatMap") { implicit s =>
+  test("Coeval.flatten is equivalent with flatMap") { _ =>
     check1 { (nr: Int) =>
       val ref = Coeval(Coeval(nr))
       ref.flatten <-> ref.flatMap(x => x)
     }
   }
 
-  test("Coeval.error.flatten is equivalent with flatMap") { implicit s =>
+  test("Coeval.error.flatten is equivalent with flatMap") { _ =>
     val ex = DummyException("dummy")
     val ref = Coeval(Coeval.raiseError[Int](ex))
     assertEquals(ref.flatten.runTry(), ref.flatMap(x => x).runTry())

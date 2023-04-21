@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,15 +19,15 @@ package monix.reactive.observers.buffers
 
 import monix.eval.Coeval
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.internal.collection.{JSArrayQueue, _}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.internal.collection.{ JSArrayQueue, _ }
 
 import scala.util.control.NonFatal
 import monix.execution.exceptions.BufferOverflowException
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /** A [[BufferedSubscriber]] implementation for the
   * [[monix.reactive.OverflowStrategy.DropNew DropNew]] overflow strategy.
@@ -35,8 +35,8 @@ import scala.util.{Failure, Success}
 private[observers] final class SyncBufferedSubscriber[-A] private (
   out: Subscriber[A],
   queue: EvictingQueue[A],
-  onOverflow: Long => Coeval[Option[A]] = null)
-  extends BufferedSubscriber[A] with Subscriber.Sync[A] {
+  onOverflow: Long => Coeval[Option[A]] /*| Null*/,
+) extends BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   implicit val scheduler = out.scheduler
   // to be modified only in onError, before upstreamIsComplete
@@ -122,7 +122,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private (
           Stop
       }
 
-    private def downstreamSignalComplete(ex: Throwable = null): Unit = {
+    private def downstreamSignalComplete(ex: Throwable /* | Null*/ ): Unit = {
       downstreamIsComplete = true
       try {
         if (ex != null) out.onError(ex)
@@ -257,11 +257,15 @@ private[monix] object SyncBufferedSubscriber {
     */
   def bounded[A](underlying: Subscriber[A], bufferSize: Int): Subscriber.Sync[A] = {
     require(bufferSize > 1, "bufferSize must be strictly higher than 1")
-    val buffer = JSArrayQueue.bounded[A](bufferSize, _ => {
-      BufferOverflowException(
-        s"Downstream observer is too slow, buffer over capacity with a " +
-          s"specified buffer size of $bufferSize")
-    })
+    val buffer = JSArrayQueue.bounded[A](
+      bufferSize,
+      _ => {
+        BufferOverflowException(
+          s"Downstream observer is too slow, buffer over capacity with a " +
+            s"specified buffer size of $bufferSize"
+        )
+      }
+    )
 
     new SyncBufferedSubscriber[A](underlying, buffer, null)
   }
@@ -285,7 +289,8 @@ private[monix] object SyncBufferedSubscriber {
   def dropNewAndSignal[A](
     underlying: Subscriber[A],
     bufferSize: Int,
-    onOverflow: Long => Coeval[Option[A]]): Subscriber.Sync[A] = {
+    onOverflow: Long => Coeval[Option[A]]
+  ): Subscriber.Sync[A] = {
     require(bufferSize > 1, "bufferSize must be strictly higher than 1")
     val buffer = JSArrayQueue.bounded[A](bufferSize)
     new SyncBufferedSubscriber[A](underlying, buffer, onOverflow)
@@ -311,7 +316,8 @@ private[monix] object SyncBufferedSubscriber {
   def dropOldAndSignal[A](
     underlying: Subscriber[A],
     bufferSize: Int,
-    onOverflow: Long => Coeval[Option[A]]): Subscriber.Sync[A] = {
+    onOverflow: Long => Coeval[Option[A]]
+  ): Subscriber.Sync[A] = {
     require(bufferSize > 1, "bufferSize must be strictly higher than 1")
     val buffer = DropHeadOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[EvictingQueue[A]]
     new SyncBufferedSubscriber[A](underlying, buffer, onOverflow)
@@ -337,7 +343,8 @@ private[monix] object SyncBufferedSubscriber {
   def clearBufferAndSignal[A](
     underlying: Subscriber[A],
     bufferSize: Int,
-    onOverflow: Long => Coeval[Option[A]]): Subscriber.Sync[A] = {
+    onOverflow: Long => Coeval[Option[A]]
+  ): Subscriber.Sync[A] = {
     require(bufferSize > 1, "bufferSize must be strictly higher than 1")
     val buffer = DropAllOnOverflowQueue[AnyRef](bufferSize).asInstanceOf[EvictingQueue[A]]
     new SyncBufferedSubscriber[A](underlying, buffer, onOverflow)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,8 +27,8 @@ import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.tail.batches.Batch
-import org.reactivestreams.{Subscriber, Subscription}
-import scala.util.{Failure, Success}
+import org.reactivestreams.{ Subscriber, Subscription }
+import scala.util.{ Failure, Success }
 
 object IterantToReactivePublisherSuite extends BaseTestSuite {
   test("sum with Task and request(1)") { implicit s =>
@@ -378,7 +378,7 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     def asyncF[A](k: ((Either[Throwable, A]) => Unit) => IO[Unit]): IO[A] =
       IO.asyncF(k)
     def suspend[A](thunk: => IO[A]): IO[A] =
-      IO.suspend(thunk)
+      IO.defer(thunk)
     def flatMap[A, B](fa: IO[A])(f: (A) => IO[B]): IO[B] =
       fa.flatMap(f)
     def tailRecM[A, B](a: A)(f: (A) => IO[Either[A, B]]): IO[B] =
@@ -392,7 +392,8 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
     override def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(
-      release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
+      release: (A, ExitCase[Throwable]) => IO[Unit]
+    ): IO[B] =
       acquire.bracketCase(use)(release)
   }
 }

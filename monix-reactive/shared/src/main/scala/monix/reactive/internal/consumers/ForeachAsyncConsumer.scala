@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,10 +17,10 @@
 
 package monix.reactive.internal.consumers
 
-import monix.execution.{Ack, Callback, Cancelable, Scheduler}
+import monix.execution.{ Ack, Callback, Cancelable, Scheduler }
 import monix.eval.Task
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{AssignableCancelable, SingleAssignCancelable}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.cancelables.{ AssignableCancelable, SingleAssignCancelable }
 import scala.util.control.NonFatal
 
 import monix.reactive.Consumer
@@ -41,7 +41,7 @@ private[reactive] final class ForeachAsyncConsumer[A](f: A => Task[Unit]) extend
         try {
           this.synchronized {
             if (!isDone) {
-              val future = f(elem).redeem({e => onError(e); Stop}, _ => Continue).runToFuture
+              val future = f(elem).redeem({ e => onError(e); Stop }, _ => Continue).runToFuture
               lastCancelable = future
               future.syncTryFlatten
             } else Stop
@@ -66,12 +66,15 @@ private[reactive] final class ForeachAsyncConsumer[A](f: A => Task[Unit]) extend
         }
     }
 
-    (out, SingleAssignCancelable.plusOne(Cancelable { () =>
-      out.synchronized {
-        isDone = true
-        lastCancelable.cancel()
-        lastCancelable = Cancelable.empty
-      }
-    }))
+    (
+      out,
+      SingleAssignCancelable.plusOne(Cancelable { () =>
+        out.synchronized {
+          isDone = true
+          lastCancelable.cancel()
+          lastCancelable = Cancelable.empty
+        }
+      })
+    )
   }
 }

@@ -18,11 +18,11 @@
 package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
-import monix.execution.ChannelType.{MPMC, SPMC, SPSC}
-import monix.execution.{AsyncQueue, CancelableFuture, ChannelType, BufferCapacity}
+import monix.execution.ChannelType.{ MPMC, SPMC, SPSC }
+import monix.execution.{ AsyncQueue, BufferCapacity, CancelableFuture, ChannelType }
 import org.openjdk.jmh.annotations._
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ Await, Future }
 
 /** To do comparative benchmarks between versions:
   *
@@ -93,4 +93,3 @@ class AsyncQueueBenchmark {
     Await.result(r, Duration.Inf)
   }
 }
-

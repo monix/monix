@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,18 +18,18 @@
 package monix.catnap
 
 import cats.implicits._
-import cats.effect.{Concurrent, ContextShift, Resource}
+import cats.effect.{ Concurrent, ContextShift, Resource }
 import monix.catnap.internal.QueueHelpers
-import monix.execution.BufferCapacity.{Bounded, Unbounded}
-import monix.execution.ChannelType.{MultiConsumer, MultiProducer}
-import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
+import monix.execution.BufferCapacity.{ Bounded, Unbounded }
+import monix.execution.ChannelType.{ MultiConsumer, MultiProducer }
+import monix.execution.annotations.{ UnsafeBecauseImpure, UnsafeProtocol }
 import monix.execution.atomic.AtomicAny
 import monix.execution.atomic.PaddingStrategy.LeftRight128
-import monix.execution.internal.collection.{LowLevelConcurrentQueue => LowLevelQueue}
-import monix.execution.internal.{Constants, Platform}
-import monix.execution.{CancelablePromise, ChannelType}
+import monix.execution.internal.collection.{ LowLevelConcurrentQueue => LowLevelQueue }
+import monix.execution.internal.{ Constants, Platform }
+import monix.execution.{ CancelablePromise, ChannelType }
 
-import scala.annotation.{switch, tailrec}
+import scala.annotation.{ switch, tailrec }
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -717,7 +717,7 @@ object ConcurrentChannel {
     consumersAwait: AtomicAny[CancelablePromise[Unit]],
     isFinished: () => Option[E],
     helpers: Helpers[F]
-  )(implicit F: Concurrent[F], cs: ContextShift[F]) {
+  )(implicit F: Concurrent[F]) {
 
     @tailrec
     private[this] def notifyConsumers(): Unit = {
@@ -777,7 +777,8 @@ object ConcurrentChannel {
         if (!hasCapacity) {
           assert(producersAwait ne null, "producersAwait ne null (Bug!)")
           val offerWait = F.asyncF[Ack](cb =>
-            helpers.sleepThenRepeat(producersAwait, () => tryPushToOurQueue(elem), pushFilter, pushManyMap, cb))
+            helpers.sleepThenRepeat(producersAwait, () => tryPushToOurQueue(elem), pushFilter, pushManyMap, cb)
+          )
           offerWait.flatMap {
             case Continue => loop(cursor)
             case Stop => helpers.stopF
@@ -796,7 +797,8 @@ object ConcurrentChannel {
     producersAwait: AtomicAny[CancelablePromise[Unit]],
     consumersAwait: AtomicAny[CancelablePromise[Unit]],
     isFinished: () => Option[E],
-    helpers: Helpers[F])(implicit F: Concurrent[F], cs: ContextShift[F])
+    helpers: Helpers[F]
+  )(implicit F: Concurrent[F])
     extends ConsumerF[F, E, A] {
 
     @tailrec
@@ -857,7 +859,8 @@ object ConcurrentChannel {
                 pullFilter,
                 pullMap.asInstanceOf[Either[E, A] => Either[E, A]],
                 cb
-              ))
+              )
+            )
           case value =>
             F.pure(value)
         }
@@ -921,7 +924,8 @@ object ConcurrentChannel {
                   pullFilter,
                   pullMap.asInstanceOf[Either[E, Seq[A]] => Either[E, Seq[A]]],
                   cb
-                ))
+                )
+              )
           }
       }
     }

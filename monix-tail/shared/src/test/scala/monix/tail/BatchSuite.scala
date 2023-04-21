@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,8 +26,8 @@ abstract class BatchSuite[A: ClassTag](
   implicit
   arbA: Arbitrary[A],
   arbAtoA: Arbitrary[A => A],
-  arbAtoBoolean: Arbitrary[A => Boolean])
-  extends BaseTestSuite {
+  arbAtoBoolean: Arbitrary[A => Boolean]
+) extends BaseTestSuite {
 
   type Batch <: batches.Batch[A]
 

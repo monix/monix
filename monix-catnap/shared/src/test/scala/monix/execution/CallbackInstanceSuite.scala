@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +26,7 @@ object CallbackInstanceSuite extends TestSuite[TestScheduler] {
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
 
-  test("contramap has a cats Contramap instance") { implicit s =>
+  test("contramap has a cats Contramap instance") { _ =>
     val instance = implicitly[Contravariant[Callback[Throwable, *]]]
     val callback = TestCallback()
     val stringCallback = instance.contramap(callback)((x: String) => x.toInt)

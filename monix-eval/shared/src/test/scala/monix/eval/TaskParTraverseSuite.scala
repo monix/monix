@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@ import monix.execution.internal.Platform
 
 import concurrent.duration._
 import scala.annotation.nowarn
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskParTraverseSuite extends BaseTestSuite {
   test("Task.parTraverse should execute in parallel for async tasks") { implicit s =>
@@ -93,7 +93,7 @@ object TaskParTraverseSuite extends BaseTestSuite {
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
 
     val task2 = Task.parTraverse(Seq(0, 0, 0)) { _ =>
-      task1 map { x =>
+      task1.map { x =>
         effect += 1; x + 1
       }
     }

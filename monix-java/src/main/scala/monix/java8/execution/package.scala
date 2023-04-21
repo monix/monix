@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,11 @@
 
 package monix.java8
 
-import java.util.concurrent.{CancellationException, CompletableFuture, CompletionException}
+import java.util.concurrent.{ CancellationException, CompletableFuture, CompletionException }
 import java.util.function.BiFunction
-import monix.execution.{Cancelable, CancelableFuture}
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import monix.execution.{ Cancelable, CancelableFuture }
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.{ Failure, Success }
 
 /**
   * DEPRECATED — switch to Scala 2.12+ and [[monix.execution.FutureUtils]].
@@ -36,7 +36,7 @@ package object execution {
       * DEPRECATED — switch to Scala 2.12+ and
       * [[monix.execution.CancelableFuture.fromJavaCompletable CancelableFuture.fromJavaCompletable]].
       */
-    @deprecated("Switch to Scala 2.12+ and CancelableFuture.fromJavaCompletable", "3.0.0")
+    @deprecated("Switch to Scala 2.12+ and CancelableFuture.fromJavaCompletable", "3.0.2")
     def asScala(implicit ec: ExecutionContext): CancelableFuture[A] = {
       // $COVERAGE-OFF$
       CancelableFuture.async(cb => {
@@ -69,7 +69,7 @@ package object execution {
       * DEPRECATED — switch to Scala 2.12+ and
       * [[monix.execution.FutureUtils.toJavaCompletable FutureUtils.toJavaCompletable]].
       */
-    @deprecated("Switch to Scala 2.12+ and FutureUtils.toJavaCompletable", "3.0.0")
+    @deprecated("Switch to Scala 2.12+ and FutureUtils.toJavaCompletable", "3.0.2")
     def asJava(implicit ec: ExecutionContext): CompletableFuture[A] = {
       // $COVERAGE-OFF$
       val cf = new CompletableFuture[A]()

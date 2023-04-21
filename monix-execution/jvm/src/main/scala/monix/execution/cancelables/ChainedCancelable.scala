@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.execution.cancelables
 import java.lang.ref.WeakReference
 import monix.execution.Cancelable
 import monix.execution.Cancelable.IsDummy
-import monix.execution.atomic.{AtomicAny, PaddingStrategy}
+import monix.execution.atomic.{ AtomicAny, PaddingStrategy }
 import monix.execution.internal.exceptions.matchError
 
 /** Represents a [[monix.execution.Cancelable]] whose underlying
@@ -113,7 +113,7 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
       case other =>
         // $COVERAGE-OFF$
         matchError(other)
-        // $COVERAGE-ON$
+      // $COVERAGE-ON$
     }
   }
 
@@ -210,7 +210,7 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
     }
   }

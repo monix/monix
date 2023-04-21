@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import monix.execution.Cancelable.{Empty, IsDummy}
+import monix.execution.Cancelable.{ Empty, IsDummy }
 
 /** Represents a class of cancelables that can hold
   * an internal reference to another cancelable (and thus

@@ -16,6 +16,9 @@ jobs:
   publish:
     name: Publish to Sonatype (Request)
 
+    env:
+      CI: true
+
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
@@ -30,8 +33,6 @@ jobs:
       - name: Install GnuPG2
         run: |
           ./.github/scripts/setup-pgp
-        env:
-          PGP_SECRET: ${{ secrets.PGP_SECRET }}
 
       - name: sbt ci-release
         run: |

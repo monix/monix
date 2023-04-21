@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,11 +18,11 @@
 package monix.execution
 
 import minitest.TestSuite
-import monix.execution.exceptions.{CallbackCalledMultipleTimesException, DummyException}
+import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, DummyException }
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.Promise
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 object CallbackSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -46,25 +46,25 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("onValue should invoke onSuccess") { implicit s =>
+  test("onValue should invoke onSuccess") { _ =>
     val callback = TestCallback()
     callback.onSuccess(1)
     assert(callback.successCalled)
   }
 
-  test("apply Success(value) should invoke onSuccess") { implicit s =>
+  test("apply Success(value) should invoke onSuccess") { _ =>
     val callback = TestCallback()
     callback(Success(1))
     assert(callback.successCalled)
   }
 
-  test("apply Failure(ex) should invoke onError") { implicit s =>
+  test("apply Failure(ex) should invoke onError") { _ =>
     val callback = TestCallback()
     callback(Failure(new IllegalStateException()))
     assert(callback.errorCalled)
   }
 
-  test("contramap should pipe onError") { implicit s =>
+  test("contramap should pipe onError") { _ =>
     var result = Option.empty[Try[Int]]
     val callback = TestCallback(
       { v =>
@@ -72,7 +72,8 @@ object CallbackSuite extends TestSuite[TestScheduler] {
       },
       { e =>
         result = Some(Failure(e))
-      })
+      }
+    )
 
     val stringCallback = callback.contramap[String](_.toInt)
     val dummy = DummyException("dummy")
@@ -81,7 +82,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     assertEquals(result, Some(Failure(dummy)))
   }
 
-  test("contramap should invoke function before invoking callback") { implicit s =>
+  test("contramap should invoke function before invoking callback") { _ =>
     val callback = TestCallback()
     val stringCallback = callback.contramap[String](_.toInt)
     stringCallback.onSuccess("1")
@@ -113,7 +114,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
   }
 
   test("Callback.empty reports errors") { implicit s =>
-    val empty = Callback[Throwable].empty[Int]
+    val empty = Callback.empty[Throwable, Int]
     val dummy = DummyException("dummy")
     empty.onError(dummy)
 
@@ -133,7 +134,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
         throw new IllegalStateException("onError")
     }
 
-    val safe = Callback[Throwable].safe(cb)
+    val safe = Callback.safe(cb)
     assert(safe.tryOnSuccess(1), "safe.tryOnSuccess(1)")
 
     assertEquals(effect, 1)
@@ -158,7 +159,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    val safe = Callback[Throwable].safe(cb)
+    val safe = Callback.safe(cb)
     assert(safe.tryOnError(dummy2), "safe.onError(dummy2)")
 
     assertEquals(effect, 1)
@@ -187,7 +188,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
 
   test("fromAttempt success") { _ =>
     val p = Promise[Int]()
-    val cb = Callback[Throwable].fromAttempt[Int] {
+    val cb = Callback.fromAttempt[Throwable, Int] {
       case Right(a) => p.success(a); ()
       case Left(e) => p.failure(e); ()
     }
@@ -198,7 +199,7 @@ object CallbackSuite extends TestSuite[TestScheduler] {
 
   test("fromAttempt error") { _ =>
     val p = Promise[Int]()
-    val cb = Callback[Throwable].fromAttempt[Int] {
+    val cb = Callback.fromAttempt[Throwable, Int] {
       case Right(a) => p.success(a); ()
       case Left(e) => p.failure(e); ()
     }

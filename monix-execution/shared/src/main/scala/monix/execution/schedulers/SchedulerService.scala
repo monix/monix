@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,11 @@
 
 package monix.execution.schedulers
 
-import monix.execution.{Scheduler, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import monix.execution.{ ExecutionModel => ExecModel, Scheduler, UncaughtExceptionReporter }
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration.{FiniteDuration, TimeUnit}
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.duration.{ FiniteDuration, TimeUnit }
 
 /** A [[monix.execution.Scheduler Scheduler]] type that provides
   * methods for managing termination.

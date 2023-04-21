@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ package internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.internal.collection.ChunkedArrayStack
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 import monix.tail.batches.Batch
 
 private[tail] object IterantBuffer {
@@ -39,7 +39,8 @@ private[tail] object IterantBuffer {
       count,
       count,
       (seq, rest) => NextBatch(Batch.fromArray(seq), rest),
-      seq => NextBatch(Batch.fromArray(seq), F.pure(Iterant.empty)))
+      seq => NextBatch(Batch.fromArray(seq), F.pure(Iterant.empty))
+    )
   }
 
   private def build[F[_], A, B](
@@ -47,7 +48,8 @@ private[tail] object IterantBuffer {
     count: Int,
     skip: Int,
     f: (Array[A], F[Iterant[F, B]]) => Iterant[F, B],
-    last: Array[A] => Iterant[F, B])(implicit F: Sync[F]): Iterant[F, B] = {
+    last: Array[A] => Iterant[F, B]
+  )(implicit F: Sync[F]): Iterant[F, B] = {
 
     Suspend(F.defer(new BatchVisitor(count, skip, f, last).apply(self)))
   }
@@ -56,7 +58,8 @@ private[tail] object IterantBuffer {
     count: Int,
     skip: Int,
     f: (Array[A], F[Iterant[F, B]]) => Iterant[F, B],
-    last: Array[A] => Iterant[F, B])(implicit F: Sync[F])
+    last: Array[A] => Iterant[F, B]
+  )(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[Iterant[F, B]]] { loop =>
 
     private[this] val buffer = new Buffer[A](count, skip)

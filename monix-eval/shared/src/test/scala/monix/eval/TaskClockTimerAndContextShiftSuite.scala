@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,12 +19,12 @@ package monix.eval
 
 import java.util.concurrent.TimeUnit
 
-import cats.effect.{Clock, ContextShift, Timer}
+import cats.effect.{ Clock, ContextShift, Timer }
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
   test("Task.clock is implicit") { _ =>
@@ -69,7 +69,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.timer is implicit") { implicit s =>
+  test("Task.timer is implicit") { _ =>
     assertEquals(Task.timer, implicitly[Timer[Task]])
     assertEquals(Task.timer.clock, implicitly[Clock[Task]])
   }
@@ -104,7 +104,7 @@ object TaskClockTimerAndContextShiftSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("Task.contextShift is implicit") { implicit s =>
+  test("Task.contextShift is implicit") { _ =>
     assertEquals(Task.contextShift, implicitly[ContextShift[Task]])
   }
 

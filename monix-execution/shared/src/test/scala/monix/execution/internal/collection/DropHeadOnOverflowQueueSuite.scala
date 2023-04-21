@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -86,7 +86,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropHeadOnOverflowQueue[Int](7)
 
     assertEquals(q.capacity, 7)
-    assertEquals(q.poll(), null)
+    assertEquals(q.poll(): Any, null)
 
     assertEquals(q.offer(0), 0)
     assertEquals(q.poll(), 0)

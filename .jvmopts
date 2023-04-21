@@ -1,8 +1,0 @@
--Dfile.encoding=UTF8
--Xms1G
--Xmx3G
--XX:ReservedCodeCacheSize=250M
--XX:+TieredCompilation
--XX:-UseGCOverheadLimit
--XX:+CMSClassUnloadingEnabled
-

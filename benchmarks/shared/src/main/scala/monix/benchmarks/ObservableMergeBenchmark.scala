@@ -20,15 +20,15 @@ package monix.benchmarks
 import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Keep, Sink => AkkaSink, Source => AkkaSource}
-import fs2.{Stream => FS2Stream}
-import monix.eval.{Task => MonixTask}
+import akka.stream.scaladsl.{ Keep, Sink => AkkaSink, Source => AkkaSource }
+import fs2.{ Stream => FS2Stream }
+import monix.eval.{ Task => MonixTask }
 import monix.reactive.Observable
 import org.openjdk.jmh.annotations._
 import zio.ZIO
-import zio.stream.{Stream => ZStream}
+import zio.stream.{ Stream => ZStream }
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration.Duration
 import scala.util.Try
 

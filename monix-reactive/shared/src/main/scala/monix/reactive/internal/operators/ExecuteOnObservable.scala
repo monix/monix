@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +17,9 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.cancelables.{AssignableCancelable, SingleAssignCancelable}
+import monix.execution.cancelables.{ AssignableCancelable, SingleAssignCancelable }
 import monix.execution.schedulers.TrampolinedRunnable
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future

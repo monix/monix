@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,11 @@
 
 package monix.java8
 
-import java.util.concurrent.{CancellationException, CompletableFuture, CompletionException}
+import java.util.concurrent.{ CancellationException, CompletableFuture, CompletionException }
 import java.util.function.BiFunction
 import monix.eval.Task
-import monix.execution.{Cancelable, Scheduler}
-import scala.util.{Failure, Success}
+import monix.execution.{ Cancelable, Scheduler }
+import scala.util.{ Failure, Success }
 
 /**
   * DEPRECATED — switch to Scala 2.12+ and [[monix.eval.Task.from Task.from]].
@@ -34,7 +34,7 @@ package object eval {
     /**
       * DEPRECATED — switch to Scala 2.12+ and [[monix.eval.Task.from Task.from]].
       */
-    @deprecated("Switch to Scala 2.12+ and Task.from", "3.0.0")
+    @deprecated("Switch to Scala 2.12+ and Task.from", "3.0.2")
     def fromCompletableFuture[A](cf: CompletableFuture[A]): Task[A] = {
       // $COVERAGE-OFF$
       convert(cf)
@@ -44,7 +44,7 @@ package object eval {
     /**
       * DEPRECATED — switch to Scala 2.12+ and [[monix.eval.Task.from Task.from]].
       */
-    @deprecated("Switch to Scala 2.12+ and Task.from", "3.0.0")
+    @deprecated("Switch to Scala 2.12+ and Task.from", "3.0.2")
     def deferCompletableFutureAction[A](f: Scheduler => CompletableFuture[A]): Task[A] = {
       // $COVERAGE-OFF$
       Task.deferAction { sc =>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,14 +18,14 @@
 package monix.eval
 package internal
 
-import cats.effect.{ConcurrentEffect, IO}
+import cats.effect.{ ConcurrentEffect, IO }
 import monix.eval.Task.Options
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.compat.BuildFrom
-import monix.execution.{Callback, Cancelable, CancelableFuture, Scheduler}
+import monix.execution.{ Callback, Cancelable, CancelableFuture, Scheduler }
 
 import scala.annotation.unchecked.uncheckedVariance
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 private[eval] object TaskDeprecated {
   /**
@@ -355,7 +355,8 @@ private[eval] object TaskDeprecated {
       fa2: Task[A2],
       fa3: Task[A3],
       fa4: Task[A4],
-      fa5: Task[A5]): Task[(A1, A2, A3, A4, A5)] = {
+      fa5: Task[A5]
+    ): Task[(A1, A2, A3, A4, A5)] = {
       // $COVERAGE-OFF$
       Task.parZip5(fa1, fa2, fa3, fa4, fa5)
       // $COVERAGE-ON$
@@ -369,7 +370,8 @@ private[eval] object TaskDeprecated {
       fa3: Task[A3],
       fa4: Task[A4],
       fa5: Task[A5],
-      fa6: Task[A6]): Task[(A1, A2, A3, A4, A5, A6)] = {
+      fa6: Task[A6]
+    ): Task[(A1, A2, A3, A4, A5, A6)] = {
       // $COVERAGE-OFF$
       Task.parZip6(fa1, fa2, fa3, fa4, fa5, fa6)
       // $COVERAGE-ON$
@@ -443,7 +445,9 @@ private[eval] object TaskDeprecated {
 
     /** DEPRECATED — renamed to [[Task.parTraverse]] */
     @deprecated("Use parTraverse", "3.2.0")
-    def wander[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(implicit bf: BuildFrom[M[A], B, M[B]]): Task[M[B]] = {
+    def wander[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(implicit
+      bf: BuildFrom[M[A], B, M[B]]
+    ): Task[M[B]] = {
       // $COVERAGE-OFF$
       Task.parTraverse(in)(f)
       // $COVERAGE-ON$
