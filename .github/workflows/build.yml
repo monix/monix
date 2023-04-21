@@ -17,7 +17,7 @@ jobs:
         java: [ 8, 11 ]
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
-        scala: [ 2.12.15, 2.13.8, 3.1.2 ]
+        scala: [ 2.12.17, 2.13.10, 3.2.2 ]
 
     env:
       CI: true
@@ -70,9 +70,9 @@ jobs:
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
         include:
-          - { java: 8, scala: 2.12.15 }
-          - { java: 8, scala: 2.13.8 }
-          - { java: 8, scala: 3.1.2 }
+          - { java: 8, scala: 2.12.17 }
+          - { java: 8, scala: 2.13.10 }
+          - { java: 8, scala: 3.2.2 }
 
     env:
       CI: true
@@ -126,9 +126,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { java: 8, scala: 2.12.15 }
-          - { java: 8, scala: 2.13.8 }
-          - { java: 8, scala: 3.1.2 }
+          - { java: 8, scala: 2.12.17 }
+          - { java: 8, scala: 2.13.10 }
+          - { java: 8, scala: 3.2.2 }
 
     steps:
       - uses: actions/checkout@v2
@@ -173,9 +173,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { java: 11, scala: 2.12.15 }
-          - { java: 11, scala: 2.13.8 }
-          - { java: 11, scala: 3.1.2 }
+          - { java: 11, scala: 2.12.17 }
+          - { java: 11, scala: 2.13.10 }
+          - { java: 11, scala: 3.2.2 }
 
     steps:
       - uses: actions/checkout@v2
@@ -220,8 +220,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { java: 8, scala: 2.13.8 }
-          - { java: 8, scala: 3.1.2 }
+          - { java: 8, scala: 2.13.10 }
+          - { java: 8, scala: 3.2.2 }
 
     steps:
       - uses: actions/checkout@v2
