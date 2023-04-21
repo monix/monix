@@ -177,7 +177,7 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
         case Canceled => cancel()
         case _: IsDummy => ()
         case WeakRef(cc) =>
-          if (cc != null) { cc := newRoot; () }
+          if (cc != null) { cc := newRoot: Unit }
         case prev: Cancelable =>
           newRoot := prev
           ()

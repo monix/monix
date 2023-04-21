@@ -296,7 +296,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
       Fail(10000)
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onComplete()
     startConsuming.success(Continue)
 
@@ -322,7 +322,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
       Fail(10000)
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onComplete()
     s.tick()
 
@@ -349,7 +349,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
       Fail(10000)
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onError(DummyException("dummy"))
     startConsuming.success(Continue)
 
@@ -375,7 +375,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
       Fail(10000)
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onError(DummyException("dummy"))
 
     s.tick()

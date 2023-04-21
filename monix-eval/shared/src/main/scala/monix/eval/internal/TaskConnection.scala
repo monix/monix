@@ -152,7 +152,7 @@ private[eval] object TaskConnection {
     val cancel = Task.suspend {
       state.transformAndExtract {
         case (Nil, p) =>
-          (Task[Unit] { p.success(()); () }, (null, p))
+          (Task[Unit] { p.success(()): Unit }, (null, p))
         case (null, p) =>
           (TaskFromFuture.strict(p.future), (null, p))
         case (list, p) =>
@@ -160,7 +160,7 @@ private[eval] object TaskConnection {
             .cancelAllUnsafe(list)
             .redeemWith[Unit](
               ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)),
-              _ => Task { p.success(()); () }
+              _ => Task { p.success(()): Unit }
             )
           (task, (null, p))
       }

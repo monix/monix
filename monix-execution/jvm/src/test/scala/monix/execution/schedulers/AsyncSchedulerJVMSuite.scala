@@ -36,7 +36,7 @@ object AsyncSchedulerJVMSuite extends SimpleTestSuite {
   test("scheduleOnce with delay") {
     val p = Promise[Long]()
     val startedAt = System.nanoTime()
-    scheduleOnce(s, 100.millis) { p.success(System.nanoTime()); () }
+    scheduleOnce(s, 100.millis) { p.success(System.nanoTime()): Unit }
 
     val timeTaken = Await.result(p.future, 3.second)
     assert((timeTaken - startedAt).nanos.toMillis >= 100)
@@ -44,13 +44,13 @@ object AsyncSchedulerJVMSuite extends SimpleTestSuite {
 
   test("scheduleOnce with delay lower than 1.milli") {
     val p = Promise[Int]()
-    scheduleOnce(s, 20.nanos) { p.success(1); () }
+    scheduleOnce(s, 20.nanos) { p.success(1): Unit }
     assert(Await.result(p.future, 3.seconds) == 1)
   }
 
   test("scheduleOnce with delay and cancel") {
     val p = Promise[Int]()
-    val task = scheduleOnce(s, 100.millis) { p.success(1); () }
+    val task = scheduleOnce(s, 100.millis) { p.success(1): Unit }
     task.cancel()
 
     intercept[TimeoutException] {

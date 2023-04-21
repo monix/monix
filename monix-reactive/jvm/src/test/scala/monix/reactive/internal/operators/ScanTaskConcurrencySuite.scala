@@ -64,7 +64,7 @@ object ScanTaskConcurrencySuite extends BaseConcurrencySuite {
     def never(): (Future[Unit], Task[Int]) = {
       val isCancelled = Promise[Unit]()
       val ref =
-        Task.create[Int]((_, _) => Cancelable { () => isCancelled.success(()); () })
+        Task.create[Int]((_, _) => Cancelable { () => isCancelled.success(()): Unit })
       (isCancelled.future, ref)
     }
 

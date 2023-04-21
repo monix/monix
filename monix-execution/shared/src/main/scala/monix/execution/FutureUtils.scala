@@ -41,7 +41,7 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
       atMost.length,
       atMost.unit,
       () => {
-        promise.tryFailure(err); ()
+        promise.tryFailure(err): Unit
       }
     )
 
@@ -49,7 +49,7 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
       // canceling task to prevent waisted CPU resources and memory leaks
       // if the task has been executed already, this has no effect
       task.cancel()
-      promise.tryComplete(r)
+      promise.tryComplete(r): Unit
     }
 
     promise.future
@@ -76,7 +76,7 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
       atMost.length,
       atMost.unit,
       () => {
-        promise.trySuccess(None); ()
+        promise.trySuccess(None): Unit
       }
     )
 
@@ -129,7 +129,7 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
     */
   def delayedResult[A](delay: FiniteDuration)(result: => A)(implicit s: Scheduler): Future[A] = {
     val p = Promise[A]()
-    s.scheduleOnce(delay.length, delay.unit, () => p.complete(Try(result)))
+    s.scheduleOnce(delay.length, delay.unit, () => p.complete(Try(result))): Unit
     p.future
   }
 

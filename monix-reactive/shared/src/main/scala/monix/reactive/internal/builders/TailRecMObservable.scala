@@ -102,7 +102,7 @@ private[monix] final class TailRecMObservable[A, B](seed: A, f: A => Observable[
           lastAck = out.onNext(b)
           lastAck.syncOnComplete {
             case Success(value) =>
-              if (value == Stop) { tryFinish(value); () }
+              if (value == Stop) { tryFinish(value): Unit }
             case Failure(ex) =>
               if (!tryFinish(Future.failed(ex)))
                 s.reportFailure(ex)

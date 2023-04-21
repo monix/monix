@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,14 +19,14 @@ package monix.eval.internal
 
 import monix.execution.Callback
 import monix.execution.atomic.Atomic
-import monix.execution.exceptions.{APIContractViolationException, CallbackCalledMultipleTimesException}
+import monix.execution.exceptions.{ APIContractViolationException, CallbackCalledMultipleTimesException }
 
 import scala.annotation.tailrec
 
 final class IOCallbackIndirection[E, A] extends Callback[E, A] {
   import IOCallbackIndirection._
 
-  private[this] val atomic = Atomic(Init : State[E, A])
+  private[this] val atomic = Atomic(Init: State[E, A])
 
   def register(cb: Callback[E, A]): Unit =
     atomic.get() match {
@@ -46,10 +46,10 @@ final class IOCallbackIndirection[E, A] extends Callback[E, A] {
   @tailrec
   private def signalLoop(isSuccess: Boolean, unboxed: Any, boxed: State[E, A]): Unit =
     atomic.get() match {
-      case current@Init =>
+      case current @ Init =>
         if (!atomic.compareAndSet(current, boxed))
           signalLoop(isSuccess, unboxed, boxed) // retry
-      case current@Waiting(cb: Callback[E, A] @unchecked) =>
+      case current @ Waiting(cb: Callback[E, A] @unchecked) =>
         if (atomic.compareAndSet(current, boxed)) {
           if (isSuccess)
             cb.onSuccess(unboxed.asInstanceOf[A])

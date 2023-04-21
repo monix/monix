@@ -33,8 +33,8 @@ object ObservableOpsReturningTaskSuite extends BaseTestSuite {
     val p = Promise[Try[Option[A]]]()
     obs.unsafeSubscribeFn(new Observer.Sync[A] {
       def onNext(elem: A) = { p.trySuccess(Success(Some(elem))); Stop }
-      def onError(ex: Throwable): Unit = { p.tryFailure(ex); () }
-      def onComplete(): Unit = { p.trySuccess(Success(None)); () }
+      def onError(ex: Throwable): Unit = { p.tryFailure(ex): Unit }
+      def onComplete(): Unit = { p.trySuccess(Success(None)): Unit }
     })
     p.future
   }

@@ -25,14 +25,14 @@ import monix.tail.batches.{ BatchCursor, EmptyCursor }
 object BatchCursorEmptySuite extends SimpleTestSuite {
   test("BatchCursor.empty.current") {
     val cursor = BatchCursor.empty[Int]
-    intercept[NoSuchElementException] { cursor.next(); () }
+    intercept[NoSuchElementException] { cursor.next(): Unit }
     ()
   }
 
   test("BatchCursor.empty.current after moveNext") {
     val cursor = BatchCursor.empty[Int]
     assert(!cursor.hasNext(), "!cursor.hasNext()")
-    intercept[NoSuchElementException] { cursor.next(); () }
+    intercept[NoSuchElementException] { cursor.next(): Unit }
     ()
   }
 
@@ -68,7 +68,7 @@ object BatchCursorEmptySuite extends SimpleTestSuite {
   test("BatchCursor.empty.toIterator") {
     val iter = BatchCursor.empty[Int].toIterator
     assert(!iter.hasNext, "!iter.hasNext")
-    intercept[NoSuchElementException] { iter.next(); () }
+    intercept[NoSuchElementException] { iter.next(): Unit }
     ()
   }
 }

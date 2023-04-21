@@ -132,7 +132,7 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
     executor: ExecutionContext
   ): CancelableFuture[A] =
     transformWith { r =>
-      if (pf.isDefinedAt(r)) pf(r)
+      if (pf.isDefinedAt(r)) pf(r): Unit
       this
     }
 
@@ -295,7 +295,7 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     ec.execute(new TrampolinedRunnable {
       def run(): Unit = {
         try {
-          cRef := register { v => p.complete(v); () }
+          cRef := register { v => p.complete(v): Unit }
           ()
         } catch {
           case e if NonFatal(e) =>
@@ -363,7 +363,7 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
 
     def onComplete[U](f: (Try[A]) => U)(implicit executor: ExecutionContext): Unit =
       executor.execute(() => {
-        f(immediate); ()
+        f(immediate): Unit
       })
   }
 

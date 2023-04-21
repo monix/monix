@@ -225,7 +225,7 @@ object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
       ClearBuffer(10000)
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onComplete()
     startConsuming.success(Continue)
 
@@ -251,7 +251,7 @@ object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
       ClearBuffer(10000)
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onComplete()
     s.tick()
 
@@ -277,7 +277,7 @@ object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
       ClearBuffer(10000)
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onError(DummyException("dummy"))
     startConsuming.success(Continue)
 
@@ -303,7 +303,7 @@ object OverflowStrategyClearBufferSuite extends TestSuite[TestScheduler] {
       ClearBuffer(10000)
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onError(DummyException("dummy"))
 
     s.tick()

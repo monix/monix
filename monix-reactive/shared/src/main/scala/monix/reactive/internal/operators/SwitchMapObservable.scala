@@ -66,7 +66,7 @@ private[reactive] final class SwitchMapObservable[A, B](source: Observable[A], f
                 if (myChildIndex != activeChildIndex)
                   Stop
                 else {
-                  ack = out.onNext(elem).syncOnStopOrFailure { _ => cancelFromDownstream(); () }
+                  ack = out.onNext(elem).syncOnStopOrFailure { _ => cancelFromDownstream(): Unit }
                   ack
                 }
               }

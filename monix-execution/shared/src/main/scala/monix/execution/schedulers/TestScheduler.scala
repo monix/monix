@@ -19,14 +19,12 @@ package monix.execution
 package schedulers
 
 import monix.execution.atomic.AtomicAny
-import monix.execution.cancelables.SingleAssignCancelable
-import scala.util.control.NonFatal
 import monix.execution.schedulers.TestScheduler._
-
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 import scala.concurrent.duration.{ Duration, FiniteDuration, TimeUnit }
 import scala.util.Random
+import scala.util.control.NonFatal
 
 /** [[Scheduler]] and a provider of `cats.effect.Timer` instances,
   * that can simulate async boundaries and time passage, useful for
@@ -395,7 +393,6 @@ object TestScheduler {
     // $COVERAGE-ON$
 
     val newID = state.lastID + 1
-    SingleAssignCancelable()
     val task = Task(newID, r, state.clock + delay)
     val cancelable = new Cancelable {
       def cancel(): Unit = cancelTask(task)

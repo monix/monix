@@ -53,7 +53,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
 
   test("cancellation works") { implicit s =>
     val p = Promise[Unit]()
-    val task = s.scheduleOnce(10.seconds) { p.success(()); () }
+    val task = s.scheduleOnce(10.seconds) { p.success(()): Unit }
     val f = CancelableFuture(p.future, task)
 
     s.tick()
@@ -91,7 +91,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     val b = BooleanCancelable()
     val fa = CancelableFuture.async[Int] { _ =>
       val ch = ChainedCancelable()
-      s.execute(() => { ch := b; () })
+      s.execute(() => { ch := b: Unit })
       ch
     }
 
@@ -107,7 +107,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     val b = BooleanCancelable()
     val fa = CancelableFuture.async[Int] { _ =>
       val ch = ChainedCancelable()
-      s.execute(() => { ch := b; () })
+      s.execute(() => { ch := b: Unit })
       ch
     }
 

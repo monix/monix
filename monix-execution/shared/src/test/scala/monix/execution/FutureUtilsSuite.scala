@@ -55,7 +55,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     val t = f.timeout(30.millis)
 
     s.tick(10.seconds)
-    intercept[TimeoutException] { t.value.get.get; () }
+    intercept[TimeoutException] { t.value.get.get: Unit }
     ()
   }
 

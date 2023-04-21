@@ -62,7 +62,7 @@ object IterantTailSuite extends BaseTestSuite {
       .tail
 
     assert(iter.isInstanceOf[Suspend[Coeval, Int]], "iter.isInstanceOf[Suspend[Coeval, Int]]")
-    intercept[DummyException] { iter.toListL.value(); () }
+    intercept[DummyException] { iter.toListL.value(): Unit }
     ()
   }
 
@@ -76,7 +76,7 @@ object IterantTailSuite extends BaseTestSuite {
       .tail
 
     assert(iter.isInstanceOf[Suspend[Coeval, Int]], "iter.isInstanceOf[Suspend[Coeval, Int]]")
-    intercept[DummyException] { iter.toListL.value(); () }
+    intercept[DummyException] { iter.toListL.value(): Unit }
     ()
   }
 }

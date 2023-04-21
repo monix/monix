@@ -88,9 +88,9 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
       }
     }
 
-    run { cb => cb.tryOnSuccess(1); () }
-    run { cb => cb.tryApply(Right(1)); () }
-    run { cb => cb.tryApply(Success(1)); () }
+    run { cb => cb.tryOnSuccess(1): Unit }
+    run { cb => cb.tryApply(Right(1)): Unit }
+    run { cb => cb.tryApply(Success(1)): Unit }
 
     run(cb =>
       try cb.onSuccess(1)
@@ -107,9 +107,9 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
 
     val dummy = DummyException("dummy")
 
-    run { cb => cb.tryOnError(dummy); () }
-    run { cb => cb.tryApply(Left(dummy)); () }
-    run { cb => cb.tryApply(Failure(dummy)); () }
+    run { cb => cb.tryOnError(dummy): Unit }
+    run { cb => cb.tryApply(Left(dummy)): Unit }
+    run { cb => cb.tryApply(Failure(dummy)): Unit }
 
     run(cb =>
       try cb.onError(dummy)

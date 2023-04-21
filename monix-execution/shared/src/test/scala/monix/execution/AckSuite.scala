@@ -65,7 +65,7 @@ object AckSuite extends TestSuite[TestScheduler] {
   test("syncOnContinue(Future.successful(Continue)) should execute trampolined") { implicit s =>
     def loop(source: Future[Ack], n: Int): Future[Ack] =
       source.syncOnContinue {
-        if (n > 0) { loop(source, n - 1); () }
+        if (n > 0) { loop(source, n - 1): Unit }
       }
 
     var triggered = false
@@ -156,7 +156,7 @@ object AckSuite extends TestSuite[TestScheduler] {
   test("syncOnStopOrFailure(Future.successful(Stop)) should execute trampolined") { implicit s =>
     def loop(source: Future[Ack], n: Int): Future[Ack] =
       source.syncOnStopOrFailure { _ =>
-        if (n > 0) { loop(source, n - 1); () }
+        if (n > 0) { loop(source, n - 1): Unit }
       }
 
     var triggered = false

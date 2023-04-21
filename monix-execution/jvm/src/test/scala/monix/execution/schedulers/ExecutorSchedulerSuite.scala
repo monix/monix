@@ -67,13 +67,13 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
 
   test("scheduleOnce with delay lower than 1.milli") { scheduler =>
     val p = Promise[Int]()
-    scheduleOnce(scheduler, 20.nanos) { p.success(1); () }
+    scheduleOnce(scheduler, 20.nanos) { p.success(1): Unit }
     assert(Await.result(p.future, 3.seconds) == 1)
   }
 
   test("scheduleOnce with delay and cancel") { scheduler =>
     val p = Promise[Int]()
-    val task = scheduleOnce(scheduler, 100.millis) { p.success(1); () }
+    val task = scheduleOnce(scheduler, 100.millis) { p.success(1): Unit }
     task.cancel()
 
     intercept[TimeoutException] {

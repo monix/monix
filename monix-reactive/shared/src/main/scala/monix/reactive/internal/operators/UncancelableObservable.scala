@@ -31,7 +31,7 @@ private[reactive] final class UncancelableObservable[A](source: Observable[A]) e
   }
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
-    out.scheduler.executeTrampolined { () => source.unsafeSubscribeFn(out); () }
+    out.scheduler.executeTrampolined { () => source.unsafeSubscribeFn(out): Unit }
     Cancelable.empty
   }
 }

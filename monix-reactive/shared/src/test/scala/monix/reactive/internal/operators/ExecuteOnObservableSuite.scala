@@ -37,7 +37,7 @@ object ExecuteOnObservableSuite extends TestSuite[TestScheduler] {
     val p = Promise[Int]()
 
     obs.subscribe(new Observer[Int] {
-      def onError(ex: Throwable): Unit = { p.failure(ex); () }
+      def onError(ex: Throwable): Unit = { p.failure(ex): Unit }
       def onComplete(): Unit = ()
       def onNext(elem: Int): Future[Ack] = { p.success(elem); Stop }
     })
@@ -56,7 +56,7 @@ object ExecuteOnObservableSuite extends TestSuite[TestScheduler] {
     val p = Promise[Int]()
 
     obs.subscribe(new Observer[Int] {
-      def onError(ex: Throwable): Unit = { p.failure(ex); () }
+      def onError(ex: Throwable): Unit = { p.failure(ex): Unit }
       def onComplete(): Unit = ()
       def onNext(elem: Int): Future[Ack] = { p.success(elem); Stop }
     })
@@ -71,7 +71,7 @@ object ExecuteOnObservableSuite extends TestSuite[TestScheduler] {
     val p = Promise[Int]()
 
     obs.subscribe(new Observer[Int] {
-      def onError(ex: Throwable): Unit = { p.failure(ex); () }
+      def onError(ex: Throwable): Unit = { p.failure(ex): Unit }
       def onComplete(): Unit = ()
       def onNext(elem: Int): Future[Ack] = { p.success(elem); Stop }
     })

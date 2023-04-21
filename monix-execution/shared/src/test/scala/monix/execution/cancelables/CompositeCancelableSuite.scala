@@ -61,13 +61,13 @@ object CompositeCancelableSuite extends SimpleTestSuite with Checkers {
       if (preCancel) s1.cancel()
 
       val r1 = ListBuffer.empty[Int]
-      s1 ++= numbers.map(n => Cancelable(() => { r1 += n; () }))
+      s1 ++= numbers.map(n => Cancelable(() => { r1 += n: Unit }))
 
       val s2 = CompositeCancelable()
       if (preCancel) s2.cancel()
 
       val r2 = ListBuffer.empty[Int]
-      for (n <- numbers) s2 += Cancelable(() => { r2 += n; () })
+      for (n <- numbers) s2 += Cancelable(() => { r2 += n: Unit })
 
       if (!preCancel) s1.cancel()
       if (!preCancel) s2.cancel()
@@ -123,7 +123,7 @@ object CompositeCancelableSuite extends SimpleTestSuite with Checkers {
       if (preCancel) s1.cancel()
 
       val r1 = ListBuffer.empty[Int]
-      val c1 = numbers.map(n => (n, Cancelable(() => { r1 += n; () })))
+      val c1 = numbers.map(n => (n, Cancelable(() => { r1 += n: Unit })))
       s1 ++= c1.map(_._2)
       s1 --= c1.filter(_._1 % 2 == 0).map(_._2)
 
@@ -131,7 +131,7 @@ object CompositeCancelableSuite extends SimpleTestSuite with Checkers {
       if (preCancel) s2.cancel()
 
       val r2 = ListBuffer.empty[Int]
-      val c2 = numbers.map(n => (n, Cancelable(() => { r2 += n; () })))
+      val c2 = numbers.map(n => (n, Cancelable(() => { r2 += n: Unit })))
       s2 ++= c2.map(_._2)
       c2.filter(_._1 % 2 == 0).foreach(s2 -= _._2)
 

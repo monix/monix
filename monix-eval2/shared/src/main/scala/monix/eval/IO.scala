@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.eval
 
 import monix.eval.internal.IOFiber
-import monix.execution.{Callback, Cancelable, CancelableFuture, Scheduler}
+import monix.execution.{ Callback, Cancelable, CancelableFuture, Scheduler }
 
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
@@ -39,10 +39,8 @@ sealed abstract class IO[+A] {
     fiber.cancel
   }
 
-  def unsafeRunAndForget()(implicit s: Scheduler): Unit = {
-    unsafeRunAsync(Callback.empty)
-    ()
-  }
+  def unsafeRunAndForget()(implicit s: Scheduler): Unit =
+    unsafeRunAsync(Callback.empty): Unit
 
   def unsafeRunToFuture()(implicit s: Scheduler): CancelableFuture[A] = {
     val p = Promise[A]()
@@ -56,14 +54,17 @@ object IO {
   def pure[A](a: A): IO[A] = Pure(a)
 
   def delay[A](thunk: => A): IO[A] =
-    FlatMap[Unit, A](Pure(()), _ => {
-      try
-        Pure(thunk)
-      catch {
-        case NonFatal(e) =>
-          RaiseError(e)
+    FlatMap[Unit, A](
+      Pure(()),
+      _ => {
+        try
+          Pure(thunk)
+        catch {
+          case NonFatal(e) =>
+            RaiseError(e)
+        }
       }
-    })
+    )
 
   def defer[A](thunk: => IO[A]): IO[A] =
     delay(thunk).flatMap(identity)
@@ -72,14 +73,10 @@ object IO {
     RaiseError(e)
 
   def async[A](register: Callback[Throwable, A] => Unit): IO[A] =
-    AsyncSimple(
-      (sc, cb) => register(Callback.safe(cb)(sc))
-    )
+    AsyncSimple((sc, cb) => register(Callback.safe(cb)(sc)))
 
   def async0[A](register: (Scheduler, Callback[Throwable, A]) => Unit): IO[A] =
-    AsyncSimple(
-      (sc, cb) => register(sc, Callback.safe(cb)(sc))
-    )
+    AsyncSimple((sc, cb) => register(sc, Callback.safe(cb)(sc)))
 
   def cont[S, A](cont: (Callback[Throwable, S], IO[S]) => IO[A]): IO[A] =
     IO.AsyncCont[S, A]((_, cb, get) => cont(cb, get))

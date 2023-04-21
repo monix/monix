@@ -56,7 +56,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
   test("scheduleOnce with delay") { implicit s =>
     val p = Promise[Long]()
     val startedAt = System.nanoTime()
-    s.scheduleOnce(100.millis) { p.success(System.nanoTime()); () }
+    s.scheduleOnce(100.millis) { p.success(System.nanoTime()): Unit }
 
     val timeTaken = Await.result(p.future, 30.second)
     assert((timeTaken - startedAt).nanos.toMillis >= 100)
@@ -64,7 +64,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
 
   test("scheduleOnce with negative delay") { implicit s =>
     val p = Promise[Boolean]()
-    s.scheduleOnce(-100.millis) { p.success(true); () }
+    s.scheduleOnce(-100.millis) { p.success(true): Unit }
 
     val result = Await.result(p.future, 30.second)
     assert(result)
@@ -78,13 +78,13 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
 
   test("scheduleOnce with delay lower than 1.milli") { implicit s =>
     val p = Promise[Int]()
-    s.scheduleOnce(20.nanos) { p.success(1); () }
+    s.scheduleOnce(20.nanos) { p.success(1): Unit }
     assert(Await.result(p.future, 3.seconds) == 1)
   }
 
   test("scheduleOnce with delay and cancel") { implicit s =>
     val p = Promise[Int]()
-    val task = s.scheduleOnce(100.millis) { p.success(1); () }
+    val task = s.scheduleOnce(100.millis) { p.success(1): Unit }
     task.cancel()
 
     intercept[TimeoutException] {

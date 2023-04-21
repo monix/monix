@@ -66,8 +66,7 @@ private[monix] final class DynamicWorkerThreadFactory(
         try {
           runnable.run()
         } finally {
-          deregisterThread()
-          ()
+          val _ = deregisterThread()
         }
       }))
 
@@ -77,8 +76,7 @@ private[monix] final class DynamicWorkerThreadFactory(
       wire(new ForkJoinWorkerThread(fjp) with BlockContext {
         // We have to decrement the current thread count when the thread exits
         final override def onTermination(exception: Throwable): Unit = {
-          deregisterThread()
-          ()
+          deregisterThread(): Unit
         }
 
         final override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {

@@ -675,7 +675,7 @@ sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
     * as obviously nothing gets executed at this point.
     */
   final def foreachL(f: A => Unit): Coeval[Unit] =
-    self.map { a => f(a); () }
+    self.map { a => f(a): Unit }
 
   /** Triggers the evaluation of the source, executing
     * the given function for the generated element.

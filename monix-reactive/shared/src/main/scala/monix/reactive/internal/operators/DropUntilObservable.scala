@@ -49,8 +49,8 @@ private[reactive] final class DropUntilObservable[A](source: Observable[A], trig
         task := trigger.unsafeSubscribeFn(new Subscriber.Sync[Any] {
           implicit val scheduler = out.scheduler
           def onNext(elem: Any) = interruptDropMode(null)
-          def onComplete(): Unit = { interruptDropMode(null); () }
-          def onError(ex: Throwable): Unit = { interruptDropMode(ex); () }
+          def onComplete(): Unit = { interruptDropMode(null): Unit }
+          def onError(ex: Throwable): Unit = { interruptDropMode(ex): Unit }
         })
       }
 

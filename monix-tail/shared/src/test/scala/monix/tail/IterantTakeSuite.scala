@@ -92,7 +92,7 @@ object IterantTakeSuite extends BaseTestSuite {
       val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty))
       val stream = (iter.onErrorIgnore ++ suffix).guarantee(Coeval.eval(cancelable.cancel()))
 
-      intercept[DummyException] { stream.take(Int.MaxValue).toListL.value(); () }
+      intercept[DummyException] { stream.take(Int.MaxValue).toListL.value(): Unit }
       cancelable.isCanceled
     }
   }

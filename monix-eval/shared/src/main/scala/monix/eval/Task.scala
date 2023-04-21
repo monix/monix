@@ -3171,7 +3171,7 @@ object Task extends TaskInstancesLevel1 {
     *
     *       // Returning the cancelation token that is able to cancel the
     *       // scheduling in case the active computation hasn't finished yet
-    *       Task { future.cancel(false); () }
+    *       Task { future.cancel(false): Unit }
     *     }
     *   }
     * }}}
@@ -3252,7 +3252,7 @@ object Task extends TaskInstancesLevel1 {
     *
     *       // Returning the cancel token that is able to cancel the
     *       // scheduling in case the active computation hasn't finished yet
-    *       Task { future.cancel(false); () }
+    *       Task { future.cancel(false): Unit }
     *     }
     *   }
     * }}}

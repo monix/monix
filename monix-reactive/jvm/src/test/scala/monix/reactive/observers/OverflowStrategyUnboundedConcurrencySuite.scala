@@ -159,7 +159,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
       }
 
       val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
-      for (i <- 1 to total.toInt) { buffer.onNext(i.toLong); () }
+      for (i <- 1 to total.toInt) { buffer.onNext(i.toLong): Unit }
       buffer.onComplete()
 
       blocking {
@@ -306,7 +306,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
 
     val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onComplete()
     startConsuming.success(Continue)
 
@@ -330,7 +330,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
 
     val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onComplete()
 
     blocking {
@@ -355,7 +355,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
 
     val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Unbounded)
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 

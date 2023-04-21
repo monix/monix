@@ -74,7 +74,7 @@ object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
     import concurrent.duration._
     val p = Promise[Unit]()
     val startAt = s.clockMonotonic(MILLISECONDS)
-    s.scheduleOnce(100.millis) { p.success(()); () }
+    s.scheduleOnce(100.millis) { p.success(()): Unit }
 
     for (_ <- p.future) yield {
       val duration = s.clockMonotonic(MILLISECONDS) - startAt

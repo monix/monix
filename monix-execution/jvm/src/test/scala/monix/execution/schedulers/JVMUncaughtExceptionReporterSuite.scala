@@ -35,7 +35,7 @@ object JVMUncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSu
     import Scheduler.Implicits.global
 
     val e = DummyException("dummy")
-    val r = UncaughtExceptionReporter { e => p.success(e); () }.asJava
+    val r = UncaughtExceptionReporter { e => p.success(e): Unit }.asJava
     r.uncaughtException(null, e)
 
     for (thrown <- p.future) yield {

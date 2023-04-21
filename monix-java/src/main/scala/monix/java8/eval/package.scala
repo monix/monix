@@ -71,7 +71,7 @@ package object eval {
           }
         }
       })
-      Cancelable({ () => cf.cancel(true); () })
+      Cancelable({ () => cf.cancel(true): Unit })
     })
     // $COVERAGE-ON$
   }

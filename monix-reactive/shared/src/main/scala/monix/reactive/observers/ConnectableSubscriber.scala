@@ -169,7 +169,7 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
 
             def onComplete(): Unit = {
               if (!scheduledDone) {
-                ack.syncOnContinue { bufferWasDrained.trySuccess(Continue); () }
+                ack.syncOnContinue { bufferWasDrained.trySuccess(Continue): Unit }
               } else if (scheduledError ne null) {
                 if (bufferWasDrained.trySuccess(Stop))
                   underlying.onError(scheduledError)

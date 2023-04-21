@@ -411,7 +411,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
       BackPressure(totalCount)
     )
 
-    (0 until (totalCount - 1)).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until (totalCount - 1)).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onComplete()
     startConsuming.success(Continue)
 
@@ -439,7 +439,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
       BackPressure(totalCount)
     )
 
-    (0 until (totalCount - 1)).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until (totalCount - 1)).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onComplete()
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
@@ -467,7 +467,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
       BackPressure(totalCount)
     )
 
-    (0 until (totalCount - 1)).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until (totalCount - 1)).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
@@ -495,7 +495,7 @@ object OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuit
       BackPressure(totalCount)
     )
 
-    (0 until (totalCount - 1)).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until (totalCount - 1)).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onError(new RuntimeException)
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")

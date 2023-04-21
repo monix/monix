@@ -88,7 +88,7 @@ object TaskConnectionRefSuite extends BaseTestSuite {
     val b2 = BooleanCancelable { () =>
       effect += 1
     }
-    intercept[IllegalStateException] { cr := b2; () }
+    intercept[IllegalStateException] { cr := b2: Unit }
     assertEquals(effect, 2)
   }
 
@@ -109,7 +109,7 @@ object TaskConnectionRefSuite extends BaseTestSuite {
     assertEquals(effect, 1)
 
     val b2 = BooleanCancelableF(Task { effect += 1 }).runToFuture.value.get.get
-    intercept[IllegalStateException] { cr := b2; () }
+    intercept[IllegalStateException] { cr := b2: Unit }
     assertEquals(effect, 2)
   }
 

@@ -123,7 +123,7 @@ object OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
       }
 
       val buffer = BufferedSubscriber[Long](Subscriber(underlying, s), Fail(total.toInt))
-      for (i <- 1 to total.toInt) { buffer.onNext(i.toLong); () }
+      for (i <- 1 to total.toInt) { buffer.onNext(i.toLong): Unit }
       buffer.onComplete()
 
       assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
@@ -353,7 +353,7 @@ object OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
       Fail(10000)
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onComplete()
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
@@ -378,7 +378,7 @@ object OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
       Fail(10000)
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
@@ -403,7 +403,7 @@ object OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
       Fail(10000)
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onError(new RuntimeException)
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")

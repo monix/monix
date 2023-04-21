@@ -264,7 +264,7 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
       Unbounded
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onComplete()
     startConsuming.success(Continue)
 
@@ -290,7 +290,7 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
       Unbounded
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onComplete()
     s.tick()
 
@@ -316,7 +316,7 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
       Unbounded
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onError(DummyException("dummy"))
     startConsuming.success(Continue)
 
@@ -342,7 +342,7 @@ object OverflowStrategyUnboundedSuite extends TestSuite[TestScheduler] {
       Unbounded
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onError(DummyException("dummy"))
 
     s.tick()

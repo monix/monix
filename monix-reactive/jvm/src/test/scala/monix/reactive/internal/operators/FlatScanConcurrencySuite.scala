@@ -65,7 +65,7 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
     def never(): (Future[Unit], Observable[Int]) = {
       val isCancelled = Promise[Unit]()
       val ref = Observable.unsafeCreate[Int] { _ =>
-        Cancelable { () => isCancelled.success(()); () }
+        Cancelable { () => isCancelled.success(()): Unit }
       }
       (isCancelled.future, ref)
     }
@@ -87,7 +87,7 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
   test(s"flatScan should be cancellable, test 2, count $cancelIterations (issue #468)") { implicit s =>
     def one(p: Promise[Unit])(acc: Long, x: Long): Observable[Long] =
       Observable.unsafeCreate { sub =>
-        val ref = BooleanCancelable { () => p.trySuccess(()); () }
+        val ref = BooleanCancelable { () => p.trySuccess(()): Unit }
         sub.scheduler.execute { () =>
           if (!ref.isCanceled) {
             Observable.now(x).unsafeSubscribeFn(sub)
@@ -103,9 +103,9 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
         .range(0, Long.MaxValue)
         .executeAsync
         .uncancelable
-        .doOnError(e => Task { p.tryFailure(e); () })
-        .doOnComplete(Task { p.tryFailure(new IllegalStateException("complete")); () })
-        .doOnEarlyStop(Task { p.trySuccess(()); () })
+        .doOnError(e => Task { p.tryFailure(e): Unit })
+        .doOnComplete(Task { p.tryFailure(new IllegalStateException("complete")): Unit })
+        .doOnEarlyStop(Task { p.trySuccess(()): Unit })
         .flatScan(0L)(one(p))
         .subscribe()
 
@@ -122,9 +122,9 @@ object FlatScanConcurrencySuite extends BaseConcurrencySuite {
         .range(0, Long.MaxValue)
         .executeAsync
         .uncancelable
-        .doOnError(e => Task { p.tryFailure(e); () })
-        .doOnComplete(Task { p.tryFailure(new IllegalStateException("complete")); () })
-        .doOnEarlyStop(Task { p.trySuccess(()); () })
+        .doOnError(e => Task { p.tryFailure(e): Unit })
+        .doOnComplete(Task { p.tryFailure(new IllegalStateException("complete")): Unit })
+        .doOnEarlyStop(Task { p.trySuccess(()): Unit })
         .flatScan(0L)((_, x) => Observable.now(x).executeAsync)
         .subscribe()
 

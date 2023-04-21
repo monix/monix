@@ -246,8 +246,8 @@ private[monix] object TaskBracket {
       Task.suspend {
         if (waitsForResult.compareAndSet(expect = true, update = false))
           releaseOnCancel(a).redeemWith(
-            ex => Task { p.success(()); () }.flatMap(_ => Task.raiseError(ex)),
-            _ => Task { p.success(()); () }
+            ex => Task { p.success(()): Unit }.flatMap(_ => Task.raiseError(ex)),
+            _ => Task { p.success(()): Unit }
           )
         else
           TaskFromFuture.strict(p.future)
@@ -268,7 +268,7 @@ private[monix] object TaskBracket {
       if (waitsForResult.compareAndSet(expect = true, update = false))
         releaseOnError(a, e).redeemWith(
           ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)),
-          _ => Task { p.success(()); () }
+          _ => Task { p.success(()): Unit }
         ).flatMap(new ReleaseRecover(e))
       else
         Task.never

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,11 +18,11 @@
 package monix.eval
 package internal
 
-import cats.effect.kernel.{Fiber, Outcome}
+import cats.effect.kernel.{ Fiber, Outcome }
 import monix.eval.IO.RaiseError
 import monix.eval.internal.IOFiber._
 import monix.execution.internal.collection.ChunkedArrayStack
-import monix.execution.{Callback, Scheduler}
+import monix.execution.{ Callback, Scheduler }
 import scala.annotation.switch
 import scala.util.control.NonFatal
 
@@ -65,8 +65,9 @@ private[eval] final class IOFiber[A] private[eval] (
         // Try/catch described as statement, otherwise ObjectRef happens ;-)
         try {
           currentRef = bind.recover(err)
-        } catch { case e if NonFatal(e) =>
-          currentRef = RaiseError(e)
+        } catch {
+          case e if NonFatal(e) =>
+            currentRef = RaiseError(e)
         }
         bindFirstRef = null
         Continue

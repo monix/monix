@@ -54,7 +54,7 @@ package object execution {
             }
           }
         })
-        Cancelable({ () => source.cancel(true); () })
+        Cancelable({ () => source.cancel(true): Unit })
       })
       // $COVERAGE-ON$
     }

@@ -92,7 +92,7 @@ object Cancelable {
     */
   def fromPromise[A](p: Promise[A], e: Throwable): Cancelable =
     new Cancelable {
-      def cancel(): Unit = { p.tryFailure(e); () }
+      def cancel(): Unit = { p.tryFailure(e): Unit }
     }
 
   /** Given a collection of cancelables, cancel them all.

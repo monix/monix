@@ -149,7 +149,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
 
       val buffer =
         BufferedSubscriber[Long](Subscriber(underlying, s), DropNewAndSignal(total.toInt, _ => Coeval.pure(None)))
-      for (i <- 1 to total.toInt) { buffer.onNext(i.toLong); () }
+      for (i <- 1 to total.toInt) { buffer.onNext(i.toLong): Unit }
       buffer.onComplete()
 
       assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
@@ -345,7 +345,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
       }
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onComplete()
     startConsuming.success(Continue)
 
@@ -369,7 +369,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
       }
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onComplete()
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
@@ -393,7 +393,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
       }
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
@@ -417,7 +417,7 @@ object OverflowStrategyDropNewAndSignalConcurrencySuite extends BaseConcurrencyS
       }
     )
 
-    (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
+    (0 until 9999).foreach { x => buffer.onNext(x.toLong): Unit }
     buffer.onError(new RuntimeException)
 
     assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")

@@ -156,7 +156,7 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     assert(q.isEmpty)
     assert(!q.nonEmpty)
 
-    intercept[NoSuchElementException] { q.head; () }
+    intercept[NoSuchElementException] { q.head: Unit }
     assertEquals(q.headOption, None)
 
     q.offer(1)
@@ -170,7 +170,7 @@ object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
     assert(q.isEmpty)
     assert(!q.nonEmpty)
 
-    intercept[NoSuchElementException] { q.head; () }
+    intercept[NoSuchElementException] { q.head: Unit }
     assertEquals(q.headOption, None)
   }
 
