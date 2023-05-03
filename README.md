@@ -135,7 +135,7 @@ If you'd like to donate in order to help with ongoing maintenance:
 
 Here's a (non-exhaustive) list of companies that use Monix in production. Don't see yours? 
 Submit a PR ❤️ 
-
+- [PITS Global Data Recovery Services](https://www.pitsdatarecovery.net/)
 - [Abacus](https://abacusfi.com)
 - [Agoda](https://www.agoda.com)
 - [AVSystem](https://www.avsystem.com)
