@@ -20,3 +20,5 @@ metals.sbt
 .vscode
 .bsp
 *.sublime*
+*.iml
+.sdkmanrc
