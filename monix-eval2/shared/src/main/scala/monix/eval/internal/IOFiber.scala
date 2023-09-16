@@ -18,58 +18,68 @@
 package monix.eval
 package internal
 
-import cats.effect.kernel.{ Fiber, Outcome }
+import cats.effect.kernel.{Fiber, Outcome}
 import monix.eval.IO.RaiseError
 import monix.eval.internal.IOFiber._
-import monix.execution.internal.collection.ChunkedArrayStack
-import monix.execution.{ Callback, Scheduler }
+import monix.execution.{Callback, Scheduler}
 import scala.annotation.switch
 import scala.util.control.NonFatal
 
 private[eval] final class IOFiber[A] private[eval] (
   source: IO[A],
   cb: Callback[Throwable, A],
-  initBFirst: Bind = null,
-  initBRest: CallStack = null,
+  initCallStack: IOCallStack = null,
+  initIsCancelled: Boolean = false
 )(implicit
   scheduler: Scheduler
 ) extends Fiber[IO, Throwable, A] with IO.Visitor[Any, Control] with Runnable {
-
   // TODO: add unboxed optimization
   private[this] var currentRef: Current = source
-  private[this] var bindFirstRef: Bind = initBFirst
-  private[this] var bindRestRef: CallStack = initBRest
+  private[this] var callStackRef: IOCallStack = initCallStack
   private[this] var _restartCallback: IORestartCallback = _
+  private[this] var isCanceled: Boolean = initIsCancelled
 
-  override def visit(ref: IO.Pure[Any]): Control = {
-    processUnboxedValue(ref.a.asInstanceOf[AnyRef])
+  @inline
+  private def callStack: IOCallStack = {
+    if (callStackRef eq null) callStackRef = new IOCallStack(8)
+    callStackRef
   }
 
+  override def visit(ref: IO.Pure[Any]): Control =
+    processUnboxedValue(ref.a.asInstanceOf[AnyRef])
+
   override def visit[S](ref: IO.FlatMap[S, Any]): Control = {
-    if (bindFirstRef ne null) {
-      if (bindRestRef eq null) bindRestRef = ChunkedArrayStack()
-      bindRestRef.push(bindFirstRef)
-    }
-    bindFirstRef = ref.f.asInstanceOf[Bind]
+    callStack.pushFlatMap(ref.f.asInstanceOf[Any => IO[Any]])
+    currentRef = ref.source
+    Continue
+  }
+
+  override def visit[S](ref: IO.HandleErrorWith[S, Any]): Control = {
+    callStack.pushHandleError(ref.f)
+    currentRef = ref.source
+    Continue
+  }
+
+  override def visit(ref: IO.OnCancel[Any]): Control = {
+    callStack.pushOnCancel(ref.onCancel)
     currentRef = ref.source
     Continue
   }
 
   override def visit(ref: IO.RaiseError): Control = {
     val err = ref.e
-    findErrorHandler(bindFirstRef, bindRestRef) match {
+    callStack.findAndPopNextHandleError() match {
       case null =>
         cb.onError(err)
         Break
       case bind =>
         // Try/catch described as statement, otherwise ObjectRef happens ;-)
         try {
-          currentRef = bind.recover(err)
+          currentRef = bind(err)
         } catch {
           case e if NonFatal(e) =>
             currentRef = RaiseError(e)
         }
-        bindFirstRef = null
         Continue
     }
   }
@@ -84,6 +94,19 @@ private[eval] final class IOFiber[A] private[eval] (
     val fs = IO.AsyncSimple((_, cb2) => cb1.register(cb2))
     currentRef = ref.cont(scheduler, cb1, fs)
     Continue
+  }
+
+
+  override def visit(ref: IO.Cancelled.type): Control = {
+    isCanceled = true
+    callStack.findAndPopNextOnCancel() match {
+      case null =>
+        currentRef = ref
+        Break
+      case onCancel =>
+        currentRef = onCancel
+        Continue
+    }
   }
 
   def continueWithRef(ref: Current): Unit = {
@@ -113,8 +136,8 @@ private[eval] final class IOFiber[A] private[eval] (
   override def join: IO[Outcome[IO, Throwable, A]] =
     IO.raiseError(new NotImplementedError("IOFiber.join"))
 
-  private def processUnboxedValue(unboxedRef: AnyRef): Control =
-    popNextBind(bindFirstRef, bindRestRef) match {
+  private def processUnboxedValue(unboxedRef: AnyRef): Control = {
+    callStack.findAndPopNextFlatMap() match {
       case null =>
         cb.onSuccess(unboxedRef.asInstanceOf[A])
         Break
@@ -126,9 +149,9 @@ private[eval] final class IOFiber[A] private[eval] (
           case ex if NonFatal(ex) =>
             currentRef = IO.RaiseError(ex)
         }
-        bindFirstRef = null
         Continue
     }
+  }
 
   private def restartCallback(): IORestartCallback = {
     if (_restartCallback == null)
@@ -139,50 +162,8 @@ private[eval] final class IOFiber[A] private[eval] (
 
 object IOFiber {
   private type Current = IO[Any]
-  private type Bind = Any => IO[Any]
-  private type CallStack = ChunkedArrayStack[Bind]
 
   private type Control = Boolean
   private final val Continue: Control = true
   private final val Break: Control = false
-
-  private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
-    // If we have a StackFrame.ErrorHandler, skip it, as it's meant to handle errors.
-    if ((bFirst ne null) && !bFirst.isInstanceOf[StackFrame.ErrorHandler[_, _]]) {
-      return bFirst
-    }
-    if (bRest eq null) {
-      return null
-    }
-    while (true) {
-      val next = bRest.pop()
-      if (next eq null) {
-        return null
-      } else if (!next.isInstanceOf[StackFrame.ErrorHandler[_, _]]) {
-        return next
-      }
-    }
-    // $COVERAGE-OFF$
-    null
-    // $COVERAGE-ON$
-  }
-
-  private def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, IO[Any]] =
-    bFirst match {
-      case ref: StackFrame[Any, IO[Any]] @unchecked => ref
-      case _ =>
-        if (bRest eq null) null
-        else {
-          while (true) {
-            val ref = bRest.pop()
-            if (ref eq null)
-              return null
-            else if (ref.isInstanceOf[StackFrame[_, _]])
-              return ref.asInstanceOf[StackFrame[Any, IO[Any]]]
-          }
-          // $COVERAGE-OFF$
-          null
-          // $COVERAGE-ON$
-        }
-    }
 }

@@ -20,7 +20,6 @@ package monix.eval.internal
 import monix.execution.Callback
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.{ APIContractViolationException, CallbackCalledMultipleTimesException }
-
 import scala.annotation.tailrec
 
 final class IOCallbackIndirection[E, A] extends Callback[E, A] {

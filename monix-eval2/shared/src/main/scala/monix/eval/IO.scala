@@ -34,7 +34,7 @@ sealed abstract class IO[+A] {
     flatMap(a => IO.pure(f(a)))
 
   def unsafeRunAsync(cb: Callback[Throwable, A])(implicit s: Scheduler): CancelToken[IO] = {
-    val fiber = new IOFiber[A](this, Callback.safe(cb), null, null)(s)
+    val fiber = new IOFiber[A](this, Callback.safe(cb))(s)
     s.execute(fiber)
     fiber.cancel
   }
@@ -85,18 +85,50 @@ object IO {
     IO.AsyncCont(cont)
 
   private[eval] final case class Pure[+A](a: A) extends IO[A] {
-    def tag: Byte = 0
+    def tag: Byte = Pure.TAG
     def accept[AA >: A, R](visitor: Visitor[AA, R]): R = visitor.visit(this)
   }
 
+  private[eval] object Pure {
+    final val TAG: Byte = 0
+  }
+
   private[eval] final case class RaiseError(e: Throwable) extends IO[Nothing] {
-    def tag: Byte = 1
+    def tag: Byte = RaiseError.TAG
     def accept[AA >: Nothing, R](visitor: Visitor[AA, R]): R = visitor.visit(this)
   }
 
+  private[eval] object RaiseError {
+    final val TAG: Byte = 1
+  }
+
   private[eval] final case class FlatMap[A, +B](source: IO[A], f: A => IO[B]) extends IO[B] {
-    def tag: Byte = 2
+    def tag: Byte = FlatMap.TAG
     def accept[BB >: B, R](visitor: Visitor[BB, R]): R = visitor.visit(this)
+  }
+
+  private[eval] object FlatMap {
+    final val TAG: Byte = 2
+  }
+
+  private[eval] final case class HandleErrorWith[A, +B](source: IO[A], f: Throwable => IO[B])
+    extends IO[B] {
+    def tag: Byte = HandleErrorWith.TAG
+
+    def accept[BB >: B, R](visitor: Visitor[BB, R]): R = visitor.visit(this)
+  }
+
+  private[eval] object HandleErrorWith {
+    final val TAG: Byte = 3
+  }
+
+  private[eval] final case class OnCancel[+A](source: IO[A], onCancel: IO[Unit]) extends IO[A] {
+    def tag: Byte = OnCancel.TAG
+    def accept[AA >: A, R](visitor: Visitor[AA, R]): R = visitor.visit(this)
+  }
+
+  private[eval] object OnCancel {
+    final val TAG: Byte = 4
   }
 
   private[eval] final case class AsyncSimple[+A](
@@ -105,12 +137,13 @@ object IO {
     boundaryBefore: AsyncSimple.BoundaryPolicy = AsyncSimple.AsyncShifted,
     boundaryAfter: AsyncSimple.BoundaryPolicy = AsyncSimple.AsyncTrampolined,
   ) extends IO[A] {
-    def tag: Byte = 3
+    def tag: Byte = AsyncSimple.TAG
     def accept[AA >: A, R](visitor: Visitor[AA, R]): R = visitor.visit(this)
   }
 
   private[eval] object AsyncSimple {
     type BoundaryPolicy = Byte
+    final val TAG: Byte = 5
     final val AsyncTrampolined: BoundaryPolicy = 0.toByte
     final val AsyncShifted: BoundaryPolicy = 1.toByte
     final val Synchronous: BoundaryPolicy = 2.toByte
@@ -119,15 +152,28 @@ object IO {
   private[eval] final case class AsyncCont[A, +B](
     cont: (Scheduler, Callback[Throwable, A], IO[A]) => IO[B]
   ) extends IO[B] {
-    def tag: Byte = 4
+    def tag: Byte = AsyncCont.TAG
     def accept[BB >: B, R](visitor: Visitor[BB, R]): R = visitor.visit(this)
+  }
+
+  private[eval] object AsyncCont {
+    final val TAG: Byte = 6
+  }
+
+  private[eval] case object Cancelled extends IO[Nothing] {
+    final val TAG: Byte = 7
+    def tag: Byte = TAG
+    def accept[AA >: Nothing, R](visitor: Visitor[AA, R]): R = visitor.visit(this)
   }
 
   private[eval] trait Visitor[A, +R] {
     def visit(ref: Pure[A]): R
     def visit(ref: RaiseError): R
     def visit[S](ref: FlatMap[S, A]): R
+    def visit[S](ref: HandleErrorWith[S, A]): R
+    def visit(ref: OnCancel[A]): R
     def visit[S](ref: AsyncCont[S, A]): R
     def visit(ref: AsyncSimple[A]): R
+    def visit(ref: Cancelled.type): R
   }
 }

@@ -709,7 +709,7 @@ lazy val eval2Profile =
     crossSettings = Seq(
       description := "Sub-module of Monix, exposing Task and Coeval, for suspending side-effects. See: https://monix.io",
       libraryDependencies ++= Seq(
-        "org.typelevel" %%% "cats-effect" % "3.1.1"
+        "org.typelevel" %%% "cats-effect" % "3.4.9"
       )
     ))
 
