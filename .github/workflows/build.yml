@@ -24,9 +24,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v10
+      - uses: actions/setup-java@v3
         with:
-          java-version: "adopt@1.${{ matrix.java }}"
+          java-version: "${{ matrix.java }}"
+          distribution: adopt
 
       - name: Cache ivy2
         uses: actions/cache@v1
@@ -79,9 +80,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v10
+      - uses: actions/setup-java@v3
         with:
-          java-version: "adopt@1.${{ matrix.java }}"
+          java-version: "${{ matrix.java }}"
+          distribution: adopt
 
       - name: Cache ivy2
         uses: actions/cache@v1
@@ -132,9 +134,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v10
+      - uses: actions/setup-java@v3
         with:
-          java-version: "adopt@1.${{ matrix.java }}"
+          java-version: "${{ matrix.java }}"
+          distribution: adopt
 
       - name: Cache ivy2
         uses: actions/cache@v1
@@ -179,9 +182,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v10
+      - uses: actions/setup-java@v3
         with:
-          java-version: "adopt@1.${{ matrix.java }}"
+          java-version: "${{ matrix.java }}"
+          distribution: adopt
 
       - name: Cache ivy2
         uses: actions/cache@v1
@@ -225,9 +229,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v10
+      - uses: actions/setup-java@v3
         with:
-          java-version: "adopt@1.${{ matrix.java }}"
+          java-version: "${{ matrix.java }}"
+          distribution: adopt
 
       - name: Cache ivy2
         uses: actions/cache@v1
@@ -280,9 +285,10 @@ jobs:
         with:
           fetch-depth: 100
 
-      - uses: olafurpg/setup-scala@v10
+      - uses: actions/setup-java@v3
         with:
-          java-version: "adopt@1.8"
+          java-version: 8
+          distribution: adopt
 
       - name: Install GnuPG2
         run: |
