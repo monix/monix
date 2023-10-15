@@ -19,6 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
@@ -30,7 +31,7 @@ private[reactive] final class ConcatMapIterableOperator[-A, +B](f: A => immutabl
 
   def apply(out: Subscriber[B]): Subscriber[A] = {
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       private[this] var isDone = false
       private[this] var ack: Future[Ack] = Continue
 

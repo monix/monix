@@ -20,6 +20,7 @@ package monix.reactive.internal.builders
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.CompositeCancelable
 import monix.execution.{ Ack, Cancelable }
+import monix.execution.Scheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.{ Future, Promise }
@@ -78,7 +79,7 @@ private[reactive] final class Interleave2Observable[+A](obsA1: Observable[A], ob
     val composite = CompositeCancelable()
 
     composite += obsA1.unsafeSubscribeFn(new Subscriber[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       def onNext(elem: A): Future[Ack] = lock.synchronized {
         def sendSignal(elem: A): Future[Ack] = lock.synchronized {
@@ -112,7 +113,7 @@ private[reactive] final class Interleave2Observable[+A](obsA1: Observable[A], ob
     })
 
     composite += obsA2.unsafeSubscribeFn(new Subscriber[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       def onNext(elem: A): Future[Ack] = lock.synchronized {
         def sendSignal(elem: A): Future[Ack] = lock.synchronized {

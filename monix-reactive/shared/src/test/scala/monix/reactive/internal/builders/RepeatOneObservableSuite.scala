@@ -19,6 +19,7 @@ package monix.reactive.internal.builders
 
 import minitest.TestSuite
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
@@ -58,7 +59,7 @@ object RepeatOneObservableSuite extends TestSuite[TestScheduler] {
     val cancelable = Observable
       .repeat(1)
       .unsafeSubscribeFn(new Subscriber[Int] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
         def onNext(elem: Int) = {
           sum += elem
           Continue

@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.{ Ack, AsyncSemaphore, Callback, Cancelable }
+import monix.execution.{ Ack, AsyncSemaphore, Callback, Cancelable, Scheduler }
 import monix.eval.Task
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.MultiProducer
@@ -66,7 +66,7 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
   private final class MapAsyncParallelSubscription(out: Subscriber[B], composite: CompositeCancelable)
     extends Subscriber[A] with Cancelable { self =>
 
-    implicit val scheduler = out.scheduler
+    implicit val scheduler: Scheduler = out.scheduler
     // Ensures we don't execute more than a maximum number of tasks in parallel
     private[this] val semaphore = AsyncSemaphore(parallelism.toLong)
     // Buffer with the supplied  overflow strategy.

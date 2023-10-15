@@ -35,7 +35,7 @@ private[reactive] final class ForeachAsyncConsumer[A](f: A => Task[Unit]) extend
     var lastCancelable = Cancelable.empty
 
     val out = new Subscriber[A] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
 
       def onNext(elem: A): Future[Ack] = {
         try {

@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.{ CompositeCancelable, MultiAssignCancelable }
-import monix.execution.{ Ack, Cancelable }
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -39,7 +39,7 @@ private[reactive] final class BufferTimedObservable[+A](source: Observable[A], t
     val periodicTask = MultiAssignCancelable()
 
     val connection = source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       private[this] val timespanMillis = timespan.toMillis
       // MUST BE synchronized by `self`

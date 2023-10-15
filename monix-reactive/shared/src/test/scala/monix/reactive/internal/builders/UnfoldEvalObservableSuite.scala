@@ -22,6 +22,7 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Task
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform.recommendedBatchSize
 import monix.reactive.observers.Subscriber
@@ -63,7 +64,7 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     val cancelable = Observable
       .unfoldEval(s.clockMonotonic(MILLISECONDS))(intNowOption)
       .unsafeSubscribeFn(new Subscriber[Int] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
 
         def onNext(elem: Int) = {
           sum += 1
@@ -115,7 +116,7 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     val cancelable = Observable
       .unfoldEvalF(s.clockMonotonic(MILLISECONDS))(intOptionIO)
       .unsafeSubscribeFn(new Subscriber[Int] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
 
         def onNext(elem: Int) = {
           sum += 1

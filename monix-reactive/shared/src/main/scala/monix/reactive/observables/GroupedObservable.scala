@@ -56,7 +56,7 @@ object GroupedObservable {
     private[this] var ref: Subscriber[V] = _
     private[this] val underlying = {
       val o = new Subscriber[V] {
-        implicit val scheduler = self.scheduler
+        implicit val scheduler: Scheduler = self.scheduler
         private[this] var isDone = false
 
         def onNext(elem: V) = {

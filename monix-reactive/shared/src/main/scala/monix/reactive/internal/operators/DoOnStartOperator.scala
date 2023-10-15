@@ -20,6 +20,7 @@ package monix.reactive.internal.operators
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Stop
+import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
@@ -30,7 +31,7 @@ private[reactive] final class DoOnStartOperator[A](cb: A => Task[Unit]) extends 
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       private[this] var isDone = false
       private[this] var isStart = true

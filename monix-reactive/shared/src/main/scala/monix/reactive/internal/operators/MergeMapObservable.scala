@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.MultiProducer
-import monix.execution.{ Ack, Cancelable }
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.execution.cancelables._
 import monix.execution.exceptions.CompositeException
 import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
@@ -39,7 +39,7 @@ private[reactive] final class MergeMapObservable[A, B](
     val composite = CompositeCancelable()
 
     composite += source.unsafeSubscribeFn(new Subscriber[A] {
-      implicit val scheduler = downstream.scheduler
+      implicit val scheduler: Scheduler = downstream.scheduler
       private[this] val subscriberB: Subscriber[B] =
         BufferedSubscriber(downstream, overflowStrategy, MultiProducer)
 
@@ -84,7 +84,7 @@ private[reactive] final class MergeMapObservable[A, B](
           composite += childTask
 
           childTask := fb.unsafeSubscribeFn(new Subscriber[B] {
-            implicit val scheduler = downstream.scheduler
+            implicit val scheduler: Scheduler = downstream.scheduler
 
             def onNext(elem: B) = {
               subscriberB.onNext(elem).syncOnStopOrFailure { _ => cancelUpstream(); () }

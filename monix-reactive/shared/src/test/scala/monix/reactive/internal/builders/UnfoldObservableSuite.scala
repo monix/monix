@@ -20,6 +20,7 @@ package monix.reactive.internal.builders
 import cats.laws._
 import cats.laws.discipline._
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.execution.internal.Platform.recommendedBatchSize
 import monix.reactive.observers.Subscriber
 import monix.reactive.{ BaseTestSuite, Observable }
@@ -59,7 +60,7 @@ object UnfoldObservableSuite extends BaseTestSuite {
     val cancelable = Observable
       .unfold(s.clockMonotonic(MILLISECONDS))(intOption)
       .unsafeSubscribeFn(new Subscriber[Int] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
 
         def onNext(elem: Int) = {
           sum += 1

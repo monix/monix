@@ -257,7 +257,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
         }
 
         val sub = new Subscriber[Int] {
-          implicit val scheduler = s
+          implicit val scheduler: Scheduler = s
           def onNext(elem: Int) = {
             sum.increment(elem + 1)
             Continue
@@ -318,7 +318,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     new Consumer[Int, Unit] {
       def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber[Int], AssignableCancelable) = {
         val sub = new Subscriber[Int] {
-          implicit val scheduler = s
+          implicit val scheduler: Scheduler = s
 
           def onNext(elem: Int) =
             ack.future.map { _ =>

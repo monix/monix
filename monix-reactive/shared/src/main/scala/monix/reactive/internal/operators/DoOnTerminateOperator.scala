@@ -21,6 +21,7 @@ import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
 import monix.reactive.internal.util.Instances._
@@ -39,7 +40,7 @@ private[reactive] final class DoOnTerminateOperator[A](
       // Wrapping in a cancelable in order to protect it from
       // being called multiple times
       private[this] val active = Atomic(true)
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       def onNext(elem: A): Future[Ack] = {
         val result =

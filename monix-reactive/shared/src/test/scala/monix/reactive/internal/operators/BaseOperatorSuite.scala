@@ -20,6 +20,7 @@ package monix.reactive.internal.operators
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.FutureUtils.extensions._
+import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 import monix.reactive.{ BaseTestSuite, Observable, Observer }
@@ -361,7 +362,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
       var received = 0L
 
       val cancelable = obs.unsafeSubscribeFn(new Subscriber[Long] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
 
         def onError(ex: Throwable) = wasCompleted += 1
         def onComplete() = wasCompleted += 1

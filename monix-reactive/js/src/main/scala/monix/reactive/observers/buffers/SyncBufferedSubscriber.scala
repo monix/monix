@@ -20,6 +20,7 @@ package monix.reactive.observers.buffers
 import monix.eval.Coeval
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.internal.collection.{ JSArrayQueue, _ }
 
 import scala.util.control.NonFatal
@@ -38,7 +39,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private (
   onOverflow: Long => Coeval[Option[A]] /*| Null*/,
 ) extends BufferedSubscriber[A] with Subscriber.Sync[A] {
 
-  implicit val scheduler = out.scheduler
+  implicit val scheduler: Scheduler = out.scheduler
   // to be modified only in onError, before upstreamIsComplete
   private[this] var errorThrown: Throwable = _
   // to be modified only in onError / onComplete

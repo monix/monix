@@ -125,7 +125,7 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
         val cancelable = Observable
           .fromIterable(queue)
           .unsafeSubscribeFn(new Subscriber[A] {
-            implicit val scheduler = underlying.scheduler
+            implicit val scheduler: Scheduler = underlying.scheduler
             private[this] var ack: Future[Ack] = Continue
 
             bufferWasDrained.future.onComplete {

@@ -20,6 +20,7 @@ package monix.reactive.internal.operators
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack.Stop
+import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.{ OrderedCancelable, SingleAssignCancelable, StackedCancelable }
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
@@ -61,7 +62,7 @@ private[reactive] object DoOnSubscribeObservable {
 
       val cancelable = source.unsafeSubscribeFn(
         new Subscriber[A] {
-          implicit val scheduler = out.scheduler
+          implicit val scheduler: Scheduler = out.scheduler
           private[this] val completeGuard = Atomic(true)
           private[this] var isActive = false
 

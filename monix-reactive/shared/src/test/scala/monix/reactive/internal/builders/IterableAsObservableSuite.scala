@@ -20,6 +20,7 @@ package monix.reactive.internal.builders
 import minitest.TestSuite
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.FutureUtils.extensions._
+import monix.execution.Scheduler
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
@@ -317,7 +318,7 @@ object IterableAsObservableSuite extends TestSuite[TestScheduler] {
     val cancelable = Observable
       .fromIterable(seq)
       .unsafeSubscribeFn(new Subscriber[Int] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
         def onNext(elem: Int) = {
           sum += 1
           Continue

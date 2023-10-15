@@ -19,6 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.Stop
+import monix.execution.Scheduler
 import monix.execution.cancelables.BooleanCancelable
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
@@ -29,7 +30,7 @@ private[reactive] final class TakeWhileNotCanceledOperator[A](c: BooleanCancelab
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       private[this] var isActive = true
 
       def onNext(elem: A): Future[Ack] =

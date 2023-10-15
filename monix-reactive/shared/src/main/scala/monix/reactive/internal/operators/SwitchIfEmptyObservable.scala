@@ -19,6 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.cancelables.OrderedCancelable
 import monix.execution.{ Ack, Cancelable }
+import monix.execution.Scheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
@@ -30,7 +31,7 @@ private[reactive] final class SwitchIfEmptyObservable[+A](source: Observable[A],
     val cancelable = OrderedCancelable()
 
     val mainSub = source.unsafeSubscribeFn(new Subscriber[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       private[this] var isEmpty = true
 
       def onNext(elem: A): Future[Ack] = {

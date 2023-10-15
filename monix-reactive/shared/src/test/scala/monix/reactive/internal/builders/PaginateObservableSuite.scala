@@ -18,6 +18,7 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.reactive.observers.Subscriber
 import monix.reactive.{ BaseTestSuite, Observable }
 import scala.concurrent.duration.MILLISECONDS
@@ -55,7 +56,7 @@ object PaginateObservableSuite extends BaseTestSuite {
     val cancelable = Observable
       .paginate(s.clockMonotonic(MILLISECONDS))(intOption)
       .unsafeSubscribeFn(new Subscriber[Int] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
 
         def onNext(elem: Int) = {
           sum += 1

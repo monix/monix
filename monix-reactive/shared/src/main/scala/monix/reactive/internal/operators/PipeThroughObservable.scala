@@ -19,6 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.{ Ack, Cancelable }
+import monix.execution.Scheduler
 import monix.reactive.observers.Subscriber
 import monix.reactive.{ Observable, Pipe }
 import scala.concurrent.Future
@@ -32,7 +33,7 @@ private[reactive] final class PipeThroughObservable[A, B](source: Observable[A],
     val upstream = SingleAssignCancelable()
 
     val downstream = output.unsafeSubscribeFn(new Subscriber[B] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       def onError(ex: Throwable) = out.onError(ex)
       def onComplete() = out.onComplete()
 

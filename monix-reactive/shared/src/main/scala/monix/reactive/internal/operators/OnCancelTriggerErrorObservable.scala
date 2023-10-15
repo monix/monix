@@ -19,6 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.{ Ack, Cancelable }
+import monix.execution.Scheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
@@ -28,7 +29,7 @@ private[reactive] final class OnCancelTriggerErrorObservable[A](source: Observab
 
   def unsafeSubscribeFn(downstream: Subscriber[A]): Cancelable = {
     val out: Subscriber[A] = new Subscriber[A] { self =>
-      implicit val scheduler = downstream.scheduler
+      implicit val scheduler: Scheduler = downstream.scheduler
       private[this] var isDone = false
 
       def onNext(elem: A): Future[Ack] =

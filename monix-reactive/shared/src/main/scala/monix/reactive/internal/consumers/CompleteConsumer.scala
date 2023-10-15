@@ -31,7 +31,7 @@ private[reactive] object CompleteConsumer extends Consumer.Sync[Any, Unit] {
     s: Scheduler
   ): (Subscriber.Sync[Any], AssignableCancelable) = {
     val out = new Subscriber.Sync[Any] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
       def onNext(elem: Any): Ack = Continue
       def onComplete(): Unit = cb.onSuccess(())
       def onError(ex: Throwable): Unit = cb.onError(ex)

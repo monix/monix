@@ -18,6 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.cancelables.{ CompositeCancelable, SingleAssignCancelable }
 import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
@@ -36,7 +37,7 @@ private[reactive] final class ThrottleLastObservable[+A, S](
     val composite = CompositeCancelable(upstreamSubscription, samplerSubscription)
 
     upstreamSubscription := source.unsafeSubscribeFn(new Subscriber.Sync[A] { upstreamSubscriber =>
-      implicit val scheduler = downstream.scheduler
+      implicit val scheduler: Scheduler = downstream.scheduler
 
       // Value is volatile to keep write to lastValue visible
       // after this one is seen as being true
@@ -71,7 +72,7 @@ private[reactive] final class ThrottleLastObservable[+A, S](
         }
 
       samplerSubscription := sampler.unsafeSubscribeFn(new Subscriber[S] { self =>
-        implicit val scheduler = downstream.scheduler
+        implicit val scheduler: Scheduler = downstream.scheduler
 
         def onNext(elem: S): Future[Ack] =
           upstreamSubscriber.synchronized(signalNext())

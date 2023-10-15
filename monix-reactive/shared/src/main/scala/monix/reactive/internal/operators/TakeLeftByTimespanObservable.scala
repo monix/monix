@@ -18,6 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Stop
+import monix.execution.Scheduler
 import monix.execution.cancelables.CompositeCancelable
 import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
@@ -32,7 +33,7 @@ private[reactive] final class TakeLeftByTimespanObservable[A](source: Observable
     val composite = CompositeCancelable()
 
     composite += source.unsafeSubscribeFn(new Subscriber[A] with Runnable {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       private[this] var isActive = true
       // triggers completion

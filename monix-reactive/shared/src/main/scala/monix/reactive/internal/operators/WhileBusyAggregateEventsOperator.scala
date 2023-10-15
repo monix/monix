@@ -19,6 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
@@ -32,7 +33,7 @@ private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => 
   def apply(downstream: Subscriber[S]): Subscriber.Sync[A] = {
     new Subscriber.Sync[A] {
       upstreamSubscriber =>
-      implicit val scheduler = downstream.scheduler
+      implicit val scheduler: Scheduler = downstream.scheduler
 
       private[this] var aggregated: Option[S] = None
       private[this] var lastAck: Future[Ack] = Continue

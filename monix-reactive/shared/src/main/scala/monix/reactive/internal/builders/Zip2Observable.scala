@@ -18,7 +18,7 @@
 package monix.reactive.internal.builders
 
 import monix.execution.cancelables.CompositeCancelable
-import monix.execution.{ Ack, Cancelable }
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.execution.Ack.{ Continue, Stop }
 import scala.util.control.NonFatal
 import monix.reactive.Observable
@@ -136,7 +136,7 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
     val composite = CompositeCancelable()
 
     composite += obsA1.unsafeSubscribeFn(new Subscriber[A1] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       def onNext(elem: A1): Future[Ack] = lock.synchronized {
         if (isDone) Stop
@@ -158,7 +158,7 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
     })
 
     composite += obsA2.unsafeSubscribeFn(new Subscriber[A2] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       def onNext(elem: A2): Future[Ack] = lock.synchronized {
         if (isDone) Stop

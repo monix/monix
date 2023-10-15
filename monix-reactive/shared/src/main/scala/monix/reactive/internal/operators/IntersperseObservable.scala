@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
-import monix.execution.{ Ack, Cancelable }
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -33,7 +33,7 @@ private[reactive] final class IntersperseObservable[+A](
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val upstream = source.unsafeSubscribeFn(new Subscriber[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       private[this] var atLeastOne = false
       private[this] var downstreamAck = Continue: Future[Ack]

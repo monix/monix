@@ -21,7 +21,7 @@ import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import scala.util.control.NonFatal
-import monix.execution.{ Ack, Cancelable }
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.execution.exceptions.CompositeException
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
@@ -71,7 +71,7 @@ private[reactive] final class FlatScanObservable[A, R](
     import ConcatMapObservable.FlatMapState
     import ConcatMapObservable.FlatMapState._
 
-    implicit val scheduler = out.scheduler
+    implicit val scheduler: Scheduler = out.scheduler
 
     // For gathering errors
     private[this] val errors =
@@ -314,7 +314,7 @@ private[reactive] final class FlatScanObservable[A, R](
 
     private final class ChildSubscriber(out: Subscriber[R], asyncUpstreamAck: Promise[Ack]) extends Subscriber[R] {
 
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       private[this] var ack: Future[Ack] = Continue
 
       // Reusable reference to stop creating function references for each `onNext`

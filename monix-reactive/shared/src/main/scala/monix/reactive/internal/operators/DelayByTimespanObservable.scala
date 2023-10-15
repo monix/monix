@@ -20,6 +20,7 @@ package monix.reactive.internal.operators
 import java.util.concurrent.TimeUnit
 
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.cancelables.{ CompositeCancelable, MultiAssignCancelable }
 import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
@@ -36,7 +37,7 @@ private[reactive] final class DelayByTimespanObservable[A](source: Observable[A]
     val composite = CompositeCancelable(task)
 
     composite += source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       private[this] var hasError = false
       private[this] val isDone = Atomic(false)
       private[this] var completeTriggered = false

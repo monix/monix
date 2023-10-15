@@ -22,7 +22,7 @@ import monix.execution.Ack.Stop
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import scala.util.control.NonFatal
-import monix.execution.{ Ack, Cancelable }
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -79,7 +79,7 @@ private[reactive] final class MapTaskObservable[A, B](source: Observable[A], f: 
     import MapTaskObservable.MapTaskState
     import MapTaskObservable.MapTaskState._
 
-    implicit val scheduler = out.scheduler
+    implicit val scheduler: Scheduler = out.scheduler
 
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem

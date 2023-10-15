@@ -18,6 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.cancelables.{ CompositeCancelable, SingleAssignCancelable }
 import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
@@ -38,7 +39,7 @@ private[reactive] final class BufferWithSelectorObservable[+A, S](
     val composite = CompositeCancelable(upstreamSubscription, samplerSubscription)
 
     upstreamSubscription := source.unsafeSubscribeFn(new Subscriber[A] { upstreamSubscriber =>
-      implicit val scheduler = downstream.scheduler
+      implicit val scheduler: Scheduler = downstream.scheduler
 
       // MUST BE synchronized by `self`
       private[this] var buffer = ListBuffer.empty[A]
@@ -82,7 +83,7 @@ private[reactive] final class BufferWithSelectorObservable[+A, S](
         }
 
       samplerSubscription := sampler.unsafeSubscribeFn(new Subscriber[S] {
-        implicit val scheduler = downstream.scheduler
+        implicit val scheduler: Scheduler = downstream.scheduler
 
         def onNext(elem: S): Future[Ack] =
           upstreamSubscriber.synchronized(signalNext())

@@ -19,6 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.execution.cancelables.AssignableCancelable
 import monix.reactive.Observable
 import monix.reactive.observables.ChainedObservable
@@ -36,7 +37,7 @@ private[reactive] final class ConcatObservable[A](lh: Observable[A], rh: Observa
       conn,
       new Subscriber[A] {
         private[this] var ack: Future[Ack] = Continue
-        implicit val scheduler = out.scheduler
+        implicit val scheduler: Scheduler = out.scheduler
 
         def onNext(elem: A): Future[Ack] = {
           ack = out.onNext(elem)

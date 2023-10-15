@@ -19,6 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.execution.cancelables.AssignableCancelable
 import monix.reactive.Observable
 import monix.reactive.observables.ChainedObservable
@@ -33,7 +34,7 @@ private[reactive] final class TakeLastObservable[A](source: Observable[A], n: In
       source,
       conn,
       new Subscriber[A] {
-        implicit val scheduler = out.scheduler
+        implicit val scheduler: Scheduler = out.scheduler
         private[this] val queue = mutable.Queue.empty[A]
         private[this] var queued = 0
 

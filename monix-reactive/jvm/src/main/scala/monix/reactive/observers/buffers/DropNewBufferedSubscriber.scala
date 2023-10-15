@@ -20,6 +20,7 @@ package monix.reactive.observers.buffers
 import monix.eval.Coeval
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.atomic.PaddingStrategy.{ LeftRight128, LeftRight256 }
 import monix.execution.atomic.{ Atomic, AtomicInt }
 
@@ -43,7 +44,7 @@ private[observers] final class DropNewBufferedSubscriber[A] private (
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 
-  implicit val scheduler = out.scheduler
+  implicit val scheduler: Scheduler = out.scheduler
   private[this] val em = out.scheduler.executionModel
 
   private[this] val itemsToPush =

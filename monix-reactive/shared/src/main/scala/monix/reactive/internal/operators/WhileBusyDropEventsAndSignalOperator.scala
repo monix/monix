@@ -19,6 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
@@ -29,7 +30,7 @@ private[reactive] final class WhileBusyDropEventsAndSignalOperator[A](onOverflow
 
   def apply(out: Subscriber[A]): Subscriber.Sync[A] =
     new Subscriber.Sync[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       private[this] var ack = Continue: Future[Ack]
       private[this] var eventsDropped = 0L

@@ -19,6 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.Stop
+import monix.execution.Scheduler
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
@@ -28,7 +29,7 @@ private[reactive] final class TakeByPredicateOperator[A](p: A => Boolean, inclus
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       private[this] var isActive = true
 
       def onNext(elem: A): Future[Ack] = {

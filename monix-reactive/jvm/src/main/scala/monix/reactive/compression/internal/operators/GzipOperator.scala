@@ -23,6 +23,7 @@ import java.util.zip.{ CRC32, Deflater }
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.compression.internal.operators.Gzipper.gzipOperatingSystem
 import monix.reactive.compression.{
@@ -52,7 +53,7 @@ private[compression] final class GzipOperator(
 ) extends Operator[Array[Byte], Array[Byte]] {
   override def apply(out: Subscriber[Array[Byte]]): Subscriber[Array[Byte]] = {
     new Subscriber[Array[Byte]] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       private[this] var ack: Future[Ack] = _
       private[this] val gzipper =

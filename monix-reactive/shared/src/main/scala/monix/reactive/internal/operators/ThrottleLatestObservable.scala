@@ -18,6 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.cancelables.{ CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable }
 import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
@@ -40,7 +41,7 @@ private[reactive] final class ThrottleLatestObservable[A](
 
     mainTask := source.unsafeSubscribeFn(new Subscriber[A] with Runnable {
       self =>
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       private[this] val durationMilis = duration.toMillis
       private[this] var isDone = false

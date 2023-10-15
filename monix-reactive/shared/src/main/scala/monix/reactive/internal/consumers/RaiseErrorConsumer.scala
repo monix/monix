@@ -29,7 +29,7 @@ private[reactive] final class RaiseErrorConsumer(ex: Throwable) extends Consumer
 
   def createSubscriber(cb: Callback[Throwable, Nothing], s: Scheduler): (Subscriber.Sync[Any], AssignableCancelable) = {
     val out = new Subscriber.Sync[Any] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
       def onNext(elem: Any): Ack = Stop
       def onComplete(): Unit = ()
       def onError(ex: Throwable): Unit = scheduler.reportFailure(ex)

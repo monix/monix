@@ -43,7 +43,7 @@ object BufferedIteratorAsObservableSuite extends TestSuite[TestScheduler] {
     obs.unsafeSubscribeFn(Subscriber.empty(s))
 
     obs.unsafeSubscribeFn(new Subscriber[Seq[Int]] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
 
       def onNext(elem: Seq[Int]): Ack =
         throw new IllegalStateException("onNext")

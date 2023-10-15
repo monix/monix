@@ -18,13 +18,14 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 private[reactive] object CompletedOperator extends Operator[Any, Nothing] {
   def apply(out: Subscriber[Nothing]): Subscriber[Any] =
     new Subscriber.Sync[Any] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       def onNext(elem: Any) = Continue
       def onError(ex: Throwable): Unit = out.onError(ex)
       def onComplete(): Unit = out.onComplete()

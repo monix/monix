@@ -21,6 +21,7 @@ import monix.execution.{ Ack, ChannelType }
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.BufferCapacity.{ Bounded, Unbounded }
 import monix.execution.ChannelType.SingleConsumer
+import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight256
 import monix.execution.exceptions.BufferOverflowException
@@ -62,7 +63,7 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected 
 
   private[this] val queue = _qRef
   private[this] val em = out.scheduler.executionModel
-  implicit val scheduler = out.scheduler
+  implicit val scheduler: Scheduler = out.scheduler
   private[this] val itemsToPush =
     Atomic.withPadding(0, LeftRight256)
 
