@@ -48,7 +48,7 @@ val minitest_Version          = "2.9.6"
 val implicitBox_Version       = "0.3.4"
 val kindProjector_Version     = "0.13.2"
 val betterMonadicFor_Version  = "0.3.1"
-val silencer_Version          = "1.7.8"
+val silencer_Version          = "1.7.14"
 val scalaCompat_Version       = "2.7.0"
 
 // The Monix version with which we must keep binary compatibility.
@@ -199,13 +199,13 @@ lazy val sharedSettings = pgpSettings ++ Seq(
 
   // Turning off fatal warnings for doc generation
   Compile / doc / tpolecatExcludeOptions ++= ScalacOptions.defaultConsoleExclude,
-  
+
   // Turn off annoyances in tests
   Test / tpolecatExcludeOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 12)) => 
+      case Some((2, 12)) =>
         ScalacOptions.defaultConsoleExclude
-      case _ => 
+      case _ =>
         Set(
           ScalacOptions.lintInferAny,
           ScalacOptions.warnUnusedImplicits,
@@ -215,7 +215,7 @@ lazy val sharedSettings = pgpSettings ++ Seq(
         )
     }
   },
-  
+
   // Silence everything in auto-generated files
   scalacOptions ++= {
     if (isDotty.value)
@@ -321,13 +321,13 @@ lazy val extraSourceSettings = {
       baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
     }
   )
-  
+
   val perVersion = Seq(Compile, Test).map { sc =>
     (sc / unmanagedSourceDirectories) ++= {
       (sc / unmanagedSourceDirectories).value.flatMap { dir =>
         if (dir.getPath().endsWith("scala"))
           scalaPartV.value.toList.flatMap {
-            case (major, minor) => 
+            case (major, minor) =>
               Seq(
                 new File(s"${dir.getPath}-$major"),
                 new File(s"${dir.getPath}-$major.$minor"),
@@ -338,7 +338,7 @@ lazy val extraSourceSettings = {
       }
     }
   }
-  
+
   shared ++ perVersion
 }
 
@@ -399,7 +399,6 @@ lazy val unidocSettings = Seq(
 )
 
 lazy val sharedJSSettings = Seq(
-  coverageExcludedFiles := ".*",
   scalacOptions ++= {
     if (isDotty.value)
       Seq()
@@ -435,23 +434,16 @@ lazy val doctestTestSettings = Seq(
 // Configuration profiles
 
 def baseSettingsAndPlugins(publishArtifacts: Boolean): Project ⇒ Project =
-  pr => {
-    val withCoverage = sys.env.getOrElse("SBT_PROFILE", "") match {
-      case "coverage" => pr
-      case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
-    }
-    withCoverage
-      .enablePlugins(AutomateHeaderPlugin)
-      .settings(sharedSettings)
-      .settings(if (publishArtifacts) Seq.empty else doNotPublishArtifactSettings)
-      .settings(scalafmtOnCompile := !isCI)
-      .settings(
-        filterOutMultipleDependenciesFromGeneratedPomXml(
-          "groupId" -> "org.scoverage".r :: Nil,
-          "groupId" -> "org.typelevel".r :: "artifactId" -> "simulacrum".r :: Nil
-        )
+  pr => pr
+    .enablePlugins(AutomateHeaderPlugin)
+    .settings(sharedSettings)
+    .settings(if (publishArtifacts) Seq.empty else doNotPublishArtifactSettings)
+    .settings(scalafmtOnCompile := !isCI)
+    .settings(
+      filterOutMultipleDependenciesFromGeneratedPomXml(
+        "groupId" -> "org.typelevel".r :: "artifactId" -> "simulacrum".r :: Nil
       )
-  }
+    )
 
 def monixSubModule(
   projectName: String,
@@ -538,7 +530,6 @@ lazy val monix = project
     Global / onChangedBuildSource := ReloadOnSourceChanges,
     Global / excludeLintKeys ++= Set(
       Compile / gitHubTreeTagOrHash,
-      Compile / coverageExcludedFiles
     ),
     // https://github.com/lightbend/mima/pull/289
     ThisBuild / mimaFailOnNoPrevious := false
