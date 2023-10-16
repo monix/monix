@@ -211,7 +211,7 @@ jobs:
           ./.github/scripts/exec-sbt-command
         env:
           SCALA_VERSION: ${{ matrix.scala }}
-          SBT_COMMAND: scalafmtCheckAll
+          SBT_COMMAND: "scalafmtCheckAll scalafmtSbtCheck"
 
   unidoc:
     name: Unidoc / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
