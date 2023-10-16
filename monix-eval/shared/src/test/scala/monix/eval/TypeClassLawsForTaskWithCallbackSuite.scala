@@ -52,7 +52,7 @@ class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options) ext
     A: Eq[A],
     ec: TestScheduler,
     opts: Options
-  ) = {
+  ): Eq[Task[A]] = {
 
     Eq.by { task =>
       val p = Promise[A]()

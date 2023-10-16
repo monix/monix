@@ -19,6 +19,7 @@ package monix.reactive.internal.builders
 
 import scala.util.control.NonFatal
 import monix.execution.{ Ack, Cancelable, ExecutionModel }
+import monix.execution.Scheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -34,7 +35,7 @@ private[reactive] final class ExecuteWithModelObservable[A](source: Observable[A
       streamErrors = false
 
       source.unsafeSubscribeFn(new Subscriber[A] {
-        implicit val scheduler = newS
+        implicit val scheduler: Scheduler = newS
         def onError(ex: Throwable): Unit = out.onError(ex)
         def onComplete(): Unit = out.onComplete()
         def onNext(elem: A): Future[Ack] = out.onNext(elem)

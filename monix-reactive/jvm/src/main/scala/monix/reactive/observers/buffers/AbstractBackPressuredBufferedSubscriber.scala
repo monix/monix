@@ -21,6 +21,7 @@ import monix.execution.{ Ack, ChannelType }
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.BufferCapacity.Unbounded
 import monix.execution.ChannelType._
+import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight256
 import monix.execution.internal.collection.LowLevelConcurrentQueue
@@ -46,7 +47,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
 
   private[this] val bufferSize = math.nextPowerOf2(_bufferSize)
   private[this] val em = out.scheduler.executionModel
-  implicit final val scheduler = out.scheduler
+  implicit final val scheduler: Scheduler = out.scheduler
 
   protected final val queue: LowLevelConcurrentQueue[A] =
     LowLevelConcurrentQueue(

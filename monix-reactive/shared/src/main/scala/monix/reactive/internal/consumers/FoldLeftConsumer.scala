@@ -30,7 +30,7 @@ private[reactive] final class FoldLeftConsumer[A, R](initial: () => R, f: (R, A)
 
   def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
     val out = new Subscriber.Sync[A] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
       private[this] var isDone = false
       private[this] var state = initial()
 

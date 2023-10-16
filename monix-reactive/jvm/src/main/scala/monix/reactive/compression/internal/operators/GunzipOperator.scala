@@ -22,6 +22,7 @@ import java.{ util => ju }
 
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.compression.internal.operators.Gunzipper._
 import monix.reactive.compression.{
@@ -42,7 +43,7 @@ private[compression] final class GunzipOperator(bufferSize: Int) extends Operato
 
   def apply(out: Subscriber[Array[Byte]]): Subscriber[Array[Byte]] =
     new Subscriber[Array[Byte]] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       private[this] var isDone = false
       private[this] var ack: Future[Ack] = _

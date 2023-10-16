@@ -19,6 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.Stop
+import monix.execution.Scheduler
 import monix.reactive.Notification
 import monix.reactive.Notification.{ OnComplete, OnError, OnNext }
 import monix.reactive.Observable.Operator
@@ -29,7 +30,7 @@ private[reactive] final class DematerializeOperator[A] extends Operator[Notifica
 
   def apply(out: Subscriber[A]): Subscriber[Notification[A]] =
     new Subscriber[Notification[A]] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       private[this] var isDone = false
 
       def onNext(elem: Notification[A]): Future[Ack] = {

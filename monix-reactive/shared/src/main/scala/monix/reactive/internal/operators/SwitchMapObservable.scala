@@ -18,6 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.cancelables.{ CompositeCancelable, SerialCancelable, SingleAssignCancelable }
 import scala.util.control.NonFatal
 import monix.execution.{ Ack, Cancelable }
@@ -35,7 +36,7 @@ private[reactive] final class SwitchMapObservable[A, B](source: Observable[A], f
     val composite = CompositeCancelable(activeChild, mainTask)
 
     mainTask := source.unsafeSubscribeFn(new Subscriber.Sync[A] { self =>
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       // MUST BE synchronized by `self`
       private[this] var ack: Future[Ack] = Continue
       // MUST BE synchronized by `self`

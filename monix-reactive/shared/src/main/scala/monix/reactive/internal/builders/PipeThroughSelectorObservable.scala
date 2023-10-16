@@ -18,6 +18,7 @@
 package monix.reactive.internal.builders
 
 import monix.execution.{ Ack, Cancelable }
+import monix.execution.Scheduler
 import monix.execution.cancelables.SingleAssignCancelable
 import scala.util.control.NonFatal
 import monix.reactive.observers.Subscriber
@@ -42,7 +43,7 @@ private[reactive] final class PipeThroughSelectorObservable[A, B, C](
       streamErrors = false
 
       val downstream = observable.unsafeSubscribeFn(new Subscriber[C] {
-        implicit val scheduler = out.scheduler
+        implicit val scheduler: Scheduler = out.scheduler
         def onError(ex: Throwable) = out.onError(ex)
         def onComplete() = out.onComplete()
 

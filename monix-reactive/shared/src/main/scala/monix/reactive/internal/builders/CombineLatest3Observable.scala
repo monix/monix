@@ -19,6 +19,7 @@ package monix.reactive.internal.builders
 
 import monix.execution.{ Ack, Cancelable }
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.cancelables.CompositeCancelable
 import scala.util.control.NonFatal
 import monix.reactive.Observable
@@ -128,7 +129,7 @@ private[reactive] final class CombineLatest3Observable[A1, A2, A3, +R](
     val composite = CompositeCancelable()
 
     composite += obsA1.unsafeSubscribeFn(new Subscriber[A1] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       def onNext(elem: A1): Future[Ack] = lock.synchronized {
         if (isDone) Stop
@@ -150,7 +151,7 @@ private[reactive] final class CombineLatest3Observable[A1, A2, A3, +R](
     })
 
     composite += obsA2.unsafeSubscribeFn(new Subscriber[A2] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       def onNext(elem: A2): Future[Ack] = lock.synchronized {
         if (isDone) Stop
@@ -172,7 +173,7 @@ private[reactive] final class CombineLatest3Observable[A1, A2, A3, +R](
     })
 
     composite += obsA3.unsafeSubscribeFn(new Subscriber[A3] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       def onNext(elem: A3): Future[Ack] = lock.synchronized {
         if (isDone) Stop

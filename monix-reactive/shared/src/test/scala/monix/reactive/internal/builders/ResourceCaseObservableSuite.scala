@@ -23,6 +23,7 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Task
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 import monix.reactive.{ BaseTestSuite, Consumer, Observable }
@@ -138,7 +139,7 @@ object ResourceCaseObservableSuite extends BaseTestSuite {
     val cancelable = obs
       .flatMap(_ => Observable.never)
       .unsafeSubscribeFn(new Subscriber[Handle] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
         def onNext(elem: Handle) =
           Continue
         def onComplete() =

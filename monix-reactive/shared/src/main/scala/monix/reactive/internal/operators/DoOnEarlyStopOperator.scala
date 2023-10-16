@@ -20,6 +20,7 @@ package monix.reactive.internal.operators
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
@@ -33,7 +34,7 @@ private[reactive] final class DoOnEarlyStopOperator[A](onStop: Task[Unit]) exten
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       private[this] val isActive = Atomic(true)
 
       def onNext(elem: A): Future[Ack] = {

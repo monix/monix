@@ -19,6 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
@@ -29,7 +30,7 @@ import scala.util.control.NonFatal
 private[reactive] final class BufferWhileOperator[A](p: A => Boolean, inclusive: Boolean) extends Operator[A, Seq[A]] {
   def apply(out: Subscriber[Seq[A]]): Subscriber[A] =
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       private[this] var isDone = false
       private[this] var ack: Future[Ack] = Continue

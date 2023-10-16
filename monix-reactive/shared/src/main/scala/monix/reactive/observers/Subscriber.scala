@@ -71,7 +71,7 @@ object Subscriber {
     */
   def empty[A](implicit s: Scheduler): Subscriber.Sync[A] =
     new Subscriber.Sync[A] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
       def onNext(elem: A): Ack = Continue
       def onError(ex: Throwable): Unit = s.reportFailure(ex)
       def onComplete(): Unit = ()

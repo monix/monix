@@ -18,6 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.cancelables.{ CompositeCancelable, MultiAssignCancelable }
 import scala.util.control.NonFatal
 import monix.execution.{ Ack, Cancelable }
@@ -34,7 +35,7 @@ private[reactive] final class DelayBySelectorObservable[A, S](source: Observable
     val composite = CompositeCancelable(task)
 
     composite += source.unsafeSubscribeFn(new Subscriber[A] { self =>
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       private[this] var completeTriggered = false
       private[this] var isDone = false
@@ -42,7 +43,7 @@ private[reactive] final class DelayBySelectorObservable[A, S](source: Observable
       private[this] var ack: Promise[Ack] = _
 
       private[this] val trigger = new Subscriber.Sync[Any] {
-        implicit val scheduler = out.scheduler
+        implicit val scheduler: Scheduler = out.scheduler
         def onNext(elem: Any): Ack = throw new IllegalStateException
         def onError(ex: Throwable): Unit = self.onError(ex)
         def onComplete(): Unit = self.sendOnNext()

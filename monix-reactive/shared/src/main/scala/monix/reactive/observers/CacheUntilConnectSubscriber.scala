@@ -19,6 +19,7 @@ package monix.reactive.observers
 
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.{ Ack, CancelableFuture }
+import monix.execution.Scheduler
 import monix.reactive.Observable
 import scala.collection.mutable
 import scala.concurrent.{ Future, Promise }
@@ -30,7 +31,7 @@ import scala.util.{ Failure, Success }
   * subsequent events are pushed directly.
   */
 final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) extends Subscriber[A] { self =>
-  implicit val scheduler = downstream.scheduler
+  implicit val scheduler: Scheduler = downstream.scheduler
   // MUST BE synchronized by `self`, only available if isConnected == false
   private[this] var queue = mutable.ArrayBuffer.empty[A]
   // MUST BE synchronized by `self`
@@ -72,7 +73,7 @@ final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) 
       val cancelable = Observable
         .fromIterable(queue)
         .unsafeSubscribeFn(new Subscriber[A] {
-          implicit val scheduler = downstream.scheduler
+          implicit val scheduler: Scheduler = downstream.scheduler
           private[this] var ack: Future[Ack] = Continue
 
           bufferWasDrained.future.onComplete {

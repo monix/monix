@@ -19,6 +19,7 @@ package monix.reactive.observers.buffers
 
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.internal.collection.JSArrayQueue
 import monix.execution.internal.math.nextPowerOf2
 import scala.util.control.NonFatal
@@ -37,7 +38,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
   private[this] val bufferSize = nextPowerOf2(_size)
 
   private[this] val em = out.scheduler.executionModel
-  implicit final val scheduler = out.scheduler
+  implicit final val scheduler: Scheduler = out.scheduler
 
   private[this] var upstreamIsComplete = false
   private[this] var downstreamIsComplete = false

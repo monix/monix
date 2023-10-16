@@ -19,6 +19,7 @@ package monix.reactive.subjects
 
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.{ Ack, Cancelable }
+import monix.execution.Scheduler
 import monix.reactive.Observable
 import monix.reactive.internal.util.PromiseCounter
 import monix.reactive.observers.{ ConnectableSubscriber, Subscriber }
@@ -44,7 +45,7 @@ final class ReplaySubject[A] private (initialState: ReplaySubject.State[A]) exte
       Observable
         .fromIterable(buffer)
         .unsafeSubscribeFn(new Subscriber[A] {
-          implicit val scheduler = subscriber.scheduler
+          implicit val scheduler: Scheduler = subscriber.scheduler
 
           def onNext(elem: A) =
             subscriber.onNext(elem)

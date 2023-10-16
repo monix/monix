@@ -33,7 +33,7 @@ private[reactive] final class ObserveOnObservable[+A](source: Observable[A], alt
     // will be listened on that specified `Scheduler`
     val buffer = {
       val ref: Subscriber[A] = new Subscriber[A] {
-        implicit val scheduler = altS
+        implicit val scheduler: Scheduler = altS
         def onNext(a: A) = out.onNext(a)
         def onError(ex: Throwable) = out.onError(ex)
         def onComplete() = out.onComplete()
@@ -46,7 +46,7 @@ private[reactive] final class ObserveOnObservable[+A](source: Observable[A], alt
     // because we only want to listen to events on the specified Scheduler,
     // but we don't want to override the Observable's default Scheduler
     source.unsafeSubscribeFn(new Subscriber[A] {
-      implicit val scheduler =
+      implicit val scheduler: Scheduler =
         out.scheduler
       def onNext(elem: A): Future[Ack] =
         buffer.onNext(elem)

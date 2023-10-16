@@ -31,7 +31,7 @@ private[reactive] final class HeadOptionConsumer[A] extends Consumer.Sync[A, Opt
     s: Scheduler
   ): (Subscriber.Sync[A], AssignableCancelable) = {
     val out = new Subscriber.Sync[A] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
       private[this] var isDone = false
 
       def onNext(elem: A): Ack = {

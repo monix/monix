@@ -48,7 +48,7 @@ private[reactive] final class LoadBalanceConsumer[-In, R](parallelism: Int, cons
     val mainCancelable = SingleAssignCancelable()
 
     val balanced = new Subscriber[In] { self =>
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
 
       // Trying to prevent contract violations, once this turns
       // true, then no final events are allowed to happen.

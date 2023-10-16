@@ -23,6 +23,7 @@ import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
+import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
@@ -84,7 +85,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     val cancelable = Observable
       .fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
       .unsafeSubscribeFn(new Subscriber[Int] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
         def onNext(elem: Int) = {
           sum += 1
           Continue

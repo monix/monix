@@ -25,6 +25,7 @@ import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, BatchedExecution, SynchronousExecution }
+import monix.execution.Scheduler
 import monix.execution.exceptions.{ APIContractViolationException, DummyException }
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
@@ -43,7 +44,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
     s.tick()
 
     obs.unsafeSubscribeFn(new Subscriber[Array[Byte]] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
 
       def onNext(elem: Array[Byte]): Ack =
         throw new IllegalStateException("onNext")
@@ -122,7 +123,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
       .foldLeft(Array.empty[Byte])(_ ++ _)
 
     obs.unsafeSubscribeFn(new Subscriber[Array[Byte]] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
 
       def onError(ex: Throwable): Unit =
         throw new IllegalStateException("onError")

@@ -20,6 +20,7 @@ package monix.reactive.internal.operators
 import cats.effect.ExitCase
 import monix.eval.Task
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 
@@ -86,7 +87,7 @@ private[reactive] final class ConcatMapObservable[A, B](
     import ConcatMapObservable.FlatMapState
     import ConcatMapObservable.FlatMapState._
 
-    implicit val scheduler = out.scheduler
+    implicit val scheduler: Scheduler = out.scheduler
 
     // For gathering errors
     private[this] val errors =
@@ -340,7 +341,7 @@ private[reactive] final class ConcatMapObservable[A, B](
 
     private final class ChildSubscriber(out: Subscriber[B], asyncUpstreamAck: Promise[Ack]) extends Subscriber[B] {
 
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       private[this] var ack: Future[Ack] = Continue
 
       // Reusable reference to stop creating function references for each `onNext`

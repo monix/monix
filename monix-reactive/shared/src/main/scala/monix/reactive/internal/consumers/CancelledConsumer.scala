@@ -28,7 +28,7 @@ import monix.reactive.observers.Subscriber
 private[reactive] object CancelledConsumer extends Consumer.Sync[Any, Unit] {
   def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber.Sync[Any], AssignableCancelable) = {
     val out = new Subscriber.Sync[Any] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
       def onNext(elem: Any): Ack = Stop
       def onComplete(): Unit = ()
       def onError(ex: Throwable): Unit = scheduler.reportFailure(ex)

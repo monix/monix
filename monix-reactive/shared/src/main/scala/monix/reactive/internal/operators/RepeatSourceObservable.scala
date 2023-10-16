@@ -20,6 +20,7 @@ package monix.reactive.internal.operators
 import monix.execution.Ack.Continue
 import monix.execution.cancelables.{ CompositeCancelable, OrderedCancelable }
 import monix.execution.{ Ack, Cancelable }
+import monix.execution.Scheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.{ ReplaySubject, Subject }
@@ -33,7 +34,7 @@ private[reactive] final class RepeatSourceObservable[A](source: Observable[A]) e
   def loop(subject: Subject[A, A], out: Subscriber[A], task: OrderedCancelable, index: Long): Unit = {
 
     val cancelable = subject.unsafeSubscribeFn(new Subscriber[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       private[this] var isEmpty = true
       private[this] var isDone = false
       private[this] var ack: Future[Ack] = Continue

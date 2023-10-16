@@ -18,6 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
+import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
@@ -26,7 +27,7 @@ private[reactive] final class EndWithErrorOperator[A](error: Throwable) extends 
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       def onNext(elem: A): Future[Ack] = out.onNext(elem)
       def onError(ex: Throwable): Unit = out.onError(ex)
       def onComplete(): Unit = out.onError(error)

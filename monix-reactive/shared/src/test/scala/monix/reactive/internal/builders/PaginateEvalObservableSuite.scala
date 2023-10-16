@@ -19,6 +19,7 @@ package monix.reactive.internal.builders
 
 import monix.eval.Task
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 import monix.reactive.{ BaseTestSuite, Observable }
@@ -58,7 +59,7 @@ object PaginateEvalObservableSuite extends BaseTestSuite {
     val cancelable = Observable
       .paginateEval(s.clockMonotonic(MILLISECONDS))(intNowOption)
       .unsafeSubscribeFn(new Subscriber[Int] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
 
         def onNext(elem: Int) = {
           sum += 1

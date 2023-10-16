@@ -19,6 +19,7 @@ package monix.reactive.internal.operators
 
 import cats.Eq
 import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
@@ -29,7 +30,7 @@ private[reactive] final class DistinctUntilChangedOperator[A](implicit A: Eq[A])
   /** Implementation for `Observable.distinctUntilChanged`. */
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       private[this] var isFirst = true
       private[this] var lastElem: A = _
 

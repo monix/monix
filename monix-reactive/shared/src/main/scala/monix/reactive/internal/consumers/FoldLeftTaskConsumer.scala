@@ -36,7 +36,7 @@ private[reactive] final class FoldLeftTaskConsumer[A, R](initial: () => R, f: (R
     var lastCancelable = Cancelable.empty
 
     val out = new Subscriber[A] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
 
       private[this] var state = initial()
 
