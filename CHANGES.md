@@ -1531,7 +1531,7 @@ Bug fixes:
 Build:
 
 - enabled the Scala
-  [Migration Manager](https://github.com/typesafehub/migration-manager)
+  [Migration Manager](https://github.com/lightbend/mima)
   (MiMa) in `build.sbt` to check for backwards compatibility problems
 - [Issue #322](https://github.com/monix/monix/issues/322):
   Switch projects which use `CrossVersion.full/"org.scala-lang"`

@@ -52,7 +52,7 @@ val silencer_Version          = "1.7.8"
 val scalaCompat_Version       = "2.7.0"
 
 // The Monix version with which we must keep binary compatibility.
-// https://github.com/typesafehub/migration-manager/wiki/Sbt-plugin
+// https://github.com/lightbend/mima#sbt
 val monixSeries = "3.4.0"
 
 // ------------------------------------------------------------------------------------------------
