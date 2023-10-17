@@ -175,7 +175,7 @@ lazy val isCI = {
   sys.env.get("CI").exists(v => v == "true" || v == "1" || v == "yes")
 }
 
-lazy val sharedSettings = pgpSettings ++ Seq(
+lazy val sharedSettings = pgpSettings ++ Def.settings(
   organization := "io.monix",
   // Value extracted from .github/workflows/build.yml
   scalaVersion := crossScalaVersionsFromBuildYaml.value.flatMap(_.filterPrefix("2.13.")).head.value,
@@ -194,6 +194,16 @@ lazy val sharedSettings = pgpSettings ++ Seq(
     CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, 13) | (3, _)) => Seq("-Wconf:any:warning-verbose")
       case _ => Seq.empty
+    }
+  },
+  Seq(Compile, Test).map { x =>
+    x / compile / scalacOptions --= {
+      scalaBinaryVersion.value match {
+        case "3" =>
+          Seq("-Xfatal-warnings")
+        case _ =>
+          Seq.empty
+      }
     }
   },
 
