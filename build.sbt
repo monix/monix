@@ -381,6 +381,7 @@ lazy val assemblyShadeSettings = Seq(
 lazy val unidocSettings = Seq(
   ScalaUnidoc / unidoc / unidocProjectFilter :=
     inProjects(
+      executionCancelablesJVM,
       executionAtomicJVM,
       executionJVM,
       catnapJVM,
@@ -571,13 +572,33 @@ lazy val coreJVM = project
   .in(file("monix/jvm"))
   .configure(coreProfile.jvm)
   .dependsOn(executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
-  .aggregate(executionShadedJCTools, executionJVM, catnapJVM, evalJVM, tailJVM, reactiveJVM, javaJVM)
+  .aggregate(
+    executionShadedJCTools, 
+    executionInternalJVM,
+    executionExceptionsJVM,
+    executionCancelablesJVM, 
+    executionJVM, 
+    catnapJVM, 
+    evalJVM, 
+    tailJVM, 
+    reactiveJVM, 
+    javaJVM,
+  )
 
 lazy val coreJS = project
   .in(file("monix/js"))
   .configure(coreProfile.js)
   .dependsOn(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
-  .aggregate(executionJS, catnapJS, evalJS, tailJS, reactiveJS)
+  .aggregate(
+    executionInternalJVM,
+    executionExceptionsJS,
+    executionCancelablesJS,
+    executionJS, 
+    catnapJS, 
+    evalJS, 
+    tailJS, 
+    reactiveJS,
+  )
 
 // --------------------------------------------
 // monix-internal-jctools (shaded lib)
@@ -606,6 +627,32 @@ lazy val executionShadedJCTools = project
   )
 
 // --------------------------------------------
+// monix-execution-internal
+
+lazy val executionInternal =
+  crossModule(
+    projectName  = "monix-execution-internal",
+    withDocTests = false,
+    crossSettings = Seq(
+      description := "Sub-module of Monix, for internal use only. See: https://monix.io",
+    )
+  )
+
+lazy val executionInternalJVM = project.in(file("monix-execution/internal/jvm"))
+  .configure(executionInternal.jvm)
+  .settings(
+    Test / fork := true,
+    Test / javaOptions += "-Dmonix.test.system.property=sys",
+    Test / envVars := Map(
+      "MONIX_TEST" -> "true",
+      "MONIX_TEST_SYSTEM_PROPERTY" -> "env",
+    ),
+  )
+
+lazy val executionInternalJS = project.in(file("monix-execution/internal/js"))
+  .configure(executionInternal.js)
+
+// --------------------------------------------
 // monix-execution-atomic
 
 lazy val executionAtomicProfile =
@@ -626,6 +673,48 @@ lazy val executionAtomicJS = project.in(file("monix-execution/atomic/js"))
   .settings(macroDependencies)
 
 // --------------------------------------------
+// monix-execution-exceptions
+
+lazy val executionExceptionsProfile =
+  crossModule(
+    projectName  = "monix-execution-exceptions",
+    withDocTests = true,
+    crossSettings = Seq(
+      description := "Sub-module of Monix, exposing `Throwable` definitions and utilities. See: https://monix.io",
+    )
+  )
+
+lazy val executionExceptionsJVM = project.in(file("monix-execution/exceptions/jvm"))
+  .configure(executionExceptionsProfile.jvm)
+
+lazy val executionExceptionsJS = project.in(file("monix-execution/exceptions/js"))
+  .configure(executionExceptionsProfile.js)
+
+// --------------------------------------------
+// monix-execution-cancelable
+
+lazy val executionCancelablesProfile =
+  crossModule(
+    projectName  = "monix-execution-cancelables",
+    withDocTests = true,
+    crossSettings = Seq(
+      description := "Sub-module of Monix, exposing `Cancelable`. See: https://monix.io",
+    )
+  )
+
+lazy val executionCancelablesJVM = project.in(file("monix-execution/cancelables/jvm"))
+  .configure(executionCancelablesProfile.jvm)
+  .dependsOn(executionAtomicJVM)
+  .dependsOn(executionExceptionsJVM)
+  .dependsOn(executionInternalJVM)
+
+lazy val executionCancelablesJS = project.in(file("monix-execution/cancelables/js"))
+  .configure(executionCancelablesProfile.js)
+  .dependsOn(executionAtomicJS)
+  .dependsOn(executionExceptionsJS)
+  .dependsOn(executionInternalJS)
+
+// --------------------------------------------
 // monix-execution
 
 lazy val executionProfile =
@@ -642,16 +731,16 @@ lazy val executionJVM = project
   .in(file("monix-execution/jvm"))
   .configure(executionProfile.jvm)
   .dependsOn(executionShadedJCTools)
-  .aggregate(executionAtomicJVM)
-  .dependsOn(executionAtomicJVM)
+  .aggregate(executionInternalJVM, executionCancelablesJVM, executionAtomicJVM)
+  .dependsOn(executionInternalJVM, executionCancelablesJVM, executionAtomicJVM)
   .settings(libraryDependencies += reactiveStreamsLib)
 
 lazy val executionJS = project
   .in(file("monix-execution/js"))
   .configure(executionProfile.js)
   .settings(libraryDependencies += macrotaskExecutorLib.value)
-  .aggregate(executionAtomicJS)
-  .dependsOn(executionAtomicJS)
+  .aggregate(executionInternalJS, executionCancelablesJS, executionAtomicJS)
+  .dependsOn(executionInternalJS, executionCancelablesJS, executionAtomicJS)
 
 // --------------------------------------------
 // monix-catnap

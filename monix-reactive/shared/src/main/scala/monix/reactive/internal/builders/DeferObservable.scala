@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Cancelable
+import monix.execution.cancelables.Cancelable
 import monix.execution.cancelables.{ AssignableCancelable, MultiAssignCancelable }
 import scala.util.control.NonFatal
 import monix.reactive.Observable

@@ -18,7 +18,7 @@
 package monix.eval
 
 import monix.eval.internal.TaskConnection
-import monix.execution.Cancelable
+import monix.execution.cancelables.Cancelable
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform

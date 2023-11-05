@@ -20,7 +20,7 @@ package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
 import monix.eval.Task
-import monix.execution.Cancelable
+import monix.execution.cancelables.Cancelable
 import scala.util.control.NonFatal
 import org.openjdk.jmh.annotations._
 import scala.concurrent.Await

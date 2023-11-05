@@ -18,7 +18,7 @@
 package monix.eval
 
 import cats.effect.IO
-import monix.execution.Cancelable
+import monix.execution.cancelables.Cancelable
 import monix.execution.exceptions.DummyException
 
 import scala.util.{ Failure, Success }

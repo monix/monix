@@ -1,0 +1,40 @@
+/*
+ * Copyright (c) 2014-2022 Monix Contributors.
+ * See the project homepage at: https://monix.io
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package monix.execution.exceptions
+
+import scala.util.control.NoStackTrace
+
+/** Used in testing to trigger dummy exceptions.
+  *
+  * Not to be used for anything except in testing, since
+  * this exception type implements structural equality.
+  *
+  * This means that these 2 exceptions are considered equal,
+  * even if they have different stack-traces:
+  * {{{
+  *   val dummy1 = DummyException("dummy")
+  *   val dummy2 = DummyException("dummy")
+  *
+  *   assert(dummy1 == dummy2)
+  * }}}
+  */
+final case class DummyException(message: String)
+  extends RuntimeException(message) with NoStackTrace {
+
+  def this() = this(null)
+}

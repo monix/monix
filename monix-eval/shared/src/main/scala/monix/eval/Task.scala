@@ -1,3 +1,7 @@
+package monix.eval
+
+package monix.eval
+
 /*
  * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
@@ -504,7 +508,7 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
     *
     * $unsafeRun
     *
-    * BAD CODE:
+    * BAimport monix.execution.cancelables.
     * {{{
     *   import monix.execution.CancelableFuture
     *   import scala.concurrent.Await
@@ -3373,9 +3377,9 @@ object Task extends TaskInstancesLevel1 {
     *
     * We could return a [[monix.execution.Cancelable Cancelable]]
     * reference and thus make a cancelable task. Example:
-    *
+    *import monix.execution.cancelables.
     * {{{
-    *   import monix.execution.Cancelable
+    *   import monix.execution.cancelables.Cancelable
     *   import scala.concurrent.duration.FiniteDuration
     *   import scala.util.Try
     *

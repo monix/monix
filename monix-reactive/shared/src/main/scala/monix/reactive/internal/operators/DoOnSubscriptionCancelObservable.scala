@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.eval.Task
-import monix.execution.Cancelable
+import monix.execution.cancelables.Cancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 

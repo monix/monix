@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Cancelable
+import monix.execution.cancelables.Cancelable
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber

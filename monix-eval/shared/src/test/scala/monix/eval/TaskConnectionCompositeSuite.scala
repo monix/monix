@@ -19,7 +19,7 @@ package monix.eval
 
 import monix.catnap.CancelableF
 import monix.eval.internal.TaskConnectionComposite
-import monix.execution.Cancelable
+import monix.execution.cancelables.Cancelable
 import monix.execution.cancelables.BooleanCancelable
 
 object TaskConnectionCompositeSuite extends BaseTestSuite {

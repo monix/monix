@@ -17,7 +17,7 @@
 
 package monix.execution
 
-import monix.execution.Cancelable.IsDummy
+import monix.execution.cancelables.Cancelable.IsDummy
 import monix.execution.CancelableFuture.{ Async, Never, Pure }
 import monix.execution.cancelables.{ ChainedCancelable, SingleAssignCancelable }
 import monix.execution.misc.Local
