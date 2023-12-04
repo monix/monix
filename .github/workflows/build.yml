@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java }}"
           distribution: adopt
@@ -80,7 +80,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java }}"
           distribution: adopt
@@ -134,7 +134,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java }}"
           distribution: adopt
@@ -182,7 +182,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java }}"
           distribution: adopt
@@ -229,7 +229,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java }}"
           distribution: adopt
@@ -285,7 +285,7 @@ jobs:
         with:
           fetch-depth: 100
 
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           java-version: 8
           distribution: adopt
