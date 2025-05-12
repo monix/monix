@@ -163,7 +163,7 @@ private[reactive] final class Zip3Observable[A1, A2, A3, +R](
         signalOnError(ex)
 
       def onComplete(): Unit =
-        signalOnComplete(hasElemA1)
+        lock.synchronized(signalOnComplete(hasElemA1))
     })
 
     composite += obsA2.unsafeSubscribeFn(new Subscriber[A2] {
@@ -186,7 +186,7 @@ private[reactive] final class Zip3Observable[A1, A2, A3, +R](
         signalOnError(ex)
 
       def onComplete(): Unit =
-        signalOnComplete(hasElemA2)
+        lock.synchronized(signalOnComplete(hasElemA2))
     })
 
     composite += obsA3.unsafeSubscribeFn(new Subscriber[A3] {
@@ -209,7 +209,7 @@ private[reactive] final class Zip3Observable[A1, A2, A3, +R](
         signalOnError(ex)
 
       def onComplete(): Unit =
-        signalOnComplete(hasElemA3)
+        lock.synchronized(signalOnComplete(hasElemA3))
     })
 
     composite
