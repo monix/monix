@@ -154,7 +154,7 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
       def onError(ex: Throwable): Unit =
         signalOnError(ex)
       def onComplete(): Unit =
-        signalOnComplete(hasElemA1)
+        lock.synchronized(signalOnComplete(hasElemA1))
     })
 
     composite += obsA2.unsafeSubscribeFn(new Subscriber[A2] {
@@ -176,7 +176,7 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
       def onError(ex: Throwable): Unit =
         signalOnError(ex)
       def onComplete(): Unit =
-        signalOnComplete(hasElemA2)
+        lock.synchronized(signalOnComplete(hasElemA2))
     })
 
     composite
