@@ -350,7 +350,7 @@ private[reactive] final class MapTaskObservable[A, B](source: Observable[A], f: 
         new IllegalStateException(
           s"State $state in the Monix MapTask.$method implementation is invalid, " +
             "due to either a broken Subscriber implementation, or a bug, " +
-            "please open an issue, see: https://monix.io"
+            s"please open an issue, see: https://monix.io. Executed function: $f"
         ))
       // $COVERAGE-ON$
     }
