@@ -18,9 +18,10 @@
 package monix.execution.internal
 
 import monix.execution.internal.collection.ChunkedArrayQueue
-import scala.util.control.NonFatal
+
 import scala.annotation.tailrec
 import scala.concurrent.{ BlockContext, CanAwait, ExecutionContext }
+import scala.util.control.NonFatal
 
 private[execution] class Trampoline {
   private def makeQueue(): ChunkedArrayQueue[Runnable] = ChunkedArrayQueue[Runnable](chunkSize = 16)
@@ -54,7 +55,7 @@ private[execution] class Trampoline {
 
     val head = immediateQueue.dequeue()
     if (head ne null) {
-      val rest = immediateQueue
+      val rest = immediateQueue.shallowCopy()
       immediateQueue = makeQueue()
       ec.execute(new ResumeRun(head, rest))
     }
