@@ -60,20 +60,6 @@ private[monix] final class ChunkedArrayQueue[A] private(
     }
   }
 
-  /** Pushes an entire iterator on the stack. */
-  def enqueueAll(cursor: Iterator[A]): Unit = {
-    while (cursor.hasNext) enqueue(cursor.next())
-  }
-
-  /** Pushes an entire sequence on the stack. */
-  def enqueueAll(seq: Iterable[A]): Unit = {
-    enqueueAll(seq.iterator)
-  }
-
-  /** Pushes an entire sequence on the stack. */
-  def enqueueAll(stack: ChunkedArrayQueue[A]): Unit =
-    enqueueAll(stack.iterator)
-
   /**
    * Pops an item from the queue, FIFO order.
    */
@@ -92,31 +78,6 @@ private[monix] final class ChunkedArrayQueue[A] private(
       null.asInstanceOf[A]
     }
   }
-
-  /** Builds an iterator out of this queue. */
-  def iterator: Iterator[A] =
-    new Iterator[A] {
-      private var headArray = self.headArray
-      private var headIndex = self.headIndex
-      private val tailArray = self.tailArray
-      private val tailIndex = self.tailIndex
-
-      def hasNext: Boolean = {
-        (headArray ne tailArray) || headIndex < tailIndex
-      }
-
-      def next(): A = {
-        val result = headArray.get(headIndex).asInstanceOf[A]
-
-        if (headIndex == lastElementIndex) {
-          headArray = headArray.get(modulo).asInstanceOf[AtomicReferenceArray[AnyRef]]
-          headIndex = 0
-        } else {
-          headIndex += 1
-        }
-        result
-      }
-    }
 
   def shallowCopy(): ChunkedArrayQueue[A] =
     new ChunkedArrayQueue[A](tailArray, tailIndex, headArray, headIndex, chunkSize)

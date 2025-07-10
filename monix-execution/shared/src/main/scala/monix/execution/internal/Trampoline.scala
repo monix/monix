@@ -23,10 +23,11 @@ import scala.annotation.tailrec
 import scala.concurrent.{ BlockContext, CanAwait, ExecutionContext }
 import scala.util.control.NonFatal
 
-private[execution] class Trampoline {
-  private def makeQueue(): ChunkedArrayQueue[Runnable] = ChunkedArrayQueue[Runnable](chunkSize = 16)
-  private var immediateQueue = makeQueue()
-  private var withinLoop = false
+private[execution] class Trampoline(
+  private var immediateQueue: ChunkedArrayQueue[Runnable] = Trampoline.makeQueue(),
+  private val isForked: Boolean = false
+) {
+  private var withinLoop: Boolean = false
 
   def startLoop(runnable: Runnable, ec: ExecutionContext): Unit = {
     withinLoop = true
@@ -44,19 +45,20 @@ private[execution] class Trampoline {
     }
   }
 
-  protected final def forkTheRest(ec: ExecutionContext): Unit = {
+  private def forkTheRest(ec: ExecutionContext): Unit = {
     final class ResumeRun(head: Runnable, rest: ChunkedArrayQueue[Runnable]) extends Runnable {
 
-      def run(): Unit = {
-        immediateQueue.enqueueAll(rest)
-        immediateLoop(head, ec)
-      }
+      def run(): Unit = new Trampoline(rest, isForked = true).startLoop(head, ec)
     }
 
     val head = immediateQueue.dequeue()
     if (head ne null) {
       val rest = immediateQueue.shallowCopy()
-      immediateQueue = makeQueue()
+      if (!isForked) {
+        // forked Trampoline is one-time use and will get discarded,
+        // no need to maintain the state here
+        immediateQueue = Trampoline.makeQueue()
+      }
       ec.execute(new ResumeRun(head, rest))
     }
   }
@@ -89,4 +91,8 @@ private[execution] class Trampoline {
         }
       }
     }
+}
+
+object Trampoline {
+  private def makeQueue(): ChunkedArrayQueue[Runnable] = ChunkedArrayQueue[Runnable](chunkSize = 16)
 }
