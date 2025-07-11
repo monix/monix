@@ -26,7 +26,6 @@ import scala.util.control.NonFatal
 
 private[execution] class Trampoline(
   private var immediateQueue: ChunkedArrayQueue[Runnable] = Trampoline.makeQueue(),
-  private val isForked: Boolean = false,
 ) {
   private var withinLoop: Boolean = false
 
@@ -50,11 +49,7 @@ private[execution] class Trampoline(
     val head = immediateQueue.dequeue()
     if (head ne null) {
       val rest = immediateQueue.shallowCopy()
-      if (!isForked) {
-        // forked Trampoline is of one-time use and will get discarded,
-        // no need to maintain the state here
-        immediateQueue = Trampoline.makeQueue()
-      }
+      immediateQueue = Trampoline.makeQueue()
       ec.execute(new ResumeRun(head, rest, ec))
     }
   }
@@ -92,7 +87,7 @@ private[execution] class Trampoline(
 object Trampoline {
   final class ResumeRun(head: Runnable, rest: ChunkedArrayQueue[Runnable], ec: ExecutionContext) extends Runnable {
 
-    def run(): Unit = new Trampoline(rest, isForked = true).immediateLoop(head, ec)
+    def run(): Unit = new Trampoline(rest).immediateLoop(head, ec)
   }
 
   private def makeQueue(): ChunkedArrayQueue[Runnable] = ChunkedArrayQueue[Runnable](chunkSize = 16)
