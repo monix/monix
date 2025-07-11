@@ -17,6 +17,7 @@
 
 package monix.execution.internal
 
+import monix.execution.internal.Trampoline.ResumeRun
 import monix.execution.internal.collection.ChunkedArrayQueue
 
 import scala.annotation.tailrec
@@ -25,7 +26,7 @@ import scala.util.control.NonFatal
 
 private[execution] class Trampoline(
   private var immediateQueue: ChunkedArrayQueue[Runnable] = Trampoline.makeQueue(),
-  private val isForked: Boolean = false
+  private val isForked: Boolean = false,
 ) {
   private var withinLoop: Boolean = false
 
@@ -46,20 +47,15 @@ private[execution] class Trampoline(
   }
 
   private def forkTheRest(ec: ExecutionContext): Unit = {
-    final class ResumeRun(head: Runnable, rest: ChunkedArrayQueue[Runnable]) extends Runnable {
-
-      def run(): Unit = new Trampoline(rest, isForked = true).startLoop(head, ec)
-    }
-
     val head = immediateQueue.dequeue()
     if (head ne null) {
       val rest = immediateQueue.shallowCopy()
       if (!isForked) {
-        // forked Trampoline is one-time use and will get discarded,
+        // forked Trampoline is of one-time use and will get discarded,
         // no need to maintain the state here
         immediateQueue = Trampoline.makeQueue()
       }
-      ec.execute(new ResumeRun(head, rest))
+      ec.execute(new ResumeRun(head, rest, ec))
     }
   }
 
@@ -94,5 +90,10 @@ private[execution] class Trampoline(
 }
 
 object Trampoline {
+  final class ResumeRun(head: Runnable, rest: ChunkedArrayQueue[Runnable], ec: ExecutionContext) extends Runnable {
+
+    def run(): Unit = new Trampoline(rest, isForked = true).immediateLoop(head, ec)
+  }
+
   private def makeQueue(): ChunkedArrayQueue[Runnable] = ChunkedArrayQueue[Runnable](chunkSize = 16)
 }

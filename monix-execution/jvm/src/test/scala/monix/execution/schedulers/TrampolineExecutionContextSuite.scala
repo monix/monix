@@ -18,9 +18,9 @@
 package monix.execution.schedulers
 
 import minitest.SimpleTestSuite
-import monix.execution.{ExecutionModel, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{ ExecutionModel, Scheduler, UncaughtExceptionReporter }
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicInteger }
 import scala.util.control.NoStackTrace
 
 object TrampolineExecutionContextSuite extends SimpleTestSuite {
@@ -49,11 +49,12 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
     assertEquals(effect, 3)
   }
 
-  test("trampoline works for problematic case") {
+  test("trampoline works for nested executions") {
     final class TestException extends NoStackTrace
 
     val timeoutMillis = 5000
     val didTimeout = new AtomicBoolean(false)
+    // 32 to fill 2 chunks of ChunkedArrayQueue, trying to expose a stale reference (e.g. headArray)
     val totalTasks = 32
     val tasksCounter = new AtomicInteger(0)
 
@@ -76,29 +77,29 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
         Thread.onSpinWait()
       }
       if (System.currentTimeMillis() >= timeout) {
-        // tasks used to get stuck in the trampoline run loop, this shouldn't happen anymore, but trying to
-        // detect it with a timeout
+        // tasks used to get stuck / be skipped in the trampoline run loop,
+        // trying to detect it with a timeout
         println(s"Timeout reached, only ${tasksCounter.get()} tasks executed out of $totalTasks")
         didTimeout.set(true)
       }
     }
 
-    def executeProblematicTrampoline(): Unit = {
+    def executeNestedTrampoline(): Unit = {
       context.execute {
         () =>
-          // 32 to fill 2 chunks of ChunkedArrayQueue, trying to expose a stale headArray reference
-          (1 to 32).foreach { i =>
+          (1 to totalTasks).foreach { i =>
             context.execute { () =>
               tasksCounter.incrementAndGet()
               fail()
             }
           }
+          fail()
       }
       waitForAllExecutions()
     }
 
-    (1 to 100).foreach { _ =>
-      executeProblematicTrampoline()
+    (1 to 1000).foreach { _ =>
+      executeNestedTrampoline()
     }
     assert(!didTimeout.get(), "Executions inside the trampoline should not timeout")
   }
