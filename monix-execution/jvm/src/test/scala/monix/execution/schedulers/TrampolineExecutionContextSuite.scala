@@ -53,14 +53,16 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
     final class TestException extends NoStackTrace
 
     val timeoutMillis = 5000
-    val didTimeout = new AtomicBoolean(false)
+    val didTimeoutOrFail = new AtomicBoolean(false)
     // 32 to fill 2 chunks of ChunkedArrayQueue, trying to expose a stale reference (e.g. headArray)
     val totalTasks = 32
     val tasksCounter = new AtomicInteger(0)
 
     def ignoreTestExceptions: UncaughtExceptionReporter = {
       case _: TestException =>
-      case x => x.printStackTrace()
+      case x =>
+        didTimeoutOrFail.set(true)
+        x.printStackTrace()
     }
 
     val context = TrampolineExecutionContext(Scheduler.io(
@@ -80,7 +82,7 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
         // tasks used to get stuck / be skipped in the trampoline run loop,
         // trying to detect it with a timeout
         println(s"Timeout reached, only ${tasksCounter.get()} tasks executed out of $totalTasks")
-        didTimeout.set(true)
+        didTimeoutOrFail.set(true)
       }
     }
 
@@ -101,6 +103,9 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
     (1 to 1000).foreach { _ =>
       executeNestedTrampoline()
     }
-    assert(!didTimeout.get(), "Executions inside the trampoline should not timeout")
+    assert(
+      !didTimeoutOrFail.get(),
+      "Executions inside the trampoline should not timeout, nor throw unexpected exceptions"
+    )
   }
 }
