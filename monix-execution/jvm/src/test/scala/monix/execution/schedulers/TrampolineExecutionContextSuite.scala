@@ -18,9 +18,9 @@
 package monix.execution.schedulers
 
 import minitest.SimpleTestSuite
-import monix.execution.{ExecutionModel, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{ ExecutionModel, Scheduler, UncaughtExceptionReporter }
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicInteger }
 import scala.util.control.NoStackTrace
 
 object TrampolineExecutionContextSuite extends SimpleTestSuite {
@@ -56,7 +56,6 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
     val didTimeoutOrFail = new AtomicBoolean(false)
     // 32 to fill 2 chunks of ChunkedArrayQueue, trying to expose a stale reference (e.g. headArray)
     val totalTasks = 32
-    val tasksCounter = new AtomicInteger(0)
 
     def ignoreTestExceptions: UncaughtExceptionReporter = {
       case _: TestException =>
@@ -71,22 +70,24 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
       reporter = ignoreTestExceptions
     ))
 
-    def fail(): Unit = throw new TestException
-
-    def waitForAllExecutions(): Unit = {
-      val timeout = System.currentTimeMillis() + timeoutMillis
-      while (tasksCounter.get() < totalTasks && System.currentTimeMillis() < timeout) {
-        Thread.onSpinWait()
-      }
-      if (System.currentTimeMillis() >= timeout) {
-        // tasks used to get stuck / be skipped in the trampoline run loop,
-        // trying to detect it with a timeout
-        println(s"Timeout reached, only ${tasksCounter.get()} tasks executed out of $totalTasks")
-        didTimeoutOrFail.set(true)
-      }
-    }
-
     def executeNestedTrampoline(): Unit = {
+      val tasksCounter = new AtomicInteger(0)
+
+      def fail(): Unit = throw new TestException
+
+      def waitForAllExecutions(): Unit = {
+        val timeout = System.currentTimeMillis() + timeoutMillis
+        while (tasksCounter.get() < totalTasks && System.currentTimeMillis() < timeout) {
+          Thread.onSpinWait()
+        }
+        if (System.currentTimeMillis() >= timeout) {
+          // tasks used to get stuck / be skipped in the trampoline run loop,
+          // trying to detect it with a timeout
+          println(s"Timeout reached, only ${tasksCounter.get()} tasks executed out of $totalTasks")
+          didTimeoutOrFail.set(true)
+        }
+      }
+
       context.execute {
         () =>
           (1 to totalTasks).foreach { i =>
