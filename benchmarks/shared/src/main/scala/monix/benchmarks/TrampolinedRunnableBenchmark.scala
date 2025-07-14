@@ -74,7 +74,7 @@ class TrampolinedRunnableBenchmark {
 //      var i = size
 //      while (i > 0) {
 //        global.executeTrampolined(() => sum += i)
-//        i += 1
+//        i -= 1
 //      }
 //    }
 //    sum
