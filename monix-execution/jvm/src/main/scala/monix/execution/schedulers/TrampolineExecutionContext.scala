@@ -124,7 +124,7 @@ object TrampolineExecutionContext {
       new JVMNormalTrampoline()
   }
 
-  private final class JVMOptimalTrampoline extends Trampoline {
+  private final class JVMOptimalTrampoline extends Trampoline(fallbackTrampoline = Some(() => trampoline.get())) {
     override def startLoop(runnable: Runnable, ec: ExecutionContext): Unit = {
       val parentContext = localContext.get()
       localContext.set(trampolineContext(parentContext, ec))
@@ -136,7 +136,7 @@ object TrampolineExecutionContext {
     }
   }
 
-  private class JVMNormalTrampoline extends Trampoline {
+  private class JVMNormalTrampoline extends Trampoline(fallbackTrampoline = Some(() => trampoline.get())) {
     override def startLoop(runnable: Runnable, ec: ExecutionContext): Unit = {
       BlockContext.withBlockContext(trampolineContext(BlockContext.current, ec)) {
         super.startLoop(runnable, ec)

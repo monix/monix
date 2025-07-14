@@ -25,8 +25,9 @@ import scala.concurrent.{ BlockContext, CanAwait, ExecutionContext }
 import scala.util.control.NonFatal
 
 private[execution] class Trampoline(
-  private var immediateQueue: ChunkedArrayQueue[Runnable] = Trampoline.makeQueue(),
+  private val fallbackTrampoline: Option[() => Trampoline] = None,
 ) {
+  private var immediateQueue: ChunkedArrayQueue[Runnable] = Trampoline.makeQueue()
   private var withinLoop: Boolean = false
 
   def startLoop(runnable: Runnable, ec: ExecutionContext): Unit = {
@@ -45,14 +46,30 @@ private[execution] class Trampoline(
     }
   }
 
+  final def enqueueAll(chunkedArrayQueue: ChunkedArrayQueue[Runnable]): Unit =
+    immediateQueue.enqueueAll(chunkedArrayQueue)
+
   private def forkTheRest(ec: ExecutionContext): Unit = {
     val head = immediateQueue.dequeue()
     if (head ne null) {
       val rest = immediateQueue.shallowCopy()
       immediateQueue = Trampoline.makeQueue()
-      ec.execute(new ResumeRun(head, rest, ec))
+      ec.execute(new ResumeRun(head, rest, ec, trampolineForResume()))
     }
   }
+
+  /**
+   * Computation should resume on a trampoline.
+   *
+   * In a multithreaded environment (JVM) it should be a thread-local trampoline of the thread that resumes the
+   * computation. Using trampoline of the previous thread is unsafe because it might lead to concurrent modification
+   * of the underlying [[ChunkedArrayQueue]], which is not thread-safe - at that point the previous thread
+   * might have already entered another run loop.
+   *
+   * In a singlethreaded environment (SJS) computation will resume on the same trampoline.
+   */
+  private def trampolineForResume() =
+    fallbackTrampoline.getOrElse(() => this)
 
   @tailrec
   private final def immediateLoop(task: Runnable, ec: ExecutionContext): Unit = {
@@ -85,9 +102,18 @@ private[execution] class Trampoline(
 }
 
 object Trampoline {
-  final class ResumeRun(head: Runnable, rest: ChunkedArrayQueue[Runnable], ec: ExecutionContext) extends Runnable {
+  final class ResumeRun(
+    head: Runnable,
+    rest: ChunkedArrayQueue[Runnable],
+    ec: ExecutionContext,
+    fallbackTrampoline: () => Trampoline,
+  ) extends Runnable {
 
-    def run(): Unit = new Trampoline(rest).immediateLoop(head, ec)
+    def run(): Unit = {
+      val trampoline = fallbackTrampoline()
+      trampoline.enqueueAll(rest)
+      trampoline.startLoop(head, ec)
+    }
   }
 
   private def makeQueue(): ChunkedArrayQueue[Runnable] = ChunkedArrayQueue[Runnable](chunkSize = 16)

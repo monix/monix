@@ -66,17 +66,17 @@ class TrampolinedRunnableBenchmark {
     sum
   }
 
-//  @Benchmark
-//  def deep(): Long = {
-//    var sum = 0L
-//
-//    global.executeTrampolined { () =>
-//      var i = size
-//      while (i > 0) {
-//        global.executeTrampolined(() => sum += i)
-//        i -= 1
-//      }
-//    }
-//    sum
-//  }
+  @Benchmark
+  def deep(): Long = {
+    var sum = 0L
+
+    global.executeTrampolined { () =>
+      var i = size
+      while (i > 0) {
+        global.executeTrampolined(() => sum += i)
+        i -= 1
+      }
+    }
+    sum
+  }
 }

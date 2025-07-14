@@ -60,6 +60,15 @@ private[monix] final class ChunkedArrayQueue[A] private(
     }
   }
 
+  /** Pushes an entire iterator on the stack. */
+  def enqueueAll(cursor: Iterator[A]): Unit = {
+    while (cursor.hasNext) enqueue(cursor.next())
+  }
+
+  /** Pushes an entire sequence on the stack. */
+  def enqueueAll(stack: ChunkedArrayQueue[A]): Unit =
+    enqueueAll(stack.iterator)
+
   /**
    * Pops an item from the queue, FIFO order.
    */
@@ -79,6 +88,35 @@ private[monix] final class ChunkedArrayQueue[A] private(
     }
   }
 
+  /** Builds an iterator out of this queue. */
+  def iterator: Iterator[A] =
+    new Iterator[A] {
+      private[this] var headArray = self.headArray
+      private[this] var headIndex = self.headIndex
+      private[this] val tailArray = self.tailArray
+      private[this] val tailIndex = self.tailIndex
+
+      def hasNext: Boolean = {
+        (headArray ne tailArray) || headIndex < tailIndex
+      }
+
+      def next(): A = {
+        val result = headArray.get(headIndex).asInstanceOf[A]
+
+        if (headIndex == lastElementIndex) {
+          headArray = headArray.get(modulo).asInstanceOf[AtomicReferenceArray[AnyRef]]
+          headIndex = 0
+        } else {
+          headIndex += 1
+        }
+        result
+      }
+    }
+
+  /**
+   * Needed when passing the queue to another thread. Otherwise, changes applied to the queue since its creation
+   * might not be visible to the other thread.
+   */
   def shallowCopy(): ChunkedArrayQueue[A] =
     new ChunkedArrayQueue[A](tailArray, tailIndex, headArray, headIndex, chunkSize)
 }
