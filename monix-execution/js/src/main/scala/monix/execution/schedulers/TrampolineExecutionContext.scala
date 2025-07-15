@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import monix.execution.internal.Trampoline
-import monix.execution.internal.Trampoline.{ImmediateEC, TrampolineEC}
+import monix.execution.internal.Trampoline.{ForkingEC, ImmediateEC, TrampolineEC}
 
 import scala.concurrent. {ExecutionContext, ExecutionContextExecutor}
 
@@ -70,7 +70,7 @@ object TrampolineExecutionContext {
     *        is needed
     */
   def apply(underlying: ExecutionContext): TrampolineExecutionContext =
-    new TrampolineExecutionContext(new Trampoline.ForkingEC(underlying))
+    new TrampolineExecutionContext(new ForkingEC(underlying))
 
   /** [[TrampolineExecutionContext]] instance that executes everything
     * immediately, on the current thread.
