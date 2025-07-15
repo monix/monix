@@ -119,17 +119,14 @@ private[execution] object Trampoline {
   }
 
   /** Forking ExecutionContext backing the [[Trampoline]]. */
-  trait ForkingEC extends TrampolineEC {
+  final class ForkingEC(ec: ExecutionContext) extends TrampolineEC {
+    def execute(runnable: Runnable): Unit = ec.execute(runnable)
+    def reportFailure(e: Throwable): Unit = ec.reportFailure(e)
     def isImmediate: Boolean = false
   }
 
-  final case class ForkingECImpl(ec: ExecutionContext) extends ForkingEC {
-    override def execute(runnable: Runnable): Unit = ec.execute(runnable)
-    override def reportFailure(e: Throwable): Unit = ec.reportFailure(e)
-  }
-
-  /** Immediate ExecutionContext that executes everything on the current thread.
-   *  Used for optimization of the run loop.
+  /** Immediate ExecutionContext backing the [[Trampoline]].
+   *  Executes everything on the current thread. Used for optimization of the run loop.
    */
   object ImmediateEC extends TrampolineEC {
     override def execute(runnable: Runnable): Unit = runnable.run()
@@ -147,7 +144,7 @@ private[execution] object Trampoline {
     def run(): Unit = {
       val trampoline = fallbackTrampoline()
       trampoline.enqueueAll(rest)
-      // Underlying Ec might have scheduled ResumeRun to execute on the same thread, we still need to check if we're
+      // Underlying EC might have scheduled ResumeRun to execute on the same thread, we still need to check if we're
       // already in the loop - thus execute.
       trampoline.execute(head, ec)
     }

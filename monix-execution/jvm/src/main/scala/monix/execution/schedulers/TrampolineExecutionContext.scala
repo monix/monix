@@ -68,7 +68,7 @@ object TrampolineExecutionContext {
     *        is needed
     */
   def apply(underlying: ExecutionContext): TrampolineExecutionContext =
-    new TrampolineExecutionContext(Trampoline.ForkingECImpl(underlying))
+    new TrampolineExecutionContext(new Trampoline.ForkingEC(underlying))
 
   /** [[TrampolineExecutionContext]] instance that executes everything
     * immediately, on the current thread.
