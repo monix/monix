@@ -21,9 +21,12 @@ import minitest.SimpleTestSuite
 import monix.execution.{ExecutionModel, Scheduler, UncaughtExceptionReporter}
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import scala.concurrent.blocking
 import scala.util.control.NoStackTrace
 
 object TrampolineExecutionContextSuite extends SimpleTestSuite {
+  private final val DoNothing: () => Unit = () => ()
+
   final class TestException extends NoStackTrace
 
   test("TrampolineExecutionContext.immediate works") {
@@ -52,9 +55,7 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
   }
 
   test("trampoline works for nested executions in async multithreaded context") {
-    testNestedExecutions(reporter =>
-      Scheduler.io(name = "test", executionModel = ExecutionModel.AlwaysAsyncExecution, reporter = reporter)
-    )
+    testNestedExecutions(asyncIoScheduler)
   }
 
   test("trampoline works for nested executions in async singlethreaded context") {
@@ -70,17 +71,23 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
   }
 
   test("trampoline works for nested executions in immediate context") {
-    testAllTasksExecuteCorrectly(TrampolineExecutionContext.immediate, () => ())
+    testAllTasksExecuteCorrectly(context = TrampolineExecutionContext.immediate, onExecute = DoNothing)
+  }
+
+  test("trampoline works for nested blocking executions") {
+    testNestedExecutions(scheduler = asyncIoScheduler, onExecute = DoNothing, isBlocking = true)
   }
 
   private def testNestedExecutions(
     scheduler: UncaughtExceptionReporter => Scheduler,
+    onExecute: () => Unit = fail,
+    isBlocking: Boolean = false,
   ): Unit = {
     val didFail = new AtomicBoolean(false)
 
     val context = TrampolineExecutionContext(scheduler(registerUnexpectedExceptions(didFail)))
 
-    testAllTasksExecuteCorrectly(context, fail)
+    testAllTasksExecuteCorrectly(context, onExecute, isBlocking)
     assert(!didFail.get(), "Unexpected exception occurred")
   }
 
@@ -96,11 +103,14 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
   private def testAllTasksExecuteCorrectly(
     context: TrampolineExecutionContext,
     onExecute: () => Unit,
+    isBlocking: Boolean = false,
   ): Unit = {
     val didTimeout = new AtomicBoolean(false)
     val timeoutMillis = 5000
     // 32 to fill 2 chunks of ChunkedArrayQueue, trying to expose a stale reference (e.g. headArray)
-    val totalTasks = 32
+    val totalNestedTasks = 32
+    // +1 top level task
+    val totalTasks = totalNestedTasks + 1
 
     def executeNestedTrampoline(): Unit = {
       val tasksCounter = new AtomicInteger(0)
@@ -118,16 +128,21 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
         }
       }
 
-      context.execute {
-        () =>
-          (1 to totalTasks).foreach { _ =>
-            context.execute { () =>
-              tasksCounter.incrementAndGet()
-              onExecute()
-            }
-          }
-          onExecute()
+      def scheduleRegisteredExecution(code: () => Unit = DoNothing): Unit = context.execute { () =>
+        code()
+        tasksCounter.incrementAndGet()
+        onExecute()
       }
+
+      scheduleRegisteredExecution(() =>
+        (1 to totalNestedTasks).foreach { _ =>
+          if (isBlocking) {
+            blocking(scheduleRegisteredExecution())
+          } else {
+            scheduleRegisteredExecution()
+          }
+        }
+      )
       waitForAllExecutions()
     }
 
@@ -136,4 +151,7 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
     }
     assert(!didTimeout.get(), "Executions inside the trampoline should not timeout")
   }
+
+  private def asyncIoScheduler(reporter: UncaughtExceptionReporter) =
+    Scheduler.io(name = "test", executionModel = ExecutionModel.AlwaysAsyncExecution, reporter = reporter)
 }
