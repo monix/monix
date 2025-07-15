@@ -17,7 +17,7 @@
 
 package monix.execution.internal
 
-import monix.execution.internal.Trampoline.ResumeRun
+import monix.execution.internal.Trampoline.{ResumeRun, TrampolineEC}
 import monix.execution.internal.collection.ChunkedArrayQueue
 
 import scala.annotation.tailrec
@@ -30,7 +30,7 @@ private[execution] class Trampoline(
   private var immediateQueue: ChunkedArrayQueue[Runnable] = Trampoline.makeQueue()
   private var withinLoop: Boolean = false
 
-  def startLoop(runnable: Runnable, ec: ExecutionContext): Unit = {
+  def startLoop(runnable: Runnable, ec: TrampolineEC): Unit = {
     withinLoop = true
     try immediateLoop(runnable, ec)
     finally {
@@ -38,7 +38,7 @@ private[execution] class Trampoline(
     }
   }
 
-  final def execute(runnable: Runnable, ec: ExecutionContext): Unit = {
+  final def execute(runnable: Runnable, ec: TrampolineEC): Unit = {
     if (!withinLoop) {
       startLoop(runnable, ec)
     } else {
@@ -49,13 +49,21 @@ private[execution] class Trampoline(
   final def enqueueAll(chunkedArrayQueue: ChunkedArrayQueue[Runnable]): Unit =
     immediateQueue.enqueueAll(chunkedArrayQueue)
 
-  private def forkTheRest(ec: ExecutionContext): Unit = {
+  private def continueExecution(ec: TrampolineEC): Unit = {
     val head = immediateQueue.dequeue()
     if (head ne null) {
-      val rest = immediateQueue.shallowCopy()
-      immediateQueue = Trampoline.makeQueue()
-      ec.execute(new ResumeRun(head, rest, ec, trampolineForResume()))
+      if (ec.isImmediate) {
+        immediateLoop(head, ec)
+      } else {
+        forkTheRest(head, ec)
+      }
     }
+  }
+
+  private def forkTheRest(head: Runnable, ec: TrampolineEC): Unit = {
+    val rest = immediateQueue.shallowCopy()
+    immediateQueue = Trampoline.makeQueue()
+    ec.execute(new ResumeRun(head, rest, ec, trampolineForResume()))
   }
 
   /**
@@ -72,12 +80,12 @@ private[execution] class Trampoline(
     fallbackTrampoline.getOrElse(() => this)
 
   @tailrec
-  private final def immediateLoop(task: Runnable, ec: ExecutionContext): Unit = {
+  private final def immediateLoop(task: Runnable, ec: TrampolineEC): Unit = {
     try {
       task.run()
     } catch {
       case ex: Throwable =>
-        forkTheRest(ec)
+        continueExecution(ec)
         if (NonFatal(ex)) ec.reportFailure(ex)
         else throw ex
     }
@@ -86,12 +94,12 @@ private[execution] class Trampoline(
     if (next ne null) immediateLoop(next, ec)
   }
 
-  protected final def trampolineContext(parentContext: BlockContext, ec: ExecutionContext): BlockContext =
+  protected final def trampolineContext(parentContext: BlockContext, ec: TrampolineEC): BlockContext =
     new BlockContext {
       def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
         // In case of blocking, execute all scheduled local tasks on
         // a separate thread, otherwise we could end up with a dead-lock
-        forkTheRest(ec)
+        continueExecution(ec)
         if (parentContext ne null) {
           parentContext.blockOn(thunk)
         } else {
@@ -101,18 +109,47 @@ private[execution] class Trampoline(
     }
 }
 
-object Trampoline {
-  final class ResumeRun(
+private[execution] object Trampoline {
+
+  /** ExecutionContext backing the [[Trampoline]]. */
+  trait TrampolineEC {
+    def execute(runnable: Runnable): Unit
+    def reportFailure(e: Throwable): Unit
+    def isImmediate: Boolean
+  }
+
+  /** Forking ExecutionContext backing the [[Trampoline]]. */
+  trait ForkingEC extends TrampolineEC {
+    def isImmediate: Boolean = false
+  }
+
+  final case class ForkingECImpl(ec: ExecutionContext) extends ForkingEC {
+    override def execute(runnable: Runnable): Unit = ec.execute(runnable)
+    override def reportFailure(e: Throwable): Unit = ec.reportFailure(e)
+  }
+
+  /** Immediate ExecutionContext that executes everything on the current thread.
+   *  Used for optimization of the run loop.
+   */
+  object ImmediateEC extends TrampolineEC {
+    override def execute(runnable: Runnable): Unit = runnable.run()
+    override def reportFailure(e: Throwable): Unit = throw e
+    override def isImmediate: Boolean = true
+  }
+
+  private final class ResumeRun(
     head: Runnable,
     rest: ChunkedArrayQueue[Runnable],
-    ec: ExecutionContext,
+    ec: TrampolineEC,
     fallbackTrampoline: () => Trampoline,
   ) extends Runnable {
 
     def run(): Unit = {
       val trampoline = fallbackTrampoline()
       trampoline.enqueueAll(rest)
-      trampoline.startLoop(head, ec)
+      // Underlying Ec might have scheduled ResumeRun to execute on the same thread, we still need to check if we're
+      // already in the loop - thus execute.
+      trampoline.execute(head, ec)
     }
   }
 

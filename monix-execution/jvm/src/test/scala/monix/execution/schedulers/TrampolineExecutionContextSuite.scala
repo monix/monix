@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import scala.util.control.NoStackTrace
 
 object TrampolineExecutionContextSuite extends SimpleTestSuite {
+  final class TestException extends NoStackTrace
+
   test("TrampolineExecutionContext.immediate works") {
     val ctx = TrampolineExecutionContext.immediate
     var effect = 0
@@ -49,31 +51,59 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
     assertEquals(effect, 3)
   }
 
-  test("trampoline works for nested executions") {
-    final class TestException extends NoStackTrace
+  test("trampoline works for nested executions in async multithreaded context") {
+    testNestedExecutions(reporter =>
+      Scheduler.io(name = "test", executionModel = ExecutionModel.AlwaysAsyncExecution, reporter = reporter)
+    )
+  }
 
+  test("trampoline works for nested executions in async singlethreaded context") {
+    testNestedExecutions(reporter =>
+      Scheduler.singleThread(name = "test", executionModel = ExecutionModel.AlwaysAsyncExecution, reporter = reporter)
+    )
+  }
+
+  test("trampoline works for nested executions in sync singlethreaded context") {
+    testNestedExecutions(reporter =>
+      Scheduler.singleThread(name = "test", executionModel = ExecutionModel.SynchronousExecution, reporter = reporter)
+    )
+  }
+
+  test("trampoline works for nested executions in immediate context") {
+    testAllTasksExecuteCorrectly(TrampolineExecutionContext.immediate, () => ())
+  }
+
+  private def testNestedExecutions(
+    scheduler: UncaughtExceptionReporter => Scheduler,
+  ): Unit = {
+    val didFail = new AtomicBoolean(false)
+
+    val context = TrampolineExecutionContext(scheduler(registerUnexpectedExceptions(didFail)))
+
+    testAllTasksExecuteCorrectly(context, fail)
+    assert(!didFail.get(), "Unexpected exception occurred")
+  }
+
+  def registerUnexpectedExceptions(didFail: AtomicBoolean): UncaughtExceptionReporter = {
+    case _: TestException =>
+    case x =>
+      didFail.set(true)
+      x.printStackTrace()
+  }
+
+  def fail(): Unit = throw new TestException
+
+  private def testAllTasksExecuteCorrectly(
+    context: TrampolineExecutionContext,
+    onExecute: () => Unit,
+  ): Unit = {
+    val didTimeout = new AtomicBoolean(false)
     val timeoutMillis = 5000
-    val didTimeoutOrFail = new AtomicBoolean(false)
     // 32 to fill 2 chunks of ChunkedArrayQueue, trying to expose a stale reference (e.g. headArray)
     val totalTasks = 32
 
-    def ignoreTestExceptions: UncaughtExceptionReporter = {
-      case _: TestException =>
-      case x =>
-        didTimeoutOrFail.set(true)
-        x.printStackTrace()
-    }
-
-    val context = TrampolineExecutionContext(Scheduler.io(
-      name = "test",
-      executionModel = ExecutionModel.AlwaysAsyncExecution,
-      reporter = ignoreTestExceptions
-    ))
-
     def executeNestedTrampoline(): Unit = {
       val tasksCounter = new AtomicInteger(0)
-
-      def fail(): Unit = throw new TestException
 
       def waitForAllExecutions(): Unit = {
         val timeout = System.currentTimeMillis() + timeoutMillis
@@ -84,19 +114,19 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
           // tasks used to get stuck / be skipped in the trampoline run loop,
           // trying to detect it with a timeout
           println(s"Timeout reached, only ${tasksCounter.get()} tasks executed out of $totalTasks")
-          didTimeoutOrFail.set(true)
+          didTimeout.set(true)
         }
       }
 
       context.execute {
         () =>
-          (1 to totalTasks).foreach { i =>
+          (1 to totalTasks).foreach { _ =>
             context.execute { () =>
               tasksCounter.incrementAndGet()
-              fail()
+              onExecute()
             }
           }
-          fail()
+          onExecute()
       }
       waitForAllExecutions()
     }
@@ -104,9 +134,6 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
     (1 to 1000).foreach { _ =>
       executeNestedTrampoline()
     }
-    assert(
-      !didTimeoutOrFail.get(),
-      "Executions inside the trampoline should not timeout, nor throw unexpected exceptions"
-    )
+    assert(!didTimeout.get(), "Executions inside the trampoline should not timeout")
   }
 }

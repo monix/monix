@@ -18,8 +18,9 @@
 package monix.execution.schedulers
 
 import monix.execution.internal.Trampoline
+import monix.execution.internal.Trampoline.{ImmediateEC, TrampolineEC}
 
-import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor }
+import scala.concurrent. ExecutionContextExecutor
 
 /** A `scala.concurrentExecutionContext` implementation
   * that executes runnables immediately, on the current thread,
@@ -51,7 +52,7 @@ import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor }
   * @param underlying is the `ExecutionContext` to which the it defers
   *        to in case real asynchronous is needed
   */
-final class TrampolineExecutionContext private (underlying: ExecutionContext) extends ExecutionContextExecutor {
+final class TrampolineExecutionContext private (underlying: TrampolineEC) extends ExecutionContextExecutor {
 
   private val trampoline = new Trampoline
 
@@ -68,7 +69,7 @@ object TrampolineExecutionContext {
     *        it defers to in case asynchronous or time-delayed execution
     *        is needed
     */
-  def apply(underlying: ExecutionContext): TrampolineExecutionContext =
+  def apply(underlying: TrampolineEC): TrampolineExecutionContext =
     new TrampolineExecutionContext(underlying)
 
   /** [[TrampolineExecutionContext]] instance that executes everything
@@ -85,8 +86,5 @@ object TrampolineExecutionContext {
     *    have no way to override it)
     */
   val immediate: TrampolineExecutionContext =
-    TrampolineExecutionContext(new ExecutionContext {
-      def execute(r: Runnable): Unit = r.run()
-      def reportFailure(e: Throwable): Unit = throw e
-    })
+    new TrampolineExecutionContext(ImmediateEC)
 }
