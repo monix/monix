@@ -25,7 +25,7 @@ import scala.concurrent.blocking
 import scala.util.control.NoStackTrace
 
 object TrampolineExecutionContextSuite extends SimpleTestSuite {
-  private final val DoNothing: () => Unit = () => ()
+  private val DoNothing = () => ()
 
   final class TestException extends NoStackTrace
 
@@ -80,7 +80,7 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
 
   private def testNestedExecutions(
     scheduler: UncaughtExceptionReporter => Scheduler,
-    onExecute: () => Unit = fail,
+    onExecute: () => Unit = failExecution,
     isBlocking: Boolean = false,
   ): Unit = {
     val didFail = new AtomicBoolean(false)
@@ -98,14 +98,13 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
       x.printStackTrace()
   }
 
-  def fail(): Unit = throw new TestException
+  def failExecution(): Unit = throw new TestException
 
   private def testAllTasksExecuteCorrectly(
     context: TrampolineExecutionContext,
     onExecute: () => Unit,
     isBlocking: Boolean = false,
   ): Unit = {
-    val didTimeout = new AtomicBoolean(false)
     val timeoutMillis = 5000
     // 32 to fill 2 chunks of ChunkedArrayQueue, trying to expose a stale reference (e.g. headArray)
     val totalNestedTasks = 32
@@ -117,15 +116,14 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
 
       def waitForAllExecutions(): Unit = {
         val timeout = System.currentTimeMillis() + timeoutMillis
+        // tasks used to get stuck / be skipped in the trampoline run loop, so applying a timeout
         while (tasksCounter.get() < totalTasks && System.currentTimeMillis() < timeout) {
           Thread.onSpinWait()
         }
-        if (System.currentTimeMillis() >= timeout) {
-          // tasks used to get stuck / be skipped in the trampoline run loop,
-          // trying to detect it with a timeout
-          println(s"Timeout reached, only ${tasksCounter.get()} tasks executed out of $totalTasks")
-          didTimeout.set(true)
-        }
+        assert(
+          tasksCounter.get() == totalTasks, // assert no skipped / duplicated task executions
+          s"Expected $totalTasks tasks to be executed, but ${tasksCounter.get()} were executed"
+        )
       }
 
       def scheduleRegisteredExecution(code: () => Unit = DoNothing): Unit = context.execute { () =>
@@ -149,7 +147,6 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
     (1 to 1000).foreach { _ =>
       executeNestedTrampoline()
     }
-    assert(!didTimeout.get(), "Executions inside the trampoline should not timeout")
   }
 
   private def asyncIoScheduler(reporter: UncaughtExceptionReporter) =

@@ -25,19 +25,19 @@ import scala.concurrent.blocking
 
 /** To do comparative benchmarks between versions:
   *
-  *     benchmarks/run-benchmark TrampolinedRunnableBenchmark
+  *     benchmarks/run-benchmark TrampolineExecutionContextBenchmark
   *
   * This will generate results in `benchmarks/results`.
   *
   * Or to run the benchmark from within SBT:
   *
-  *     jmh:run monix.benchmarks.TaskShiftBenchmark
+  *     jmh:run monix.benchmarks.TrampolineExecutionContextBenchmark
   *     The above test will take default values as "10 iterations", "10 warm-up iterations",
   *     "2 forks", "1 thread".
   *
   *     Or to specify custom values use below format:
   *
-  *     jmh:run -i 20 -wi 20 -f 4 -t 2 monix.benchmarks.TaskShiftBenchmark
+  *     jmh:run -i 20 -wi 20 -f 4 -t 2 monix.benchmarks.TrampolineExecutionContextBenchmark
   *
   * Which means "20 iterations", "20 warm-up iterations", "4 forks", "2 thread".
   * Please note that benchmarks should be usually executed at least in
