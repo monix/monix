@@ -41,7 +41,7 @@ private[catnap] abstract class FutureLiftForPlatform {
     */
   def javaCompletableToAsync[F[_], A](fa: F[CompletableFuture[A]])(implicit F: Async[F]): F[A] =
     F.flatMap(fa) { cf =>
-      F.async { cb =>
+      F.async_ { cb =>
         subscribeToCompletable(cf, cb)
       }
     }
