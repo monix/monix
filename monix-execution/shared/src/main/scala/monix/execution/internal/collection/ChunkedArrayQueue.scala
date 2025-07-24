@@ -18,20 +18,17 @@
 package monix.execution.internal
 package collection
 
-import java.util.concurrent.atomic.AtomicReferenceArray
-
 private[monix] final class ChunkedArrayQueue[A] private(
-  initialTailArray: AtomicReferenceArray[AnyRef],
+  initialTailArray: Array[AnyRef],
   initialTailIndex: Int,
-  initialHeadArray: AtomicReferenceArray[AnyRef],
+  initialHeadArray: Array[AnyRef],
   initialHeadIndex: Int,
-  chunkSize: Int,
-) extends Serializable { self =>
+  chunkSize: Int)
+  extends Serializable { self =>
 
   assert(chunkSize > 1, "chunkSize > 1")
 
   private val modulo = chunkSize - 1
-  private val lastElementIndex = chunkSize - 2
   private var tailArray = initialTailArray
   private var tailIndex = initialTailIndex
   private var headArray = initialHeadArray
@@ -48,15 +45,14 @@ private[monix] final class ChunkedArrayQueue[A] private(
    * Enqueues an item on the queue.
    */
   def enqueue(a: A): Unit = {
-    tailArray.set(tailIndex, a.asInstanceOf[AnyRef])
+    tailArray(tailIndex) = a.asInstanceOf[AnyRef]
+    tailIndex += 1
 
-    if (tailIndex == lastElementIndex) {
-      val newArray = new AtomicReferenceArray[AnyRef](chunkSize)
-      tailArray.set(modulo, newArray)
+    if (tailIndex == modulo) {
+      val newArray = new Array[AnyRef](chunkSize)
+      tailArray(tailIndex) = newArray
       tailArray = newArray
       tailIndex = 0
-    } else {
-      tailIndex += 1
     }
   }
 
@@ -74,13 +70,13 @@ private[monix] final class ChunkedArrayQueue[A] private(
    */
   def dequeue(): A = {
     if ((headArray ne tailArray) || headIndex < tailIndex) {
-      val result = headArray.getAndSet(headIndex, null).asInstanceOf[A]
+      val result = headArray(headIndex).asInstanceOf[A]
+      headArray(headIndex) = null
+      headIndex += 1
 
-      if (headIndex == lastElementIndex) {
-        headArray = headArray.get(modulo).asInstanceOf[AtomicReferenceArray[AnyRef]]
+      if (headIndex == modulo) {
+        headArray = headArray(modulo).asInstanceOf[Array[AnyRef]]
         headIndex = 0
-      } else {
-        headIndex += 1
       }
       result
     } else {
@@ -101,24 +97,16 @@ private[monix] final class ChunkedArrayQueue[A] private(
       }
 
       def next(): A = {
-        val result = headArray.get(headIndex).asInstanceOf[A]
+        val result = headArray(headIndex).asInstanceOf[A]
+        headIndex += 1
 
-        if (headIndex == lastElementIndex) {
-          headArray = headArray.get(modulo).asInstanceOf[AtomicReferenceArray[AnyRef]]
+        if (headIndex == modulo) {
+          headArray = headArray(modulo).asInstanceOf[Array[AnyRef]]
           headIndex = 0
-        } else {
-          headIndex += 1
         }
         result
       }
     }
-
-  /**
-   * Needed when passing the queue to another thread. Otherwise, changes applied to the queue since its creation
-   * might not be visible to the other thread.
-   */
-  def shallowCopy(): ChunkedArrayQueue[A] =
-    new ChunkedArrayQueue[A](tailArray, tailIndex, headArray, headIndex, chunkSize)
 }
 
 private[monix] object ChunkedArrayQueue {
@@ -126,7 +114,7 @@ private[monix] object ChunkedArrayQueue {
    * Builds a new [[ChunkedArrayQueue]].
    */
   def apply[A](chunkSize: Int = 8): ChunkedArrayQueue[A] = {
-    val arr = new AtomicReferenceArray[AnyRef](chunkSize)
+    val arr = new Array[AnyRef](chunkSize)
     new ChunkedArrayQueue[A](arr, 0, arr, 0, chunkSize)
   }
 }

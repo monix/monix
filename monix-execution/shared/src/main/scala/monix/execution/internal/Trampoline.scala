@@ -61,7 +61,7 @@ private[execution] class Trampoline(
   }
 
   private def forkTheRest(head: Runnable, ec: TrampolineEC): Unit = {
-    val rest = immediateQueue.shallowCopy()
+    val rest = immediateQueue
     immediateQueue = Trampoline.makeQueue()
     ec.execute(new ResumeRun(head, rest, ec, trampolineForResume()))
   }
