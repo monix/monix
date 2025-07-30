@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import monix.execution.internal.Trampoline
-import monix.execution.internal.Trampoline.{ForkingEC, ImmediateEC, TrampolineEC}
+import monix.execution.internal.Trampoline.{ForkingTrampolineEC, ImmediateTrampolineEC, TrampolineEC}
 
 import scala.concurrent.{ BlockContext, ExecutionContext, ExecutionContextExecutor }
 import scala.util.control.NonFatal
@@ -68,7 +68,7 @@ object TrampolineExecutionContext {
     *        is needed
     */
   def apply(underlying: ExecutionContext): TrampolineExecutionContext =
-    new TrampolineExecutionContext(new ForkingEC(underlying))
+    new TrampolineExecutionContext(new ForkingTrampolineEC(underlying))
 
   /** [[TrampolineExecutionContext]] instance that executes everything
     * immediately, on the current thread.
@@ -84,7 +84,7 @@ object TrampolineExecutionContext {
     *    have no way to override it)
     */
   val immediate: TrampolineExecutionContext =
-    new TrampolineExecutionContext(ImmediateEC)
+    new TrampolineExecutionContext(ImmediateTrampolineEC)
 
   /** Returns the `localContext`, allowing us to bypass calling
     * `BlockContext.withBlockContext`, as an optimization trick.

@@ -17,7 +17,7 @@
 
 package monix.execution.internal
 
-import monix.execution.internal.Trampoline.{ResumeRun, TrampolineEC}
+import monix.execution.internal.Trampoline.{ForkingTrampolineEC, ImmediateTrampolineEC, ResumeRun, TrampolineEC}
 import monix.execution.internal.collection.ChunkedArrayQueue
 
 import scala.annotation.tailrec
@@ -52,15 +52,14 @@ private[execution] class Trampoline(
   private def continueExecution(ec: TrampolineEC): Unit = {
     val head = immediateQueue.dequeue()
     if (head ne null) {
-      if (ec.isImmediate) {
-        immediateLoop(head, ec)
-      } else {
-        forkTheRest(head, ec)
+      ec match {
+        case ImmediateTrampolineEC => immediateLoop(head, ec)
+        case ec: ForkingTrampolineEC => forkTheRest(head, ec)
       }
     }
   }
 
-  private def forkTheRest(head: Runnable, ec: TrampolineEC): Unit = {
+  private def forkTheRest(head: Runnable, ec: ForkingTrampolineEC): Unit = {
     val rest = immediateQueue
     immediateQueue = Trampoline.makeQueue()
     ec.execute(new ResumeRun(head, rest, ec, trampolineForResume()))
@@ -112,26 +111,28 @@ private[execution] class Trampoline(
 private[execution] object Trampoline {
 
   /** ExecutionContext backing the [[Trampoline]]. */
-  trait TrampolineEC {
-    def execute(runnable: Runnable): Unit
+  sealed trait TrampolineEC {
     def reportFailure(e: Throwable): Unit
-    def isImmediate: Boolean
   }
 
-  /** Forking ExecutionContext backing the [[Trampoline]]. */
-  final class ForkingEC(ec: ExecutionContext) extends TrampolineEC {
-    def execute(runnable: Runnable): Unit = ec.execute(runnable)
-    def reportFailure(e: Throwable): Unit = ec.reportFailure(e)
-    def isImmediate: Boolean = false
-  }
-
-  /** Immediate ExecutionContext backing the [[Trampoline]].
-   *  Executes everything on the current thread. Used for optimization of the run loop.
+  /** 
+   * Trampoline backed by ForkingTrampolineEC handles problematic situations (unexpected exceptions or blocking 
+   * operations) by scheduling the remaining tasks to be executed on this execution context.
    */
-  object ImmediateEC extends TrampolineEC {
-    override def execute(runnable: Runnable): Unit = runnable.run()
+  final class ForkingTrampolineEC(ec: ExecutionContext) extends TrampolineEC {
+    def execute(runnable: Runnable): Unit = ec.execute(runnable)
+    override def reportFailure(e: Throwable): Unit = ec.reportFailure(e)
+  }
+
+  /**
+   * Trampoline backed by ImmediateTrampolineEC executes everything on the current thread.
+   * Used for optimization of the run loop.
+   * 
+   * WARNING: Using this ExecutionContext can lead to stack overflow errors if too many trampolined tasks throw
+   * an exception or too many blocking operations are chained.
+   */
+  object ImmediateTrampolineEC extends TrampolineEC {
     override def reportFailure(e: Throwable): Unit = throw e
-    override def isImmediate: Boolean = true
   }
 
   private final class ResumeRun(
