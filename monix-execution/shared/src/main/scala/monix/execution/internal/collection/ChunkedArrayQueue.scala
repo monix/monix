@@ -62,11 +62,6 @@ private[monix] final class ChunkedArrayQueue[A] private (
   }
 
   /** Pushes an entire sequence on the stack. */
-  def enqueueAll(seq: Iterable[A]): Unit = {
-    enqueueAll(seq.iterator)
-  }
-
-  /** Pushes an entire sequence on the stack. */
   def enqueueAll(stack: ChunkedArrayQueue[A]): Unit =
     enqueueAll(stack.iterator)
 
