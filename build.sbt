@@ -46,9 +46,9 @@ val reactiveStreams_Version   = "1.0.3"
 val macrotaskExecutor_Version = "1.0.0"
 val minitest_Version          = "2.9.6"
 val implicitBox_Version       = "0.3.4"
-val kindProjector_Version     = "0.13.2"
+val kindProjector_Version     = "0.13.4"
 val betterMonadicFor_Version  = "0.3.1"
-val silencer_Version          = "1.7.8"
+val silencer_Version          = "1.7.19"
 val scalaCompat_Version       = "2.7.0"
 
 // The Monix version with which we must keep binary compatibility.
@@ -369,6 +369,9 @@ lazy val assemblyShadeSettings = Seq(
   // otherwise, there's a cyclic dependency between packageBin and assembly
   assembly / fullClasspath := (Runtime / managedClasspath).value,
   // in dependent projects, use assembled and shaded jar
+  // Note: exportJars must be false during assembly, but true for dependent projects
+  // With sbt-assembly 2.x we need to ensure exportJars is false during the assembly task
+  assembly / exportJars := false,
   exportJars := true,
   // do not include scala dependency in pom
   autoScalaLibrary := false,
