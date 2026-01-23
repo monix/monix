@@ -192,7 +192,20 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   // Enable this to debug warnings...
   Compile / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 13) | (3, _)) => Seq("-Wconf:any:warning-verbose")
+      case Some((2, 13) | (3, _)) => Seq(
+        "-Wconf:any:warning-verbose",
+        // Silence warnings about discarded non-unit values (intentional pattern in codebase)
+        "-Wconf:cat=other-pure-statement:silent"
+      )
+      case _ => Seq.empty
+    }
+  },
+  Test / scalacOptions ++= {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 13) | (3, _)) => Seq(
+        // Silence warnings about discarded non-unit values in tests
+        "-Wconf:cat=other-pure-statement:silent"
+      )
       case _ => Seq.empty
     }
   },
