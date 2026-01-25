@@ -217,9 +217,6 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
         case "2.13" if scalaV.startsWith("2.13.18") =>
           // Scala 2.13.18 has many new warnings, disable fatal warnings temporarily
           Seq("-Xfatal-warnings")
-        case "2.12" if scalaV.startsWith("2.12.21") =>
-          // Scala 2.12.21 has many new warnings, disable fatal warnings temporarily
-          Seq("-Xfatal-warnings")
         case _ =>
           Seq.empty
       }
@@ -231,18 +228,13 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
 
   // Turn off annoyances in tests
   Test / tpolecatExcludeOptions ++= {
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 12)) =>
-        ScalacOptions.defaultConsoleExclude
-      case _ =>
-        Set(
-          ScalacOptions.lintInferAny,
-          ScalacOptions.warnUnusedImplicits,
-          ScalacOptions.warnUnusedExplicits,
-          ScalacOptions.warnUnusedParams,
-          ScalacOptions.warnUnusedNoWarn,
-        )
-    }
+    Set(
+      ScalacOptions.lintInferAny,
+      ScalacOptions.warnUnusedImplicits,
+      ScalacOptions.warnUnusedExplicits,
+      ScalacOptions.warnUnusedParams,
+      ScalacOptions.warnUnusedNoWarn,
+    )
   },
 
   // Silence everything in auto-generated files
@@ -250,7 +242,7 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
     val scalaV = scalaVersion.value
     if (isDotty.value)
       Seq.empty
-    else if (scalaV.startsWith("2.12.21") || scalaV.startsWith("2.13.18"))
+    else if (scalaV.startsWith("2.13.18"))
       // For newer patch versions, silencer plugin may not be available, use @nowarn instead
       Seq.empty
     else
@@ -268,7 +260,7 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
         compilerPlugin(betterMonadicForCompilerPlugin)
       )
       // silencer plugin is not available for all Scala patch versions
-      if (scalaV.startsWith("2.12.21") || scalaV.startsWith("2.13.18"))
+      if (scalaV.startsWith("2.13.18"))
         basePlugins
       else
         basePlugins :+ compilerPlugin(silencerCompilerPlugin)
