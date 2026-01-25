@@ -875,6 +875,10 @@ lazy val benchmarksNext = project
       publishArtifacts = false
     )
   )
+
+// Disable JGit because it doesn't handle Git worktrees correctly in some setups.
+// Using the native `git` binary is more reliable here; it requires `git` on PATH.
+ThisBuild / useJGit := false
   .dependsOn(reactiveJVM, tailJVM)
   .settings(
     // Disable Scala 3 (Dotty)
