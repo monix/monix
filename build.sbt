@@ -1,8 +1,11 @@
 import sbt.Keys.version
 import sbt.{ Def, Global, Tags }
+import com.github.sbt.git.SbtGit.GitKeys.useConsoleForROGit
 
 import scala.collection.immutable.SortedSet
 import MonixBuildUtils._
+
+ThisBuild / useConsoleForROGit := true
 
 val benchmarkProjects = List(
   "benchmarksPrev",
@@ -193,18 +196,18 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   Compile / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, 13)) => Seq(
-        // Silence various warnings that are false positives or intentional patterns
-        "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent,any:warning-verbose"
-      )
+          // Silence various warnings that are false positives or intentional patterns
+          "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent,any:warning-verbose"
+        )
       case _ => Seq.empty
     }
   },
   Test / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, 13)) => Seq(
-        // Silence various warnings in tests
-        "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent"
-      )
+          // Silence various warnings in tests
+          "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent"
+        )
       case _ => Seq.empty
     }
   },
@@ -875,10 +878,6 @@ lazy val benchmarksNext = project
       publishArtifacts = false
     )
   )
-
-// Disable JGit because it doesn't handle Git worktrees correctly in some setups.
-// Using the native `git` binary is more reliable here; it requires `git` on PATH.
-ThisBuild / useJGit := false
   .dependsOn(reactiveJVM, tailJVM)
   .settings(
     // Disable Scala 3 (Dotty)
