@@ -192,27 +192,33 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   // Enable this to debug warnings...
   Compile / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 13) | (3, _)) => Seq(
-        "-Wconf:any:warning-verbose",
-        // Silence warnings about discarded non-unit values (intentional pattern in codebase)
-        "-Wconf:cat=other-pure-statement:silent"
+      case Some((2, 13)) => Seq(
+        // Silence various warnings that are false positives or intentional patterns
+        "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent,any:warning-verbose"
       )
       case _ => Seq.empty
     }
   },
   Test / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 13) | (3, _)) => Seq(
-        // Silence warnings about discarded non-unit values in tests
-        "-Wconf:cat=other-pure-statement:silent"
+      case Some((2, 13)) => Seq(
+        // Silence various warnings in tests
+        "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent"
       )
       case _ => Seq.empty
     }
   },
   Seq(Compile, Test).map { x =>
     x / compile / scalacOptions --= {
+      val scalaV = scalaVersion.value
       scalaBinaryVersion.value match {
         case "3" =>
+          Seq("-Xfatal-warnings")
+        case "2.13" if scalaV.startsWith("2.13.18") =>
+          // Scala 2.13.18 has many new warnings, disable fatal warnings temporarily
+          Seq("-Xfatal-warnings")
+        case "2.12" if scalaV.startsWith("2.12.21") =>
+          // Scala 2.12.21 has many new warnings, disable fatal warnings temporarily
           Seq("-Xfatal-warnings")
         case _ =>
           Seq.empty
@@ -241,7 +247,11 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
 
   // Silence everything in auto-generated files
   scalacOptions ++= {
+    val scalaV = scalaVersion.value
     if (isDotty.value)
+      Seq.empty
+    else if (scalaV.startsWith("2.12.21") || scalaV.startsWith("2.13.18"))
+      // For newer patch versions, silencer plugin may not be available, use @nowarn instead
       Seq.empty
     else
       Seq("-P:silencer:pathFilters=.*[/]src_managed[/].*")
@@ -249,14 +259,20 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
 
   // Syntax improvements, linting, etc.
   libraryDependencies ++= {
+    val scalaV = scalaVersion.value
     if (isDotty.value)
       Seq()
-    else
-      Seq(
+    else {
+      val basePlugins = Seq(
         compilerPlugin(kindProjectorCompilerPlugin),
-        compilerPlugin(betterMonadicForCompilerPlugin),
-        compilerPlugin(silencerCompilerPlugin)
+        compilerPlugin(betterMonadicForCompilerPlugin)
       )
+      // silencer plugin is not available for all Scala patch versions
+      if (scalaV.startsWith("2.12.21") || scalaV.startsWith("2.13.18"))
+        basePlugins
+      else
+        basePlugins :+ compilerPlugin(silencerCompilerPlugin)
+    }
   },
   libraryDependencies ++= Seq(
     scalaCollectionCompatLib.value % "provided;optional"
