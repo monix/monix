@@ -10,7 +10,7 @@ on:
 jobs:
   jvm-tests:
     name: JVM / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -24,26 +24,26 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java }}"
-          distribution: adopt
+          distribution: temurin
 
       - name: Cache ivy2
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
@@ -64,7 +64,7 @@ jobs:
 
   js-tests:
     name: JS / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -79,34 +79,34 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java }}"
-          distribution: adopt
+          distribution: temurin
 
       - name: Cache ivy2
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Setup NodeJS
-        uses: actions/setup-node@v2.1.2
+        uses: actions/setup-node@v4
         with:
-          node-version: 14
+          node-version: 20
 
       - name: sbt ci-js
         run: |
@@ -118,7 +118,7 @@ jobs:
 
   mima:
     name: Mima / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     env:
       CI: true
@@ -132,26 +132,26 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java }}"
-          distribution: adopt
+          distribution: temurin
 
       - name: Cache ivy2
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
@@ -165,7 +165,7 @@ jobs:
 
   scalafmt:
     name: Scalafmt / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     env:
       CI: true
@@ -179,26 +179,26 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java }}"
-          distribution: adopt
+          distribution: temurin
 
       - name: Cache ivy2
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
@@ -212,7 +212,7 @@ jobs:
 
   unidoc:
     name: Unidoc / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     env:
       CI: true
@@ -226,26 +226,26 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java }}"
-          distribution: adopt
+          distribution: temurin
 
       - name: Cache ivy2
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
@@ -261,7 +261,7 @@ jobs:
     name: All Tests
     if: always()
     needs: [ jvm-tests, js-tests, mima, scalafmt, unidoc ]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - name: Validate required tests
       uses: re-actors/alls-green@release/v1
@@ -276,16 +276,16 @@ jobs:
     env:
       CI: true
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 100
 
-      - uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           java-version: 8
-          distribution: adopt
+          distribution: temurin
 
       - name: Install GnuPG2
         run: |
