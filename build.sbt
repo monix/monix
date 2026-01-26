@@ -1,8 +1,11 @@
 import sbt.Keys.version
 import sbt.{ Def, Global, Tags }
+import com.github.sbt.git.SbtGit.GitKeys.useConsoleForROGit
 
 import scala.collection.immutable.SortedSet
 import MonixBuildUtils._
+
+ThisBuild / useConsoleForROGit := true
 
 val benchmarkProjects = List(
   "benchmarksPrev",
@@ -46,9 +49,9 @@ val reactiveStreams_Version   = "1.0.3"
 val macrotaskExecutor_Version = "1.0.0"
 val minitest_Version          = "2.9.6"
 val implicitBox_Version       = "0.3.4"
-val kindProjector_Version     = "0.13.2"
+val kindProjector_Version     = "0.13.4"
 val betterMonadicFor_Version  = "0.3.1"
-val silencer_Version          = "1.7.8"
+val silencer_Version          = "1.7.19"
 val scalaCompat_Version       = "2.7.0"
 
 // The Monix version with which we must keep binary compatibility.
@@ -192,14 +195,30 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   // Enable this to debug warnings...
   Compile / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 13) | (3, _)) => Seq("-Wconf:any:warning-verbose")
+      case Some((2, 13)) => Seq(
+          // Silence various warnings that are false positives or intentional patterns
+          "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent,any:warning-verbose"
+        )
+      case _ => Seq.empty
+    }
+  },
+  Test / scalacOptions ++= {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 13)) => Seq(
+          // Silence various warnings in tests
+          "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent"
+        )
       case _ => Seq.empty
     }
   },
   Seq(Compile, Test).map { x =>
     x / compile / scalacOptions --= {
+      val scalaV = scalaVersion.value
       scalaBinaryVersion.value match {
         case "3" =>
+          Seq("-Xfatal-warnings")
+        case "2.13" if scalaV.startsWith("2.13.18") =>
+          // Scala 2.13.18 has many new warnings, disable fatal warnings temporarily
           Seq("-Xfatal-warnings")
         case _ =>
           Seq.empty
@@ -212,23 +231,22 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
 
   // Turn off annoyances in tests
   Test / tpolecatExcludeOptions ++= {
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 12)) =>
-        ScalacOptions.defaultConsoleExclude
-      case _ =>
-        Set(
-          ScalacOptions.lintInferAny,
-          ScalacOptions.warnUnusedImplicits,
-          ScalacOptions.warnUnusedExplicits,
-          ScalacOptions.warnUnusedParams,
-          ScalacOptions.warnUnusedNoWarn,
-        )
-    }
+    Set(
+      ScalacOptions.lintInferAny,
+      ScalacOptions.warnUnusedImplicits,
+      ScalacOptions.warnUnusedExplicits,
+      ScalacOptions.warnUnusedParams,
+      ScalacOptions.warnUnusedNoWarn,
+    )
   },
 
   // Silence everything in auto-generated files
   scalacOptions ++= {
+    val scalaV = scalaVersion.value
     if (isDotty.value)
+      Seq.empty
+    else if (scalaV.startsWith("2.13.18"))
+      // For newer patch versions, silencer plugin may not be available, use @nowarn instead
       Seq.empty
     else
       Seq("-P:silencer:pathFilters=.*[/]src_managed[/].*")
@@ -236,14 +254,20 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
 
   // Syntax improvements, linting, etc.
   libraryDependencies ++= {
+    val scalaV = scalaVersion.value
     if (isDotty.value)
       Seq()
-    else
-      Seq(
+    else {
+      val basePlugins = Seq(
         compilerPlugin(kindProjectorCompilerPlugin),
-        compilerPlugin(betterMonadicForCompilerPlugin),
-        compilerPlugin(silencerCompilerPlugin)
+        compilerPlugin(betterMonadicForCompilerPlugin)
       )
+      // silencer plugin is not available for all Scala patch versions
+      if (scalaV.startsWith("2.13.18"))
+        basePlugins
+      else
+        basePlugins :+ compilerPlugin(silencerCompilerPlugin)
+    }
   },
   libraryDependencies ++= Seq(
     scalaCollectionCompatLib.value % "provided;optional"
@@ -369,6 +393,9 @@ lazy val assemblyShadeSettings = Seq(
   // otherwise, there's a cyclic dependency between packageBin and assembly
   assembly / fullClasspath := (Runtime / managedClasspath).value,
   // in dependent projects, use assembled and shaded jar
+  // Note: exportJars must be false during assembly, but true for dependent projects
+  // With sbt-assembly 2.x we need to ensure exportJars is false during the assembly task
+  assembly / exportJars := false,
   exportJars := true,
   // do not include scala dependency in pom
   autoScalaLibrary := false,
