@@ -39,7 +39,11 @@ import scala.util.control.NonFatal
 abstract class ExecutorScheduler(e: ExecutorService, r: UncaughtExceptionReporter, additionalFeatures: Features)
   extends SchedulerService with ReferenceScheduler with BatchingScheduler {
 
-  override final val features: Features = additionalFeatures + Scheduler.BATCHING
+  private val allFeatures: Features = additionalFeatures + Scheduler.BATCHING
+
+  // for backwards compatibility
+  def this(e: ExecutorService, r: UncaughtExceptionReporter) =
+    this(e, r, Features.empty)
 
   /** Returns the underlying `ExecutorService` reference. */
   def executor: ExecutorService = e
@@ -81,6 +85,8 @@ abstract class ExecutorScheduler(e: ExecutorService, r: UncaughtExceptionReporte
     throw new NotImplementedError("ExecutorService.withUncaughtExceptionReporter")
     // $COVERAGE-ON$
   }
+
+  override def features: Features = allFeatures
 }
 
 object ExecutorScheduler {
