@@ -36,8 +36,10 @@ import scala.util.control.NonFatal
   * [[monix.execution.schedulers.SchedulerService SchedulerService]]
   * out of a Java `ExecutorService`.
   */
-abstract class ExecutorScheduler(e: ExecutorService, r: UncaughtExceptionReporter)
+abstract class ExecutorScheduler(e: ExecutorService, r: UncaughtExceptionReporter, additionalFeatures: Features)
   extends SchedulerService with ReferenceScheduler with BatchingScheduler {
+
+  override final val features: Features = additionalFeatures + Scheduler.BATCHING
 
   /** Returns the underlying `ExecutorService` reference. */
   def executor: ExecutorService = e
@@ -129,7 +131,7 @@ object ExecutorScheduler {
       executor = service,
       reporter = reporter,
       executionModel = executionModel,
-      features = withBatching(features)
+      additionalFeatures = features,
     )
 
   private[schedulers] def scheduledThreadPool(
@@ -140,12 +142,8 @@ object ExecutorScheduler {
     new FromAdaptedThreadPoolExecutor(
       executor = service,
       executionModel = executionModel,
-      features = withBatching(features)
+      additionalFeatures = features,
     )
-
-  private def withBatching(features: Features): Features =
-    // Implementations will inherit BatchingScheduler, so this is guaranteed
-    features + Scheduler.BATCHING
 
   /**
     * DEPRECATED — provided for binary backwards compatibility.
@@ -220,8 +218,8 @@ object ExecutorScheduler {
     executor: ExecutorService,
     reporter: UncaughtExceptionReporter,
     override val executionModel: ExecModel,
-    override val features: Features
-  ) extends ExecutorScheduler(executor, reporter) {
+    additionalFeatures: Features,
+  ) extends ExecutorScheduler(executor, reporter, additionalFeatures) {
 
     @deprecated("Provided for backwards compatibility", "3.0.0")
     def this(
@@ -239,10 +237,10 @@ object ExecutorScheduler {
       ScheduledExecutors.scheduleOnce(this, scheduler)(initialDelay, unit, r)
 
     override def withExecutionModel(em: ExecModel): SchedulerService =
-      new FromSimpleExecutor(scheduler, executor, reporter, em, features)
+      new FromSimpleExecutor(scheduler, executor, reporter, em, additionalFeatures)
 
     override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): SchedulerService =
-      new FromSimpleExecutor(scheduler, executor, r, executionModel, features)
+      new FromSimpleExecutor(scheduler, executor, r, executionModel, additionalFeatures)
   }
 
   /** Implementation of ExecutorScheduler backed by Java `ScheduledExecutorService`. Assumes error reporting is done by
@@ -253,8 +251,8 @@ object ExecutorScheduler {
   private final class FromAdaptedThreadPoolExecutor(
     executor: AdaptedScheduledThreadPoolExecutor,
     override val executionModel: ExecModel,
-    override val features: Features
-  ) extends ExecutorScheduler(executor, null) {
+    additionalFeatures: Features,
+  ) extends ExecutorScheduler(executor, null, additionalFeatures) {
 
     def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
       if (initialDelay <= 0) {
@@ -277,9 +275,9 @@ object ExecutorScheduler {
     }
 
     override def withExecutionModel(em: ExecModel): SchedulerService =
-      new FromAdaptedThreadPoolExecutor(executor, em, features)
+      new FromAdaptedThreadPoolExecutor(executor, em, additionalFeatures)
 
     override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): SchedulerService =
-      new FromAdaptedThreadPoolExecutor(executor.withUncaughtExceptionReporter(r), executionModel, features)
+      new FromAdaptedThreadPoolExecutor(executor.withUncaughtExceptionReporter(r), executionModel, additionalFeatures)
   }
 }
