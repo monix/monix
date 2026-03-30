@@ -156,8 +156,13 @@ object MimaFilters {
       exclude[IncompatibleResultTypeProblem]("monix.execution.cancelables.BooleanCancelable.alreadyCanceled")
     )
 
+    lazy val changesFor_3_6_0: Seq[ProblemFilter] = Seq(
+      exclude[MissingClassProblem]("monix.execution.schedulers.AdaptedThreadPoolExecutor"),
+      exclude[MissingClassProblem]("monix.execution.schedulers.ExecutorScheduler$FromScheduledExecutor"),
+    )
+
     lazy val all: Seq[ProblemFilter] =
-      Seq(changesFor_3_0_1, changesFor_3_3_0, changesFor_3_4_0, changesFor_3_5_0).flatten
+      Seq(changesFor_3_0_1, changesFor_3_3_0, changesFor_3_4_0, changesFor_3_5_0, changesFor_3_6_0).flatten
   }
 
   object MonixCatnap {
