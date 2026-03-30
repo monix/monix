@@ -112,15 +112,15 @@ object ReferenceScheduler {
     private val reporterRef = if (reporter eq null) s else reporter
 
     override def execute(runnable: Runnable): Unit =
-      s.execute(InterceptRunnable(runnable, reporter))
+      s.execute(InterceptRunnable(runnable, reporterRef))
     override def reportFailure(t: Throwable): Unit =
       reporterRef.reportFailure(t)
     override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
-      s.scheduleOnce(initialDelay, unit, r)
+      s.scheduleOnce(initialDelay, unit, InterceptRunnable(r, reporterRef))
     override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable =
-      s.scheduleWithFixedDelay(initialDelay, delay, unit, r)
+      s.scheduleWithFixedDelay(initialDelay, delay, unit, InterceptRunnable(r, reporterRef))
     override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable =
-      s.scheduleAtFixedRate(initialDelay, period, unit, r)
+      s.scheduleAtFixedRate(initialDelay, period, unit, InterceptRunnable(r, reporterRef))
     override def clockRealTime(unit: TimeUnit): Long =
       s.clockRealTime(unit)
     override def clockMonotonic(unit: TimeUnit): Long =

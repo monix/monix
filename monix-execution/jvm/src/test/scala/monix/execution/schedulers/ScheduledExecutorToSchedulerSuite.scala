@@ -42,7 +42,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
       )
     )
 
-    ExecutorScheduler(executor, reporter, ExecModel.Default, Features.empty)
+    ExecutorScheduler.fromExecutorService(executor, reporter, ExecModel.Default, Features.empty)
   }
 
   override def tearDown(scheduler: ExecutorScheduler): Unit = {

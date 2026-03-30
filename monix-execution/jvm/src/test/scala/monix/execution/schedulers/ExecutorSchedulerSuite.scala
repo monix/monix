@@ -17,7 +17,7 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{ CountDownLatch, TimeUnit, TimeoutException }
+import java.util.concurrent.{ CountDownLatch, Executors, TimeUnit, TimeoutException }
 
 import minitest.TestSuite
 import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, Default => DefaultExecutionModel }
@@ -186,12 +186,60 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
       val _ = scheduler.scheduleOnce(
         1,
         TimeUnit.MILLISECONDS,
-        () => throw ex
+        () => throw ex,
       )
 
       assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
       self.synchronized(assertEquals(lastReportedFailure, ex))
     } finally {
+      self.synchronized {
+        lastReportedFailure = null
+        lastReportedFailureLatch = null
+      }
+    }
+  }
+
+  test("reports errors on scheduleAtFixedRate") { scheduler =>
+    val latch = new CountDownLatch(1)
+    self.synchronized {
+      lastReportedFailure = null
+      lastReportedFailureLatch = latch
+    }
+
+    val ex = DummyException("dummy")
+    val schedule = scheduler.scheduleAtFixedRate(0.seconds, 1.second) {
+      throw ex
+    }
+
+    try {
+      assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
+      self.synchronized(assertEquals(lastReportedFailure, ex))
+    } finally {
+      schedule.cancel()
+      self.synchronized {
+        lastReportedFailure = null
+        lastReportedFailureLatch = null
+      }
+    }
+  }
+
+  test("reports errors on scheduleWithFixedDelay") { scheduler =>
+    val latch = new CountDownLatch(1)
+    self.synchronized {
+      lastReportedFailure = null
+      lastReportedFailureLatch = latch
+    }
+
+    val ex = DummyException("dummy")
+    val schedule = scheduler.scheduleWithFixedDelay(0.seconds, 1.second) {
+      throw ex
+    }
+
+    try {
+      assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
+      self.synchronized(assertEquals(lastReportedFailure, ex))
+    } finally {
+      schedule.cancel()
       self.synchronized {
         lastReportedFailure = null
         lastReportedFailureLatch = null
@@ -251,4 +299,9 @@ object CachedSchedulerSuite extends ExecutorSchedulerSuite {
 object IOSchedulerSuite extends ExecutorSchedulerSuite {
   def setup(): SchedulerService =
     monix.execution.Scheduler.io("monix-tests-io", reporter = testsReporter)
+}
+
+object ScheduledExecutorSuite extends ExecutorSchedulerSuite {
+  def setup(): SchedulerService =
+    monix.execution.Scheduler(Executors.newSingleThreadScheduledExecutor(), reporter = testsReporter)
 }

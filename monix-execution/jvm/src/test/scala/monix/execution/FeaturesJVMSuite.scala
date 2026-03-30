@@ -70,7 +70,12 @@ object FeaturesJVMSuite extends SimpleTestSuite with Checkers {
   test("ExecutorScheduler(Executor") {
     val ref = {
       val ec = Executors.newSingleThreadExecutor()
-      ExecutorScheduler(ec, UncaughtExceptionReporter.default, ExecutionModel.Default, Features.empty)
+      ExecutorScheduler.fromExecutorService(
+        ec,
+        UncaughtExceptionReporter.default,
+        ExecutionModel.Default,
+        Features.empty
+      )
     }
     try {
       assert(ref.features.contains(Scheduler.BATCHING))
@@ -83,7 +88,12 @@ object FeaturesJVMSuite extends SimpleTestSuite with Checkers {
   test("ExecutorScheduler(ScheduledExecutor") {
     val ref = {
       val ec = Executors.newSingleThreadScheduledExecutor()
-      ExecutorScheduler(ec, UncaughtExceptionReporter.default, ExecutionModel.Default, Features.empty)
+      ExecutorScheduler.fromExecutorService(
+        ec,
+        UncaughtExceptionReporter.default,
+        ExecutionModel.Default,
+        Features.empty
+      )
     }
     try {
       assert(ref.features.contains(Scheduler.BATCHING))
@@ -96,7 +106,12 @@ object FeaturesJVMSuite extends SimpleTestSuite with Checkers {
   test("ExecutorScheduler(ScheduledExecutor)") {
     val ref = {
       val ec = Executors.newSingleThreadScheduledExecutor()
-      ExecutorScheduler(ec, UncaughtExceptionReporter.default, ExecutionModel.Default, Features.empty)
+      ExecutorScheduler.fromExecutorService(
+        ec,
+        UncaughtExceptionReporter.default,
+        ExecutionModel.Default,
+        Features.empty
+      )
     }
     try {
       assert(ref.features.contains(Scheduler.BATCHING))

@@ -17,14 +17,18 @@
 
 package monix.execution.schedulers
 
+import monix.execution.UncaughtExceptionReporter
+
 import java.util.concurrent._
 
 /** A mixin for adapting for the Java `ThreadPoolExecutor` implementation
   * to report errors using the default thread exception handler.
   */
-private[schedulers] abstract class AdaptedThreadPoolExecutor(corePoolSize: Int, factory: ThreadFactory)
-  extends ScheduledThreadPoolExecutor(corePoolSize, factory) {
-  def reportFailure(t: Throwable): Unit
+private[schedulers] final class AdaptedScheduledThreadPoolExecutor(
+  corePoolSize: Int,
+  factory: ThreadFactory,
+  reporter: UncaughtExceptionReporter,
+) extends ScheduledThreadPoolExecutor(corePoolSize, factory) {
 
   override def afterExecute(r: Runnable, t: Throwable): Unit = {
     super.afterExecute(r, t)
@@ -47,6 +51,9 @@ private[schedulers] abstract class AdaptedThreadPoolExecutor(corePoolSize: Int, 
       }
     }
 
-    if (exception ne null) reportFailure(exception)
+    if (exception ne null) reporter.reportFailure(exception)
   }
+
+  def withUncaughtExceptionReporter(reporter: UncaughtExceptionReporter): AdaptedScheduledThreadPoolExecutor =
+    new AdaptedScheduledThreadPoolExecutor(corePoolSize, factory, reporter)
 }
