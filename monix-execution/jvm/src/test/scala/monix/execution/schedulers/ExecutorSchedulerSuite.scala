@@ -23,6 +23,7 @@ import minitest.TestSuite
 import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, Default => DefaultExecutionModel }
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.exceptions.DummyException
+import monix.execution.schedulers.ExecutorSchedulerSuite.TestException
 import monix.execution.{ Cancelable, Scheduler, UncaughtExceptionReporter }
 
 import scala.concurrent.duration._
@@ -153,102 +154,75 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
   }
 
   test("reports errors on execute") { scheduler =>
-    val latch = new CountDownLatch(1)
-    self.synchronized {
-      lastReportedFailure = null
-      lastReportedFailureLatch = latch
-    }
+    val latch = setupReporterLatch()
 
     try {
-      val ex = DummyException("dummy")
-      scheduler.execute(() => throw ex)
+      scheduler.execute(() => throw TestException)
 
-      assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
-      self.synchronized(assertEquals(lastReportedFailure, ex))
+      assertTestExceptionCaught(latch)
     } finally {
-      self.synchronized {
-        lastReportedFailure = null
-        lastReportedFailureLatch = null
-      }
+      clearReporterLatch()
     }
   }
 
   test("reports errors on scheduleOnce") { scheduler =>
-    val latch = new CountDownLatch(1)
-    self.synchronized {
-      lastReportedFailure = null
-      lastReportedFailureLatch = latch
-    }
-
-    try {
-      val ex = DummyException("dummy")
-
-      val _ = scheduler.scheduleOnce(
-        1,
-        TimeUnit.MILLISECONDS,
-        () => throw ex,
-      )
-
-      assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
-      self.synchronized(assertEquals(lastReportedFailure, ex))
-    } finally {
-      self.synchronized {
-        lastReportedFailure = null
-        lastReportedFailureLatch = null
-      }
-    }
+    testScheduledErrorReporting(
+      scheduleFailure = () => scheduler.scheduleOnce(1.milli)(throw TestException)
+    )
   }
 
   test("reports errors on scheduleAtFixedRate") { scheduler =>
-    val latch = new CountDownLatch(1)
-    self.synchronized {
-      lastReportedFailure = null
-      lastReportedFailureLatch = latch
-    }
-
-    val ex = DummyException("dummy")
-    val schedule = scheduler.scheduleAtFixedRate(0.seconds, 1.second) {
-      throw ex
-    }
-
-    try {
-      assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
-      self.synchronized(assertEquals(lastReportedFailure, ex))
-    } finally {
-      schedule.cancel()
-      self.synchronized {
-        lastReportedFailure = null
-        lastReportedFailureLatch = null
-      }
-    }
+    testScheduledErrorReporting(
+      scheduleFailure = () => scheduler.scheduleAtFixedRate(0.seconds, 1.second)(throw TestException)
+    )
   }
 
   test("reports errors on scheduleWithFixedDelay") { scheduler =>
+    testScheduledErrorReporting(
+      scheduleFailure = () => scheduler.scheduleWithFixedDelay(0.seconds, 1.second)(throw TestException),
+    )
+  }
+
+  private def testScheduledErrorReporting(scheduleFailure: () => Cancelable): Unit = {
+    val latch = setupReporterLatch()
+
+    val schedule = scheduleFailure()
+
+    try {
+      assertTestExceptionCaught(latch)
+    } finally {
+      schedule.cancel()
+      clearReporterLatch()
+    }
+  }
+
+  private def setupReporterLatch() = {
     val latch = new CountDownLatch(1)
     self.synchronized {
       lastReportedFailure = null
       lastReportedFailureLatch = latch
     }
+    latch
+  }
 
-    val ex = DummyException("dummy")
-    val schedule = scheduler.scheduleWithFixedDelay(0.seconds, 1.second) {
-      throw ex
-    }
+  private def assertTestExceptionCaught(latch: CountDownLatch): Unit = {
+    assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
+    self.synchronized(assertEquals(lastReportedFailure, TestException))
+  }
 
-    try {
-      assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
-      self.synchronized(assertEquals(lastReportedFailure, ex))
-    } finally {
-      schedule.cancel()
-      self.synchronized {
-        lastReportedFailure = null
-        lastReportedFailureLatch = null
-      }
+  private def clearReporterLatch(): Unit = {
+    self.synchronized {
+      lastReportedFailure = null
+      lastReportedFailureLatch = null
     }
   }
 
   def runnableAction(f: => Unit): Runnable =
     () => f
+}
+
+object ExecutorSchedulerSuite {
+  private val TestException = DummyException("dummy")
 }
 
 object ComputationSchedulerSuite extends ExecutorSchedulerSuite {
