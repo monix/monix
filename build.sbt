@@ -191,7 +191,7 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   // Enable this to debug warnings...
   Compile / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 13)) => 
+      case Some((2, 13)) =>
         Seq(
           "-Xfatal-warnings",
           "-Xsource:3-cross",
@@ -199,12 +199,12 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
           "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent,any:warning-verbose",
           "-Wconf:cat=unused-nowarn:s"
         )
-      case Some((3, _)) => 
+      case Some((3, _)) =>
         Seq(
           "-Werror",
           "-Wconf:msg=Implicit parameters should be provided with a `using` clause:s"
         )
-      case _ => 
+      case _ =>
         Seq.empty
     }
   },
@@ -214,13 +214,13 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
           // Silence various warnings in tests
           "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent"
         )
-      case Some((3, _)) => 
+      case Some((3, _)) =>
         Seq(
           // Scala 3.8.x surfaces a very large warning volume in legacy tests and doctests.
           // Keep -Werror for main sources, but silence test warnings to preserve CI signal.
           "-Wconf:any:silent"
         )
-      case _ => 
+      case _ =>
         Seq.empty
     }
   },
@@ -627,7 +627,7 @@ lazy val executionAtomicJS = project.in(file("monix-execution/atomic/js"))
 
 lazy val executionProfile =
   crossModule(
-    projectName  = "monix-execution",
+    projectName = "monix-execution",
     crossSettings = Seq(
       description := "Sub-module of Monix, exposing low-level primitives for dealing with async execution. See: https://monix.io",
       libraryDependencies += implicitBoxLib.value
