@@ -268,35 +268,35 @@ jobs:
       with:
         jobs: ${{ toJSON(needs) }}
 
-  publish:
-    name: Publish to Sonatype
-    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/series/4.x')
-    needs: [ all_tests ]
+  # publish:
+  #   name: Publish to Sonatype
+  #   if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/series/4.x')
+  #   needs: [ all_tests ]
 
-    env:
-      CI: true
+  #   env:
+  #     CI: true
 
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 100
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 100
 
-      - uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          distribution: temurin
+  #     - uses: actions/setup-java@v4
+  #       with:
+  #         java-version: 17
+  #         distribution: temurin
 
-      - name: Install GnuPG2
-        run: |
-          ./.github/scripts/setup-pgp
+  #     - name: Install GnuPG2
+  #       run: |
+  #         ./.github/scripts/setup-pgp
 
-      - name: .github/scripts/release
-        run: |
-          .github/scripts/release
-        env:
-          PGP_KEY_HEX: ${{ secrets.PGP_KEY_HEX }}
-          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
-          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          PUBLISH_STABLE_VERSION: false
+  #     - name: .github/scripts/release
+  #       run: |
+  #         .github/scripts/release
+  #       env:
+  #         PGP_KEY_HEX: ${{ secrets.PGP_KEY_HEX }}
+  #         PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+  #         SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+  #         SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+  #         PUBLISH_STABLE_VERSION: false
