@@ -17,11 +17,13 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import monix.execution.Cancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 /** Builds an observable that emits a single strict value. */
+@nowarn("msg=unused value of type")
 private[reactive] final class NowObservable[+A](elem: A) extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {

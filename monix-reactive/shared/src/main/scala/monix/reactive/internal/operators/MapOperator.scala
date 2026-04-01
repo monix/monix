@@ -30,7 +30,7 @@ private[reactive] final class MapOperator[-A, +B](f: A => B) extends Operator[A,
   def apply(out: Subscriber[B]): Subscriber[A] = {
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var isDone = false
+      private var isDone = false
 
       def onNext(elem: A): Future[Ack] = {
         // Protects calls to user code from within the operator and

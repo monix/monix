@@ -25,7 +25,7 @@ import monix.execution.atomic.internal.{ BoxedObject, Factory }
   * @tparam A is forced to be an `AnyRef` because the equality test is
   *         by reference and not by value.
   */
-final class AtomicAny[A <: AnyRef] private (private[this] val ref: BoxedObject) extends Atomic[A] {
+final class AtomicAny[A <: AnyRef] private (private val ref: BoxedObject) extends Atomic[A] {
   def get(): A = ref.volatileGet().asInstanceOf[A]
   def set(update: A): Unit = ref.volatileSet(update)
 

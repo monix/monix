@@ -17,6 +17,7 @@
 
 package monix.reactive
 
+import scala.annotation.nowarn
 import monix.execution.ChannelType.MultiProducer
 import monix.execution.{ ChannelType, Scheduler }
 
@@ -30,6 +31,8 @@ import monix.reactive.subjects._
 /** Represents a factory for an input/output channel for
   * broadcasting input to multiple subscribers.
   */
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
+@nowarn("msg=unused value of type")
 abstract class Pipe[I, +O] extends Serializable {
   /** Returns an input/output pair that can be used to
     * push input to a single subscriber.
@@ -99,6 +102,7 @@ abstract class Pipe[I, +O] extends Serializable {
     new TransformedPipe(this, f)
 }
 
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 object Pipe {
   /** Given a [[MulticastStrategy]] returns the corresponding [[Pipe]]. */
   def apply[A](strategy: MulticastStrategy[A]): Pipe[A, A] =

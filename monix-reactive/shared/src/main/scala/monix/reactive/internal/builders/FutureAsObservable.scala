@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import scala.util.control.NonFatal
 import monix.execution.{ Cancelable, CancelableFuture }
 import monix.reactive.Observable
@@ -26,6 +27,7 @@ import scala.concurrent.Future
 import scala.util.{ Failure, Success }
 
 /** Converts any `Future` into an observable */
+@nowarn("msg=unused value of type")
 private[reactive] final class FutureAsObservable[A](factory: => Future[A]) extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {

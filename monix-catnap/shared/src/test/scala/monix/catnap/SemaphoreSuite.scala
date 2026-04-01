@@ -16,6 +16,7 @@
  */
 
 package monix.catnap
+import scala.annotation.nowarn
 
 import cats.effect.{ ContextShift, IO }
 import cats.implicits._
@@ -25,6 +26,7 @@ import monix.execution.schedulers.TestScheduler
 import scala.concurrent.{ ExecutionContext, Promise }
 import scala.util.{ Random, Success }
 
+@nowarn
 object SemaphoreSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =

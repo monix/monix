@@ -38,8 +38,8 @@ private[reactive] final class ScanObservable[A, R](source: Observable[A], initia
       // Initial state was evaluated, subscribing to source
       source.unsafeSubscribeFn(new Subscriber[A] {
         implicit val scheduler: Scheduler = out.scheduler
-        private[this] var isDone = false
-        private[this] var state = initialState
+        private var isDone = false
+        private var state = initialState
 
         def onNext(elem: A): Future[Ack] = {
           // Protects calls to user code from within the operator and

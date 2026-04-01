@@ -23,6 +23,7 @@ import monix.eval.Task.Context
 import monix.execution.Scheduler
 import scala.util.control.NonFatal
 
+@scala.annotation.nowarn
 private[eval] object TaskDeferAction {
   /** Implementation for `Task.deferAction`. */
   def apply[A](f: Scheduler => Task[A]): Task[A] = {

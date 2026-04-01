@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack
 import monix.execution.Scheduler
 import scala.util.control.NonFatal
@@ -25,12 +26,13 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
+@nowarn("msg=unused value of type")
 private[reactive] final class DefaultIfEmptyOperator[A](default: () => A) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var isEmpty = true
+      private var isEmpty = true
 
       def onNext(elem: A): Future[Ack] = {
         if (isEmpty) isEmpty = false

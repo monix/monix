@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.Scheduler
 import monix.execution.cancelables.{ CompositeCancelable, MultiAssignCancelable }
@@ -27,6 +28,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.{ Future, Promise }
 
+@nowarn("msg=unused value of type")
 private[reactive] final class DelayBySelectorObservable[A, S](source: Observable[A], selector: A => Observable[S])
   extends Observable[A] {
 
@@ -37,12 +39,12 @@ private[reactive] final class DelayBySelectorObservable[A, S](source: Observable
     composite += source.unsafeSubscribeFn(new Subscriber[A] { self =>
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var completeTriggered = false
-      private[this] var isDone = false
-      private[this] var currentElem: A = _
-      private[this] var ack: Promise[Ack] = _
+      private var completeTriggered = false
+      private var isDone = false
+      private var currentElem: A = null.asInstanceOf[A]
+      private var ack: Promise[Ack] = null.asInstanceOf[Promise[Ack]]
 
-      private[this] val trigger = new Subscriber.Sync[Any] {
+      private val trigger = new Subscriber.Sync[Any] {
         implicit val scheduler: Scheduler = out.scheduler
         def onNext(elem: Any): Ack = throw new IllegalStateException
         def onError(ex: Throwable): Unit = self.onError(ex)

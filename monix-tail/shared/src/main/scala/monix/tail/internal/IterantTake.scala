@@ -38,7 +38,7 @@ private[tail] object IterantTake {
 
   private final class Loop[F[_], A](n: Int)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
-    private[this] var toTake = n
+    private var toTake = n
 
     def visit(ref: Next[F, A]): Iterant[F, A] = {
       toTake -= 1

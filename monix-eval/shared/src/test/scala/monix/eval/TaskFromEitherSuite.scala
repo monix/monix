@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.eval.Task.{ Error, Now }
 import monix.execution.exceptions.DummyException
@@ -23,6 +24,7 @@ import monix.execution.internal.Platform
 
 import scala.util.{ Failure, Success }
 
+@nowarn
 object TaskFromEitherSuite extends BaseTestSuite {
   test("Task.fromEither (`E <: Throwable` version) should returns a Now with a Right") { _ =>
     val t = Task.fromEither(Right(10))

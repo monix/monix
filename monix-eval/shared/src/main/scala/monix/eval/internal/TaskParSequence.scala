@@ -26,10 +26,11 @@ import scala.util.control.NonFatal
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
+@scala.annotation.nowarn
 private[eval] object TaskParSequence {
   /**
-    * Implementation for [[Task.parSequence]]
-    */
+* Implementation for [[Task.parSequence]]
+*/
   def apply[A, M[X] <: Iterable[X]](in: Iterable[Task[A]], makeBuilder: () => mutable.Builder[A, M[A]]): Task[M[A]] = {
     Async(
       new Register(in, makeBuilder),
@@ -39,11 +40,11 @@ private[eval] object TaskParSequence {
     )
   }
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is a task that forks on evaluation.
-  //
-  // N.B. the contract is that the injected callback gets called after
-  // a full async boundary!
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is a task that forks on evaluation.
+//
+// N.B. the contract is that the injected callback gets called after
+// a full async boundary!
   private final class Register[A, M[X] <: Iterable[X]](
     in: Iterable[Task[A]],
     makeBuilder: () => mutable.Builder[A, M[A]]

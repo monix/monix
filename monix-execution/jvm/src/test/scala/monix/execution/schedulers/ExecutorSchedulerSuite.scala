@@ -57,7 +57,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
   test("scheduleOnce with delay") { scheduler =>
     val p = Promise[Long]()
     val startedAt = System.nanoTime()
-    scheduleOnce(scheduler, 100.millis) {
+    val _ = scheduleOnce(scheduler, 100.millis) {
       p.success(System.nanoTime())
       ()
     }
@@ -67,7 +67,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
 
   test("scheduleOnce with delay lower than 1.milli") { scheduler =>
     val p = Promise[Int]()
-    scheduleOnce(scheduler, 20.nanos) { p.success(1); () }
+    val _ = scheduleOnce(scheduler, 20.nanos) { p.success(1); () }
     assert(Await.result(p.future, 3.seconds) == 1)
   }
 
@@ -76,8 +76,8 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
     val task = scheduleOnce(scheduler, 100.millis) { p.success(1); () }
     task.cancel()
 
-    intercept[TimeoutException] {
-      Await.result(p.future, 150.millis)
+    val _ = intercept[TimeoutException] {
+      val _ = Await.result(p.future, 150.millis)
       ()
     }
     ()
@@ -183,7 +183,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
     try {
       val ex = DummyException("dummy")
 
-      scheduler.scheduleOnce(
+      val _ = scheduler.scheduleOnce(
         1,
         TimeUnit.MILLISECONDS,
         () => throw ex

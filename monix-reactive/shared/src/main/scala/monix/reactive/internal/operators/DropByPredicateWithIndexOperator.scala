@@ -28,9 +28,9 @@ private[reactive] final class DropByPredicateWithIndexOperator[A](p: (A, Int) =>
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var continueDropping = true
-      private[this] var index = 0
-      private[this] var isDone = false
+      private var continueDropping = true
+      private var index = 0
+      private var isDone = false
 
       def onNext(elem: A) = {
         if (continueDropping) {

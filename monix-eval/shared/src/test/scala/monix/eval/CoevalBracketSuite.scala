@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.laws._
 import cats.laws.discipline._
@@ -24,6 +25,7 @@ import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
 import scala.util.{ Failure, Success }
 
+@nowarn
 object CoevalBracketSuite extends BaseTestSuite {
   test("equivalence with onErrorHandleWith") { _ =>
     check2 { (coeval: Coeval[Int], f: Throwable => Coeval[Unit]) =>

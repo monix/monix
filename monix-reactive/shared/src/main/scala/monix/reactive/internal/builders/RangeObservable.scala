@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{ Ack, Cancelable, ExecutionModel, Scheduler }
@@ -28,6 +29,7 @@ import scala.concurrent.Future
 import scala.util.{ Failure, Success }
 
 /** Generates ranges */
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] final class RangeObservable(from: Long, until: Long, step: Long = 1) extends Observable[Long] {
 
   require(step != 0, "step != 0")

@@ -278,14 +278,13 @@ object TaskLocal {
   private def checkPropagation[A](fa: Task[A]): Task[A] =
     ContextSwitch(fa, checkPropagationRef, null)
 
-  private[this] val checkPropagationRef: Task.Context => Task.Context =
-    ctx => {
-      if (!ctx.options.localContextPropagation) {
-        throw new APIContractViolationException(
-          "Support for TaskLocal usage isn't active! " +
-            "See documentation at: https://monix.io/api/current/monix/eval/TaskLocal.html"
-        )
-      }
-      ctx
+  private val checkPropagationRef: Task.Context => Task.Context = ctx => {
+    if (!ctx.options.localContextPropagation) {
+      throw new APIContractViolationException(
+        "Support for TaskLocal usage isn't active! " +
+          "See documentation at: https://monix.io/api/current/monix/eval/TaskLocal.html"
+      )
     }
+    ctx
+  }
 }

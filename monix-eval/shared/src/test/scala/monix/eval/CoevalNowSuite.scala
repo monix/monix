@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.laws._
 import cats.laws.discipline._
@@ -23,6 +24,7 @@ import cats.laws.discipline._
 import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 
+@nowarn
 object CoevalNowSuite extends BaseTestSuite {
   test("Coeval.now should work") { _ =>
     var wasTriggered = false

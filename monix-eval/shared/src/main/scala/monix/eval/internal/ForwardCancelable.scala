@@ -37,7 +37,7 @@ import scala.util.control.NonFatal
 final private[internal] class ForwardCancelable private () {
   import ForwardCancelable._
 
-  private[this] val state = new AtomicReference[State](init)
+  private val state = new AtomicReference[State](init)
 
   val cancel: CancelToken[Task] = {
     @tailrec def loop(ctx: Task.Context, cb: Callback[Throwable, Unit]): Unit =
@@ -75,24 +75,26 @@ final private[internal] class ForwardCancelable private () {
     }
 }
 
+@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
+@scala.annotation.nowarn("msg=unused value of type")
 private[internal] object ForwardCancelable {
   /**
-    * Builds reference.
-    */
+  * Builds reference.
+  */
   def apply(): ForwardCancelable =
     new ForwardCancelable
 
   /**
-    * Models the internal state of [[ForwardCancelable]]:
-    *
-    *  - on start, the state is [[Empty]] of `Nil`, aka [[init]]
-    *  - on `cancel`, if no token was assigned yet, then the state will
-    *    remain [[Empty]] with a non-nil `List[Callback]`
-    *  - if a `CancelToken` is provided without `cancel` happening,
-    *    then the state transitions to [[Active]] mode
-    *  - on `cancel`, if the state was [[Active]], or if it was [[Empty]],
-    *    regardless, the state transitions to `Active(IO.unit)`, aka [[finished]]
-    */
+  * Models the internal state of [[ForwardCancelable]]:
+  *
+  *  - on start, the state is [[Empty]] of `Nil`, aka [[init]]
+  *  - on `cancel`, if no token was assigned yet, then the state will
+  *    remain [[Empty]] with a non-nil `List[Callback]`
+  *  - if a `CancelToken` is provided without `cancel` happening,
+  *    then the state transitions to [[Active]] mode
+  *  - on `cancel`, if the state was [[Active]], or if it was [[Empty]],
+  *    regardless, the state transitions to `Active(IO.unit)`, aka [[finished]]
+  */
   sealed abstract private class State
 
   final private case class Empty(stack: List[Callback[Throwable, Unit]]) extends State

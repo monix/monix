@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import cats.effect.ExitCase
 import monix.eval.Task
 import monix.execution.Ack.{ Continue, Stop }
@@ -65,6 +66,7 @@ import scala.util.Failure
   *    however it's OK-ish, since these CAS operations are not going
   *    to be contended
   */
+@nowarn("msg=unused value of type")
 private[reactive] final class ConcatMapObservable[A, B](
   source: Observable[A],
   f: A => Observable[B],
@@ -90,18 +92,18 @@ private[reactive] final class ConcatMapObservable[A, B](
     implicit val scheduler: Scheduler = out.scheduler
 
     // For gathering errors
-    private[this] val errors =
+    private val errors =
       if (delayErrors) Atomic(List.empty[Throwable])
       else null
 
     // Boolean for keeping the `isActive` state, needed because we could miss
     // out on seeing a `Cancelled` state due to the `lazySet` instructions,
     // making the visibility of the `Cancelled` state thread-unsafe!
-    private[this] val isActive = Atomic(true)
+    private val isActive = Atomic(true)
 
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
-    private[this] val stateRef =
+    private val stateRef =
       Atomic.withPadding(WaitOnNextChild(Continue): FlatMapState, LeftRight128)
 
     /** For canceling the current active task, in case there is any. Here
@@ -342,10 +344,10 @@ private[reactive] final class ConcatMapObservable[A, B](
     private final class ChildSubscriber(out: Subscriber[B], asyncUpstreamAck: Promise[Ack]) extends Subscriber[B] {
 
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var ack: Future[Ack] = Continue
+      private var ack: Future[Ack] = Continue
 
       // Reusable reference to stop creating function references for each `onNext`
-      private[this] val onStopOrFailureRef = (err: Option[Throwable]) => {
+      private val onStopOrFailureRef = (err: Option[Throwable]) => {
         if (err.isDefined) out.scheduler.reportFailure(err.get)
         signalChildOnComplete(Stop, isStop = true)
       }

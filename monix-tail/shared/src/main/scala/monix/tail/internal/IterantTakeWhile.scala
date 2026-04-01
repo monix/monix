@@ -31,7 +31,7 @@ private[tail] object IterantTakeWhile {
 
   private class Loop[F[_], A](p: A => Boolean)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
-    private[this] var isActive = true
+    private var isActive = true
 
     def visit(ref: Next[F, A]): Iterant[F, A] = {
       val item = ref.item

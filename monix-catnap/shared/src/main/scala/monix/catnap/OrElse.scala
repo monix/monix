@@ -33,12 +33,12 @@ sealed trait OrElse[+A, +B] {
 }
 
 object OrElse extends OrElse0 {
-  implicit def primary[A, B](implicit a: A): A OrElse B =
+  implicit def primary[A, B](implicit a: A): OrElse[A, B] =
     new Primary(a)
 }
 
 private[catnap] abstract class OrElse0 {
-  implicit def secondary[A, B](implicit b: B): A OrElse B =
+  implicit def secondary[A, B](implicit b: B): OrElse[A, B] =
     new Secondary(b)
 
   final class Primary[+A](value: A) extends OrElse[A, Nothing] {

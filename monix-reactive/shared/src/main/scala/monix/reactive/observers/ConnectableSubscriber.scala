@@ -17,6 +17,7 @@
 
 package monix.reactive.observers
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.{ Ack, CancelableFuture, Scheduler }
 import monix.reactive.Observable
@@ -80,6 +81,8 @@ import scala.util.{ Failure, Success }
   *   // NOTE: that onNext("c") never happens
   * }}}
   */
+@nowarn("msg=unused value of type")
+@nowarn("msg=The syntax")
 final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extends Subscriber[A] { self =>
 
   implicit val scheduler: Scheduler =
@@ -88,28 +91,28 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
   // MUST BE synchronized by `self`, only available if isConnected == false
   private[this] var queue = mutable.ArrayBuffer.empty[A]
   // MUST BE synchronized by `self`, only available if isConnected == false
-  private[this] var scheduledDone = false
+  private var scheduledDone = false
   // MUST BE synchronized by `self`, only available if isConnected == false
-  private[this] var scheduledError = null: Throwable
+  private var scheduledError = null: Throwable
   // MUST BE synchronized by `self`
-  private[this] var isConnectionStarted = false
+  private var isConnectionStarted = false
   // MUST BE synchronized by `self`, as long as isConnected == false
-  private[this] var wasCanceled = false
+  private var wasCanceled = false
 
   // Promise guaranteed to be fulfilled once isConnected is
   // seen as true and used for back-pressure.
   // MUST BE synchronized by `self`, only available if isConnected == false
-  private[this] var connectedPromise = Promise[Ack]()
-  private[this] var connectedFuture = connectedPromise.future
+  private var connectedPromise = Promise[Ack]()
+  private var connectedFuture = connectedPromise.future
 
   // Volatile that is set to true once the buffer is drained.
   // Once visible as true, it implies that the queue is empty
   // and has been drained and thus the onNext/onError/onComplete
   // can take the fast path
-  @volatile private[this] var isConnected = false
+  @volatile private var isConnected = false
 
   // Only accessible in `connect()`
-  private[this] var connectionRef: CancelableFuture[Ack] = _
+  private var connectionRef: CancelableFuture[Ack] = null.asInstanceOf[CancelableFuture[Ack]]
 
   /** Connects the underling observer to the upstream publisher.
     *
@@ -126,7 +129,7 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
           .fromIterable(queue)
           .unsafeSubscribeFn(new Subscriber[A] {
             implicit val scheduler: Scheduler = underlying.scheduler
-            private[this] var ack: Future[Ack] = Continue
+            private var ack: Future[Ack] = Continue
 
             bufferWasDrained.future.onComplete {
               case Success(Continue) =>
@@ -169,7 +172,7 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
 
             def onComplete(): Unit = {
               if (!scheduledDone) {
-                ack.syncOnContinue { bufferWasDrained.trySuccess(Continue); () }
+                val _ = ack.syncOnContinue { bufferWasDrained.trySuccess(Continue); () }
               } else if (scheduledError ne null) {
                 if (bufferWasDrained.trySuccess(Stop))
                   underlying.onError(scheduledError)

@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.Scheduler
@@ -25,15 +26,16 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
+@nowarn("msg=discarded non-Unit value")
 private[reactive] final class ReduceOperator[A](op: (A, A) => A) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var isDone = false
-      private[this] var state: A = _
-      private[this] var isFirst = true
+      private var isDone = false
+      private var state: A = null.asInstanceOf[A]
+      private var isFirst = true
 
       def onNext(elem: A): Future[Ack] = {
         try {

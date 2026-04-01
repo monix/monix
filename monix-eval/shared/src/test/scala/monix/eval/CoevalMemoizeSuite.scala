@@ -16,12 +16,14 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
 import scala.util.Success
 
+@nowarn
 object CoevalMemoizeSuite extends BaseTestSuite {
   test("Coeval.eval.memoize should work for first subscriber") { _ =>
     var effect = 0

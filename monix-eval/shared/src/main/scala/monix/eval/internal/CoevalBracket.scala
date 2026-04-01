@@ -22,10 +22,11 @@ import cats.effect.ExitCase
 import monix.execution.internal.Platform
 import scala.util.control.NonFatal
 
+@scala.annotation.nowarn
 private[eval] object CoevalBracket {
   /**
-    * Implementation for `Coeval.bracketE`.
-    */
+* Implementation for `Coeval.bracketE`.
+*/
   def either[A, B](
     acquire: Coeval[A],
     use: A => Coeval[B],
@@ -41,8 +42,8 @@ private[eval] object CoevalBracket {
   }
 
   /**
-    * Implementation for `Coeval.bracketCase`.
-    */
+* Implementation for `Coeval.bracketCase`.
+*/
   def exitCase[A, B](
     acquire: Coeval[A],
     use: A => Coeval[B],

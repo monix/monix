@@ -21,9 +21,11 @@ import minitest.SimpleTestSuite
 import minitest.laws.Checkers
 import monix.execution.Cancelable
 import monix.execution.atomic.PaddingStrategy.LeftRight256
+import scala.annotation.nowarn
 
 import scala.collection.mutable.ListBuffer
 
+@nowarn("msg=The syntax `x: _\\*` is no longer supported for vararg splices; use `x\\*` instead")
 object CompositeCancelableSuite extends SimpleTestSuite with Checkers {
   test("simple cancel") {
     val s = CompositeCancelable()

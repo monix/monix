@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
@@ -26,6 +27,7 @@ import monix.reactive.observables.ChainedObservable
 import monix.reactive.observers.Subscriber
 import scala.collection.mutable
 
+@nowarn("msg=unused value of type")
 private[reactive] final class TakeLastObservable[A](source: Observable[A], n: Int)
   extends ChainedObservable[A] {
 
@@ -35,8 +37,8 @@ private[reactive] final class TakeLastObservable[A](source: Observable[A], n: In
       conn,
       new Subscriber[A] {
         implicit val scheduler: Scheduler = out.scheduler
-        private[this] val queue = mutable.Queue.empty[A]
-        private[this] var queued = 0
+        private val queue = mutable.Queue.empty[A]
+        private var queued = 0
 
         def onNext(elem: A): Ack = {
           queue.enqueue(elem)

@@ -41,8 +41,8 @@ private[reactive] final class RestartUntilObservable[A](source: Observable[A], p
     synchronized {
       subscription := source.unsafeSubscribeFn(new Subscriber[A] {
         implicit val scheduler: Scheduler = out.scheduler
-        private[this] var isValidated = false
-        private[this] var isDone = false
+        private var isValidated = false
+        private var isDone = false
 
         def onNext(elem: A): Future[Ack] = {
           // Stream was validated, so we can just stream the event.

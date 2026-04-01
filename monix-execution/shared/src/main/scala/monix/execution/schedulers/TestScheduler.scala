@@ -19,7 +19,6 @@ package monix.execution
 package schedulers
 
 import monix.execution.atomic.AtomicAny
-import monix.execution.cancelables.SingleAssignCancelable
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TestScheduler._
 
@@ -126,7 +125,7 @@ import scala.util.Random
   * }}}
   */
 final class TestScheduler private (
-  private[this] val stateRef: AtomicAny[State],
+  private val stateRef: AtomicAny[State],
   override val executionModel: ExecutionModel
 ) extends ReferenceScheduler with BatchingScheduler {
 
@@ -395,7 +394,6 @@ object TestScheduler {
     // $COVERAGE-ON$
 
     val newID = state.lastID + 1
-    SingleAssignCancelable()
     val task = Task(newID, r, state.clock + delay)
     val cancelable = new Cancelable {
       def cancel(): Unit = cancelTask(task)

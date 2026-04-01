@@ -36,7 +36,7 @@ object AsyncSchedulerJVMSuite extends SimpleTestSuite {
   test("scheduleOnce with delay") {
     val p = Promise[Long]()
     val startedAt = System.nanoTime()
-    scheduleOnce(s, 100.millis) { p.success(System.nanoTime()); () }
+    val _ = scheduleOnce(s, 100.millis) { p.success(System.nanoTime()); () }
 
     val timeTaken = Await.result(p.future, 3.second)
     assert((timeTaken - startedAt).nanos.toMillis >= 100)
@@ -44,7 +44,7 @@ object AsyncSchedulerJVMSuite extends SimpleTestSuite {
 
   test("scheduleOnce with delay lower than 1.milli") {
     val p = Promise[Int]()
-    scheduleOnce(s, 20.nanos) { p.success(1); () }
+    val _ = scheduleOnce(s, 20.nanos) { p.success(1); () }
     assert(Await.result(p.future, 3.seconds) == 1)
   }
 
@@ -53,8 +53,8 @@ object AsyncSchedulerJVMSuite extends SimpleTestSuite {
     val task = scheduleOnce(s, 100.millis) { p.success(1); () }
     task.cancel()
 
-    intercept[TimeoutException] {
-      Await.result(p.future, 150.millis)
+    val _ = intercept[TimeoutException] {
+      val _ = Await.result(p.future, 150.millis)
       ()
     }
     ()
@@ -145,23 +145,23 @@ object AsyncSchedulerJVMSuite extends SimpleTestSuite {
   test("Scheduler.cached") {
     import scala.concurrent.duration._
 
-    intercept[IllegalArgumentException] {
-      monix.execution.Scheduler.cached("dummy", -1, 2, 1.second)
+    val _ = intercept[IllegalArgumentException] {
+      val _ = monix.execution.Scheduler.cached("dummy", -1, 2, 1.second)
       ()
     }
 
-    intercept[IllegalArgumentException] {
-      monix.execution.Scheduler.cached("dummy", 0, 0, 1.second)
+    val _ = intercept[IllegalArgumentException] {
+      val _ = monix.execution.Scheduler.cached("dummy", 0, 0, 1.second)
       ()
     }
 
-    intercept[IllegalArgumentException] {
-      monix.execution.Scheduler.cached("dummy", 2, 1, 1.second)
+    val _ = intercept[IllegalArgumentException] {
+      val _ = monix.execution.Scheduler.cached("dummy", 2, 1, 1.second)
       ()
     }
 
-    intercept[IllegalArgumentException] {
-      monix.execution.Scheduler.cached("dummy", 2, 10, -1.second)
+    val _ = intercept[IllegalArgumentException] {
+      val _ = monix.execution.Scheduler.cached("dummy", 2, 10, -1.second)
       ()
     }
 

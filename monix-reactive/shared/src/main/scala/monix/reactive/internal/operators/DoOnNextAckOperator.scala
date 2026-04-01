@@ -33,7 +33,7 @@ private[reactive] final class DoOnNextAckOperator[A](cb: (A, Ack) => Task[Unit])
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] { self =>
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] val isActive = Atomic(true)
+      private val isActive = Atomic(true)
 
       def onNext(elem: A): Future[Ack] = {
         // We are calling out.onNext directly, meaning that in onComplete/onError

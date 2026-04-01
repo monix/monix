@@ -37,8 +37,8 @@ private[tail] object IterantDropLast {
 
   private final class Loop[F[_], A](n: Int)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
-    private[this] var queue = Queue[A]()
-    private[this] var length = 0
+    private var queue = Queue[A]()
+    private var length = 0
 
     def visit(ref: Next[F, A]): Iterant[F, A] = {
       queue = queue.enqueue(ref.item)

@@ -17,6 +17,7 @@
 
 package monix.reactive
 
+import scala.annotation.nowarn
 import java.io.{ BufferedReader, InputStream, PrintStream, Reader }
 
 import cats.{
@@ -277,6 +278,10 @@ import scala.util.{ Failure, Success, Try }
   *             Eq.fromUniversalEquals
   *         }}}
   */
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
+@nowarn("msg=The syntax `<function> _` is no longer supported;")
+@nowarn("msg=The syntax `x: _*` is no longer supported for vararg splices; use `x*` instead")
+@nowarn("msg=`_` is deprecated for wildcard arguments of types: use `?` instead")
 abstract class Observable[+A] extends Serializable { self =>
 
   // -----------------------------------------------------------------------
@@ -3269,7 +3274,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *
     * @param trigger task that will cancel the stream as soon as it completes.
     */
-  final def takeUntilEval(trigger: Task[_]): Observable[A] =
+  final def takeUntilEval(trigger: Task[?]): Observable[A] =
     self.takeUntil(Observable.fromTask(trigger))
 
   /** Version of [[takeUntil]] that can work with a trigger expressed by a generic `F[_]`
@@ -3942,8 +3947,8 @@ abstract class Observable[+A] extends Serializable { self =>
     *       val sub = SingleAssignSubscription()
     *
     *       source.subscribe(new Subscriber[Int] {
-    *         private[this] var requested = 0L
-    *         private[this] var sum = 0L
+    *         private var requested = 0L
+    *         private var sum = 0L
     *
     *         def onSubscribe(s: Subscription): Unit = {
     *           sub := s
@@ -3983,7 +3988,7 @@ abstract class Observable[+A] extends Serializable { self =>
     */
   final def toReactivePublisher[B >: A](implicit s: Scheduler): RPublisher[B] =
     new RPublisher[B] {
-      def subscribe(subscriber: RSubscriber[_ >: B]): Unit = {
+      def subscribe(subscriber: RSubscriber[? >: B]): Unit = {
         val subscription = SingleAssignCancelable()
         subscription := unsafeSubscribeFn(
           SafeSubscriber(
@@ -4012,8 +4017,8 @@ abstract class Observable[+A] extends Serializable { self =>
     Task.create { (s, cb) =>
       unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
-        private[this] var value: A = _
-        private[this] var isEmpty = true
+        private var value: A = null.asInstanceOf[A]
+        private var isEmpty = true
 
         def onNext(elem: A): Ack = {
           if (isEmpty) isEmpty = false
@@ -4263,7 +4268,7 @@ abstract class Observable[+A] extends Serializable { self =>
     Task.create { (s, cb) =>
       unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
-        private[this] var isDone = false
+        private var isDone = false
 
         def onNext(elem: A): Ack = {
           cb.onSuccess(elem)
@@ -4444,7 +4449,7 @@ abstract class Observable[+A] extends Serializable { self =>
     Task.create { (s, cb) =>
       unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
-        private[this] var isDone = false
+        private var isDone = false
 
         def onNext(elem: A): Ack = Continue
 
@@ -4840,6 +4845,10 @@ abstract class Observable[+A] extends Serializable { self =>
   *         [[monix.execution.Scheduler.withExecutionModel Scheduler.withExecutionModel]],
   *         or per `Observable`, see [[Observable.executeWithModel]].
   */
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
+@nowarn("msg=The syntax `<function> _` is no longer supported;")
+@nowarn("msg=The syntax `x: _*` is no longer supported for vararg splices; use `x*` instead")
+@nowarn("msg=`_` is deprecated for wildcard arguments of types: use `?` instead")
 object Observable extends ObservableDeprecatedBuilders {
   /** An `Operator` is a function for transforming observers,
     * that can be used for lifting observables.
@@ -5633,6 +5642,7 @@ object Observable extends ObservableDeprecatedBuilders {
 
   /** Creates an Observable that continuously emits the given ''item'' repeatedly.
     */
+  @nowarn("msg=The syntax")
   def repeat[A](elems: A*): Observable[A] =
     new builders.RepeatObservable(elems: _*)
 
@@ -6338,6 +6348,7 @@ object Observable extends ObservableDeprecatedBuilders {
     * result: - - 1 1 1 - 1 - 1 - -
     * </pre>
     */
+  @nowarn("msg=The syntax")
   def firstStartedOf[A](source: Observable[A]*): Observable[A] =
     new builders.FirstStartedObservable(source: _*)
 

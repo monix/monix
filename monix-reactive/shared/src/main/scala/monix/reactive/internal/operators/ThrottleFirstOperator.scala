@@ -32,8 +32,8 @@ private[reactive] final class ThrottleFirstOperator[A](interval: FiniteDuration)
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] val intervalMs = interval.toMillis
-      private[this] var nextChange = 0L
+      private val intervalMs = interval.toMillis
+      private var nextChange = 0L
 
       def onNext(elem: A): Future[Ack] = {
         val rightNow = scheduler.clockMonotonic(MILLISECONDS)

@@ -39,14 +39,17 @@ package internal
   *  {{{
   *   import monix.execution.atomic._
   * 
-  *   def getAndSet[A](ref: Atomic[A], update: A): A = {
-  *    val current = ref.get()
-  *    if (!ref.compareAndSet(current, update))
-  *      getAndSet(ref, update) // update failed, repeat!
-  *    else
-  *      current
-  *   }
-  *  }}}
+   *   def getAndSet[A](ref: Atomic[A], update: A): A = {
+   *    val current = ref.get()
+   *    if (!ref.compareAndSet(current, update))
+   *      getAndSet(ref, update) // update failed, repeat!
+   *    else
+   *      current
+   *   }
+   *
+   *   val ref = Atomic(0)
+   *   val _ = getAndSet(ref, 1)
+   *  }}}
   * 
   *  NOTE — on top of the JVM this operation is a platform intrinsic,
   *  meaning that it's more efficient than a `compareAndSet`-driven loop.
@@ -79,7 +82,7 @@ package internal
   *   import monix.execution.atomic._
   *   import scala.collection.immutable.Queue
   * 
-  *   class ConcurrentQueue0[A] private (ref: Atomic[Queue[A]]) {
+   *   class ConcurrentQueue0[A](ref: Atomic[Queue[A]]) {
   *     def enqueue(value: A): Unit = {
   *       val current = ref.get()
   *       val update = current.enqueue(value)
@@ -97,10 +100,14 @@ package internal
   *           dequeue() // transaction failed, retry!
   *         else
   *           Some(elem)
-  *       }
-  *     }
-  *   }
-  *  }}}
+   *       }
+   *     }
+   *   }
+   *
+   *   val q0 = new ConcurrentQueue0[Int](Atomic(Queue.empty[Int]))
+   *   q0.enqueue(1)
+   *   val _ = q0.dequeue()
+   *  }}}
   * 
   * @define atomicBestPractices BEST PRACTICES: 
   * 
@@ -141,7 +148,7 @@ package internal
   *    import monix.execution.atomic._
   *    import scala.collection.immutable.Queue
   *         
-  *    final class ConcurrentQueue1[A] private (state: AtomicAny[Queue[A]]) {
+   *    final class ConcurrentQueue1[A](state: Atomic[Queue[A]]) {
   *      def enqueue(value: A): Unit = 
   *        state.transform(_.enqueue(value))
   *  
@@ -152,10 +159,14 @@ package internal
   *          else {
   *            val (a, update) = queue.dequeue
   *            (Some(a), update)
-  *          }
-  *        }
-  *    }
-  *  }}}
+   *          }
+   *        }
+   *    }
+   *
+   *    val q1 = new ConcurrentQueue1[Int](Atomic(Queue.empty[Int]))
+   *    q1.enqueue(1)
+   *    val _ = q1.dequeue()
+   *  }}}
   * 
   *  @see [[getAndTransform]] and [[transformAndGet]].
   *        
@@ -192,13 +203,16 @@ package internal
   *  {{{
   *    import monix.execution.atomic._
   *         
-  *    final class CountDown0 private (state: AtomicLong) {
+   *    final class CountDown0(state: AtomicLong) {
   *      def next(): Boolean = {
   *        val n = state.transformAndGet(n => math.max(n - 1, 0))
-  *        n > 0
-  *      }
-  *    }
-  *  }}}
+   *        n > 0
+   *      }
+   *    }
+   *
+   *    val c0 = new CountDown0(Atomic(10L))
+   *    val _ = c0.next()
+   *  }}}
   * 
   *  @see [[getAndTransform]] and [[transformAndExtract]].
   * 
@@ -218,13 +232,16 @@ package internal
   *  {{{
   *    import monix.execution.atomic._
   *         
-  *    final class CountDown1 private (state: AtomicLong, n: Int) {
+   *    final class CountDown1(state: AtomicLong, n: Int) {
   *      def next(): Boolean = {
   *        val i = state.getAndTransform(i => math.min(n, i + 1))
-  *        i < n
-  *      }
-  *    }
-  *  }}}
+   *        i < n
+   *      }
+   *    }
+   *
+   *    val c1 = new CountDown1(Atomic(0L), 10)
+   *    val _ = c1.next()
+   *  }}}
   * 
   *  @see [[transformAndGet]] and [[transformAndExtract]].
   * 
@@ -242,10 +259,14 @@ package internal
   *  {{{
   *    import monix.execution.atomic._
   *         
-  *    final class Counter private (state: AtomicLong) {
-  *      def mark(i: Int = 1): Unit = state.transform(_ + i)
-  *      def get(): Long = state.get()   
-  *    }
-  *  }}}
+   *    final class Counter(state: AtomicLong) {
+   *      def mark(i: Int = 1): Unit = state.transform(_ + i)
+   *      def get(): Long = state.get()   
+   *    }
+   *
+   *    val counter = new Counter(Atomic(0L))
+   *    counter.mark(1)
+   *    val _ = counter.get()
+   *  }}}
   */
-private[atomic] trait AtomicDocs { this: Atomic[_] => }
+private[atomic] trait AtomicDocs { this: Atomic[?] => }

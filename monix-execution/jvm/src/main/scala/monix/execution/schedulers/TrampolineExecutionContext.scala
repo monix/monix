@@ -94,7 +94,7 @@ object TrampolineExecutionContext {
   private val localContext: ThreadLocal[BlockContext] = {
     try {
       val methods = BlockContext.getClass.getDeclaredMethods
-        .filter(m => m.getParameterCount == 0 && m.getReturnType == classOf[ThreadLocal[_]])
+        .filter(m => m.getParameterCount == 0 && m.getReturnType == classOf[ThreadLocal[AnyRef]])
         .toList
 
       methods match {

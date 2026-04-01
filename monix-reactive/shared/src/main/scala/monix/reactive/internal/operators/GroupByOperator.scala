@@ -37,12 +37,12 @@ private[reactive] final class GroupByOperator[A, K](
   def apply(subscriber: Subscriber[GroupedObservable[K, A]]): Subscriber[A] =
     new Subscriber[A] { self =>
       implicit val scheduler: Scheduler = subscriber.scheduler
-      private[this] var isDone = false
-      private[this] val downstream = BufferedSubscriber(subscriber, os, SingleProducer)
-      private[this] val cacheRef = Atomic(Map.empty[K, Observer[A]])
+      private var isDone = false
+      private val downstream = BufferedSubscriber(subscriber, os, SingleProducer)
+      private val cacheRef = Atomic(Map.empty[K, Observer[A]])
 
       @tailrec
-      private[this] def recycleKey(key: K): Unit = {
+      private def recycleKey(key: K): Unit = {
         val current = cacheRef.get()
         if (!cacheRef.compareAndSet(current, current - key))
           recycleKey(key)
@@ -106,7 +106,7 @@ private[reactive] final class GroupByOperator[A, K](
         }
       }
 
-      private[this] def foreachObserver(f: Observer[A] => Unit): Unit = {
+      private def foreachObserver(f: Observer[A] => Unit): Unit = {
         val cache = cacheRef.get()
         if (cacheRef.compareAndSet(cache, Map.empty)) {
           cache.values.foreach(f)

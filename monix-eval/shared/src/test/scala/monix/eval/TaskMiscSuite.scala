@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.execution.Callback
 import monix.execution.exceptions.DummyException
@@ -24,6 +25,7 @@ import org.reactivestreams.{ Subscriber, Subscription }
 import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 
+@nowarn
 object TaskMiscSuite extends BaseTestSuite {
   test("Task.attempt should succeed") { implicit s =>
     val result = Task.now(1).attempt.runToFuture

@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack.Continue
 import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
@@ -24,6 +25,8 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
+@nowarn("msg=discarded non-Unit value")
+@nowarn("msg=unused value of type")
 private[reactive] final class IntersperseObservable[+A](
   source: Observable[A],
   start: Option[A],
@@ -35,8 +38,8 @@ private[reactive] final class IntersperseObservable[+A](
     val upstream = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var atLeastOne = false
-      private[this] var downstreamAck = Continue: Future[Ack]
+      private var atLeastOne = false
+      private var downstreamAck = Continue: Future[Ack]
 
       override def onNext(elem: A): Future[Ack] = {
         downstreamAck = if (!atLeastOne) {

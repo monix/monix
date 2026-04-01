@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import java.util.concurrent.CancellationException
 import cats.laws._
@@ -27,6 +28,7 @@ import monix.execution.internal.Platform
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
+@nowarn
 object TaskCancellationSuite extends BaseTestSuite {
   test("cancellation works for async actions") { implicit ec =>
     implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops

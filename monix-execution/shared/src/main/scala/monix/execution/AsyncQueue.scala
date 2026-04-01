@@ -270,17 +270,15 @@ final class AsyncQueue[A] private[monix] (
   def isEmpty: Boolean =
     queue.isEmpty
 
-  private[this] val queue: LowLevelConcurrentQueue[A] =
+  private val queue: LowLevelConcurrentQueue[A] =
     LowLevelConcurrentQueue(capacity, channelType, fenced = true)
 
-  private[this] val consumersAwaiting =
-    AtomicAny.withPadding[CancelablePromise[Unit]](null, LeftRight128)
+  private val consumersAwaiting = AtomicAny.withPadding[CancelablePromise[Unit]](null, LeftRight128)
 
-  private[this] val producersAwaiting =
-    if (capacity.isBounded)
-      AtomicAny.withPadding[CancelablePromise[Unit]](null, LeftRight128)
-    else
-      null
+  private val producersAwaiting = if (capacity.isBounded)
+    AtomicAny.withPadding[CancelablePromise[Unit]](null, LeftRight128)
+  else
+    null
 
   private def tryOfferUnsafe(a: A): Boolean = {
     if (queue.offer(a) == 0) {
@@ -348,11 +346,11 @@ final class AsyncQueue[A] private[monix] (
   private def toSeq(buffer: ArrayBuffer[A]): Seq[A] =
     buffer.toArray[Any].toSeq.asInstanceOf[Seq[A]]
 
-  private[this] val pollQueue: () => A = () => tryPollUnsafe()
-  private[this] val pollTest: A => Boolean = _ != null
-  private[this] val pollMap: A => A = a => a
-  private[this] val offerTest: Boolean => Boolean = x => x
-  private[this] val offerMap: Boolean => Unit = _ => ()
+  private val pollQueue: () => A = () => tryPollUnsafe()
+  private val pollTest: A => Boolean = _ != null
+  private val pollMap: A => A = a => a
+  private val offerTest: Boolean => Boolean = x => x
+  private val offerMap: Boolean => Unit = _ => ()
 
   @tailrec
   private def sleepThenRepeat[T, U](

@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.Scheduler
 import monix.execution.cancelables.{ CompositeCancelable, SingleAssignCancelable }
@@ -25,6 +26,7 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
+@nowarn("msg=unused value of type")
 private[reactive] final class DropUntilObservable[A](source: Observable[A], trigger: Observable[Any])
   extends Observable[A] {
 
@@ -35,11 +37,11 @@ private[reactive] final class DropUntilObservable[A](source: Observable[A], trig
     composite += source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var isActive = true
-      private[this] var errorThrown: Throwable = null
-      @volatile private[this] var shouldDrop = true
+      private var isActive = true
+      private var errorThrown: Throwable = null
+      @volatile private var shouldDrop = true
 
-      private[this] def interruptDropMode(ex: Throwable /*| Null*/ ): Ack = {
+      private def interruptDropMode(ex: Throwable /*| Null*/ ): Ack = {
         // must happen before changing shouldDrop
         errorThrown = ex
         shouldDrop = false

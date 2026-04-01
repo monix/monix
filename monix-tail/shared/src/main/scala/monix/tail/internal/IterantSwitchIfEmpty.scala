@@ -45,10 +45,10 @@ private[tail] object IterantSwitchIfEmpty {
   private final class Loop[F[_], A](backup: Iterant[F, A])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, A]] { self =>
 
-    private[this] var isEmpty = true
-    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var isEmpty = true
+    private var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
-    private[this] def isStackEmpty: Boolean =
+    private def isStackEmpty: Boolean =
       stackRef == null || stackRef.isEmpty
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {

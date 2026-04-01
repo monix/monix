@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.effect.concurrent.Deferred
 import cats.laws._
@@ -26,6 +27,7 @@ import monix.execution.internal.Platform
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
+@nowarn
 object TaskBracketSuite extends BaseTestSuite {
   test("equivalence with onErrorHandleWith") { implicit sc =>
     check2 { (task: Task[Int], f: Throwable => Task[Unit]) =>

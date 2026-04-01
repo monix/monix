@@ -17,6 +17,7 @@
 
 package monix.reactive.subjects
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
@@ -38,9 +39,10 @@ import scala.util.Success
   *
   * @see [[Subject]]
   */
+@nowarn("msg=unused value of type")
 final class BehaviorSubject[A] private (initialValue: A) extends Subject[A, A] { self =>
 
-  private[this] val stateRef =
+  private val stateRef =
     Atomic(BehaviorSubject.State[A](initialValue))
 
   def size: Int =

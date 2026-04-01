@@ -28,10 +28,11 @@ import scala.annotation.tailrec
 import scala.concurrent.{ ExecutionContext, Promise }
 import scala.util.{ Failure, Success, Try }
 
+@scala.annotation.nowarn
 private[eval] object TaskMemoize {
   /**
-    * Implementation for `.memoize` and `.memoizeOnSuccess`.
-    */
+* Implementation for `.memoize` and `.memoizeOnSuccess`.
+*/
   def apply[A](source: Task[A], cacheErrors: Boolean): Task[A] =
     source match {
       case Now(_) | Error(_) =>
@@ -54,8 +55,8 @@ private[eval] object TaskMemoize {
     extends ((Task.Context, Callback[Throwable, A]) => Unit) { self =>
 
     // N.B. keeps state!
-    private[this] var thunk = source
-    private[this] val state = Atomic(null: AnyRef)
+    private var thunk = source
+    private val state = Atomic(null: AnyRef)
 
     def apply(ctx: Context, cb: Callback[Throwable, A]): Unit =
       state.get() match {
@@ -66,8 +67,8 @@ private[eval] object TaskMemoize {
       }
 
     /** Saves the final result on completion and triggers the registered
-      * listeners.
-      */
+* listeners.
+*/
     @tailrec def cacheValue(value: Try[A])(implicit s: Scheduler): Unit = {
       // Should we cache everything, error results as well,
       // or only successful results?
@@ -118,8 +119,8 @@ private[eval] object TaskMemoize {
       }
 
     /** While the task is pending completion, registers a new listener
-      * that will receive the result once the task is complete.
-      */
+* that will receive the result once the task is complete.
+*/
     private def registerListener(p: Promise[A], context: Context, cb: Callback[Throwable, A])(
       implicit ec: ExecutionContext
     ): Unit = {
@@ -134,8 +135,8 @@ private[eval] object TaskMemoize {
     }
 
     /**
-      * Starts execution, eventually caching the value on completion.
-      */
+* Starts execution, eventually caching the value on completion.
+*/
     @tailrec private def start(context: Context, cb: Callback[Throwable, A]): Unit = {
       implicit val sc: Scheduler = context.scheduler
       self.state.get() match {

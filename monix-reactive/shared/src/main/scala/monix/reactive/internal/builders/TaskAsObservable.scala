@@ -17,12 +17,14 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import monix.execution.Cancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import monix.execution.Callback
 import monix.eval.Task
 
+@nowarn("msg=unused value of type")
 private[reactive] final class TaskAsObservable[+A](task: Task[A]) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler

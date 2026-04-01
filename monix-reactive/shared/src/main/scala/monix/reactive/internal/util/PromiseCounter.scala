@@ -27,8 +27,8 @@ import scala.concurrent.{ Future, Promise }
 private[monix] final class PromiseCounter[A] private (value: A, initial: Int) {
   require(initial > 0, "length must be strictly positive")
 
-  private[this] val promise = Promise[A]()
-  private[this] val counter = Atomic(initial)
+  private val promise = Promise[A]()
+  private val counter = Atomic(initial)
 
   def future: Future[A] =
     promise.future

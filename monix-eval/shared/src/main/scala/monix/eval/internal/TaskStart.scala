@@ -21,10 +21,11 @@ package internal
 import monix.eval.Task.{ Async, Context }
 import monix.execution.{ Callback, CancelablePromise }
 
+@scala.annotation.nowarn
 private[eval] object TaskStart {
   /**
-    * Implementation for `Task.fork`.
-    */
+* Implementation for `Task.fork`.
+*/
   def forked[A](fa: Task[A]): Task[Fiber[A]] =
     fa match {
       // There's no point in evaluating strict stuff

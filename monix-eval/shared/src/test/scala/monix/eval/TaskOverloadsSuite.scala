@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.execution.Callback
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
@@ -23,6 +24,7 @@ import monix.execution.exceptions.DummyException
 import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 
+@nowarn
 object TaskOverloadsSuite extends BaseTestSuite {
   test("Now.runAsync(scheduler)") { implicit s =>
     val task = Task.now(1)

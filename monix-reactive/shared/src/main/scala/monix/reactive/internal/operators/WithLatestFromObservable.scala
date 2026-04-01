@@ -39,11 +39,11 @@ private[reactive] final class WithLatestFromObservable[A, B, +R](
     connection += source.unsafeSubscribeFn(new Subscriber[A] { self =>
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var isDone = false
-      private[this] var otherStarted = false
-      private[this] var lastOther: B = _
+      private var isDone = false
+      private var otherStarted = false
+      private var lastOther: B = null.asInstanceOf[B]
 
-      private[this] val otherConnection = {
+      private val otherConnection = {
         val ref = other.unsafeSubscribeFn(new Subscriber.Sync[B] {
           implicit val scheduler: Scheduler = out.scheduler
 

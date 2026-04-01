@@ -53,11 +53,11 @@ object GroupedObservable {
     extends GroupedObservable[K, V] with Subscriber[V] { self =>
 
     // needs to be set upon subscription
-    private[this] var ref: Subscriber[V] = _
-    private[this] val underlying = {
+    private var ref: Subscriber[V] = null.asInstanceOf[Subscriber[V]]
+    private val underlying = {
       val o = new Subscriber[V] {
         implicit val scheduler: Scheduler = self.scheduler
-        private[this] var isDone = false
+        private var isDone = false
 
         def onNext(elem: V) = {
           val cache = ref

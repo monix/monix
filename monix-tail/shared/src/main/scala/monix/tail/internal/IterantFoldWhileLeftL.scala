@@ -54,11 +54,11 @@ private[tail] object IterantFoldWhileLeftL {
   private class StrictLoop[F[_], A, S](seed: S, f: (S, A) => Either[S, S])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[Either[S, S]]] { self =>
 
-    private[this] var state: S = seed
+    private var state: S = seed
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
-    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
       if (stackRef == null) stackRef = ChunkedArrayStack()
@@ -70,7 +70,7 @@ private[tail] object IterantFoldWhileLeftL {
       else null.asInstanceOf[F[Iterant[F, A]]]
     }
 
-    private[this] val concatContinue: (Either[S, S] => F[Either[S, S]]) = {
+    private val concatContinue: (Either[S, S] => F[Either[S, S]]) = {
       case left @ Left(_) =>
         stackPop() match {
           case null => F.pure(left)
@@ -151,11 +151,11 @@ private[tail] object IterantFoldWhileLeftL {
   private class LazyLoop[F[_], A, S](seed: S, f: (S, A) => F[Either[S, S]])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[Either[S, S]]] { self =>
 
-    private[this] var state: S = seed
+    private var state: S = seed
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
-    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
       if (stackRef == null) stackRef = ChunkedArrayStack()
@@ -167,7 +167,7 @@ private[tail] object IterantFoldWhileLeftL {
       else null.asInstanceOf[F[Iterant[F, A]]]
     }
 
-    private[this] val concatContinue: (Either[S, S] => F[Either[S, S]]) = {
+    private val concatContinue: (Either[S, S] => F[Either[S, S]]) = {
       case left @ Left(_) =>
         stackPop() match {
           case null => F.pure(left)

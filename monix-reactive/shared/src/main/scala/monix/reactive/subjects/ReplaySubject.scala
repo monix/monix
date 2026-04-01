@@ -17,6 +17,7 @@
 
 package monix.reactive.subjects
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.{ Ack, Cancelable }
 import monix.execution.Scheduler
@@ -33,9 +34,11 @@ import scala.concurrent.Future
 /** `ReplaySubject` emits to any observer all of the items that were emitted
   * by the source, regardless of when the observer subscribes.
   */
+@nowarn("msg=The syntax `x: _*` is no longer supported for vararg splices; use `x*` instead")
+@nowarn("msg=unused value of type")
 final class ReplaySubject[A] private (initialState: ReplaySubject.State[A]) extends Subject[A, A] { self =>
 
-  private[this] val stateRef = Atomic(initialState)
+  private val stateRef = Atomic(initialState)
 
   def size: Int =
     stateRef.get().subscribers.size
@@ -213,6 +216,7 @@ object ReplaySubject {
     * @param capacity is the maximum size of the internal buffer
     * @param initial is an initial sequence of elements to prepopulate the buffer
     */
+  @nowarn("msg=The syntax")
   def createLimited[A](capacity: Int, initial: Seq[A]): ReplaySubject[A] = {
     require(capacity > 0, "capacity must be strictly positive")
     val elems = initial.takeRight(capacity)

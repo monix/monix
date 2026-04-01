@@ -16,6 +16,7 @@
  */
 
 package monix.catnap
+import scala.annotation.nowarn
 
 import cats.effect.{ ContextShift, IO }
 import minitest.TestSuite
@@ -24,6 +25,7 @@ import monix.execution.schedulers.TestScheduler
 import scala.concurrent.duration._
 import scala.util.Success
 
+@nowarn
 object TestSchedulerEffectSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {

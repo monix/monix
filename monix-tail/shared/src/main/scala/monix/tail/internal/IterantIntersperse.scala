@@ -35,8 +35,8 @@ private[tail] object IterantIntersperse {
     }
 
   private class Loop[F[_], A](separator: A)(implicit F: Sync[F]) extends (Iterant[F, A] => Iterant[F, A]) {
-    private[this] var prepend = false
-    private[this] val stack = ChunkedArrayStack[F[Iterant[F, A]]]()
+    private var prepend = false
+    private val stack = ChunkedArrayStack[F[Iterant[F, A]]]()
 
     def apply(source: Iterant[F, A]): Iterant[F, A] = {
       try source match {

@@ -25,7 +25,7 @@ import monix.execution.atomic.internal.{ BoxedInt, Factory }
   * Note that the equality test in `compareAndSet` is value based,
   * since `Boolean` is a primitive.
   */
-final class AtomicBoolean private (private[this] val ref: BoxedInt) extends Atomic[Boolean] {
+final class AtomicBoolean private (private val ref: BoxedInt) extends Atomic[Boolean] {
   def get(): Boolean =
     ref.volatileGet() == 1
 

@@ -41,9 +41,9 @@ private[tail] object IterantOnErrorHandleWith {
   private final class Loop[F[_], A](handler: Throwable => Iterant[F, A])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, A]] { self =>
 
-    private[this] var wasErrorHandled = false
+    private var wasErrorHandled = false
 
-    private[this] val f = (e: Throwable) => {
+    private val f = (e: Throwable) => {
       self.wasErrorHandled = true
       try handler(e)
       catch {

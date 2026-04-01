@@ -26,7 +26,7 @@ import scala.annotation.unused
   */
 final class AtomicDouble private[atomic] (initialValue: Double) extends AtomicNumber[Double] {
 
-  private[this] var ref = initialValue
+  private var ref = initialValue
 
   def getAndSet(update: Double): Double = {
     val current = ref

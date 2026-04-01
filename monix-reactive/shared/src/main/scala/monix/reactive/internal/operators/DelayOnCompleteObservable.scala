@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.cancelables.OrderedCancelable
 import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
@@ -24,6 +25,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
+@nowarn("msg=unused value of type")
 private[reactive] final class DelayOnCompleteObservable[A](source: Observable[A], delay: FiniteDuration)
   extends Observable[A] {
 
@@ -32,7 +34,7 @@ private[reactive] final class DelayOnCompleteObservable[A](source: Observable[A]
 
     val c = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var isDone = false
+      private var isDone = false
 
       def onNext(elem: A): Future[Ack] = {
         val ack = out.onNext(elem)

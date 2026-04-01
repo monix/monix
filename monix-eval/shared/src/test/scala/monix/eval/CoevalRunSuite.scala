@@ -16,10 +16,12 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success, Try }
 
+@nowarn
 object CoevalRunSuite extends BaseTestSuite {
   def testRun(build: (() => Int) => Coeval[Int]): Unit = {
     val fa1 = build(() => 10 + 20)

@@ -37,7 +37,7 @@ private[reactive] final class ContraMapConsumer[In2, -In, +R](source: Consumer[I
     val out2 = new Subscriber[In2] {
       implicit val scheduler: Scheduler = out.scheduler
       // For protecting the contract
-      private[this] var isDone = false
+      private var isDone = false
 
       def onError(ex: Throwable): Unit =
         if (!isDone) {

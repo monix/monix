@@ -16,11 +16,13 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.effect.laws.discipline.{ ConcurrentEffectTests, ConcurrentTests }
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{ CoflatMapTests, CommutativeApplicativeTests, ParallelTests, SemigroupKTests }
 
+@nowarn
 object TypeClassLawsForTaskSuite
   extends BaseTypeClassLawsForTaskSuite()(
     Task.defaultOptions.disableAutoCancelableRunLoops

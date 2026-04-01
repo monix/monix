@@ -17,6 +17,7 @@
 
 package monix.reactive.observables
 
+import scala.annotation.nowarn
 import monix.execution.Cancelable
 import monix.reactive.Observable
 import monix.reactive.subjects.ReplaySubject
@@ -34,9 +35,11 @@ import monix.execution.atomic.Atomic
   * @param source - the observable we are wrapping
   * @param maxCapacity - the buffer capacity, or 0 for usage of an unbounded buffer
   */
+@nowarn("msg=discarded non-Unit value")
+@nowarn("msg=The syntax")
 final class CachedObservable[+A] private (source: Observable[A], maxCapacity: Int) extends Observable[A] {
 
-  private[this] val isStarted = Atomic(false)
+  private val isStarted = Atomic(false)
   private[this] val subject = {
     if (maxCapacity > 0) ReplaySubject.createLimited[A](maxCapacity)
     else

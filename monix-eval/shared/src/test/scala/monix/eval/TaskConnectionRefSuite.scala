@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.catnap.CancelableF
 import monix.catnap.cancelables.BooleanCancelableF
@@ -23,6 +24,7 @@ import monix.execution.cancelables.BooleanCancelable
 import monix.eval.internal.TaskConnectionRef
 import monix.execution.ExecutionModel.SynchronousExecution
 
+@nowarn
 object TaskConnectionRefSuite extends BaseTestSuite {
   test("assign and cancel a Cancelable") { implicit s =>
     var effect = 0

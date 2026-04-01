@@ -26,7 +26,7 @@ import scala.annotation.unused
   */
 final class AtomicBoolean private[atomic] (initialValue: Boolean) extends Atomic[Boolean] {
 
-  private[this] var ref = initialValue
+  private var ref = initialValue
 
   def getAndSet(update: Boolean): Boolean = {
     val current = ref

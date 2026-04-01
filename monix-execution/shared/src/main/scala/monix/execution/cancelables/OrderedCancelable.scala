@@ -66,7 +66,7 @@ final class OrderedCancelable private (initial: Cancelable) extends AssignableCa
 
   import OrderedCancelable.{ Active, Cancelled, State }
 
-  private[this] val state = {
+  private val state = {
     val ref = if (initial != null) initial else Cancelable.empty
     AtomicAny.withPadding(Active(ref, 0): State, PaddingStrategy.LeftRight128)
   }

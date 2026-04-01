@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.Scheduler
@@ -27,6 +28,7 @@ import scala.concurrent.Future
 import scala.util.{ Failure, Success }
 import scala.util.control.NonFatal
 
+@nowarn("msg=unused value of type")
 private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => S, aggregate: (S, A) => S)
   extends Operator[A, S] {
 
@@ -35,10 +37,10 @@ private[reactive] final class WhileBusyAggregateEventsOperator[A, S](seed: A => 
       upstreamSubscriber =>
       implicit val scheduler: Scheduler = downstream.scheduler
 
-      private[this] var aggregated: Option[S] = None
-      private[this] var lastAck: Future[Ack] = Continue
-      private[this] var pendingAck: Boolean = false
-      private[this] var downstreamIsDone = false
+      private var aggregated: Option[S] = None
+      private var lastAck: Future[Ack] = Continue
+      private var pendingAck: Boolean = false
+      private var downstreamIsDone = false
 
       override def onNext(elem: A): Ack = {
         upstreamSubscriber.synchronized {

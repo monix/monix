@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.effect.IO
 import monix.execution.Cancelable
@@ -24,6 +25,7 @@ import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 import scala.concurrent.duration._
 
+@nowarn
 object TaskCreateSuite extends BaseTestSuite {
   test("can use Unit as return type") { implicit sc =>
     val task = Task.create[Int]((_, cb) => cb.onSuccess(1))

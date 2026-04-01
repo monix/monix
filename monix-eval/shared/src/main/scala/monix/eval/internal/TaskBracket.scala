@@ -27,11 +27,11 @@ import monix.execution.internal.Platform
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
 
-private[monix] object TaskBracket {
-
-  // -----------------------------------------------------------------
-  // Task.guaranteeCase
-  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
+@scala.annotation.nowarn("msg=unused value of type")
+private[monix] object TaskBracket { // -----------------------------------------------------------------
+// Task.guaranteeCase
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
   def guaranteeCase[A](task: Task[A], finalizer: ExitCase[Throwable] => Task[Unit]): Task[A] =
     TracedAsync(
@@ -78,13 +78,13 @@ private[monix] object TaskBracket {
       releaseFn(ExitCase.Canceled)
   }
 
-  // -----------------------------------------------------------------
-  // Task.bracketE
-  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// -----------------------------------------------------------------
+// Task.bracketE
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
   /**
-    * [[monix.eval.Task.bracket]] and [[monix.eval.Task.bracketCase]]
-    */
+  * [[monix.eval.Task.bracket]] and [[monix.eval.Task.bracketCase]]
+  */
   def either[A, B](
     acquire: Task[A],
     use: A => Task[B],
@@ -123,13 +123,13 @@ private[monix] object TaskBracket {
       release(a, leftNone)
   }
 
-  // -----------------------------------------------------------------
-  // Task.bracketCase
-  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// -----------------------------------------------------------------
+// Task.bracketCase
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
   /**
-    * [[monix.eval.Task.bracketE]]
-    */
+  * [[monix.eval.Task.bracketE]]
+  */
   def exitCase[A, B](acquire: Task[A], use: A => Task[B], release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
     TracedAsync(
       new StartCase(acquire, use, release),
@@ -162,9 +162,9 @@ private[monix] object TaskBracket {
       release(a, Canceled)
   }
 
-  // -----------------------------------------------------------------
-  // Base Implementation
-  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// -----------------------------------------------------------------
+// Base Implementation
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
   private abstract class BaseStart[A, B](acquire: Task[A], use: A => Task[B])
     extends ((Context, Callback[Throwable, B]) => Unit) {
@@ -210,8 +210,8 @@ private[monix] object TaskBracket {
   }
 
   private abstract class BaseReleaseFrame[A, B](ctx: Context, a: A) extends StackFrame[B, Task[B]] {
-    private[this] val waitsForResult = Atomic(true)
-    private[this] val p: Promise[Unit] = Promise()
+    private val waitsForResult = Atomic(true)
+    private val p: Promise[Unit] = Promise()
     protected def releaseOnSuccess(a: A, b: B): Task[Unit]
     protected def releaseOnError(a: A, e: Throwable): Task[Unit]
     protected def releaseOnCancel(a: A): Task[Unit]
@@ -292,12 +292,10 @@ private[monix] object TaskBracket {
 
   private val leftNone = Left(None)
 
-  private[this] val withConnectionUncancelable: Context => Context =
-    _.withConnection(TaskConnection.uncancelable)
+  private val withConnectionUncancelable: Context => Context = _.withConnection(TaskConnection.uncancelable)
 
-  private[this] val disableUncancelableAndPop: (Any, Throwable, Context, Context) => Context =
-    (_, _, old, _) => {
-      old.connection.pop()
-      old
-    }
+  private val disableUncancelableAndPop: (Any, Throwable, Context, Context) => Context = (_, _, old, _) => {
+    old.connection.pop()
+    old
+  }
 }

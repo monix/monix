@@ -39,8 +39,8 @@ private[tail] object IterantPushToChannel {
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // For dealing with push results
-    private[this] val trueRef = F.pure(true)
-    private[this] var rest: F[Iterant[F, A]] = _
+    private val trueRef = F.pure(true)
+    private var rest: F[Iterant[F, A]] = null.asInstanceOf[F[Iterant[F, A]]]
     private val bindNext = (continue: Boolean) => {
       if (continue) F.flatMap(rest)(loop)
       else F.unit
@@ -53,7 +53,7 @@ private[tail] object IterantPushToChannel {
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
-    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
       if (stackRef == null) stackRef = ChunkedArrayStack()
@@ -68,7 +68,7 @@ private[tail] object IterantPushToChannel {
     private def isStackEmpty(): Boolean =
       stackRef == null || stackRef.isEmpty
 
-    private[this] val concatContinue: (Unit => F[Unit]) =
+    private val concatContinue: (Unit => F[Unit]) =
       _ =>
         stackPop() match {
           case null => F.unit

@@ -17,6 +17,7 @@
 
 package monix.reactive.observers
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.{ Ack, CancelableFuture }
 import monix.execution.Scheduler
@@ -30,29 +31,31 @@ import scala.util.{ Failure, Success }
   * the buffer is drained into the `underlying` observer, after which all
   * subsequent events are pushed directly.
   */
+@nowarn("msg=unused value of type")
+@nowarn("msg=The syntax")
 final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) extends Subscriber[A] { self =>
   implicit val scheduler: Scheduler = downstream.scheduler
   // MUST BE synchronized by `self`, only available if isConnected == false
   private[this] var queue = mutable.ArrayBuffer.empty[A]
   // MUST BE synchronized by `self`
-  private[this] var isConnectionStarted = false
+  private var isConnectionStarted = false
   // MUST BE synchronized by `self`, as long as isConnected == false
-  private[this] var wasCanceled = false
+  private var wasCanceled = false
 
   // Promise guaranteed to be fulfilled once isConnected is
   // seen as true and used for back-pressure.
   // MUST BE synchronized by `self`, only available if isConnected == false
-  private[this] var connectedPromise = Promise[Ack]()
-  private[this] var connectedFuture = connectedPromise.future
+  private var connectedPromise = Promise[Ack]()
+  private var connectedFuture = connectedPromise.future
 
   // Volatile that is set to true once the buffer is drained.
   // Once visible as true, it implies that the queue is empty
   // and has been drained and thus the onNext/onError/onComplete
   // can take the fast path
-  @volatile private[this] var isConnected = false
+  @volatile private var isConnected = false
 
   // Only accessible in `connect()`
-  private[this] var connectionRef: CancelableFuture[Ack] = _
+  private var connectionRef: CancelableFuture[Ack] = null.asInstanceOf[CancelableFuture[Ack]]
 
   /** Connects the underling observer to the upstream publisher.
     *
@@ -74,7 +77,7 @@ final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) 
         .fromIterable(queue)
         .unsafeSubscribeFn(new Subscriber[A] {
           implicit val scheduler: Scheduler = downstream.scheduler
-          private[this] var ack: Future[Ack] = Continue
+          private var ack: Future[Ack] = Continue
 
           bufferWasDrained.future.onComplete {
             case Success(Continue) =>

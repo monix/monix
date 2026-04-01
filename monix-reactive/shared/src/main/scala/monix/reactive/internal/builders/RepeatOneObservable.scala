@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.{ Ack, Cancelable, ExecutionModel, Scheduler }
@@ -27,6 +28,7 @@ import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.util.{ Failure, Success }
 
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] final class RepeatOneObservable[A](elem: A) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     val s = subscriber.scheduler

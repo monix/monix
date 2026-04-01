@@ -22,9 +22,9 @@ import monix.eval.internal.TracingPlatform.traceBufferLogSize
 import monix.execution.internal.RingBuffer
 
 private[eval] final class CoevalStackTracedContext {
-  private[this] val events: RingBuffer[CoevalEvent] = new RingBuffer(traceBufferLogSize)
-  private[this] var captured: Int = 0
-  private[this] var omitted: Int = 0
+  private val events: RingBuffer[CoevalEvent] = new RingBuffer(traceBufferLogSize)
+  private var captured: Int = 0
+  private var omitted: Int = 0
 
   def pushEvent(fr: CoevalEvent): Unit = {
     captured += 1

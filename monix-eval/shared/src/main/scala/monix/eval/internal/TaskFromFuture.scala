@@ -26,6 +26,7 @@ import monix.execution.schedulers.TrampolinedRunnable
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.Try
 
+@scala.annotation.nowarn
 private[eval] object TaskFromFuture {
   /** Implementation for `Task.fromFuture`. */
   def strict[A](f: Future[A]): Task[A] = {
@@ -138,7 +139,7 @@ private[eval] object TaskFromFuture {
   ): Try[A] => Unit = {
 
     new (Try[A] => Unit) with TrampolinedRunnable {
-      private[this] var value: Try[A] = _
+      private var value: Try[A] = null.asInstanceOf[Try[A]]
 
       def apply(value: Try[A]): Unit = {
         this.value = value

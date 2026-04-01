@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.Scheduler
 import monix.execution.cancelables.{ CompositeCancelable, SerialCancelable, SingleAssignCancelable }
@@ -27,6 +28,7 @@ import monix.reactive.{ Observable, Observer }
 
 import scala.concurrent.Future
 
+@nowarn("msg=unused value of type")
 private[reactive] final class SwitchMapObservable[A, B](source: Observable[A], f: A => Observable[B])
   extends Observable[B] {
 
@@ -38,13 +40,13 @@ private[reactive] final class SwitchMapObservable[A, B](source: Observable[A], f
     mainTask := source.unsafeSubscribeFn(new Subscriber.Sync[A] { self =>
       implicit val scheduler: Scheduler = out.scheduler
       // MUST BE synchronized by `self`
-      private[this] var ack: Future[Ack] = Continue
+      private var ack: Future[Ack] = Continue
       // MUST BE synchronized by `self`
-      private[this] var activeChildIndex: Int = -1
+      private var activeChildIndex: Int = -1
       // MUST BE synchronized by `self`
-      private[this] var upstreamIsDone: Boolean = false
+      private var upstreamIsDone: Boolean = false
       // MUST BE synchronized by `self`
-      private[this] var lastChildIsDone: Boolean = false
+      private var lastChildIsDone: Boolean = false
 
       def onNext(elem: A): Ack = self.synchronized {
         if (upstreamIsDone) Stop

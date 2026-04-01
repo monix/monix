@@ -31,8 +31,8 @@ private[reactive] final class DistinctUntilChangedOperator[A](implicit A: Eq[A])
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var isFirst = true
-      private[this] var lastElem: A = _
+      private var isFirst = true
+      private var lastElem: A = null.asInstanceOf[A]
 
       def onNext(elem: A) = {
         // Protects calls to user code from within the operator and

@@ -30,7 +30,7 @@ import scala.annotation.tailrec
 private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Option[A], ps: PaddingStrategy) {
 
   import GenericVar._
-  private[this] val stateRef: AtomicAny[State[A]] =
+  private val stateRef: AtomicAny[State[A]] =
     AtomicAny.withPadding(
       initial match { case None => State.empty[A]; case Some(a) => State(a) },
       ps
@@ -264,7 +264,7 @@ private[monix] object GenericVar {
 
   /** Private [[State]] builders.*/
   private object State {
-    private[this] val ref = WaitForPut[Any](LinkedMap.empty, LinkedMap.empty)
+    private val ref = WaitForPut[Any](LinkedMap.empty, LinkedMap.empty)
     def apply[A](a: A): State[A] = WaitForTake(a, LinkedMap.empty)
     /** `Empty` state, reusing the same instance. */
     def empty[A]: State[A] = ref.asInstanceOf[State[A]]

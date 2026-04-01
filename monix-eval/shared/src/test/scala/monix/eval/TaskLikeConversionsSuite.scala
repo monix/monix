@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.Eval
 import cats.effect.{ ContextShift, IO, SyncIO }
@@ -26,6 +27,7 @@ import monix.execution.exceptions.DummyException
 import scala.concurrent.Promise
 import scala.util.{ Failure, Success, Try }
 
+@nowarn
 object TaskLikeConversionsSuite extends BaseTestSuite {
   import TaskConversionsSuite.{ CIO, CustomConcurrentEffect, CustomEffect }
 

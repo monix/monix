@@ -53,29 +53,29 @@ private[reactive] final class LoadBalanceConsumer[-In, R](parallelism: Int, cons
       // Trying to prevent contract violations, once this turns
       // true, then no final events are allowed to happen.
       // MUST BE synchronized by `self`.
-      private[this] var isUpstreamComplete = false
+      private var isUpstreamComplete = false
 
       // Trying to prevent contract violations. Turns true in case
       // we already signaled a result upstream.
       // MUST BE synchronized by `self`.
-      private[this] var isDownstreamDone = false
+      private var isDownstreamDone = false
 
       // Stores the error that was reported upstream - basically
       // multiple subscribers can report multiple errors, but we
       // emit the first one, so in case multiple errors happen we
       // want to log them, but only if they aren't the same reference
       // MUST BE synchronized by `self`
-      private[this] var reportedError: Throwable = _
+      private var reportedError: Throwable = null.asInstanceOf[Throwable]
 
       // Results accumulator - when length == parallelism,
       // that's when we need to trigger `onFinish.onSuccess`.
       // MUST BE synchronized by `self`
-      private[this] val accumulator = ListBuffer.empty[R]
+      private val accumulator = ListBuffer.empty[R]
 
       /** Builds cancelables for subscribers. */
       private def newCancelableFor(out: IndexedSubscriber[In]): Cancelable =
         new Cancelable {
-          private[this] var isCanceled = false
+          private var isCanceled = false
           // Forcing an asynchronous boundary, to avoid any possible
           // initialization issues (in building subscribersQueue) or
           // stack overflows and other problems
@@ -98,7 +98,7 @@ private[reactive] final class LoadBalanceConsumer[-In, R](parallelism: Int, cons
       // Asynchronous queue that serves idle subscribers waiting
       // for something to process, or that puts the stream on wait
       // until there are subscribers available
-      private[this] val subscribersQueue = self.synchronized {
+      private val subscribersQueue = self.synchronized {
         var initial = Queue.empty[IndexedSubscriber[In]]
         // When the callback gets called by each subscriber, on success we
         // do nothing because for normal completion we are listing on
@@ -296,7 +296,7 @@ private[reactive] object LoadBalanceConsumer {
 
   private final class AsyncQueue[In](initialQueue: Queue[IndexedSubscriber[In]], parallelism: Int) {
 
-    private[this] val stateRef = {
+    private val stateRef = {
       val initial: State[In] = Available(initialQueue, BitSet.empty, parallelism)
       Atomic.withPadding(initial, PaddingStrategy.LeftRight256)
     }

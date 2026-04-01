@@ -22,7 +22,7 @@ import scala.collection.mutable
 
 private[internal] final class QueueDrain[A](buffer: mutable.Buffer[A]) extends Consumer[A] {
 
-  private[this] var _count = 0
+  private var _count = 0
   def count: Int = _count
 
   def accept(e: A): Unit = {

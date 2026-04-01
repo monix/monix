@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
@@ -36,6 +37,7 @@ import scala.util.Failure
   *
   * Tricky concurrency handling within, here be dragons!
   */
+@nowarn("msg=unused value of type")
 private[reactive] final class FlatScanObservable[A, R](
   source: Observable[A],
   initial: () => R,
@@ -74,21 +76,21 @@ private[reactive] final class FlatScanObservable[A, R](
     implicit val scheduler: Scheduler = out.scheduler
 
     // For gathering errors
-    private[this] val errors =
+    private val errors =
       if (delayErrors) Atomic(List.empty[Throwable])
       else null
 
     // Boolean for keeping the `isActive` state, needed because we could miss
     // out on seeing a `Cancelled` state due to the `lazySet` instructions,
     // making the visibility of the `Cancelled` state thread-unsafe!
-    private[this] val isActive = Atomic(true)
+    private val isActive = Atomic(true)
 
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
-    private[this] val stateRef = Atomic.withPadding(WaitOnNextChild(Continue): FlatMapState, LeftRight128)
+    private val stateRef = Atomic.withPadding(WaitOnNextChild(Continue): FlatMapState, LeftRight128)
 
     // Mutable reference to the current state
-    private[this] var currentState = initial
+    private var currentState = initial
 
     /** For canceling the current active task, in case there is any. Here
       * we can afford a `compareAndSet`, not being a big deal since
@@ -315,10 +317,10 @@ private[reactive] final class FlatScanObservable[A, R](
     private final class ChildSubscriber(out: Subscriber[R], asyncUpstreamAck: Promise[Ack]) extends Subscriber[R] {
 
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var ack: Future[Ack] = Continue
+      private var ack: Future[Ack] = Continue
 
       // Reusable reference to stop creating function references for each `onNext`
-      private[this] val onStopOrFailureRef = (err: Option[Throwable]) => {
+      private val onStopOrFailureRef = (err: Option[Throwable]) => {
         if (err.isDefined) out.scheduler.reportFailure(err.get)
         signalChildOnComplete(Stop, isStop = true)
       }

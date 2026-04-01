@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.consumers
 
+import scala.annotation.nowarn
 import monix.execution.Callback
 import monix.execution.Scheduler
 import monix.execution.cancelables.AssignableCancelable
@@ -24,6 +25,7 @@ import monix.reactive.observers.Subscriber
 import monix.reactive.{ Consumer, Observable, Pipe }
 
 /** Implementation for [[monix.reactive.Consumer.transformInput]]. */
+@nowarn("msg=unused value of type")
 private[reactive] final class TransformInputConsumer[In2, -In, +R](
   source: Consumer[In, R],
   f: Observable[In2] => Observable[In]

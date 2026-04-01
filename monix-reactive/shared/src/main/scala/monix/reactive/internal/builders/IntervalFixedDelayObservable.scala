@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import monix.execution.cancelables.MultiAssignCancelable
 import monix.execution.{ Ack, Cancelable }
 import monix.execution.Ack.{ Continue, Stop }
@@ -26,6 +27,8 @@ import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{ Failure, Success }
 
+@nowarn("msg=discarded non-Unit value")
+@nowarn("msg=unused value of type")
 private[reactive] final class IntervalFixedDelayObservable(initialDelay: FiniteDuration, delay: FiniteDuration)
   extends Observable[Long] {
 
@@ -36,7 +39,7 @@ private[reactive] final class IntervalFixedDelayObservable(initialDelay: FiniteD
     val task = MultiAssignCancelable()
 
     val runnable = new Runnable { self =>
-      private[this] var counter = 0L
+      private var counter = 0L
 
       def scheduleNext(): Cancelable = {
         counter += 1

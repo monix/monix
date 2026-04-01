@@ -34,7 +34,7 @@ private[schedulers] object JSTimer {
   }
 
   def clearTimeout(task: js.Dynamic): Unit = {
-    js.Dynamic.global.clearTimeout(task)
+    val _ = js.Dynamic.global.clearTimeout(task)
     ()
   }
 }

@@ -44,7 +44,7 @@ class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options) extends CatsB
     * inherit directly from it, the implicits priorities don't
     * work, triggering conflicts.
     */
-  private[this] val F = CatsConcurrentForTask
+  private val F = CatsConcurrentForTask
 
   override def runAsync[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
     TaskEffect.runAsync(fa)(cb)
@@ -86,7 +86,7 @@ class CatsConcurrentEffectForTask(implicit s: Scheduler, opts: Task.Options)
     * inherit directly from it, the implicits priorities don't
     * work, triggering conflicts.
     */
-  private[this] val F = CatsConcurrentForTask
+  private val F = CatsConcurrentForTask
 
   override def runCancelable[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[Task]] =
     TaskEffect.runCancelable(fa)(cb)

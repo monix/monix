@@ -42,8 +42,8 @@ private[tail] object IterantScan {
 
   class Loop[F[_], A, S](initial: S, f: (S, A) => S)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, S]] {
 
-    private[this] var state = initial
-    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var state = initial
+    private var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
       if (stackRef == null) stackRef = ChunkedArrayStack()
@@ -101,7 +101,7 @@ private[tail] object IterantScan {
     def fail(e: Throwable): Iterant[F, S] =
       Iterant.raiseError(e)
 
-    private[this] def processCursor(cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
+    private def processCursor(cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
       if (!cursor.hasNext()) {
         Suspend(rest.map(this))
       } else if (cursor.recommendedBatchSize <= 1) {

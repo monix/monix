@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
@@ -29,6 +30,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
 /** Implementation for observable concatenation `++`. */
+@nowarn("msg=unused value of type")
 private[reactive] final class ConcatObservable[A](lh: Observable[A], rh: Observable[A]) extends ChainedObservable[A] {
 
   def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
@@ -36,7 +38,7 @@ private[reactive] final class ConcatObservable[A](lh: Observable[A], rh: Observa
       lh,
       conn,
       new Subscriber[A] {
-        private[this] var ack: Future[Ack] = Continue
+        private var ack: Future[Ack] = Continue
         implicit val scheduler: Scheduler = out.scheduler
 
         def onNext(elem: A): Future[Ack] = {

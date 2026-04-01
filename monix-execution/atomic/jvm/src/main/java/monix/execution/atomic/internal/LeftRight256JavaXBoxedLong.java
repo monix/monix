@@ -17,17 +17,9 @@
 
 package monix.execution.atomic.internal;
 
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 
-/**
- * INTERNAL API — used in the implementation of
- * `monix.execution.atomic.Atomic`.
- *
- * Being internal it can always change between minor versions,
- * providing no backwards compatibility guarantees and is only public
- * because Java does not provide the capability of marking classes as
- * "internal" to a package and all its sub-packages.
- */
 final class LeftRight256JavaXBoxedLong extends LeftRight256JavaXBoxedLongImpl {
   public volatile long r01, r02, r03, r04, r05, r06, r07, r08 = 7;
   public volatile long r09, r10, r11, r12, r13, r14, r15, r16 = 8;
@@ -44,46 +36,24 @@ final class LeftRight256JavaXBoxedLong extends LeftRight256JavaXBoxedLongImpl {
   }
 }
 
-/**
- * INTERNAL API — used in the implementation of
- * `monix.execution.atomic.Atomic`.
- *
- * Being internal it can always change between minor versions,
- * providing no backwards compatibility guarantees and is only public
- * because Java does not provide the capability of marking classes as
- * "internal" to a package and all its sub-packages.
- */
-abstract class LeftRight256JavaXBoxedLongImpl extends LeftPadding120 implements BoxedLong {
-  public volatile long value;
+abstract class LeftRight256JavaXBoxedLongImpl extends LeftPadding120 implements VarHandleBoxedLong {
+  private static final VarHandle VALUE_VH;
 
-  private static final AtomicLongFieldUpdater<LeftRight256JavaXBoxedLongImpl> UPDATER =
-    AtomicLongFieldUpdater.newUpdater(LeftRight256JavaXBoxedLongImpl.class, "value");
+  static {
+    try {
+      VALUE_VH = MethodHandles.lookup().findVarHandle(LeftRight256JavaXBoxedLongImpl.class, "value", long.class);
+    } catch (NoSuchFieldException | IllegalAccessException e) {
+      throw new AssertionError(e);
+    }
+  }
+
+  private long value;
 
   LeftRight256JavaXBoxedLongImpl(long initialValue) {
     this.value = initialValue;
   }
 
-  public long volatileGet() {
-    return value;
-  }
-
-  public void volatileSet(long update) {
-    value = update;
-  }
-
-  public void lazySet(long update) {
-    UPDATER.lazySet(this, update);
-  }
-
-  public boolean compareAndSet(long current, long update) {
-    return UPDATER.compareAndSet(this, current, update);
-  }
-
-  public long getAndSet(long update) {
-    return UPDATER.getAndSet(this, update);
-  }
-
-  public long getAndAdd(long delta) {
-    return UPDATER.getAndAdd(this, delta);
+  public final VarHandle valueHandle() {
+    return VALUE_VH;
   }
 }

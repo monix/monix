@@ -24,6 +24,7 @@ import monix.catnap.CancelableF
 import monix.catnap.CancelableF.Empty
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.atomic.Atomic
+import scala.annotation.nowarn
 
 /**
   * Represents a [[CancelableF]] that can be queried for the
@@ -71,7 +72,8 @@ object BooleanCancelableF {
     * Returns an instance of a [[BooleanCancelableF]] that's
     * already canceled.
     */
-  def alreadyCanceled[F[_]](implicit F: Applicative[F]): BooleanCancelableF[F] with Empty[F] =
+  @nowarn("msg=.*")
+  def alreadyCanceled[F[_]](implicit F: Applicative[F]): BooleanCancelableF[F] =
     new BooleanCancelableF[F] with Empty[F] {
       val isCanceled = F.pure(true)
       def cancel = F.unit
@@ -91,8 +93,8 @@ object BooleanCancelableF {
 
   private final class Impl[F[_]](token: CancelToken[F])(implicit F: Sync[F]) extends BooleanCancelableF[F] {
 
-    private[this] val canceled = Atomic(false)
-    private[this] var ref = token
+    private val canceled = Atomic(false)
+    private var ref = token
 
     def isCanceled =
       F.delay(canceled.get())

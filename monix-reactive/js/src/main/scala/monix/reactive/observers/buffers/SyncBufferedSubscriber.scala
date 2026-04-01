@@ -41,19 +41,19 @@ private[observers] final class SyncBufferedSubscriber[-A] private (
 
   implicit val scheduler: Scheduler = out.scheduler
   // to be modified only in onError, before upstreamIsComplete
-  private[this] var errorThrown: Throwable = _
+  private var errorThrown: Throwable = null.asInstanceOf[Throwable]
   // to be modified only in onError / onComplete
-  private[this] var upstreamIsComplete = false
+  private var upstreamIsComplete = false
   // to be modified only by consumer
-  private[this] var downstreamIsComplete = false
+  private var downstreamIsComplete = false
   // represents an indicator that there's a loop in progress
-  private[this] var isLoopActive = false
+  private var isLoopActive = false
   // events being dropped
-  private[this] var droppedCount = 0L
+  private var droppedCount = 0L
   // last acknowledgement received by consumer loop
-  private[this] var lastIterationAck: Future[Ack] = Continue
+  private var lastIterationAck: Future[Ack] = Continue
   // Used on the consumer side to split big synchronous workloads in batches
-  private[this] val em = scheduler.executionModel
+  private val em = scheduler.executionModel
 
   def onNext(elem: A): Ack = {
     if (!upstreamIsComplete && !downstreamIsComplete) {
@@ -95,7 +95,7 @@ private[observers] final class SyncBufferedSubscriber[-A] private (
       scheduler.execute(consumerRunLoop)
     }
 
-  private[this] val consumerRunLoop = new Runnable {
+  private val consumerRunLoop = new Runnable {
     def run(): Unit = {
       fastLoop(lastIterationAck, 0)
     }

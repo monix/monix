@@ -31,7 +31,7 @@ package monix.execution.internal
 private[monix] abstract class Newtype1[F[_]] { self =>
   type Base
   trait Tag extends Any
-  type Type[+A] <: Base with Tag
+  type Type[+A] <: Base
 
   def apply[A](fa: F[A]): Type[A] =
     fa.asInstanceOf[Type[A]]

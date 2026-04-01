@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.rstreams
 
+import scala.annotation.nowarn
 import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.observers.Subscriber
 import monix.execution.atomic.Atomic
@@ -32,6 +33,7 @@ import scala.concurrent.{ Future, Promise }
   * into an [[monix.reactive.Observer Observer]] instance that
   * respect the `Observer` contract.
   */
+@nowarn("msg=unused value of type")
 private[reactive] final class ReactiveSubscriberAsMonixSubscriber[A] private (
   subscriber: RSubscriber[A],
   subscription: Cancelable
@@ -40,11 +42,11 @@ private[reactive] final class ReactiveSubscriberAsMonixSubscriber[A] private (
 
   if (subscriber == null) throw null
 
-  private[this] var isComplete = false
-  private[this] val requests = new RequestsQueue
-  private[this] var leftToPush = 0L
-  private[this] var firstEvent = true
-  private[this] var ack: Future[Ack] = Continue
+  private var isComplete = false
+  private val requests = new RequestsQueue
+  private var leftToPush = 0L
+  private var firstEvent = true
+  private var ack: Future[Ack] = Continue
 
   def cancel(): Unit = {
     requests.cancel()
@@ -122,7 +124,7 @@ private[reactive] object ReactiveSubscriberAsMonixSubscriber {
     * requests from a Subscriber.
     */
   private final class RequestsQueue {
-    private[this] val state = Atomic(ActiveState(Queue.empty, Queue.empty): State)
+    private val state = Atomic(ActiveState(Queue.empty, Queue.empty): State)
 
     @tailrec
     def await(): Future[Long] = {

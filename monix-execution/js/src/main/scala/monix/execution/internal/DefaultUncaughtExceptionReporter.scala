@@ -28,6 +28,5 @@ private[execution] object DefaultUncaughtExceptionReporter extends UncaughtExcep
   def reportFailure(e: Throwable): Unit =
     logger(e)
 
-  private[this] lazy val logger =
-    ExecutionContext.defaultReporter
+  private val logger = ExecutionContext.defaultReporter
 }

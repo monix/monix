@@ -16,9 +16,11 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import scala.util.Success
 
+@nowarn
 object TaskExecuteWithOptionsSuite extends BaseTestSuite {
   test("executeWithOptions works") { implicit s =>
     val task = Task

@@ -36,8 +36,8 @@ private[tail] object IterantDump {
   private class Loop[F[_], A](prefixInit: String, out: PrintStream)(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, A]] { loop =>
 
-    private[this] var pos = 0L
-    private[this] var prefix = prefixInit
+    private var pos = 0L
+    private var prefix = prefixInit
 
     def visit(ref: Next[F, A]): Iterant[F, A] = {
       out.println(s"$pos: $prefix --> next --> ${ref.item}")

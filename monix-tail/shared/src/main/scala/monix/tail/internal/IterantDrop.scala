@@ -32,7 +32,7 @@ private[tail] object IterantDrop {
 
   private final class Loop[F[_], A](n: Int)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
-    private[this] var toDrop: Int = n
+    private var toDrop: Int = n
 
     def visit(ref: Next[F, A]): Iterant[F, A] =
       if (toDrop <= 0) ref
@@ -85,7 +85,7 @@ private[tail] object IterantDrop {
       var droppedNow = 0
 
       while (droppedNow < limit && cursor.hasNext()) {
-        cursor.next()
+        val _ = cursor.next()
         droppedNow += 1
         toDrop -= 1
       }

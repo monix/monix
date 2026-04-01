@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import minitest.SimpleTestSuite
 import monix.eval.Task.Options
@@ -23,6 +24,7 @@ import monix.execution.Callback
 import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.Promise
 
+@nowarn
 object TaskOptionsSuite extends SimpleTestSuite {
   implicit val opts: Options = Task.defaultOptions.enableLocalContextPropagation
 

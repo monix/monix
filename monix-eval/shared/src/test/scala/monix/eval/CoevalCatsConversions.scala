@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.Eval
 import cats.effect.IO
@@ -23,6 +24,7 @@ import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 
+@nowarn
 object CoevalCatsConversions extends BaseTestSuite {
   test("Coeval.now(value).to[Eval]") { _ =>
     assertEquals(Coeval.now(10).to[Eval].value, 10)

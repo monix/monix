@@ -14,10 +14,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [ 8, 17 ]
+        java: [ 17, 21 ]
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
-        scala: [ 2.13.18, 3.3.7 ]
+        scala: [ 2.13.18, 3.8.2 ]
 
     env:
       CI: true
@@ -71,8 +71,8 @@ jobs:
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
         include:
-          - { java: 8, scala: 2.13.18 }
-          - { java: 8, scala: 3.3.7 }
+          - { java: 17, scala: 2.13.18 }
+          - { java: 17, scala: 3.8.2 }
 
     env:
       CI: true
@@ -127,8 +127,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { java: 8, scala: 2.13.18 }
-          - { java: 8, scala: 3.3.7 }
+          - { java: 17, scala: 2.13.18 }
+          - { java: 17, scala: 3.8.2 }
 
     steps:
       - uses: actions/checkout@v4
@@ -174,8 +174,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { java: 11, scala: 2.13.18 }
-          - { java: 11, scala: 3.3.7 }
+          - { java: 17, scala: 2.13.18 }
+          - { java: 17, scala: 3.8.2 }
 
     steps:
       - uses: actions/checkout@v4
@@ -221,8 +221,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { java: 8, scala: 2.13.18 }
-          - { java: 8, scala: 3.3.7 }
+          - { java: 17, scala: 2.13.18 }
+          - { java: 17, scala: 3.8.2 }
 
     steps:
       - uses: actions/checkout@v4
@@ -284,7 +284,7 @@ jobs:
 
       - uses: actions/setup-java@v4
         with:
-          java-version: 8
+          java-version: 17
           distribution: temurin
 
       - name: Install GnuPG2

@@ -26,8 +26,8 @@ import scala.annotation.unused
   */
 final class AtomicChar private[atomic] (initialValue: Char) extends AtomicNumber[Char] {
 
-  private[this] var ref = initialValue
-  private[this] val mask = 255 + 255 * 256
+  private var ref = initialValue
+  private val mask = 255 + 255 * 256
 
   def getAndSet(update: Char): Char = {
     val current = ref

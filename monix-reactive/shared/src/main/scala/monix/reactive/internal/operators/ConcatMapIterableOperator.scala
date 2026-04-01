@@ -32,8 +32,8 @@ private[reactive] final class ConcatMapIterableOperator[-A, +B](f: A => immutabl
   def apply(out: Subscriber[B]): Subscriber[A] = {
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var isDone = false
-      private[this] var ack: Future[Ack] = Continue
+      private var isDone = false
+      private var ack: Future[Ack] = Continue
 
       def onNext(elem: A): Future[Ack] = {
         // Protects calls to user code from within the operator and

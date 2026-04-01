@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.laws._
 import cats.laws.discipline._
@@ -24,6 +25,7 @@ import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success, Try }
 
+@nowarn
 object TaskNowSuite extends BaseTestSuite {
   test("Task.now should work synchronously") { implicit s =>
     var wasTriggered = false

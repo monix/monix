@@ -26,8 +26,8 @@ import scala.annotation.unused
   */
 final class AtomicByte private[atomic] (initialValue: Byte) extends AtomicNumber[Byte] {
 
-  private[this] var ref = initialValue
-  private[this] val mask = 255
+  private var ref = initialValue
+  private val mask = 255
 
   def getAndSet(update: Byte): Byte = {
     val current = ref

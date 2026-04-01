@@ -28,7 +28,7 @@ private[reactive] final class ZipWithIndexOperator[A] extends Operator[A, (A, Lo
   def apply(out: Subscriber[(A, Long)]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var index = 0L
+      private var index = 0L
 
       def onNext(elem: A): Future[Ack] = {
         val oldIndex = index

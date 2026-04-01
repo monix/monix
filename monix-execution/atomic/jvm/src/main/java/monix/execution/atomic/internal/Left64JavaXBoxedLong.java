@@ -17,49 +17,27 @@
 
 package monix.execution.atomic.internal;
 
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 
-/**
- * INTERNAL API — used in the implementation of
- * `monix.execution.atomic.Atomic`.
- *
- * Being internal it can always change between minor versions,
- * providing no backwards compatibility guarantees and is only public
- * because Java does not provide the capability of marking classes as
- * "internal" to a package and all its sub-packages.
- */
-final class Left64JavaXBoxedLong extends LeftPadding56 implements BoxedLong {
+final class Left64JavaXBoxedLong extends LeftPadding56 implements VarHandleBoxedLong {
+  private static final VarHandle VALUE_VH;
 
-  public volatile long value;
+  static {
+    try {
+      VALUE_VH = MethodHandles.lookup().findVarHandle(Left64JavaXBoxedLong.class, "value", long.class);
+    } catch (NoSuchFieldException | IllegalAccessException e) {
+      throw new AssertionError(e);
+    }
+  }
 
-  private static final AtomicLongFieldUpdater<Left64JavaXBoxedLong> UPDATER =
-    AtomicLongFieldUpdater.newUpdater(Left64JavaXBoxedLong.class, "value");
+  private long value;
 
   Left64JavaXBoxedLong(long initialValue) {
     this.value = initialValue;
   }
 
-  public long volatileGet() {
-    return value;
-  }
-
-  public void volatileSet(long update) {
-    value = update;
-  }
-
-  public void lazySet(long update) {
-    UPDATER.lazySet(this, update);
-  }
-
-  public boolean compareAndSet(long current, long update) {
-    return UPDATER.compareAndSet(this, current, update);
-  }
-
-  public long getAndSet(long update) {
-    return UPDATER.getAndSet(this, update);
-  }
-
-  public long getAndAdd(long delta) {
-    return UPDATER.getAndAdd(this, delta);
+  public VarHandle valueHandle() {
+    return VALUE_VH;
   }
 }

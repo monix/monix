@@ -32,7 +32,7 @@ private[monix] final class BatchedBufferedSubscriber[A] private (out: Subscriber
     if (queue.isEmpty) null
     else {
       val buffer = ListBuffer.empty[A]
-      queue.drainToBuffer(buffer, Platform.recommendedBatchSize)
+      val _ = queue.drainToBuffer(buffer, Platform.recommendedBatchSize)
       buffer.toList
     }
 }

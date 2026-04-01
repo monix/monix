@@ -78,7 +78,7 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
       import concurrent.duration._
       val p = Promise[Unit]()
       val startAt = s.clockRealTime(MILLISECONDS)
-      s.scheduleOnce(100.millis) { p.success(()); () }
+      val _ = s.scheduleOnce(100.millis) { p.success(()); () }
 
       u.tick(100.millis)
       val duration = s.clockRealTime(MILLISECONDS) - startAt
@@ -156,7 +156,7 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
       }
 
       assertEquals(effect, 16)
-      u.tickOne()
+      val _ = u.tickOne()
       assertEquals(effect, 56)
   }
 }

@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import cats.Order
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
@@ -29,6 +30,7 @@ import monix.reactive.observers.Subscriber
 /**
   * Common implementation for `minF`, `minByF`, `maxF`, `maxByF`.
   */
+@nowarn("msg=unused value of type")
 private[reactive] abstract class SearchByOrderOperator[A, K](key: A => K)
   extends Operator[A, A] {
 
@@ -38,10 +40,10 @@ private[reactive] abstract class SearchByOrderOperator[A, K](key: A => K)
     new Subscriber.Sync[A] {
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var isDone = false
-      private[this] var minValue: A = _
-      private[this] var minValueU: K = _
-      private[this] var hasValue = false
+      private var isDone = false
+      private var minValue: A = null.asInstanceOf[A]
+      private var minValueU: K = null.asInstanceOf[K]
+      private var hasValue = false
 
       def onNext(elem: A): Ack = {
         try {

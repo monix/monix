@@ -31,17 +31,18 @@ import monix.eval.tracing.{ TaskEvent, TaskTrace }
 
 import scala.reflect.NameTransformer
 
+@scala.annotation.nowarn
 private[eval] object TaskRunLoop {
   type Current = Task[Any]
   type Bind = Any => Task[Any]
   type CallStack = ChunkedArrayStack[Bind]
 
   /** Starts or resumes evaluation of the run-loop from where it left
-    * off. This is the complete run-loop.
-    *
-    * Used for continuing a run-loop after an async boundary
-    * happens from [[startFuture]] and [[startLight]].
-    */
+* off. This is the complete run-loop.
+*
+* Used for continuing a run-loop after an async boundary
+* happens from [[startFuture]] and [[startLight]].
+*/
   def startFull[A](
     source: Task[A],
     contextInit: Context,
@@ -206,8 +207,8 @@ private[eval] object TaskRunLoop {
   }
 
   /** Internal utility, for forcing an asynchronous boundary in the
-    * trampoline loop.
-    */
+* trampoline loop.
+*/
   def restartAsync[A](
     source: Task[A],
     context: Context,
@@ -250,11 +251,11 @@ private[eval] object TaskRunLoop {
   }
 
   /** A run-loop that attempts to evaluate a `Task` without
-    * initializing a `Task.Context`, falling back to
-    * [[startFull]] when the first `Async` boundary is hit.
-    *
-    * Function gets invoked by `Task.runAsync(cb: Callback)`.
-    */
+* initializing a `Task.Context`, falling back to
+* [[startFull]] when the first `Async` boundary is hit.
+*
+* Function gets invoked by `Task.runAsync(cb: Callback)`.
+*/
   def startLight[A](
     source: Task[A],
     scheduler: Scheduler,
@@ -413,8 +414,8 @@ private[eval] object TaskRunLoop {
   }
 
   /** A run-loop version that evaluates the given task until the
-    * first async boundary or until completion.
-    */
+* first async boundary or until completion.
+*/
   def startStep[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): Either[Task[A], A] = {
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
@@ -558,11 +559,11 @@ private[eval] object TaskRunLoop {
   }
 
   /** A run-loop that attempts to complete a `CancelableFuture`
-    * synchronously falling back to [[startFull]] and actual
-    * asynchronous execution in case of an asynchronous boundary.
-    *
-    * Function gets invoked by `Task.runToFuture(implicit s: Scheduler)`.
-    */
+* synchronously falling back to [[startFull]] and actual
+* asynchronous execution in case of an asynchronous boundary.
+*
+* Function gets invoked by `Task.runToFuture(implicit s: Scheduler)`.
+*/
   def startFuture[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): CancelableFuture[A] = {
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
@@ -737,8 +738,8 @@ private[eval] object TaskRunLoop {
   }
 
   /** Called when we hit the first async boundary in
-    * [[startLight]].
-    */
+* [[startLight]].
+*/
   private def goAsyncForLightCB(
     source: Current,
     scheduler: Scheduler,
@@ -884,10 +885,10 @@ private[eval] object TaskRunLoop {
   }
 
   /**
-    * If stack tracing and contextual exceptions are enabled, this
-    * function will rewrite the stack trace of a captured exception
-    * to include the async stack trace.
-    */
+* If stack tracing and contextual exceptions are enabled, this
+* function will rewrite the stack trace of a captured exception
+* to include the async stack trace.
+*/
   private[internal] def augmentException(ex: Throwable, ctx: StackTracedContext): Unit = {
     val stackTrace = ex.getStackTrace
     if (stackTrace.nonEmpty) {
@@ -917,9 +918,8 @@ private[eval] object TaskRunLoop {
   private def dropRunLoopFrames(frames: Array[StackTraceElement]): Array[StackTraceElement] =
     frames.takeWhile(ste => !runLoopFilter.exists(ste.getClassName.startsWith(_)))
 
-  private[this] val runLoopFilter = List(
+  private val runLoopFilter = List(
     "monix.eval.",
     "scala.runtime."
   )
-
 }

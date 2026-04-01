@@ -24,6 +24,7 @@ import monix.execution.atomic.AtomicInt
 import monix.execution.internal.forkJoin.DynamicWorkerThreadFactory.EmptyBlockContext
 
 import scala.annotation.tailrec
+import scala.annotation.nowarn
 import scala.concurrent.{ BlockContext, CanAwait }
 
 // Implement BlockContext on FJP threads
@@ -37,7 +38,7 @@ private[monix] final class DynamicWorkerThreadFactory(
   require(prefix ne null, "DefaultWorkerThreadFactory.prefix must be non null")
   require(maxThreads > 0, "DefaultWorkerThreadFactory.maxThreads must be greater than 0")
 
-  private[this] val currentNumberOfThreads = AtomicInt(0)
+  private val currentNumberOfThreads = AtomicInt(0)
 
   @tailrec private def reserveThread(): Boolean =
     currentNumberOfThreads.get() match {
@@ -51,6 +52,7 @@ private[monix] final class DynamicWorkerThreadFactory(
       case other => currentNumberOfThreads.compareAndSet(other, other - 1) || deregisterThread()
     }
 
+  @nowarn("cat=deprecation")
   def wire[T <: Thread](thread: T): T = {
     thread.setDaemon(daemonic)
     thread.setUncaughtExceptionHandler(uncaught)
@@ -66,7 +68,7 @@ private[monix] final class DynamicWorkerThreadFactory(
         try {
           runnable.run()
         } finally {
-          deregisterThread()
+          val _ = deregisterThread()
           ()
         }
       }))
@@ -77,15 +79,14 @@ private[monix] final class DynamicWorkerThreadFactory(
       wire(new ForkJoinWorkerThread(fjp) with BlockContext {
         // We have to decrement the current thread count when the thread exits
         final override def onTermination(exception: Throwable): Unit = {
-          deregisterThread()
+          val _ = deregisterThread()
           ()
         }
 
         final override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
           var result: T = null.asInstanceOf[T]
           ForkJoinPool.managedBlock(new ManagedBlocker {
-            @volatile
-            private[this] var isDone = false
+            @volatile private var isDone = false
             def isReleasable = isDone
 
             def block(): Boolean = {

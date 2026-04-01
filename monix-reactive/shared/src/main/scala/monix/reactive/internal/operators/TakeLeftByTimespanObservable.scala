@@ -35,9 +35,9 @@ private[reactive] final class TakeLeftByTimespanObservable[A](source: Observable
     composite += source.unsafeSubscribeFn(new Subscriber[A] with Runnable {
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var isActive = true
+      private var isActive = true
       // triggers completion
-      private[this] val task: Cancelable = {
+      private val task: Cancelable = {
         val ref = scheduler.scheduleOnce(timespan.length, timespan.unit, this)
         composite += ref
         ref

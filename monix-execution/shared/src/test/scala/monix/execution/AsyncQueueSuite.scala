@@ -41,7 +41,7 @@ object AsyncQueueFakeSuite extends BaseAsyncQueueSuite[TestScheduler] {
         Future.successful(())
 
     test(name) { implicit ec =>
-      repeatTest(f(ec), times)
+      val _ = repeatTest(f(ec), times)
       ec.tick(1.day)
     }
   }

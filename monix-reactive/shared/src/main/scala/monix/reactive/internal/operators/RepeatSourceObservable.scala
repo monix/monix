@@ -35,9 +35,9 @@ private[reactive] final class RepeatSourceObservable[A](source: Observable[A]) e
 
     val cancelable = subject.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var isEmpty = true
-      private[this] var isDone = false
-      private[this] var ack: Future[Ack] = Continue
+      private var isEmpty = true
+      private var isDone = false
+      private var ack: Future[Ack] = Continue
 
       def onNext(elem: A): Future[Ack] = {
         if (isEmpty) isEmpty = false

@@ -34,7 +34,7 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
 
     assertEquals(effect, 2)
 
-    intercept[NullPointerException] {
+    val _ = intercept[NullPointerException] {
       ctx.execute(() => {
         ctx.execute(() => effect += 1)
 

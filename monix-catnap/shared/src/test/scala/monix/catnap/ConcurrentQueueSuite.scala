@@ -16,6 +16,7 @@
  */
 
 package monix.catnap
+import scala.annotation.nowarn
 
 import java.util.concurrent.atomic.AtomicLong
 
@@ -32,6 +33,7 @@ import scala.collection.immutable.Queue
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
+@nowarn
 object ConcurrentQueueFakeSuite extends BaseConcurrentQueueSuite[TestScheduler] {
   def setup() = TestScheduler()
 

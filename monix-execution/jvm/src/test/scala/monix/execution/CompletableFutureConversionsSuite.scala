@@ -53,7 +53,7 @@ object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
   test("FutureUtils.toJavaCompletable works") { implicit s =>
     val f = Future.successful(42)
     val cf = FutureUtils.toJavaCompletable(f)
-    s.tickOne()
+    val _ = s.tickOne()
     assertEquals(cf.getNow(-1), 42)
   }
 
@@ -61,7 +61,7 @@ object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
     val dummy = DummyException("dummy")
     val ef = Future.failed[Int](dummy)
     val ecf = FutureUtils.toJavaCompletable(ef)
-    s.tickOne()
+    val _ = s.tickOne()
     try {
       ecf.getNow(-1)
       fail("Should throw an error")

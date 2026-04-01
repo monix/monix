@@ -143,10 +143,11 @@ private[eval] final class TaskConnectionComposite private (stateRef: AtomicAny[S
     }
 }
 
+@scala.annotation.nowarn
 private[eval] object TaskConnectionComposite {
   /**
-    * Builder for [[TaskConnectionComposite]].
-    */
+* Builder for [[TaskConnectionComposite]].
+*/
   def apply(initial: CancelToken[Task]*): TaskConnectionComposite =
     new TaskConnectionComposite(Atomic.withPadding(Active(Set(initial: _*)): State, LeftRight128))
 

@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.execution.Callback
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
@@ -25,6 +26,7 @@ import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 import scala.concurrent.duration._
 
+@nowarn
 object TaskRunAsyncSuite extends BaseTestSuite {
   test("runAsync") { implicit s =>
     val task = Task(1).flatMap(x => Task(x + 2)).executeAsync.map(_ + 1)

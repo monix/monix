@@ -30,7 +30,7 @@ private[reactive] final class OnCancelTriggerErrorObservable[A](source: Observab
   def unsafeSubscribeFn(downstream: Subscriber[A]): Cancelable = {
     val out: Subscriber[A] = new Subscriber[A] { self =>
       implicit val scheduler: Scheduler = downstream.scheduler
-      private[this] var isDone = false
+      private var isDone = false
 
       def onNext(elem: A): Future[Ack] =
         self.synchronized {

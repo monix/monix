@@ -31,7 +31,7 @@ private[reactive] final class DematerializeOperator[A] extends Operator[Notifica
   def apply(out: Subscriber[A]): Subscriber[Notification[A]] =
     new Subscriber[Notification[A]] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var isDone = false
+      private var isDone = false
 
       def onNext(elem: Notification[A]): Future[Ack] = {
         if (isDone) Stop

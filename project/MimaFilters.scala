@@ -106,4 +106,15 @@ object MimaFilters {
     // Scala 3 / Dotty support
     exclude[MissingClassProblem]("monix.execution.schedulers.AdaptedThreadPoolExecutorMixin")
   )
+
+  lazy val changesFor_3_5_0 = Seq(
+    // Java 7 boxed internals were removed after the JDK 17 / VarHandle migration; these were internal implementation classes.
+    exclude[MissingClassProblem]("monix.execution.atomic.internal.*Java7Boxed*"),
+    // JDK8-era boxed internals were removed for the same migration; routing now goes directly to JavaX VarHandle implementations.
+    exclude[MissingClassProblem]("monix.execution.atomic.internal.*Java8Boxed*"),
+    // Legacy queue adapter kept only for Java 7 was removed because full-fence support now assumes JDK 17+.
+    exclude[MissingClassProblem]("monix.execution.internal.collection.queues.FromCircularQueue#Java7"),
+    // MessagePassingQueue Java 7 adapter was removed as part of the same support-policy cleanup.
+    exclude[MissingClassProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue#Java7")
+  )
 }

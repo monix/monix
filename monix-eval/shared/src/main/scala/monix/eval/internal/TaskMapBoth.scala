@@ -28,10 +28,11 @@ import monix.execution.internal.exceptions.matchError
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
+@scala.annotation.nowarn
 private[eval] object TaskMapBoth {
   /**
-    * Implementation for `Task.mapBoth`.
-    */
+* Implementation for `Task.mapBoth`.
+*/
   def apply[A1, A2, R](fa1: Task[A1], fa2: Task[A2])(f: (A1, A2) => R): Task[R] = {
     TracedAsync(
       new Register(fa1, fa2, f),
@@ -42,11 +43,11 @@ private[eval] object TaskMapBoth {
     )
   }
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is a task that forks on evaluation.
-  //
-  // N.B. the contract is that the injected callback gets called after
-  // a full async boundary!
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is a task that forks on evaluation.
+//
+// N.B. the contract is that the injected callback gets called after
+// a full async boundary!
   private final class Register[A1, A2, R](fa1: Task[A1], fa2: Task[A2], f: (A1, A2) => R) extends ForkedRegister[R] {
 
     /* For signaling the values after the successful completion of both tasks. */

@@ -37,8 +37,8 @@ private[tail] object IterantScanEval {
   private class Loop[F[_], S, A](seed: S, ff: (S, A) => F[S])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, S]] {
 
-    private[this] var state: S = seed
-    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var state: S = seed
+    private var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
       if (stackRef == null) stackRef = ChunkedArrayStack()

@@ -26,7 +26,7 @@ import scala.annotation.tailrec
 
 private[catnap] class QueueHelpers[F[_]](implicit F: Concurrent[F], cs: ContextShift[F]) {
 
-  private[this] val asyncBoundary: F[Unit] = cs.shift
+  private val asyncBoundary: F[Unit] = cs.shift
 
   @tailrec
   final def sleepThenRepeat[T, U](

@@ -17,6 +17,7 @@
 
 package monix.reactive.observers
 
+import scala.annotation.nowarn
 import java.io.PrintStream
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.BooleanCancelable
@@ -32,10 +33,12 @@ import scala.util.control.NonFatal
   * A `Subscriber` can be seen as an address that the data source needs
   * in order to send events, along with an execution context.
   */
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 trait Subscriber[-A] extends Observer[A] {
   implicit def scheduler: Scheduler
 }
 
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 object Subscriber {
   /** Subscriber builder */
   def apply[A](observer: Observer[A], scheduler: Scheduler): Subscriber[A] =
@@ -209,7 +212,7 @@ object Subscriber {
       Subscriber.contramap(target)(f)
   }
 
-  private[this] final class Implementation[-A](private val underlying: Observer[A], val scheduler: Scheduler)
+  private final class Implementation[-A](private val underlying: Observer[A], val scheduler: Scheduler)
     extends Subscriber[A] {
 
     require(underlying != null, "Observer should not be null")
@@ -220,7 +223,7 @@ object Subscriber {
     def onComplete(): Unit = underlying.onComplete()
   }
 
-  private[this] final class SyncImplementation[-A](observer: Observer.Sync[A], val scheduler: Scheduler)
+  private final class SyncImplementation[-A](observer: Observer.Sync[A], val scheduler: Scheduler)
     extends Subscriber.Sync[A] {
 
     require(observer != null, "Observer should not be null")
@@ -231,10 +234,10 @@ object Subscriber {
     def onComplete(): Unit = observer.onComplete()
   }
 
-  private[this] final class ContravariantSubscriber[A, B](source: Subscriber[A])(f: B => A) extends Subscriber[B] {
+  private final class ContravariantSubscriber[A, B](source: Subscriber[A])(f: B => A) extends Subscriber[B] {
     override implicit def scheduler: Scheduler = source.scheduler
     // For protecting the contract
-    private[this] var isDone = false
+    private var isDone = false
 
     override def onNext(elem: B): Future[Ack] = {
       if (isDone) Stop

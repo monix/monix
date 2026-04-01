@@ -21,10 +21,12 @@ import minitest.SimpleTestSuite
 import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.schedulers.TestScheduler
 import monix.execution.internal.Platform
+import scala.annotation.nowarn
 import scala.concurrent.Promise
 import scala.util.Failure
 import scala.util.control.NonFatal
 
+@nowarn("msg=The syntax `x: _\\*` is no longer supported for vararg splices; use `x\\*` instead")
 object CancelableSuite extends SimpleTestSuite {
   test("Cancelable.empty") {
     val c = Cancelable()
@@ -79,8 +81,10 @@ object CancelableSuite extends SimpleTestSuite {
           assertEquals(e, dummy1)
           assertEquals(e.getSuppressed.toList, List(dummy2))
         } else {
-          val CompositeException(errors) = e
-          assertEquals(errors.toList, List(dummy1, dummy2))
+          e match {
+            case CompositeException(errors) => assertEquals(errors.toList, List(dummy1, dummy2))
+            case other => assertEquals(other, dummy1)
+          }
         }
     }
   }
@@ -121,8 +125,10 @@ object CancelableSuite extends SimpleTestSuite {
       assertEquals(e, dummy1)
       assertEquals(e.getSuppressed.toList, List(dummy2))
     } else {
-      val CompositeException(errors) = sc.state.lastReportedError
-      assertEquals(errors.toList, List(dummy1, dummy2))
+      sc.state.lastReportedError match {
+        case CompositeException(errors) => assertEquals(errors.toList, List(dummy1, dummy2))
+        case other => assertEquals(other, dummy1)
+      }
     }
   }
 

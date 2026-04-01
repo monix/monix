@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.execution.Callback
 import monix.execution.exceptions.DummyException
@@ -25,6 +26,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success, Try }
 
+@nowarn
 object TaskParTraverseUnorderedSuite extends BaseTestSuite {
   test("Task.parTraverseUnordered should execute in parallel") { implicit s =>
     val seq = Seq((1, 2), (2, 1), (3, 3))

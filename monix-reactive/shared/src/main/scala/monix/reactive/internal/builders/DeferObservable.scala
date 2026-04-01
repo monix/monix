@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import monix.execution.Cancelable
 import monix.execution.cancelables.{ AssignableCancelable, MultiAssignCancelable }
 import scala.util.control.NonFatal
@@ -25,13 +26,14 @@ import monix.reactive.observables.ChainedObservable
 import monix.reactive.observables.ChainedObservable.{ subscribe => chain }
 import monix.reactive.observers.Subscriber
 
+@nowarn("msg=`_` is deprecated for wildcard arguments of types: use `?` instead")
 private[reactive] final class DeferObservable[+A](factory: () => Observable[A]) extends ChainedObservable[A] {
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val fa =
       try factory()
       catch { case e if NonFatal(e) => Observable.raiseError(e) }
-    if (fa.isInstanceOf[ChainedObservable[_]]) {
+    if (fa.isInstanceOf[ChainedObservable[?]]) {
       val ch = fa.asInstanceOf[ChainedObservable[A]]
       val conn = MultiAssignCancelable()
       ch.unsafeSubscribeFn(conn, out)

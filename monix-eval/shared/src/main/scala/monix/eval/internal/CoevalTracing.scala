@@ -26,8 +26,8 @@ import monix.eval.tracing.CoevalEvent
 /**
   * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
   */
+@scala.annotation.nowarn
 private[eval] object CoevalTracing {
-
   def decorated[A](source: Coeval[A]): Coeval[A] =
     Trace(source, buildFrame())
 
@@ -52,9 +52,8 @@ private[eval] object CoevalTracing {
     CoevalEvent.StackTrace(new Throwable().getStackTrace.toList)
 
   /**
-    * Global cache for trace frames. Keys are references to lambda classes.
-    * Should converge to the working set of traces very quickly for hot code paths.
-    */
-  private[this] val frameCache: ConcurrentHashMap[Class[_], CoevalEvent] = new ConcurrentHashMap()
-
+* Global cache for trace frames. Keys are references to lambda classes.
+* Should converge to the working set of traces very quickly for hot code paths.
+*/
+  private val frameCache: ConcurrentHashMap[Class[_], CoevalEvent] = new ConcurrentHashMap()
 }

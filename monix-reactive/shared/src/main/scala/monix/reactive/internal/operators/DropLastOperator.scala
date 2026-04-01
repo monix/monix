@@ -32,8 +32,8 @@ private[reactive] final class DropLastOperator[A](n: Int) extends Operator[A, A]
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var queue = mutable.Queue.empty[A]
-      private[this] var length = 0
+      private var queue = mutable.Queue.empty[A]
+      private var length = 0
 
       override def onNext(elem: A): Future[Ack] = {
         queue.enqueue(elem)

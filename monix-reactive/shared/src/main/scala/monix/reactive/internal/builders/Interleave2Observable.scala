@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.CompositeCancelable
 import monix.execution.{ Ack, Cancelable }
@@ -25,6 +26,7 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.{ Future, Promise }
 
+@nowarn("msg=unused value of type")
 private[reactive] final class Interleave2Observable[+A](obsA1: Observable[A], obsA2: Observable[A])
   extends Observable[A] {
 

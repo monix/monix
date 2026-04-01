@@ -30,7 +30,7 @@ object RingBufferSuite extends SimpleTestSuite {
 
   test("non-empty ring buffer") {
     val buffer = new RingBuffer[Integer](2)
-    buffer.push(0)
+    val _ = buffer.push(0)
     assertEquals(buffer.isEmpty, false)
   }
 

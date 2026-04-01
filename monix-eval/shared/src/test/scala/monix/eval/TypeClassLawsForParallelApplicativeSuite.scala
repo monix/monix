@@ -16,12 +16,14 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.CommutativeApplicative
 import cats.laws.discipline.CommutativeApplicativeTests
 import monix.catnap.internal.ParallelApplicative
 import monix.eval.instances.CatsParallelForTask
 
+@nowarn
 object TypeClassLawsForParallelApplicativeSuite extends BaseLawsSuite {
   implicit val ap: CommutativeApplicative[Task] =
     ParallelApplicative(new CatsParallelForTask)

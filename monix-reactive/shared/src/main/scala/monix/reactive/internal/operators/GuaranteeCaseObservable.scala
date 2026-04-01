@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import cats.effect.ExitCase
 import monix.execution.Callback
 import monix.eval.Task
@@ -32,6 +33,7 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{ Failure, Success, Try }
 
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] class GuaranteeCaseObservable[A](source: Observable[A], f: ExitCase[Throwable] => Task[Unit])
   extends Observable[A] {
 
@@ -67,7 +69,7 @@ private[reactive] class GuaranteeCaseObservable[A](source: Observable[A], f: Exi
     extends Subscriber[A] with Cancelable {
 
     implicit val scheduler: Scheduler = out.scheduler
-    private[this] var ack: Future[Ack] = Continue
+    private var ack: Future[Ack] = Continue
 
     def onNext(elem: A): Future[Ack] = {
       var catchErrors = true
@@ -98,7 +100,7 @@ private[reactive] class GuaranteeCaseObservable[A](source: Observable[A], f: Exi
           FutureUtils.transformWith(async, asyncTransformRef)(immediate)
       }
 
-    private[this] val asyncTransformRef: Try[Ack] => Future[Ack] = {
+    private val asyncTransformRef: Try[Ack] => Future[Ack] = {
       case Success(value) =>
         detectStopOrFailure(value)
       case Failure(e) =>

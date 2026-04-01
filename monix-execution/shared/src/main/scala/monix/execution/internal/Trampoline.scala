@@ -24,8 +24,8 @@ import scala.concurrent.{ BlockContext, CanAwait, ExecutionContext }
 
 private[execution] class Trampoline {
   private def makeQueue(): ChunkedArrayQueue[Runnable] = ChunkedArrayQueue[Runnable](chunkSize = 16)
-  private[this] var immediateQueue = makeQueue()
-  private[this] var withinLoop = false
+  private var immediateQueue = makeQueue()
+  private var withinLoop = false
 
   def startLoop(runnable: Runnable, ec: ExecutionContext): Unit = {
     withinLoop = true

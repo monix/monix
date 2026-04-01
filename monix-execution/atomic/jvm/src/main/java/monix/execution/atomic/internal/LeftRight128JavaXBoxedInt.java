@@ -17,17 +17,9 @@
 
 package monix.execution.atomic.internal;
 
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 
-/**
- * INTERNAL API — used in the implementation of
- * `monix.execution.atomic.Atomic`.
- *
- * Being internal it can always change between minor versions,
- * providing no backwards compatibility guarantees and is only public
- * because Java does not provide the capability of marking classes as
- * "internal" to a package and all its sub-packages.
- */
 final class LeftRight128JavaXBoxedInt extends LeftRight128JavaXBoxedIntImpl {
   public volatile long r1, r2, r3, r4, r5, r6, r7, r8 = 11;
   @Override public long sum() {
@@ -40,46 +32,24 @@ final class LeftRight128JavaXBoxedInt extends LeftRight128JavaXBoxedIntImpl {
   }
 }
 
-/**
- * INTERNAL API — used in the implementation of
- * `monix.execution.atomic.Atomic`.
- *
- * Being internal it can always change between minor versions,
- * providing no backwards compatibility guarantees and is only public
- * because Java does not provide the capability of marking classes as
- * "internal" to a package and all its sub-packages.
- */
-abstract class LeftRight128JavaXBoxedIntImpl extends LeftPadding56 implements BoxedInt {
-  public volatile int value;
+abstract class LeftRight128JavaXBoxedIntImpl extends LeftPadding56 implements VarHandleBoxedInt {
+  private static final VarHandle VALUE_VH;
 
-  private static final AtomicIntegerFieldUpdater<LeftRight128JavaXBoxedIntImpl> UPDATER =
-    AtomicIntegerFieldUpdater.newUpdater(LeftRight128JavaXBoxedIntImpl.class, "value");
+  static {
+    try {
+      VALUE_VH = MethodHandles.lookup().findVarHandle(LeftRight128JavaXBoxedIntImpl.class, "value", int.class);
+    } catch (NoSuchFieldException | IllegalAccessException e) {
+      throw new AssertionError(e);
+    }
+  }
+
+  private int value;
 
   LeftRight128JavaXBoxedIntImpl(int initialValue) {
     this.value = initialValue;
   }
 
-  public int volatileGet() {
-    return value;
-  }
-
-  public void volatileSet(int update) {
-    value = update;
-  }
-
-  public void lazySet(int update) {
-    UPDATER.lazySet(this, update);
-  }
-
-  public boolean compareAndSet(int current, int update) {
-    return UPDATER.compareAndSet(this, current, update);
-  }
-
-  public int getAndSet(int update) {
-    return UPDATER.getAndSet(this, update);
-  }
-
-  public int getAndAdd(int delta) {
-    return UPDATER.getAndAdd(this, delta);
+  public final VarHandle valueHandle() {
+    return VALUE_VH;
   }
 }

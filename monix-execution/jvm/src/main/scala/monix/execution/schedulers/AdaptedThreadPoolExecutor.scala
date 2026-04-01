@@ -30,10 +30,12 @@ private[schedulers] abstract class AdaptedThreadPoolExecutor(corePoolSize: Int, 
     super.afterExecute(r, t)
     var exception: Throwable = t
 
-    if ((exception eq null) && r.isInstanceOf[Future[_]]) {
+    if ((exception eq null) && classOf[Future[AnyRef]].isInstance(r)) {
       try {
-        val future = r.asInstanceOf[Future[_]]
-        if (future.isDone) future.get()
+        val future = r.asInstanceOf[Future[AnyRef]]
+        if (future.isDone) {
+          val _ = future.get()
+        }
       } catch {
         case ex: ExecutionException =>
           exception = ex.getCause

@@ -36,13 +36,12 @@ import scala.concurrent.ExecutionContext
 trait BatchingScheduler extends Scheduler { self =>
   protected def executeAsync(r: Runnable): Unit
 
-  private[this] val trampoline =
-    TrampolineExecutionContext(new ExecutionContext {
-      def execute(runnable: Runnable): Unit =
-        self.executeAsync(runnable)
-      def reportFailure(cause: Throwable): Unit =
-        self.reportFailure(cause)
-    })
+  private val trampoline = TrampolineExecutionContext(new ExecutionContext {
+    def execute(runnable: Runnable): Unit =
+      self.executeAsync(runnable)
+    def reportFailure(cause: Throwable): Unit =
+      self.reportFailure(cause)
+  })
 
   override final def execute(runnable: Runnable): Unit =
     runnable match {

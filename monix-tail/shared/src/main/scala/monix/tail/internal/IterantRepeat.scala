@@ -52,8 +52,8 @@ private[tail] object IterantRepeat {
   private final class Loop[F[_], A](source: Iterant[F, A])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
-    private[this] var hasElements = false
-    private[this] val repeatTask = F.delay {
+    private var hasElements = false
+    private val repeatTask = F.delay {
       if (hasElements)
         cycle()
       else

@@ -29,8 +29,7 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
   import GenericSemaphore.State
   require(provisioned >= 0, "provisioned >= 0")
 
-  private[this] val stateRef =
-    AtomicAny.withPadding(GenericSemaphore.initialState(provisioned), ps)
+  private val stateRef = AtomicAny.withPadding(GenericSemaphore.initialState(provisioned), ps)
 
   protected def emptyCancelable: CancelToken
   protected def makeCancelable(f: Listener[Unit] => Unit, p: Listener[Unit]): CancelToken
@@ -187,7 +186,7 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
     while (cursor.hasNext) cursor.next().apply(Constants.eitherOfUnit)
   }
 
-  private[this] val cancelAwaitRelease: (Listener[Unit] => Unit) = {
+  private val cancelAwaitRelease: (Listener[Unit] => Unit) = {
     @tailrec def loop(p: Listener[Unit]): Unit = {
       val current: State = stateRef.get()
       val update = current.removeAwaitReleaseRef(p)
@@ -197,7 +196,7 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
     loop
   }
 
-  private[this] def cancelAcquisition(n: Long, isAsync: Boolean): (Listener[Unit] => Unit) = {
+  private def cancelAcquisition(n: Long, isAsync: Boolean): (Listener[Unit] => Unit) = {
     @tailrec def loop(permit: Listener[Unit]): Unit = {
       val current: State = stateRef.get()
 

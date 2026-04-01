@@ -23,10 +23,11 @@ import monix.eval.Task.{ Async, Context }
 import monix.execution.ExecutionModel
 import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, BatchedExecution, SynchronousExecution }
 
+@scala.annotation.nowarn
 private[eval] object TaskExecuteWithModel {
   /**
-    * Implementation for `Task.executeWithModel`
-    */
+* Implementation for `Task.executeWithModel`
+*/
   def apply[A](self: Task[A], em: ExecutionModel): Task[A] = {
     val start = (context: Context, cb: Callback[Throwable, A]) => {
       val context2 = context.withExecutionModel(em)

@@ -17,12 +17,14 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import scala.util.control.NonFatal
 import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
+@nowarn("msg=unused value of type")
 private[reactive] final class FoldLeftObservable[A, R](source: Observable[A], initial: () => R, f: (R, A) => R)
   extends Observable[R] {
 
@@ -34,8 +36,8 @@ private[reactive] final class FoldLeftObservable[A, R](source: Observable[A], in
 
       source.unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = out.scheduler
-        private[this] var isDone = false
-        private[this] var state: R = initialState
+        private var isDone = false
+        private var state: R = initialState
 
         def onNext(elem: A): Ack = {
           // Protects calls to user code from within the operator,

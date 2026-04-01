@@ -27,7 +27,7 @@ abstract class GenericCursor[+A] extends BatchCursor[A] { self =>
     if (n <= 0) BatchCursor.empty
     else
       new GenericCursor[A] {
-        private[this] var taken = 0
+        private var taken = 0
 
         def hasNext(): Boolean =
           taken < n && self.hasNext()
@@ -46,7 +46,7 @@ abstract class GenericCursor[+A] extends BatchCursor[A] { self =>
     if (n <= 0) self
     else
       new GenericCursor[A] {
-        private[this] var dropped = false
+        private var dropped = false
 
         def hasNext(): Boolean = {
           if (!dropped) {
@@ -54,7 +54,7 @@ abstract class GenericCursor[+A] extends BatchCursor[A] { self =>
             var count = 0
             while (count < n) {
               if (!self.hasNext()) return false
-              self.next()
+              val _ = self.next()
               count += 1
             }
           }
@@ -84,8 +84,8 @@ abstract class GenericCursor[+A] extends BatchCursor[A] { self =>
 
   def filter(p: A => Boolean): BatchCursor[A] =
     new GenericCursor[A] {
-      private[this] var item: A = _
-      private[this] var hasItem: Boolean = false
+      private var item: A = null.asInstanceOf[A]
+      private var hasItem: Boolean = false
 
       def hasNext(): Boolean = hasItem || {
         var continue = true
@@ -113,8 +113,8 @@ abstract class GenericCursor[+A] extends BatchCursor[A] { self =>
 
   def collect[B](pf: PartialFunction[A, B]): BatchCursor[B] =
     new GenericCursor[B] {
-      private[this] var item: A = _
-      private[this] var hasItem: Boolean = false
+      private var item: A = null.asInstanceOf[A]
+      private var hasItem: Boolean = false
 
       def hasNext(): Boolean = hasItem || {
         var continue = true

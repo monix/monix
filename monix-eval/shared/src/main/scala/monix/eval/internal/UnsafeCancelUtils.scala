@@ -26,18 +26,19 @@ import monix.execution.internal.Platform
 import scala.collection.mutable.ListBuffer
 import scala.util.control.NonFatal
 
+@scala.annotation.nowarn
 private[eval] object UnsafeCancelUtils {
   /**
-    * Internal API.
-    */
+* Internal API.
+*/
   def taskToCancelable(task: Task[Unit])(implicit s: Scheduler): Cancelable = {
     if (task == Task.unit) Cancelable.empty
     else Cancelable(() => task.runAsyncAndForget(s))
   }
 
   /**
-    * Internal API — very unsafe!
-    */
+* Internal API — very unsafe!
+*/
   private[internal] def cancelAllUnsafe(
     cursor: Iterable[AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ]
   ): CancelToken[Task] = {
@@ -52,8 +53,8 @@ private[eval] object UnsafeCancelUtils {
   }
 
   /**
-    * Internal API — very unsafe!
-    */
+* Internal API — very unsafe!
+*/
   private[internal] def unsafeCancel(
     task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */
   ): CancelToken[Task] = {
@@ -74,8 +75,8 @@ private[eval] object UnsafeCancelUtils {
   }
 
   /**
-    * Internal API — very unsafe!
-    */
+* Internal API — very unsafe!
+*/
   private[internal] def getToken(task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ): CancelToken[Task] =
     task match {
       case ref: Task[Unit] @unchecked =>
@@ -91,8 +92,8 @@ private[eval] object UnsafeCancelUtils {
     }
 
   /**
-    * Internal API — very unsafe!
-    */
+* Internal API — very unsafe!
+*/
   private[internal] def triggerCancel(task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ )(
     implicit s: Scheduler
   ): Unit = {
@@ -114,11 +115,11 @@ private[eval] object UnsafeCancelUtils {
     }
   }
 
-  // Optimization for `cancelAll`
+// Optimization for `cancelAll`
   private final class CancelAllFrame(cursor: Iterator[AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ])
     extends StackFrame[Unit, Task[Unit]] {
 
-    private[this] val errors = ListBuffer.empty[Throwable]
+    private val errors = ListBuffer.empty[Throwable]
 
     def loop(): CancelToken[Task] = {
       var task: Task[Unit] = null

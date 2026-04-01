@@ -44,14 +44,14 @@ private[reactive] final class StateActionObservable[S, A](seed: => S, f: S => (A
     }
   }
 
-  private[this] final class StateRunLoop(o: Subscriber[A], c: BooleanCancelable, initialSeed: S, f: S => (A, S))
+  private final class StateRunLoop(o: Subscriber[A], c: BooleanCancelable, initialSeed: S, f: S => (A, S))
     extends Runnable { self =>
 
     import o.{ scheduler => s }
-    private[this] var seed = initialSeed
-    private[this] val em = s.executionModel
+    private var seed = initialSeed
+    private val em = s.executionModel
 
-    private[this] val asyncReschedule: Try[Ack] => Unit = {
+    private val asyncReschedule: Try[Ack] => Unit = {
       case Continue.AsSuccess =>
         self.run()
       case Failure(ex) =>

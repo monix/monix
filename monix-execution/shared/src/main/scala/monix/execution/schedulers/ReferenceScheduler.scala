@@ -109,7 +109,7 @@ object ReferenceScheduler {
     override val executionModel: ExecModel,
     reporter: UncaughtExceptionReporter = null
   ) extends Scheduler {
-    private[this] val reporterRef = if (reporter eq null) s else reporter
+    private val reporterRef = if (reporter eq null) s else reporter
 
     override def execute(runnable: Runnable): Unit =
       s.execute(InterceptRunnable(runnable, reporter))

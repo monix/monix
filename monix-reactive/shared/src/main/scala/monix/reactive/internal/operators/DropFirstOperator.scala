@@ -27,7 +27,7 @@ private[reactive] final class DropFirstOperator[A](nr: Long) extends Operator[A,
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var count = 0L
+      private var count = 0L
 
       def onNext(elem: A) = {
         if (count < nr) {

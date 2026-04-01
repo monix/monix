@@ -73,12 +73,12 @@ object MultiAssignCancelableSuite extends SimpleTestSuite {
     val sub = BooleanCancelable()
 
     mSub := sub
-    mSub.clear()
+    val _ = mSub.clear()
 
     mSub.cancel()
     assert(!sub.isCanceled, "!sub.isCanceled")
 
-    mSub.clear()
+    val _ = mSub.clear()
     mSub := sub
     assert(sub.isCanceled, "sub.isCanceled")
   }

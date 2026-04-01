@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack.Stop
@@ -37,6 +38,7 @@ import scala.concurrent.Future
   *
   * Tricky concurrency handling within, here be dragons!
   */
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], seed: Task[S], op: (S, A) => Task[S])
   extends Observable[S] {
 
@@ -71,15 +73,15 @@ private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], se
 
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
-    private[this] val stateRef = Atomic.withPadding(WaitOnNext: MapTaskState, LeftRight128)
+    private val stateRef = Atomic.withPadding(WaitOnNext: MapTaskState, LeftRight128)
 
     // Boolean for keeping the `isActive` state, needed because we could miss
     // out on seeing a `Cancelled` state due to the `lazySet` instructions,
     // making the visibility of the `Cancelled` state thread-unsafe!
-    private[this] val isActive = Atomic(true)
+    private val isActive = Atomic(true)
 
     // Current state, keeps getting updated by the task in `onNext`
-    private[this] var currentS = initial
+    private var currentS = initial
 
     /** For canceling the current active task, in case there is any. Here
       * we can afford a `compareAndSet`, not being a big deal since
@@ -213,7 +215,7 @@ private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], se
 
     // Reusable function reference, to prevent creating a new instance
     // on each `onNext` / `transformWith` call below
-    private[this] val childOnSuccess = (value: S) => {
+    private val childOnSuccess = (value: S) => {
       // Updating mutable shared state, no need for synchronization
       // because `onNext` operations are ordered
       currentS = value
@@ -249,7 +251,7 @@ private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], se
 
     // Reusable function reference, to prevent creating a new instance
     // on each `onNext` / `transformWith` call below
-    private[this] val childOnError = (error: Throwable) => {
+    private val childOnError = (error: Throwable) => {
       // The cancelable passed in WaitComplete here can be `null`
       // because it would only replace the child's own cancelable
       stateRef.getAndSet(WaitComplete(Some(error), null)) match {

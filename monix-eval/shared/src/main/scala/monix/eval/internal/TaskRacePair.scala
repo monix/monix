@@ -23,13 +23,13 @@ import monix.execution.atomic.Atomic
 
 import scala.concurrent.Promise
 
-private[eval] object TaskRacePair {
-  // Type aliasing the result only b/c it's a mouthful
+@scala.annotation.nowarn
+private[eval] object TaskRacePair { // Type aliasing the result only b/c it's a mouthful
   type RaceEither[A, B] = Either[(A, Fiber[B]), (Fiber[A], B)]
 
   /**
-    * Implementation for `Task.racePair`.
-    */
+  * Implementation for `Task.racePair`.
+  */
   def apply[A, B](fa: Task[A], fb: Task[B]): Task[RaceEither[A, B]] =
     Task.Async(
       new Register(fa, fb),
@@ -37,11 +37,11 @@ private[eval] object TaskRacePair {
       trampolineAfter = true
     )
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is a task that forks on evaluation.
-  //
-  // N.B. the contract is that the injected callback gets called after
-  // a full async boundary!
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is a task that forks on evaluation.
+//
+// N.B. the contract is that the injected callback gets called after
+// a full async boundary!
   private final class Register[A, B](fa: Task[A], fb: Task[B]) extends ForkedRegister[RaceEither[A, B]] {
 
     def apply(context: Task.Context, cb: Callback[Throwable, RaceEither[A, B]]): Unit = {

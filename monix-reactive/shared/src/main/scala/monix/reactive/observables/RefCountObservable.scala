@@ -17,6 +17,7 @@
 
 package monix.reactive.observables
 
+import scala.annotation.nowarn
 import monix.execution.{ Ack, Cancelable }
 import monix.execution.Scheduler
 import monix.reactive.Observable
@@ -32,10 +33,11 @@ import scala.concurrent.Future
   *
   * @param source - the connectable observable we are wrapping
   */
+@nowarn("msg=discarded non-Unit value")
 final class RefCountObservable[+A] private (source: ConnectableObservable[A]) extends Observable[A] {
 
-  private[this] val refs = Atomic(-1)
-  private[this] lazy val connection: Cancelable =
+  private val refs = Atomic(-1)
+  private lazy val connection: Cancelable =
     source.connect()
 
   @tailrec
@@ -89,7 +91,7 @@ final class RefCountObservable[+A] private (source: ConnectableObservable[A]) ex
     }
 
   @tailrec
-  private[this] def countDownToConnectionCancel(): Unit = refs.get() match {
+  private def countDownToConnectionCancel(): Unit = refs.get() match {
     case x if x > 0 =>
       val update = x - 1
       if (!refs.compareAndSet(x, update))

@@ -46,8 +46,8 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A](
   // Int.MaxValue means that arrays can be processed whole
   override val recommendedBatchSize: Int = Int.MaxValue
 
-  private[this] val limit = _offset + _length
-  private[this] var index: Int = -1
+  private val limit = _offset + _length
+  private var index: Int = -1
 
   def array: Array[A] = _array
   def offset: Int = _offset

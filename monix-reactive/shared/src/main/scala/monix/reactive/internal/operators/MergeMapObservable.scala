@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.MultiProducer
 import monix.execution.{ Ack, Cancelable, Scheduler }
@@ -28,6 +29,7 @@ import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
 import scala.collection.mutable
 
+@nowarn("msg=unused value of type")
 private[reactive] final class MergeMapObservable[A, B](
   source: Observable[A],
   f: A => Observable[B],
@@ -40,16 +42,16 @@ private[reactive] final class MergeMapObservable[A, B](
 
     composite += source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler: Scheduler = downstream.scheduler
-      private[this] val subscriberB: Subscriber[B] =
+      private val subscriberB: Subscriber[B] =
         BufferedSubscriber(downstream, overflowStrategy, MultiProducer)
 
-      private[this] val upstreamIsDone = Atomic(false)
-      private[this] val errors =
+      private val upstreamIsDone = Atomic(false)
+      private val errors =
         if (delayErrors)
           mutable.ArrayBuffer.empty[Throwable]
         else null
 
-      private[this] val refCount = RefCountCancelable { () =>
+      private val refCount = RefCountCancelable { () =>
         if (!upstreamIsDone.getAndSet(true)) {
           if (delayErrors)
             errors.synchronized {

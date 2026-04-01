@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -27,6 +28,7 @@ import monix.execution.misc.Local
 import cats.implicits._
 import monix.catnap.{ ConcurrentChannel, ConsumerF }
 
+@nowarn
 object TaskLocalSuite extends SimpleTestSuite {
   implicit val ec: Scheduler = monix.execution.Scheduler.Implicits.global
   implicit val opts: Task.Options = Task.defaultOptions.enableLocalContextPropagation
@@ -275,12 +277,11 @@ object TaskLocalSuite extends SimpleTestSuite {
       l: TaskLocal[String],
       ch: ConcurrentChannel[Task, Unit, Int]
     ) {
-      private[this] def produceLoop(n: Int): Task[Unit] =
-        if (n == 0) Task.unit
-        else
-          ch.push(n) >> l.read.flatMap { s =>
-            Task(assertEquals(s, "producer"))
-          } >> produceLoop(n - 1)
+      private[this] def produceLoop(n: Int): Task[Unit] = if (n == 0) Task.unit
+      else
+        ch.push(n) >> l.read.flatMap { s =>
+          Task(assertEquals(s, "producer"))
+        } >> produceLoop(n - 1)
 
       def produce: Task[Unit] =
         for {

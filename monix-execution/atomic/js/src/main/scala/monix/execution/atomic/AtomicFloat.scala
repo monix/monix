@@ -26,7 +26,7 @@ import scala.annotation.unused
   */
 final class AtomicFloat private[atomic] (initialValue: Float) extends AtomicNumber[Float] {
 
-  private[this] var ref = initialValue
+  private var ref = initialValue
 
   def getAndSet(update: Float): Float = {
     val current = ref

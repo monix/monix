@@ -47,10 +47,10 @@ private[atomic] object Implicits {
     implicit def AtomicNumberBuilder[A <: AnyRef: Numeric]: AtomicBuilder[A, AtomicNumberAny[A]] =
       new AtomicBuilder[A, AtomicNumberAny[A]] {
         def buildInstance(initialValue: A, padding: PaddingStrategy, allowPlatformIntrinsics: Boolean) =
-          AtomicNumberAny.create(initialValue, padding, allowPlatformIntrinsics)(implicitly[Numeric[A]])
+          AtomicNumberAny.create(initialValue, padding, allowPlatformIntrinsics)
 
         def buildSafeInstance(initialValue: A, padding: PaddingStrategy) =
-          AtomicNumberAny.safe(initialValue, padding)(implicitly[Numeric[A]])
+          AtomicNumberAny.safe(initialValue, padding)
       }
   }
 }
