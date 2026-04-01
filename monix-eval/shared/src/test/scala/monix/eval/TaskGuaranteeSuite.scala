@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.implicits._
 import monix.execution.atomic.Atomic
@@ -24,6 +25,7 @@ import monix.execution.internal.Platform
 import scala.util.{ Failure, Success }
 import scala.concurrent.duration._
 
+@nowarn
 object TaskGuaranteeSuite extends BaseTestSuite {
 
   test("finalizer is evaluated on success") { implicit sc =>

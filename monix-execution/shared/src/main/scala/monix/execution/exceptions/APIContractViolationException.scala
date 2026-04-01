@@ -56,10 +56,10 @@ object CallbackCalledMultipleTimesException extends AbstractFunction1[String, Ca
   def unapply(arg: CallbackCalledMultipleTimesException): Option[(String, Throwable)] =
     Some((arg.message, arg.getCause))
 
-  def forResult[E](r: Try[_]): CallbackCalledMultipleTimesException =
+  def forResult[E](r: Try[Any]): CallbackCalledMultipleTimesException =
     forResult(r match { case Success(a) => Right(a); case Failure(e) => Left(e) })
 
-  def forResult[E](r: Either[E, _]): CallbackCalledMultipleTimesException = {
+  def forResult[E](r: Either[E, Any]): CallbackCalledMultipleTimesException = {
     val (msg, cause) = r match {
       case Left(e) => ("onError", UncaughtErrorException.wrap(e))
       case Right(_) => ("onSuccess", null)

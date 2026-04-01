@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Cancelable
 import monix.execution.cancelables.AssignableCancelable
 import monix.reactive.Observable
@@ -24,6 +25,7 @@ import monix.reactive.observables.ChainedObservable
 import monix.reactive.observers.Subscriber
 
 /** Implementation for `Observable.uncancelable`. */
+@nowarn("msg=unused value of type")
 private[reactive] final class UncancelableObservable[A](source: Observable[A]) extends ChainedObservable[A] {
 
   override def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {

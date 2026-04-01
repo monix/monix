@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.effect._
 import cats.laws._
@@ -31,6 +32,7 @@ import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
+@nowarn
 object TaskConversionsSuite extends BaseTestSuite {
   test("Task.from(task.to[IO]) == task") { implicit s =>
     check1 { (task: Task[Int]) =>

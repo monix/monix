@@ -26,7 +26,7 @@ import scala.annotation.unused
   */
 final class AtomicLong private[atomic] (initialValue: Long) extends AtomicNumber[Long] {
 
-  private[this] var ref = initialValue
+  private var ref = initialValue
 
   def getAndSet(update: Long): Long = {
     val current = ref

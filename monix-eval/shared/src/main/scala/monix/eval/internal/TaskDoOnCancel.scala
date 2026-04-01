@@ -23,10 +23,11 @@ import monix.eval.Task
 import monix.execution.exceptions.CallbackCalledMultipleTimesException
 import monix.execution.schedulers.TrampolinedRunnable
 
+@scala.annotation.nowarn
 private[eval] object TaskDoOnCancel {
   /**
-    * Implementation for `Task.doOnCancel`
-    */
+* Implementation for `Task.doOnCancel`
+*/
   def apply[A](self: Task[A], callback: Task[Unit]): Task[A] = {
     if (callback eq Task.unit) {
       self
@@ -43,9 +44,9 @@ private[eval] object TaskDoOnCancel {
   private final class CallbackThatPops[A](ctx: Task.Context, cb: Callback[Throwable, A])
     extends Callback[Throwable, A] with TrampolinedRunnable {
 
-    private[this] var isActive = true
-    private[this] var value: A = _
-    private[this] var error: Throwable = _
+    private var isActive = true
+    private var value: A = null.asInstanceOf[A]
+    private var error: Throwable = null.asInstanceOf[Throwable]
 
     override def onSuccess(value: A): Unit =
       if (!tryOnSuccess(value)) {

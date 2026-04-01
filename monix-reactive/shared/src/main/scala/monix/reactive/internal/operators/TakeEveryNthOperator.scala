@@ -31,7 +31,7 @@ private[reactive] final class TakeEveryNthOperator[A](n: Int) extends Operator[A
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var index = n
+      private var index = n
 
       def onNext(elem: A): Future[Ack] = {
         index -= 1

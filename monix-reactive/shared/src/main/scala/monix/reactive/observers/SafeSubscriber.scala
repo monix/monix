@@ -17,6 +17,7 @@
 
 package monix.reactive.observers
 
+import scala.annotation.nowarn
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.Scheduler
@@ -35,11 +36,12 @@ import scala.util.Try
   *  - if downstream signals a `Stop`, the observer no longer accepts any events,
   *    ensuring that the grammar is respected
   */
+@nowarn("msg=unused value of type")
 final class SafeSubscriber[-A] private (subscriber: Subscriber[A]) extends Subscriber[A] {
 
   implicit val scheduler: Scheduler = subscriber.scheduler
-  private[this] var isDone = false
-  private[this] var ack: Future[Ack] = Continue
+  private var isDone = false
+  private var ack: Future[Ack] = Continue
 
   def onNext(elem: A): Future[Ack] = {
     if (!isDone) {

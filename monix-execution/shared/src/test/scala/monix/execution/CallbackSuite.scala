@@ -95,8 +95,8 @@ object CallbackSuite extends TestSuite[TestScheduler] {
 
     cb.onSuccess(1)
     assertEquals(p.future.value, Some(Success(1)))
-    intercept[IllegalStateException] { cb.onSuccess(2) }
-    intercept[CallbackCalledMultipleTimesException] { cb.onSuccess(2) }
+    val _ = intercept[IllegalStateException] { cb.onSuccess(2) }
+    val _ = intercept[CallbackCalledMultipleTimesException] { cb.onSuccess(2) }
     ()
   }
 
@@ -108,8 +108,8 @@ object CallbackSuite extends TestSuite[TestScheduler] {
     cb.onError(dummy)
 
     assertEquals(p.future.value, Some(Failure(dummy)))
-    intercept[IllegalStateException] { cb.onSuccess(1) }
-    intercept[CallbackCalledMultipleTimesException] { cb.onSuccess(1) }
+    val _ = intercept[IllegalStateException] { cb.onSuccess(1) }
+    val _ = intercept[CallbackCalledMultipleTimesException] { cb.onSuccess(1) }
     ()
   }
 

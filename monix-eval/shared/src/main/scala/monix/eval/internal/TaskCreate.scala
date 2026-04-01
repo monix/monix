@@ -30,16 +30,17 @@ import monix.execution.{ Callback, Cancelable, Scheduler, UncaughtExceptionRepor
 
 import scala.util.control.NonFatal
 
+@scala.annotation.nowarn
 private[eval] object TaskCreate {
   /**
-    * Implementation for `cats.effect.Concurrent#cancelable`.
-    */
+* Implementation for `cats.effect.Concurrent#cancelable`.
+*/
   def cancelableEffect[A](k: (Either[Throwable, A] => Unit) => CancelToken[Task]): Task[A] =
     cancelable0((_, cb) => k(cb))
 
   /**
-    * Implementation for `Task.cancelable`
-    */
+* Implementation for `Task.cancelable`
+*/
   def cancelable0[A](fn: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] = {
     val start = new Cancelable0Start[A, CancelToken[Task]](fn) {
       def setConnection(ref: TaskConnectionRef, token: CancelToken[Task])(implicit s: Scheduler): Unit =
@@ -49,14 +50,14 @@ private[eval] object TaskCreate {
   }
 
   /**
-    * Implementation for `Task.create`, used via `TaskBuilder`.
-    */
+* Implementation for `Task.create`, used via `TaskBuilder`.
+*/
   def cancelableIO[A](start: (Scheduler, Callback[Throwable, A]) => CancelToken[IO]): Task[A] =
     cancelable0((sc, cb) => Task.from(start(sc, cb)))
 
   /**
-    * Implementation for `Task.create`, used via `TaskBuilder`.
-    */
+* Implementation for `Task.create`, used via `TaskBuilder`.
+*/
   def cancelableCancelable[A](fn: (Scheduler, Callback[Throwable, A]) => Cancelable): Task[A] = {
     val start = new Cancelable0Start[A, Cancelable](fn) {
       def setConnection(ref: TaskConnectionRef, token: Cancelable)(implicit s: Scheduler): Unit =
@@ -66,14 +67,14 @@ private[eval] object TaskCreate {
   }
 
   /**
-    * Implementation for `Task.create`, used via `TaskBuilder`.
-    */
+* Implementation for `Task.create`, used via `TaskBuilder`.
+*/
   def cancelableCoeval[A](start: (Scheduler, Callback[Throwable, A]) => Coeval[Unit]): Task[A] =
     cancelable0((sc, cb) => Task.from(start(sc, cb)))
 
   /**
-    * Implementation for `Task.async0`
-    */
+* Implementation for `Task.async0`
+*/
   def async0[A](fn: (Scheduler, Callback[Throwable, A]) => Any): Task[A] = {
     val start = (ctx: Context, cb: Callback[Throwable, A]) => {
       implicit val s = ctx.scheduler
@@ -92,11 +93,11 @@ private[eval] object TaskCreate {
   }
 
   /**
-    * Implementation for `cats.effect.Async#async`.
-    *
-    * It duplicates the implementation of `Task.async0` with the purpose
-    * of avoiding extraneous callback allocations.
-    */
+* Implementation for `cats.effect.Async#async`.
+*
+* It duplicates the implementation of `Task.async0` with the purpose
+* of avoiding extraneous callback allocations.
+*/
   def async[A](k: Callback[Throwable, A] => Unit): Task[A] = {
     val start = (ctx: Context, cb: Callback[Throwable, A]) => {
       implicit val s = ctx.scheduler
@@ -114,8 +115,8 @@ private[eval] object TaskCreate {
   }
 
   /**
-    * Implementation for `Task.asyncF`.
-    */
+* Implementation for `Task.asyncF`.
+*/
   def asyncF[A](k: Callback[Throwable, A] => Task[Unit]): Task[A] = {
     val start = (ctx: Context, cb: Callback[Throwable, A]) => {
       implicit val s = ctx.scheduler
@@ -179,10 +180,10 @@ private[eval] object TaskCreate {
   private final class CallbackForCreate[A](ctx: Context, threadId: Long, shouldPop: Boolean, cb: Callback[Throwable, A])
     extends Callback[Throwable, A] with TrampolinedRunnable {
 
-    private[this] val state = AtomicInt(0)
-    private[this] var value: A = _
-    private[this] var error: Throwable = _
-    private[this] var isSameThread = false
+    private val state = AtomicInt(0)
+    private var value: A = null.asInstanceOf[A]
+    private var error: Throwable = null.asInstanceOf[Throwable]
+    private var isSameThread = false
 
     def this(ctx: Context, shouldPop: Boolean, cb: Callback[Throwable, A]) =
       this(ctx, Platform.currentThreadId(), shouldPop, cb)

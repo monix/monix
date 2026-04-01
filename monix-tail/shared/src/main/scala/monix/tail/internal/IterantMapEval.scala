@@ -36,8 +36,8 @@ private[tail] object IterantMapEval {
   private final class Loop[F[_], A, B](ff: A => F[B])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, B]] { self =>
 
-    private[this] var restRef: F[Iterant[F, A]] = _
-    private[this] val continueRef = (b: B) => nextS(b, self.restRef.map(self))
+    private var restRef: F[Iterant[F, A]] = null.asInstanceOf[F[Iterant[F, A]]]
+    private val continueRef = (b: B) => nextS(b, self.restRef.map(self))
 
     private def continue(rest: F[Iterant[F, A]]) = {
       this.restRef = rest

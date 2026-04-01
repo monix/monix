@@ -25,8 +25,8 @@ import monix.execution.atomic.internal.{ BoxedInt, Factory }
   * Note that the equality test in `compareAndSet` is value based,
   * since `Short` is a primitive.
   */
-final class AtomicShort private (private[this] val ref: BoxedInt) extends AtomicNumber[Short] {
-  private[this] val mask = 255 + 255 * 256
+final class AtomicShort private (private val ref: BoxedInt) extends AtomicNumber[Short] {
+  private val mask = 255 + 255 * 256
 
   def get(): Short =
     (ref.volatileGet() & mask).asInstanceOf[Short]

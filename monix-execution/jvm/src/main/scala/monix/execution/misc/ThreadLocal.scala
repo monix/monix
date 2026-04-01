@@ -31,7 +31,7 @@ package monix.execution.misc
   *        any values yet.
   */
 final class ThreadLocal[A] private (val initial: A) {
-  private[this] val tl = new java.lang.ThreadLocal[A]() {
+  private val tl = new java.lang.ThreadLocal[A]() {
     override def initialValue(): A =
       initial
   }

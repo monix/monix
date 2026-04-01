@@ -31,7 +31,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
       val s = Scheduler(service, ec)
       val r: Runnable = () => latch.countDown()
       s.execute(r)
-      s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
+      val _ = s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
     } finally {
       service.shutdown()
@@ -47,7 +47,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
       val s = Scheduler(service, ec)
       val r: Runnable = () => latch.countDown()
       s.execute(r)
-      s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
+      val _ = s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
     } finally {
       service.shutdown()
@@ -60,7 +60,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
     val s = Scheduler(ec, UncaughtExceptionReporter(ec.reportFailure))
     val r: Runnable = () => latch.countDown()
     s.execute(r)
-    s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
+    val _ = s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
   }
 
@@ -70,7 +70,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
     val s = Scheduler(ec)
     val r: Runnable = () => latch.countDown()
     s.execute(r)
-    s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
+    val _ = s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
   }
 
@@ -82,7 +82,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
       val latch = new CountDownLatch(2)
       val r: Runnable = () => latch.countDown()
       s.execute(r)
-      s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
+      val _ = s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
     } finally {
       s.shutdown()
@@ -97,7 +97,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
       val latch = new CountDownLatch(2)
       val r: Runnable = () => latch.countDown()
       s.execute(r)
-      s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
+      val _ = s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
     } finally {
       s.shutdown()
@@ -110,7 +110,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
       val latch = new CountDownLatch(2)
       val r: Runnable = () => latch.countDown()
       s.execute(r)
-      s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
+      val _ = s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
     } finally {
       s.shutdown()
@@ -123,7 +123,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
       val latch = new CountDownLatch(2)
       val r: Runnable = () => latch.countDown()
       s.execute(r)
-      s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
+      val _ = s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
     } finally {
       s.shutdown()
@@ -136,7 +136,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
       val latch = new CountDownLatch(2)
       val r: Runnable = () => latch.countDown()
       s.execute(r)
-      s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
+      val _ = s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
     } finally {
       s.shutdown()
@@ -149,7 +149,7 @@ object TestSchedulerCompanionSuite extends SimpleTestSuite {
       val latch = new CountDownLatch(2)
       val r: Runnable = () => latch.countDown()
       s.execute(r)
-      s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
+      val _ = s.scheduleOnce(10, TimeUnit.MILLISECONDS, r)
       assert(latch.await(15, TimeUnit.MINUTES), "latch.await failed")
     } finally {
       s.shutdown()

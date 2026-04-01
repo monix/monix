@@ -60,10 +60,15 @@ a project exemplifying Monix used both on the server and on the client.
 
 ### Library dependency (sbt)
 
+Compatibility baseline for Monix `3.5.x`:
+
+- JDK `17` minimum (`21` validated)
+- Scala `2.13.18` and Scala `3.8.2`
+
 For the stable release (compatible with Cats, and Cats-Effect 2.x):
  
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "3.4.1"
+libraryDependencies += "io.monix" %% "monix" % "3.5.0"
 ```
   
 ### Sub-projects

@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.Eq
 import cats.effect.laws.discipline.Parameters
@@ -31,6 +32,7 @@ import scala.util.{ Either, Success, Try }
 /**
   * Base trait to inherit in all `monix-eval` tests that use ScalaCheck.
   */
+@nowarn
 trait BaseLawsSuite extends monix.execution.BaseLawsSuite with ArbitraryInstances {
   /**
     * Customizes Cats-Effect's default params.

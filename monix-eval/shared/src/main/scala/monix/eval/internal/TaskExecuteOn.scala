@@ -23,10 +23,11 @@ import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Scheduler
 
+@scala.annotation.nowarn
 private[eval] object TaskExecuteOn {
   /**
-    * Implementation for `Task.executeOn`.
-    */
+* Implementation for `Task.executeOn`.
+*/
   def apply[A](source: Task[A], s: Scheduler, forceAsync: Boolean): Task[A] = {
     val withTrampoline = !forceAsync
     val start =
@@ -41,8 +42,8 @@ private[eval] object TaskExecuteOn {
     )
   }
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is task that forks on evaluation
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is task that forks on evaluation
   private final class AsyncRegister[A](source: Task[A], s: Scheduler) extends ForkedRegister[A] {
     def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
       val oldS = ctx.scheduler
@@ -53,8 +54,8 @@ private[eval] object TaskExecuteOn {
           source,
           ctx2,
           new Callback[Throwable, A] with Runnable {
-            private[this] var value: A = _
-            private[this] var error: Throwable = _
+            private var value: A = null.asInstanceOf[A]
+            private var error: Throwable = null.asInstanceOf[Throwable]
 
             def onSuccess(value: A): Unit = {
               this.value = value

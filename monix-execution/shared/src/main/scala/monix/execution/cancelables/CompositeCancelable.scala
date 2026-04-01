@@ -234,7 +234,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
 object CompositeCancelable {
   /** Builder for [[CompositeCancelable]]. */
   def apply(initial: Cancelable*): CompositeCancelable =
-    withPadding(Set(initial: _*), PaddingStrategy.LeftRight128)
+    withPadding(initial.toSet, PaddingStrategy.LeftRight128)
 
   /** Builder for [[CompositeCancelable]]. */
   def fromSet(initial: Set[Cancelable]): CompositeCancelable =

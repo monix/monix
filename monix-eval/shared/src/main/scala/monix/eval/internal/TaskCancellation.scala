@@ -24,16 +24,17 @@ import monix.execution.{ Callback, Scheduler }
 import monix.execution.atomic.{ Atomic, AtomicBoolean }
 import monix.execution.schedulers.TrampolinedRunnable
 
+@scala.annotation.nowarn
 private[eval] object TaskCancellation {
   /**
-    * Implementation for `Task.uncancelable`.
-    */
+* Implementation for `Task.uncancelable`.
+*/
   def uncancelable[A](fa: Task[A]): Task[A] =
     Task.ContextSwitch(fa, withConnectionUncancelable, restoreConnection)
 
   /**
-    * Implementation for `Task.onCancelRaiseError`.
-    */
+* Implementation for `Task.onCancelRaiseError`.
+*/
   def raiseError[A](fa: Task[A], e: Throwable): Task[A] = {
     val start = (ctx: Context, cb: Callback[Throwable, A]) => {
       implicit val sc = ctx.scheduler
@@ -60,8 +61,8 @@ private[eval] object TaskCancellation {
   )(implicit s: Scheduler)
     extends Callback[Throwable, A] with TrampolinedRunnable {
 
-    private[this] var value: A = _
-    private[this] var error: Throwable = _
+    private var value: A = null.asInstanceOf[A]
+    private var error: Throwable = null.asInstanceOf[Throwable]
 
     def run(): Unit = {
       val e = error
@@ -105,15 +106,13 @@ private[eval] object TaskCancellation {
     }
   }
 
-  private[this] val withConnectionUncancelable: Context => Context =
-    ct => {
-      ct.withConnection(TaskConnection.uncancelable)
-        .withOptions(ct.options.disableAutoCancelableRunLoops)
-    }
+  private val withConnectionUncancelable: Context => Context = ct => {
+    ct.withConnection(TaskConnection.uncancelable)
+      .withOptions(ct.options.disableAutoCancelableRunLoops)
+  }
 
-  private[this] val restoreConnection: (Any, Throwable, Context, Context) => Context =
-    (_, _, old, ct) => {
-      ct.withConnection(old.connection)
-        .withOptions(old.options)
-    }
+  private val restoreConnection: (Any, Throwable, Context, Context) => Context = (_, _, old, ct) => {
+    ct.withConnection(old.connection)
+      .withOptions(old.options)
+  }
 }

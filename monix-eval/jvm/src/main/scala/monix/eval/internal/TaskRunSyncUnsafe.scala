@@ -188,8 +188,8 @@ private[eval] object TaskRunSyncUnsafe {
 
   private final class BlockingCallback[A](latch: OneShotLatch) extends Callback[Throwable, A] {
 
-    private[this] var success: A = _
-    private[this] var error: Throwable = _
+    private var success: A = null.asInstanceOf[A]
+    private var error: Throwable = null.asInstanceOf[Throwable]
 
     def value: A =
       error match {

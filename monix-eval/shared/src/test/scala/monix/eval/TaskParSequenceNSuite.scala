@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.DummyException
@@ -24,6 +25,7 @@ import monix.execution.internal.Platform
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
+@nowarn
 object TaskParSequenceNSuite extends BaseTestSuite {
 
   test("Task.parSequenceN should execute in parallel bounded by parallelism") { implicit s =>

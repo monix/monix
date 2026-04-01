@@ -29,7 +29,6 @@ import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
 
 import scala.concurrent.Future
 import scala.util.{ Failure, Success }
-import scala.annotation.nowarn
 
 /** A high-performance and non-blocking [[BufferedSubscriber]]
   * implementation for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
@@ -39,22 +38,22 @@ import scala.annotation.nowarn
 private[observers] final class DropNewBufferedSubscriber[A] private (
   out: Subscriber[A],
   bufferSize: Int,
-  @nowarn onOverflow: Long => Coeval[Option[A]] = null,
+  onOverflow: Long => Coeval[Option[A]],
 ) extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 
   implicit val scheduler: Scheduler = out.scheduler
-  private[this] val em = out.scheduler.executionModel
+  private val em = out.scheduler.executionModel
 
-  private[this] val itemsToPush =
+  private val itemsToPush =
     Atomic.withPadding(0, LeftRight256)
 
-  private[this] val droppedCount: AtomicInt =
+  private val droppedCount: AtomicInt =
     if (onOverflow != null) AtomicInt.withPadding(0, LeftRight128)
     else null
 
-  private[this] val queue =
+  private val queue =
     ConcurrentQueue.limited[A](bufferSize)
 
   def onNext(elem: A): Ack = {
@@ -86,7 +85,7 @@ private[observers] final class DropNewBufferedSubscriber[A] private (
     }
   }
 
-  private[this] def pushToConsumer(): Unit = {
+  private def pushToConsumer(): Unit = {
     val currentNr = itemsToPush.getAndIncrement()
 
     // If a run-loop isn't started, then go, go, go!
@@ -97,7 +96,7 @@ private[observers] final class DropNewBufferedSubscriber[A] private (
     }
   }
 
-  private[this] val consumerRunLoop = new Runnable {
+  private val consumerRunLoop = new Runnable {
     def run(): Unit = {
       // This lastIterationAck is also being set by the consumer-loop,
       // but it's important for the write to happen before `itemsToPush`,

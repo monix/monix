@@ -38,9 +38,9 @@ private[reactive] final class IntervalFixedRateObservable(initialDelay: FiniteDu
     val task = MultiAssignCancelable()
 
     val runnable = new Runnable { self =>
-      private[this] val periodNanos = period.toNanos
-      private[this] var counter = 0L
-      private[this] var startedAt = 0L
+      private val periodNanos = period.toNanos
+      private var counter = 0L
+      private var startedAt = 0L
 
       def scheduleNext(): Unit = {
         counter += 1

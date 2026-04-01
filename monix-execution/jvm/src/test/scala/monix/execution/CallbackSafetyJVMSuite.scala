@@ -38,7 +38,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
 
   override def tearDown(env: SchedulerService): Unit = {
     env.shutdown()
-    env.awaitTermination(10.seconds)
+    val _ = env.awaitTermination(10.seconds)
     ()
   }
 
@@ -85,12 +85,12 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
   }
 
   test("Normal callback is not thread-safe via onSuccess") { implicit sc =>
-    intercept[AssertionException] { executeOnSuccessTest(x => x) }
+    val _ = intercept[AssertionException] { executeOnSuccessTest(x => x) }
     ()
   }
 
   test("Normal callback is not thread-safe via onError") { implicit sc =>
-    intercept[AssertionException] { executeOnErrorTest(x => x) }
+    val _ = intercept[AssertionException] { executeOnErrorTest(x => x) }
     ()
   }
 
@@ -101,7 +101,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
       val f = (r: Either[Throwable, Int]) => cb(r)
       Callback.fromAttempt(f)
     }
-    intercept[AssertionException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
+    val _ = intercept[AssertionException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
     ()
   }
 
@@ -112,7 +112,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
       val f = (r: Either[Throwable, String]) => cb(r)
       Callback.fromAttempt(f)
     }
-    intercept[AssertionException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
+    val _ = intercept[AssertionException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
     ()
   }
 
@@ -123,7 +123,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
       val f = (r: Try[Int]) => cb(r)
       Callback.fromTry(f)
     }
-    intercept[AssertionException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
+    val _ = intercept[AssertionException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
     ()
   }
 
@@ -134,7 +134,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
       val f = (r: Try[String]) => cb(r)
       Callback.fromTry(f)
     }
-    intercept[AssertionException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
+    val _ = intercept[AssertionException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
     ()
   }
 
@@ -167,14 +167,14 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
   }
 
   test("Normal callback is not quasi-safe via onSuccess") { _ =>
-    intercept[MiniTestException] {
+    val _ = intercept[MiniTestException] {
       executeQuasiSafeOnSuccessTest(x => x)
     }
     ()
   }
 
   test("Normal callback is not quasi-safe via onError") { _ =>
-    intercept[MiniTestException] {
+    val _ = intercept[MiniTestException] {
       executeQuasiSafeOnFailureTest(x => x)
     }
     ()
@@ -194,7 +194,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
       assert(tryTrigger(cb), "cb.tryOnSuccess(1)")
       assert(!tryTrigger(cb), "!cb.tryOnSuccess(1)")
 
-      intercept[CallbackCalledMultipleTimesException] { trigger(cb) }
+      val _ = intercept[CallbackCalledMultipleTimesException] { trigger(cb) }
       assertEquals(effect, 1)
     }
 
@@ -216,7 +216,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
 
       assert(tryTrigger(cb), "cb.tryOnError(1)")
       assert(!tryTrigger(cb), "!cb.tryOnError(1)")
-      intercept[CallbackCalledMultipleTimesException] { trigger(cb) }
+      val _ = intercept[CallbackCalledMultipleTimesException] { trigger(cb) }
       assertEquals(effect, 1)
     }
 
@@ -321,7 +321,7 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
     for (_ <- 0 until WORKERS) {
       sc.execute { () =>
         latchWorkersStart.countDown()
-        try { f; () }
+        try { val _ = f; () }
         finally latchWorkersFinished.countDown()
       }
     }

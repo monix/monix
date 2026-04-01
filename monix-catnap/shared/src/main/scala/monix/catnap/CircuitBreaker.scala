@@ -25,6 +25,7 @@ import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.atomic.{ Atomic, AtomicAny, PaddingStrategy }
 import monix.execution.exceptions.ExecutionRejectedException
 import monix.execution.internal.Constants
+import scala.annotation.nowarn
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 
@@ -212,7 +213,7 @@ final class CircuitBreaker[F[_]] private (
   require(_maxResetTimeout > Duration.Zero, "maxResetTimeout > 0")
 
   import monix.catnap.CircuitBreaker._
-  private[this] val stateRef = _stateRef
+  private val stateRef = _stateRef
 
   /**
     * The maximum count for allowed failures before opening the circuit breaker.
@@ -269,7 +270,9 @@ final class CircuitBreaker[F[_]] private (
     *        be cancelable, to properly dispose of the registered
     *        listener in case of cancellation.
     */
-  def awaitClose(implicit F: Concurrent[F] OrElse Async[F]): F[Unit] = {
+  @nowarn("cat=deprecation")
+  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
+  def awaitClose(implicit F: OrElse[Concurrent[F], Async[F]]): F[Unit] = {
     val F0 = F.unify
     F0.defer {
       stateRef.get() match {
@@ -286,7 +289,7 @@ final class CircuitBreaker[F[_]] private (
   /** Function for counting failures in the `Closed` state,
     * triggering the `Open` state if necessary.
     */
-  private[this] val maybeMarkOrResetFailures: (Either[Throwable, Any] => F[Any]) = {
+  private val maybeMarkOrResetFailures: (Either[Throwable, Any] => F[Any]) = {
     // Reschedule logic, for retries that come after a `Clock` query
     // and that can no longer be tail-recursive
     def reschedule[A](exit: Either[Throwable, A]): F[A] =
@@ -734,6 +737,7 @@ object CircuitBreaker extends CircuitBreakerDocs {
       * @param padding $paddingParam
       */
     @UnsafeBecauseImpure
+    @nowarn("msg=Implicit parameters should be provided with a `using` clause")
     def unsafe(
       maxFailures: Int,
       resetTimeout: FiniteDuration,

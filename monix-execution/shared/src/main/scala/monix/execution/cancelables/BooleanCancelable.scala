@@ -35,7 +35,7 @@ object BooleanCancelable {
   /** Builder for [[BooleanCancelable]]. */
   def apply(): BooleanCancelable =
     new BooleanCancelable {
-      @volatile private[this] var _isCanceled = false
+      @volatile private var _isCanceled = false
       def isCanceled = _isCanceled
 
       def cancel(): Unit = {
@@ -54,7 +54,7 @@ object BooleanCancelable {
   /** Returns an instance of a [[BooleanCancelable]] that's
     * already canceled.
     */
-  val alreadyCanceled: BooleanCancelable with Empty =
+  val alreadyCanceled: BooleanCancelable =
     new BooleanCancelable with Empty {
       val isCanceled = true
       def cancel() = ()
@@ -73,7 +73,7 @@ object BooleanCancelable {
 
   private final class BooleanCancelableTask(cb: () => Unit) extends BooleanCancelable {
 
-    private[this] val callbackRef = AtomicAny(cb)
+    private val callbackRef = AtomicAny(cb)
     def isCanceled: Boolean = callbackRef.get() eq null
 
     def cancel(): Unit = {

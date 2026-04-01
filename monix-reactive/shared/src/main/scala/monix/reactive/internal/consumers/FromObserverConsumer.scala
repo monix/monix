@@ -41,7 +41,7 @@ private[reactive] final class FromObserverConsumer[In](f: Scheduler => Observer[
         val sub = new Subscriber[In] { self =>
           implicit val scheduler: Scheduler = s
 
-          private[this] val isDone = Atomic(false)
+          private val isDone = Atomic(false)
           private def signal(ex: Throwable): Unit =
             if (!isDone.getAndSet(true)) {
               if (ex == null) {

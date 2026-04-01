@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack
@@ -30,6 +31,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.util.Success
 
+@nowarn("msg=unused value of type")
 private[reactive] final class DoOnTerminateOperator[A](
   onTerminate: Option[Throwable] => Task[Unit],
   happensBefore: Boolean
@@ -39,7 +41,7 @@ private[reactive] final class DoOnTerminateOperator[A](
     new Subscriber[A] {
       // Wrapping in a cancelable in order to protect it from
       // being called multiple times
-      private[this] val active = Atomic(true)
+      private val active = Atomic(true)
       implicit val scheduler: Scheduler = out.scheduler
 
       def onNext(elem: A): Future[Ack] = {

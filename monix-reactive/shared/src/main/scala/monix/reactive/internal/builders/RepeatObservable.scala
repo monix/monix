@@ -23,7 +23,7 @@ import monix.reactive.observers.Subscriber
 
 /** Repeats the given elements */
 private[reactive] final class RepeatObservable[A](elems: A*) extends Observable[A] {
-  private[this] val source =
+  private val source =
     if (elems.isEmpty) Observable.empty
     else if (elems.length == 1)
       new RepeatOneObservable(elems.head)

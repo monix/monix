@@ -25,7 +25,7 @@ import monix.execution.atomic.internal.{ BoxedInt, Factory }
   * Note that the equality test in `compareAndSet` is value based,
   * since `Int` is a primitive.
   */
-final class AtomicInt private (private[this] val ref: BoxedInt) extends AtomicNumber[Int] {
+final class AtomicInt private (private val ref: BoxedInt) extends AtomicNumber[Int] {
 
   def get(): Int = ref.volatileGet()
   def set(update: Int): Unit = ref.volatileSet(update)

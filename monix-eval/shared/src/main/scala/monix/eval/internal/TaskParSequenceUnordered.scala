@@ -30,10 +30,11 @@ import scala.util.control.NonFatal
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
+@scala.annotation.nowarn
 private[eval] object TaskParSequenceUnordered {
   /**
-    * Implementation for [[Task.parSequenceUnordered]]
-    */
+* Implementation for [[Task.parSequenceUnordered]]
+*/
   def apply[A](in: Iterable[Task[A]]): Task[List[A]] = {
     Async(
       new Register(in),
@@ -43,11 +44,11 @@ private[eval] object TaskParSequenceUnordered {
     )
   }
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is a task that forks on evaluation.
-  //
-  // N.B. the contract is that the injected callback gets called after
-  // a full async boundary!
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is a task that forks on evaluation.
+//
+// N.B. the contract is that the injected callback gets called after
+// a full async boundary!
   private final class Register[A](in: Iterable[Task[A]]) extends ForkedRegister[List[A]] {
 
     def maybeSignalFinal(

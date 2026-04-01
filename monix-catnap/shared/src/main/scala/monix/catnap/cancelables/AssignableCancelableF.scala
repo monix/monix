@@ -22,6 +22,7 @@ import cats.Applicative
 import cats.effect.CancelToken
 import monix.catnap.CancelableF
 import monix.catnap.CancelableF.Empty
+import scala.annotation.nowarn
 
 /** Represents a class of cancelable references that can hold
   * an internal reference to another cancelable (and thus has to
@@ -62,7 +63,8 @@ object AssignableCancelableF {
   /**
     * Builds an [[AssignableCancelableF]] instance that's already canceled.
     */
-  def alreadyCanceled[F[_]](implicit F: Applicative[F]): Bool[F] with Empty[F] =
+  @nowarn("msg=.*")
+  def alreadyCanceled[F[_]](implicit F: Applicative[F]): Bool[F] =
     new Bool[F] with Empty[F] {
       def set(ref: CancelableF[F]): F[Unit] = ref.cancel
       def isCanceled: F[Boolean] = F.pure(true)

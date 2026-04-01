@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.Eq
 import cats.effect.laws.discipline.{ ConcurrentEffectTests, ConcurrentTests }
@@ -31,6 +32,7 @@ import scala.concurrent.Promise
   * Type class tests for Task that use an alternative `Eq`, making
   * use of Task's `runAsync(callback)`.
   */
+@nowarn
 object TypeClassLawsForTaskWithCallbackSuite
   extends BaseTypeClassLawsForTaskWithCallbackSuite()(
     Task.defaultOptions.disableAutoCancelableRunLoops

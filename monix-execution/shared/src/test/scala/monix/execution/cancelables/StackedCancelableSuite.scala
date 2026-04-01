@@ -55,7 +55,7 @@ object StackedCancelableSuite extends SimpleTestSuite {
     val c = StackedCancelable()
     c.push(initial1)
     c.push(initial2)
-    c.pop()
+    val _ = c.pop()
     c.cancel()
 
     assertEquals(effect, 1)
@@ -156,7 +156,7 @@ object StackedCancelableSuite extends SimpleTestSuite {
     val sc = StackedCancelable()
     val c = BooleanCancelable()
 
-    sc.popAndPushList(List(c))
+    val _ = sc.popAndPushList(List(c))
     assert(!sc.isCanceled, "!sc.isCanceled")
     assert(!c.isCanceled, "!c.isCanceled")
 
@@ -170,7 +170,7 @@ object StackedCancelableSuite extends SimpleTestSuite {
 
     val c = BooleanCancelable()
 
-    sc.popAndPushList(List(c))
+    val _ = sc.popAndPushList(List(c))
     assert(sc.isCanceled, "sc.isCanceled")
     assert(c.isCanceled, "c.isCanceled")
   }

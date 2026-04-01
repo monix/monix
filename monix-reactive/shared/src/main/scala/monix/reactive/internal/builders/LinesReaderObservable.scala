@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import java.io.{ BufferedReader, Reader }
 
 import monix.execution.Ack.{ Continue, Stop }
@@ -33,15 +34,16 @@ import scala.annotation.tailrec
 import scala.concurrent.{ blocking, Future }
 import scala.util.{ Failure, Success }
 
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] final class LinesReaderObservable(reader: Reader) extends Observable[String] { self =>
 
-  private[this] val in: BufferedReader =
+  private val in: BufferedReader =
     if (!reader.isInstanceOf[BufferedReader])
       new BufferedReader(reader)
     else
       reader.asInstanceOf[BufferedReader]
 
-  private[this] val wasSubscribed = Atomic(false)
+  private val wasSubscribed = Atomic(false)
 
   def unsafeSubscribeFn(out: Subscriber[String]): Cancelable = {
     if (wasSubscribed.getAndSet(true)) {

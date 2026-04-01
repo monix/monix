@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import java.util.concurrent.TimeUnit
 
 import monix.execution.Ack.{ Continue, Stop }
@@ -28,6 +29,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.duration.{ FiniteDuration, MILLISECONDS }
 
+@nowarn("msg=discarded non-Unit value")
 private[reactive] final class DebounceObservable[A](source: Observable[A], timeout: FiniteDuration, repeat: Boolean)
   extends Observable[A] {
 
@@ -39,11 +41,11 @@ private[reactive] final class DebounceObservable[A](source: Observable[A], timeo
     mainTask := source.unsafeSubscribeFn(new Subscriber.Sync[A] with Runnable { self =>
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] val timeoutMillis = timeout.toMillis
-      private[this] var isDone = false
-      private[this] var lastEvent: A = _
-      private[this] var lastTSInMillis: Long = 0L
-      private[this] var hasValue = false
+      private val timeoutMillis = timeout.toMillis
+      private var isDone = false
+      private var lastEvent: A = null.asInstanceOf[A]
+      private var lastTSInMillis: Long = 0L
+      private var hasValue = false
 
       locally {
         scheduleNext(timeoutMillis)

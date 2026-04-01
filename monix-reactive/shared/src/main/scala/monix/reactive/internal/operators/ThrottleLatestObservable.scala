@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.Scheduler
 import monix.execution.cancelables.{ CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable }
@@ -28,6 +29,8 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
+@nowarn("msg=discarded non-Unit value")
+@nowarn("msg=unused value of type")
 private[reactive] final class ThrottleLatestObservable[A](
   source: Observable[A],
   duration: FiniteDuration,
@@ -43,12 +46,12 @@ private[reactive] final class ThrottleLatestObservable[A](
       self =>
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] val durationMilis = duration.toMillis
-      private[this] var isDone = false
-      private[this] var lastEvent: A = _
-      private[this] var hasValue = false
-      private[this] var shouldEmitNext = true
-      private[this] var ack: Future[Ack] = _
+      private val durationMilis = duration.toMillis
+      private var isDone = false
+      private var lastEvent: A = null.asInstanceOf[A]
+      private var hasValue = false
+      private var shouldEmitNext = true
+      private var ack: Future[Ack] = null.asInstanceOf[Future[Ack]]
 
       def scheduleNext(delayMillis: Long): Unit = {
         // No need to synchronize this assignment, since we have a

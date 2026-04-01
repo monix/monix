@@ -22,6 +22,7 @@ import monix.execution.schedulers.{ TrampolineExecutionContext, TrampolinedRunna
 import scala.concurrent.{ ExecutionContext, Promise }
 import scala.util.control.NonFatal
 import scala.util.{ Failure, Success, Try }
+import scala.annotation.nowarn
 
 /** Represents a callback that should be called asynchronously
   * with the result of a computation.
@@ -270,7 +271,7 @@ object Callback {
       case ref: Callback[E, A] @unchecked => ref
       case _ =>
         new Callback[E, A] {
-          private[this] var isActive = true
+          private var isActive = true
           override def onSuccess(value: A): Unit = apply(Right(value))
           override def onError(e: E): Unit = apply(Left(e))
 
@@ -299,7 +300,7 @@ object Callback {
     */
   def fromTry[A](cb: Try[A] => Unit): Callback[Throwable, A] =
     new Callback[Throwable, A] {
-      private[this] var isActive = true
+      private var isActive = true
       override def onSuccess(value: A): Unit = apply(Success(value))
       override def onError(e: Throwable): Unit = apply(Failure(e))
 
@@ -334,17 +335,19 @@ object Callback {
   private[monix] def signalErrorTrampolined[E, A](cb: Callback[E, A], e: E): Unit =
     TrampolineExecutionContext.immediate.execute(() => cb.onError(e))
 
+  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   private final class AsyncFork[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext)
     extends Base[E, A](cb)(ec)
 
+  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   private final class TrampolinedCallback[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext)
     extends Base[E, A](cb)(ec) with TrampolinedRunnable
 
   /** Base implementation for `trampolined` and `forked`. */
   private class Base[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext) extends Callback[E, A] with Runnable {
-    private[this] val state = monix.execution.atomic.AtomicInt(0)
-    private[this] var value: A = _
-    private[this] var error: E = _
+    private val state = monix.execution.atomic.AtomicInt(0)
+    private var value: A = null.asInstanceOf[A]
+    private var error: E = null.asInstanceOf[E]
 
     override final def onSuccess(value: A): Unit =
       if (!tryOnSuccess(value)) {
@@ -408,8 +411,7 @@ object Callback {
   private final class Safe[-E, -A](underlying: Callback[E, A])(implicit r: UncaughtExceptionReporter)
     extends Callback[E, A] {
 
-    private[this] val isActive =
-      monix.execution.atomic.AtomicBoolean(true)
+    private val isActive = monix.execution.atomic.AtomicBoolean(true)
 
     override def onSuccess(value: A): Unit = {
       if (isActive.compareAndSet(true, false))

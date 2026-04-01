@@ -49,7 +49,7 @@ import scala.annotation.tailrec
   */
 final class MultiAssignCancelable private (initial: Cancelable) extends AssignableCancelable.Multi {
 
-  private[this] val state = {
+  private val state = {
     AtomicAny.withPadding(initial, PaddingStrategy.LeftRight128)
   }
 

@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.CompositeCancelable
@@ -27,6 +28,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
+@nowarn("msg=unused value of type")
 private[reactive] final class Zip4Observable[A1, A2, A3, A4, +R](
   obsA1: Observable[A1],
   obsA2: Observable[A2],

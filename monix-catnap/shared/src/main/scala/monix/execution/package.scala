@@ -40,9 +40,8 @@ package object execution {
   implicit def contravariantCallback[E]: Contravariant[Callback[E, *]] =
     contravariantRef.asInstanceOf[Contravariant[Callback[E, *]]]
 
-  private[this] val contravariantRef: Contravariant[Callback[Any, *]] =
-    new Contravariant[Callback[Any, *]] {
-      override def contramap[A, B](cb: Callback[Any, A])(f: B => A): Callback[Any, B] =
-        cb.contramap(f)
-    }
+  private val contravariantRef: Contravariant[Callback[Any, *]] = new Contravariant[Callback[Any, *]] {
+    override def contramap[A, B](cb: Callback[Any, A])(f: B => A): Callback[Any, B] =
+      cb.contramap(f)
+  }
 }

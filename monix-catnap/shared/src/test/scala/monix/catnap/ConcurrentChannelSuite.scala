@@ -16,6 +16,7 @@
  */
 
 package monix.catnap
+import scala.annotation.nowarn
 
 import cats.effect.{ ContextShift, IO, Timer }
 import cats.implicits._
@@ -30,6 +31,7 @@ import monix.execution.{ BufferCapacity, Scheduler, TestUtils }
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
+@nowarn
 object ConcurrentChannelFakeSuite extends BaseConcurrentChannelSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =

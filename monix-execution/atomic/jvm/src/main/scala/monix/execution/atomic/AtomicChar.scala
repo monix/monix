@@ -25,8 +25,8 @@ import monix.execution.atomic.internal.{ BoxedInt, Factory }
   * Note that the equality test in `compareAndSet` is value based,
   * since `Char` is a primitive.
   */
-final class AtomicChar private (private[this] val ref: BoxedInt) extends AtomicNumber[Char] {
-  private[this] val mask = 255 + 255 * 256
+final class AtomicChar private (private val ref: BoxedInt) extends AtomicNumber[Char] {
+  private val mask = 255 + 255 * 256
 
   def get(): Char =
     (ref.volatileGet() & mask).asInstanceOf[Char]

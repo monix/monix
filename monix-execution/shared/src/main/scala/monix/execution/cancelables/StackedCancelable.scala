@@ -123,10 +123,9 @@ object StackedCancelable {
       * in order to safe a `state.get` instruction before the
       * `compareAndSet` happens.
       */
-    private[this] var cache = initial
+    private var cache = initial
 
-    private[this] val state =
-      AtomicAny.withPadding(initial, PaddingStrategy.LeftRight128)
+    private val state = AtomicAny.withPadding(initial, PaddingStrategy.LeftRight128)
 
     override def isCanceled: Boolean =
       state.get() == null

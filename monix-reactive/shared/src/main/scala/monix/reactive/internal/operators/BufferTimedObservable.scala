@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import java.util.concurrent.TimeUnit
 
 import monix.execution.Ack.{ Continue, Stop }
@@ -29,6 +30,8 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration.{ Duration, FiniteDuration, MILLISECONDS }
 
+@nowarn("msg=discarded non-Unit value")
+@nowarn("msg=unused value of type")
 private[reactive] final class BufferTimedObservable[+A](source: Observable[A], timespan: FiniteDuration, maxCount: Int)
   extends Observable[Seq[A]] {
 
@@ -41,13 +44,13 @@ private[reactive] final class BufferTimedObservable[+A](source: Observable[A], t
     val connection = source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] val timespanMillis = timespan.toMillis
+      private val timespanMillis = timespan.toMillis
       // MUST BE synchronized by `self`
-      private[this] var ack: Future[Ack] = Continue
+      private var ack: Future[Ack] = Continue
       // MUST BE synchronized by `self`
-      private[this] var buffer = ListBuffer.empty[A]
+      private var buffer = ListBuffer.empty[A]
       // MUST BE synchronized by `self`
-      private[this] var expiresAt = scheduler.clockMonotonic(MILLISECONDS) + timespanMillis
+      private var expiresAt = scheduler.clockMonotonic(MILLISECONDS) + timespanMillis
 
       locally {
         // Scheduling the first tick, in the constructor

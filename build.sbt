@@ -52,7 +52,6 @@ val minitest_Version          = "2.9.6"
 val implicitBox_Version       = "0.3.4"
 val kindProjector_Version     = "0.13.4"
 val betterMonadicFor_Version  = "0.3.1"
-val silencer_Version          = "1.7.19"
 val scalaCompat_Version       = "2.14.0"
 
 // The Monix version with which we must keep binary compatibility.
@@ -115,10 +114,6 @@ lazy val scalaCollectionCompatLib =
 /** [[https://github.com/oleg-py/better-monadic-for]] */
 lazy val betterMonadicForCompilerPlugin =
   "com.olegpy" %% "better-monadic-for" % betterMonadicFor_Version
-
-/** [[https://github.com/ghik/silencer]] */
-lazy val silencerCompilerPlugin =
-  "com.github.ghik" % "silencer-plugin" % silencer_Version cross CrossVersion.full
 
 lazy val macroDependencies =
   Seq(
@@ -209,22 +204,25 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
           // Silence various warnings in tests
           "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent"
         )
+      case Some((3, _)) => Seq(
+          // Scala 3.8.x surfaces a very large warning volume in legacy tests and doctests.
+          // Keep -Werror for main sources, but silence test warnings to preserve CI signal.
+          "-Wconf:any:silent"
+        )
       case _ => Seq.empty
     }
   },
-  Seq(Compile, Test).map { x =>
-    x / compile / scalacOptions --= {
-      val scalaV = scalaVersion.value
-      scalaBinaryVersion.value match {
-        case "3" =>
-          Seq("-Xfatal-warnings")
-        case "2.13" if scalaV.startsWith("2.13.18") =>
-          // Scala 2.13.18 has many new warnings, disable fatal warnings temporarily
-          Seq("-Xfatal-warnings")
-        case _ =>
-          Seq.empty
-      }
-    }
+  // sbt-tpolecat 0.5.x in CI mode adds only ScalacOptions.fatalWarnings (-Xfatal-warnings),
+  // which is deprecated in Scala 3.6+ and itself causes a fatal error in 3.8+.
+  // Override tpolecatCiModeOptions to use the version-aware fatalWarningOptions from
+  // scalac-options 0.1.9, which emits -Werror for Scala 3.x and -Xfatal-warnings for older.
+  // Scala 2.13.18 introduced many new warnings; keep fatal warnings disabled there.
+  tpolecatCiModeOptions := {
+    val opts = tpolecatDevModeOptions.value ++ ScalacOptions.fatalWarningOptions
+    if (scalaBinaryVersion.value == "2.13" && scalaVersion.value.startsWith("2.13.18"))
+      opts -- ScalacOptions.fatalWarningOptions
+    else
+      opts
   },
 
   // Turning off fatal warnings for doc generation
@@ -243,31 +241,21 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
 
   // Silence everything in auto-generated files
   scalacOptions ++= {
-    val scalaV = scalaVersion.value
     if (isDotty.value)
       Seq.empty
-    else if (scalaV.startsWith("2.13.18"))
-      // For newer patch versions, silencer plugin may not be available, use @nowarn instead
-      Seq.empty
     else
-      Seq("-P:silencer:pathFilters=.*[/]src_managed[/].*")
+      Seq.empty
   },
 
   // Syntax improvements, linting, etc.
   libraryDependencies ++= {
-    val scalaV = scalaVersion.value
     if (isDotty.value)
       Seq()
     else {
-      val basePlugins = Seq(
+      Seq(
         compilerPlugin(kindProjectorCompilerPlugin),
         compilerPlugin(betterMonadicForCompilerPlugin)
       )
-      // silencer plugin is not available for all Scala patch versions
-      if (scalaV.startsWith("2.13.18"))
-        basePlugins
-      else
-        basePlugins :+ compilerPlugin(silencerCompilerPlugin)
     }
   },
   libraryDependencies ++= Seq(

@@ -38,7 +38,7 @@ private[tail] object IterantTakeEveryNth {
   }
 
   private final class Loop[F[_], A](n: Int)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] {
-    private[this] var index = n
+    private var index = n
 
     def visit(ref: Next[F, A]): Iterant[F, A] = {
       if (index == 1) {
@@ -94,7 +94,7 @@ private[tail] object IterantTakeEveryNth {
           buffer += cursor.next()
           idx = n
         } else {
-          cursor.next()
+          val _ = cursor.next()
           idx -= 1
         }
         toProcess -= 1

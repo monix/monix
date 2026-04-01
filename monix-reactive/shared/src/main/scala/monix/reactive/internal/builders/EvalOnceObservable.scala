@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import monix.execution.Cancelable
 import scala.util.control.NonFatal
 import monix.reactive.Observable
@@ -25,11 +26,12 @@ import monix.reactive.observers.Subscriber
 /** An observable that evaluates the given by-name argument,
   * and emits it.
   */
+@nowarn("msg=unused value of type")
 private[reactive] final class EvalOnceObservable[A](a: => A) extends Observable[A] {
 
-  private[this] var result: A = _
-  private[this] var errorThrown: Throwable = null
-  @volatile private[this] var hasResult = false
+  private var result: A = null.asInstanceOf[A]
+  private var errorThrown: Throwable = null
+  @volatile private var hasResult = false
 
   private def signalResult(out: Subscriber[A], value: A, ex: Throwable): Unit = {
     if (ex == null) {

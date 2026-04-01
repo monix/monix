@@ -58,11 +58,11 @@ private[tail] object IterantFoldLeftL {
     extends Iterant.Visitor[F, A, F[S]] { loop =>
 
     /** Current calculated state. */
-    private[this] var state = seed
+    private var state = seed
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
-    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
       if (stackRef == null) stackRef = ChunkedArrayStack()
@@ -74,7 +74,7 @@ private[tail] object IterantFoldLeftL {
       else null.asInstanceOf[F[Iterant[F, A]]]
     }
 
-    private[this] val concatContinue: (S => F[S]) =
+    private val concatContinue: (S => F[S]) =
       state =>
         stackPop() match {
           case null => F.pure(state)

@@ -51,6 +51,9 @@ import scala.concurrent.duration.FiniteDuration
   *   Iterant[Task].pure(1)
   * }}}
   */
+@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
+@scala.annotation.nowarn("msg=The syntax `x: _\\*` is no longer supported for vararg splices; use `x\\*` instead")
+@scala.annotation.nowarn
 object IterantBuilders {
   /**
     * See the description on [[IterantBuilders]] for the purpose of this class.

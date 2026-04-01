@@ -18,6 +18,7 @@
 package monix.execution.internal
 
 import monix.execution.schedulers.CanBlock
+import scala.annotation.nowarn
 import scala.annotation.unused
 import scala.concurrent.{ Await, Awaitable }
 import scala.concurrent.duration.Duration
@@ -161,7 +162,7 @@ private[monix] object Platform {
   /** Useful utility that combines an `Either` result, which is what
     * `MonadError#attempt` returns.
     */
-  def composeErrors(first: Throwable, second: Either[Throwable, _]): Throwable =
+  def composeErrors(first: Throwable, second: Either[Throwable, Any]): Throwable =
     second match {
       case Left(e2) if first ne e2 =>
         first.addSuppressed(e2)
@@ -176,6 +177,7 @@ private[monix] object Platform {
     * To be used for multi-threading optimizations. Note that
     * in JavaScript this always returns the same value.
     */
+  @nowarn("cat=deprecation")
   def currentThreadId(): Long = {
     Thread.currentThread().getId
   }

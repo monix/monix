@@ -35,7 +35,7 @@ private[reactive] final class DoOnEarlyStopOperator[A](onStop: Task[Unit]) exten
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] val isActive = Atomic(true)
+      private val isActive = Atomic(true)
 
       def onNext(elem: A): Future[Ack] = {
         val result =

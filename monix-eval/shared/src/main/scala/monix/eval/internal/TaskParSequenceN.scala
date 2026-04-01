@@ -23,10 +23,11 @@ import monix.catnap.ConcurrentQueue
 import monix.eval.Task
 import monix.execution.{ BufferCapacity, ChannelType }
 
+@scala.annotation.nowarn
 private[eval] object TaskParSequenceN {
   /**
-    * Implementation for [[Task.parSequenceN]]
-    */
+* Implementation for [[Task.parSequenceN]]
+*/
   def apply[A](
     parallelism: Int,
     in: Iterable[Task[A]]

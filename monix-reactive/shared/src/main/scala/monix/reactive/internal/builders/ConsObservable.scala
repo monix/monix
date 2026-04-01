@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import monix.execution.Cancelable
 import monix.execution.cancelables.{ AssignableCancelable, MultiAssignCancelable, SingleAssignCancelable }
 import monix.reactive.Observable
@@ -24,6 +25,9 @@ import monix.reactive.observables.ChainedObservable
 import monix.reactive.observables.ChainedObservable.{ subscribe => chain }
 import monix.reactive.observers.Subscriber
 
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
+@nowarn("msg=`_` is deprecated for wildcard arguments of types: use `?` instead")
+@nowarn("msg=unused value of type")
 private[reactive] final class ConsObservable[+A](head: A, tail: Observable[A]) extends ChainedObservable[A] {
 
   def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
@@ -42,7 +46,7 @@ private[reactive] final class ConsObservable[+A](head: A, tail: Observable[A]) e
   }
 
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
-    if (!tail.isInstanceOf[ChainedObservable[_]]) {
+    if (!tail.isInstanceOf[ChainedObservable[?]]) {
       val conn = SingleAssignCancelable()
       simpleSubscribe(conn, out)
       conn

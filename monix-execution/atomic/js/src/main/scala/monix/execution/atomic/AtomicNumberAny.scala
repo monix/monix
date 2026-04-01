@@ -29,8 +29,8 @@ import scala.annotation.unused
   */
 final class AtomicNumberAny[A <: AnyRef: Numeric] private[atomic] (initialValue: A) extends AtomicNumber[A] {
 
-  private[this] val ev = implicitly[Numeric[A]]
-  private[this] var ref = initialValue
+  private val ev = implicitly[Numeric[A]]
+  private var ref = initialValue
 
   def getAndSet(update: A): A = {
     val current = ref

@@ -62,8 +62,8 @@ private[tail] object IterantBuffer {
   )(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[Iterant[F, B]]] { loop =>
 
-    private[this] val buffer = new Buffer[A](count, skip)
-    private[this] val stack = ChunkedArrayStack[F[Iterant[F, A]]]()
+    private val buffer = new Buffer[A](count, skip)
+    private val stack = ChunkedArrayStack[F[Iterant[F, A]]]()
 
     def visit(ref: Next[F, A]): F[Iterant[F, B]] = {
       val seq = buffer.push(ref.item)
@@ -144,13 +144,13 @@ private[tail] object IterantBuffer {
   }
 
   private final class Buffer[A](count: Int, skip: Int) {
-    private[this] val toDrop = if (count > skip) 0 else skip - count
-    private[this] val toRepeat = if (skip > count) 0 else count - skip
+    private val toDrop = if (count > skip) 0 else skip - count
+    private val toRepeat = if (skip > count) 0 else count - skip
 
-    private[this] var isBufferNew = true
-    private[this] var buffer = new Array[AnyRef](count)
-    private[this] var dropped = 0
-    private[this] var length = 0
+    private var isBufferNew = true
+    private var buffer = new Array[AnyRef](count)
+    private var dropped = 0
+    private var length = 0
 
     def push(elem: A): Array[A] = {
       if (dropped > 0) {

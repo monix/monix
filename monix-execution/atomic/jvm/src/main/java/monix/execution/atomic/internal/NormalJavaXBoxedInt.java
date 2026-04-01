@@ -17,48 +17,27 @@
 
 package monix.execution.atomic.internal;
 
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 
-/**
- * INTERNAL API — used in the implementation of
- * `monix.execution.atomic.Atomic`.
- *
- * Being internal it can always change between minor versions,
- * providing no backwards compatibility guarantees and is only public
- * because Java does not provide the capability of marking classes as
- * "internal" to a package and all its sub-packages.
- */
-final class NormalJavaXBoxedInt implements BoxedInt {
-  public volatile int value;
+final class NormalJavaXBoxedInt implements VarHandleBoxedInt {
+  private static final VarHandle VALUE_VH;
 
-  private static final AtomicIntegerFieldUpdater<NormalJavaXBoxedInt> UPDATER =
-    AtomicIntegerFieldUpdater.newUpdater(NormalJavaXBoxedInt.class, "value");
+  static {
+    try {
+      VALUE_VH = MethodHandles.lookup().findVarHandle(NormalJavaXBoxedInt.class, "value", int.class);
+    } catch (NoSuchFieldException | IllegalAccessException e) {
+      throw new AssertionError(e);
+    }
+  }
+
+  private int value;
 
   NormalJavaXBoxedInt(int initialValue) {
     this.value = initialValue;
   }
 
-  public int volatileGet() {
-    return value;
-  }
-
-  public void volatileSet(int update) {
-    value = update;
-  }
-
-  public void lazySet(int update) {
-    UPDATER.lazySet(this, update);
-  }
-
-  public boolean compareAndSet(int current, int update) {
-    return UPDATER.compareAndSet(this, current, update);
-  }
-
-  public int getAndSet(int update) {
-    return UPDATER.getAndSet(this, update);
-  }
-
-  public int getAndAdd(int delta) {
-    return UPDATER.getAndAdd(this, delta);
+  public VarHandle valueHandle() {
+    return VALUE_VH;
   }
 }

@@ -21,10 +21,11 @@ package internal
 import monix.execution.Callback
 import monix.eval.Task.Context
 
+@scala.annotation.nowarn
 private[eval] object TaskStartAndForget {
   /**
-    * Implementation for `Task.startAndForget`.
-    */
+* Implementation for `Task.startAndForget`.
+*/
   def apply[A](fa: Task[A]): Task[Unit] = {
     val start = (ctx: Context, cb: Callback[Throwable, Unit]) => {
       implicit val sc = ctx.scheduler

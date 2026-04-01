@@ -33,8 +33,8 @@ private[reactive] final class DoOnStartOperator[A](cb: A => Task[Unit]) extends 
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var isDone = false
-      private[this] var isStart = true
+      private var isDone = false
+      private var isStart = true
 
       def onNext(elem: A): Future[Ack] = {
         if (isStart) {

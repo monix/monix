@@ -24,7 +24,7 @@ import monix.execution.Scheduler
 import monix.execution.atomic.PaddingStrategy.{ LeftRight128, LeftRight256 }
 import monix.execution.atomic.{ Atomic, AtomicAny, AtomicInt }
 import monix.execution.internal.math
-
+import scala.annotation.nowarn
 import scala.util.control.NonFatal
 import monix.reactive.OverflowStrategy._
 import monix.reactive.observers.buffers.AbstractEvictingBufferedSubscriber._
@@ -107,6 +107,7 @@ private[observers] object EvictingBufferedSubscriber {
   }
 }
 
+@nowarn("msg=The syntax")
 private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
   out: Subscriber[A],
   strategy: Evicted[Nothing],
@@ -116,13 +117,13 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
   require(strategy.bufferSize > 0, "bufferSize must be a strictly positive number")
 
   implicit val scheduler: Scheduler = out.scheduler
-  private[this] val em = out.scheduler.executionModel
+  private val em = out.scheduler.executionModel
 
-  private[this] val droppedCount: AtomicInt =
+  private val droppedCount: AtomicInt =
     if (onOverflow != null) AtomicInt.withPadding(0, LeftRight128)
     else null
 
-  private[this] val itemsToPush =
+  private val itemsToPush =
     Atomic.withPadding(0, LeftRight256)
   private[this] val queue =
     new ConcurrentBuffer[A](strategy)
@@ -160,7 +161,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
     }
   }
 
-  private[this] def pushToConsumer(increment: Int): Unit = {
+  private def pushToConsumer(increment: Int): Unit = {
     val currentNr = {
       if (increment != 0)
         itemsToPush.getAndIncrement(increment)
@@ -176,7 +177,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
     }
   }
 
-  private[this] val consumerLoop = new Runnable {
+  private val consumerLoop = new Runnable {
     def run(): Unit = {
       // This lastIterationAck is also being set by the consumer-loop,
       // but it's important for the write to happen before `itemsToPush`,
@@ -357,7 +358,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
 
 private[observers] object AbstractEvictingBufferedSubscriber {
   private final class ConcurrentBuffer[A](strategy: Evicted[Nothing]) {
-    private[this] val bufferRef: AtomicAny[Buffer[A]] =
+    private val bufferRef: AtomicAny[Buffer[A]] =
       AtomicAny.withPadding(emptyBuffer, LeftRight256)
 
     def drain(): Queue[A] = {

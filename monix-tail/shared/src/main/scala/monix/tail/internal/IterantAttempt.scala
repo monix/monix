@@ -46,8 +46,8 @@ private[tail] object IterantAttempt {
 
     type Attempt = Either[Throwable, A]
 
-    private[this] var wasErrorHandled = false
-    private[this] val handleError = (e: Throwable) => {
+    private var wasErrorHandled = false
+    private val handleError = (e: Throwable) => {
       self.wasErrorHandled = true
       Left(e): Attempt
     }
@@ -158,7 +158,7 @@ private[tail] object IterantAttempt {
     def fail(e: Throwable): Iterant[F, Either[Throwable, A]] =
       Iterant.raiseError(e)
 
-    private[this] val continueMapRef: Either[Throwable, Iterant[F, A]] => Iterant[F, Attempt] = {
+    private val continueMapRef: Either[Throwable, Iterant[F, A]] => Iterant[F, Attempt] = {
       case Left(e) =>
         Iterant.now(handleError(e))
       case Right(iter) =>

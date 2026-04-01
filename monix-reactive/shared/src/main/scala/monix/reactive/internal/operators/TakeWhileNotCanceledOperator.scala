@@ -31,7 +31,7 @@ private[reactive] final class TakeWhileNotCanceledOperator[A](c: BooleanCancelab
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var isActive = true
+      private var isActive = true
 
       def onNext(elem: A): Future[Ack] =
         if (!isActive) Stop

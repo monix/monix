@@ -126,7 +126,7 @@ object ReferenceSchedulerSuite extends SimpleTestSuite {
     val ws = s.withExecutionModel(AlwaysAsyncExecution)
 
     var effect = 0
-    ws.scheduleOnce(1.second) { effect += 1 }
+    val _ = ws.scheduleOnce(1.second) { effect += 1 }
 
     assertEquals(effect, 0)
     s.tick(1.second)

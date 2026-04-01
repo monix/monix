@@ -17,6 +17,7 @@
 
 package monix.reactive
 
+import scala.annotation.nowarn
 import java.io.PrintStream
 
 import monix.execution.Ack.{ Continue, Stop }
@@ -43,6 +44,7 @@ import scala.util.control.NonFatal
   * and after onComplete or onError, a well behaved `Observable`
   * implementation shouldn't send any more onNext events.
   */
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 trait Observer[-A] extends Any with Serializable {
   def onNext(elem: A): Future[Ack]
 
@@ -67,6 +69,7 @@ trait Observer[-A] extends Any with Serializable {
   *         asynchronous boundaries, and when it is seen as being `isCanceled`,
   *         streaming is stopped
   */
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 object Observer {
   /** An `Observer.Sync` is an [[Observer]] that signals demand
     * to upstream synchronously (i.e. the upstream observable doesn't need to
@@ -100,7 +103,7 @@ object Observer {
   def stopped[A]: Observer.Sync[A] = stoppedRef
 
   // Reusable reference
-  private[this] val stoppedRef: Observer.Sync[Any] =
+  private val stoppedRef: Observer.Sync[Any] =
     new Observer.Sync[Any] {
       def onNext(elem: Any): Ack = Stop
       def onError(ex: Throwable): Unit = ()
@@ -196,7 +199,7 @@ object Observer {
 
     def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[A]): Future[Ack] = {
       s.execute(new Runnable {
-        private[this] val em = s.executionModel
+        private val em = s.executionModel
 
         @tailrec
         def fastLoop(syncIndex: Int): Unit = {
@@ -337,7 +340,7 @@ object Observer {
 
   private[reactive] class DumpObserver[-A](prefix: String, out: PrintStream) extends Observer.Sync[A] {
 
-    private[this] var pos = 0
+    private var pos = 0
 
     def onNext(elem: A): Ack = {
       out.println(s"$pos: $prefix --> $elem")
@@ -356,9 +359,9 @@ object Observer {
     }
   }
 
-  private[this] final class ContravariantObserver[A, B](source: Observer[A])(f: B => A) extends Observer[B] {
+  private final class ContravariantObserver[A, B](source: Observer[A])(f: B => A) extends Observer[B] {
     // For protecting the contract
-    private[this] var isDone = false
+    private var isDone = false
 
     override def onNext(elem: B): Future[Ack] = {
       if (isDone) Stop

@@ -17,6 +17,7 @@
 
 package monix.reactive.subjects
 
+import scala.annotation.nowarn
 import cats.arrow.Profunctor
 import monix.execution.Scheduler
 import monix.execution.cancelables.SingleAssignCancelable
@@ -35,6 +36,7 @@ import org.reactivestreams.{ Processor => RProcessor, Subscriber => RSubscriber,
   *
   * Useful to build multicast Observables or reusable processing pipelines.
   */
+@nowarn("msg=`_` is deprecated for wildcard arguments of types: use `?` instead")
 abstract class Subject[I, +O] extends Observable[O] with Observer[I] { self =>
   /** Returns the number of connected subscribers.
     *
@@ -53,6 +55,7 @@ abstract class Subject[I, +O] extends Observable[O] with Observer[I] { self =>
     Subject.toReactiveProcessor(this, bufferSize)
 }
 
+@nowarn("msg=`_` is deprecated for wildcard arguments of types: use `?` instead")
 object Subject {
   /** Transforms the source [[Subject]] into a `org.reactivestreams.Processor`
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]
@@ -65,10 +68,10 @@ object Subject {
     */
   def toReactiveProcessor[I, O](source: Subject[I, O], bufferSize: Int)(implicit s: Scheduler): RProcessor[I, O] = {
     new RProcessor[I, O] {
-      private[this] val subscriber: RSubscriber[I] =
+      private val subscriber: RSubscriber[I] =
         Subscriber(source, s).toReactive(bufferSize)
 
-      def subscribe(subscriber: RSubscriber[_ >: O]): Unit = {
+      def subscribe(subscriber: RSubscriber[? >: O]): Unit = {
         val sub = SingleAssignCancelable()
         sub := source.unsafeSubscribeFn(Subscriber.fromReactiveSubscriber(subscriber, sub))
         ()

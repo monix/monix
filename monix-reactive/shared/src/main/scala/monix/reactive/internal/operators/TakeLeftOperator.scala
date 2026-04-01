@@ -17,11 +17,13 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack.Stop
 import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
+@nowarn("msg=unused value of type")
 private[reactive] final class TakeLeftOperator[A](n: Long) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] = {
@@ -29,8 +31,8 @@ private[reactive] final class TakeLeftOperator[A](n: Long) extends Operator[A, A
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var counter = 0L
-      private[this] var isActive = true
+      private var counter = 0L
+      private var isActive = true
 
       def onNext(elem: A) = {
         if (isActive && counter < n) {

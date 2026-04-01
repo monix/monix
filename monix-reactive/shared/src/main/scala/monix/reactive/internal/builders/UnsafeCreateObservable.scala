@@ -45,7 +45,7 @@ private[reactive] object UnsafeCreateObservable {
   private final class SafeSubscriber[-A](underlying: Subscriber[A]) extends Subscriber[A] { self =>
 
     implicit val scheduler: Scheduler = underlying.scheduler
-    private[this] var isDone = false
+    private var isDone = false
 
     def onNext(elem: A): Future[Ack] =
       if (isDone) Stop

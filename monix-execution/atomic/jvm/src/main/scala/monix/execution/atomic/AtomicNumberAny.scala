@@ -29,9 +29,9 @@ import scala.annotation.tailrec
   * of the JVM that's the semantic of `compareAndSet`. This behavior
   * is kept consistent even on top of Scala.js / Javascript.
   */
-final class AtomicNumberAny[A <: AnyRef: Numeric] private (private[this] val ref: BoxedObject) extends AtomicNumber[A] {
+final class AtomicNumberAny[A <: AnyRef: Numeric] private (private val ref: BoxedObject) extends AtomicNumber[A] {
 
-  private[this] val ev = implicitly[Numeric[A]]
+  private val ev = implicitly[Numeric[A]]
 
   def get(): A = ref.volatileGet().asInstanceOf[A]
   def set(update: A): Unit = ref.volatileSet(update)

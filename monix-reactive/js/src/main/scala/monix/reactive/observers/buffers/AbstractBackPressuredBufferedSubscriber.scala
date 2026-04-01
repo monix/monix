@@ -35,17 +35,17 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
   extends BufferedSubscriber[A] {
 
   require(_size > 0, "bufferSize must be a strictly positive number")
-  private[this] val bufferSize = nextPowerOf2(_size)
+  private val bufferSize = nextPowerOf2(_size)
 
-  private[this] val em = out.scheduler.executionModel
+  private val em = out.scheduler.executionModel
   implicit final val scheduler: Scheduler = out.scheduler
 
-  private[this] var upstreamIsComplete = false
-  private[this] var downstreamIsComplete = false
-  private[this] var errorThrown: Throwable = null
-  private[this] var isLoopActive = false
-  private[this] var backPressured: Promise[Ack] = null
-  private[this] var lastIterationAck: Future[Ack] = Continue
+  private var upstreamIsComplete = false
+  private var downstreamIsComplete = false
+  private var errorThrown: Throwable = null
+  private var isLoopActive = false
+  private var backPressured: Promise[Ack] = null
+  private var lastIterationAck: Future[Ack] = Continue
   protected val queue = JSArrayQueue.unbounded[A]
 
   final def onNext(elem: A): Future[Ack] = {
@@ -58,17 +58,17 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
       backPressured match {
         case null =>
           if (queue.length < bufferSize) {
-            queue.offer(elem)
+            val _ = queue.offer(elem)
             pushToConsumer()
             Continue
           } else {
             backPressured = Promise[Ack]()
-            queue.offer(elem)
+            val _ = queue.offer(elem)
             pushToConsumer()
             backPressured.future
           }
         case promise =>
-          queue.offer(elem)
+          val _ = queue.offer(elem)
           pushToConsumer()
           promise.future
       }
@@ -97,7 +97,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
 
   protected def fetchNext(): R
 
-  private[this] val consumerRunLoop = new Runnable {
+  private val consumerRunLoop = new Runnable {
     def run(): Unit = fastLoop(lastIterationAck, 0)
 
     private final def signalNext(next: R): Future[Ack] =

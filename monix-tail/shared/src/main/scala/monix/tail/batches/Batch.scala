@@ -158,7 +158,8 @@ object Batch {
     */
   def fromArray[A](array: Array[A], offset: Int, length: Int): ArrayBatch[A] = {
     val tp = ClassTag[A](array.getClass.getComponentType)
-    new ArrayBatch[A](array, offset, length)(tp)
+    implicit val ct: ClassTag[A] = tp
+    new ArrayBatch[A](array, offset, length)
   }
 
   /** Converts a Scala [[scala.collection.Iterable Iterable]] into a [[Batch]]. */

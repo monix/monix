@@ -109,7 +109,7 @@ object SingleAssignCancelableSuite extends SimpleTestSuite {
     val b1 = Cancelable()
     s := b1
 
-    intercept[IllegalStateException] {
+    val _ = intercept[IllegalStateException] {
       val b2 = Cancelable()
       s := b2
       ()
@@ -124,7 +124,7 @@ object SingleAssignCancelableSuite extends SimpleTestSuite {
     val b1 = Cancelable()
     s := b1
 
-    intercept[IllegalStateException] {
+    val _ = intercept[IllegalStateException] {
       val b2 = Cancelable()
       s := b2
       ()

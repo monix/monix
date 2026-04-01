@@ -25,9 +25,9 @@ import monix.execution.internal.RingBuffer
   * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
   */
 private[eval] final class StackTracedContext {
-  private[this] val events: RingBuffer[TaskEvent] = new RingBuffer(traceBufferLogSize)
-  private[this] var captured: Int = 0
-  private[this] var omitted: Int = 0
+  private val events: RingBuffer[TaskEvent] = new RingBuffer(traceBufferLogSize)
+  private var captured: Int = 0
+  private var omitted: Int = 0
 
   def pushEvent(fr: TaskEvent): Unit = {
     captured += 1

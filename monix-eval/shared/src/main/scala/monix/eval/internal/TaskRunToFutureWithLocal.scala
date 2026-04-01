@@ -29,13 +29,14 @@ import monix.execution.{ Callback, CancelableFuture, Scheduler }
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
 
+@scala.annotation.nowarn
 private[eval] object TaskRunToFutureWithLocal {
   /** A run-loop that attempts to complete a `CancelableFuture`
-    * synchronously falling back to [[startFull]] and actual
-    * asynchronous execution in case of an asynchronous boundary.
-    *
-    * Function gets invoked by `Task.runToFuture(implicit s: Scheduler)`.
-    */
+* synchronously falling back to [[startFull]] and actual
+* asynchronous execution in case of an asynchronous boundary.
+*
+* Function gets invoked by `Task.runToFuture(implicit s: Scheduler)`.
+*/
   def startFuture[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): CancelableFuture[A] = {
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null

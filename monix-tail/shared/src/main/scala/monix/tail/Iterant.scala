@@ -217,6 +217,9 @@ import scala.concurrent.duration.{ Duration, FiniteDuration }
   *             Eq.fromUniversalEquals
   *         }}}
   */
+@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
+@scala.annotation.nowarn("msg=The syntax `x: _\\*` is no longer supported for vararg splices; use `x\\*` instead")
+@scala.annotation.nowarn
 sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   self =>
 
@@ -2367,6 +2370,9 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   *         `period` of time. The given `period` of time acts as a
   *         fixed delay between successive events.
   */
+@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
+@scala.annotation.nowarn("msg=The syntax `x: _\\*` is no longer supported for vararg splices; use `x\\*` instead")
+@scala.annotation.nowarn
 object Iterant extends IterantInstances {
   /**
     * Alias for [[monix.catnap.ConsumerF]], using `Option[Throwable]` as
@@ -3215,6 +3221,7 @@ private[tail] trait IterantInstances {
     new CatsSyncInstances[F]()
 
   /** Provides the `cats.effect.Sync` instance for [[Iterant]]. */
+  @scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
   class CatsSyncInstances[F[_]](implicit F: Sync[F])
     extends StackSafeMonad[Iterant[F, *]] with MonadError[Iterant[F, *], Throwable] with Defer[Iterant[F, *]]
     with MonoidK[Iterant[F, *]] with CoflatMap[Iterant[F, *]] with FunctorFilter[Iterant[F, *]] {

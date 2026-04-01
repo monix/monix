@@ -84,8 +84,8 @@ final class RefCountCancelable private (onCancel: () => Unit) extends BooleanCan
       }
   }
 
-  private[this] val state = AtomicAny(State(isCanceled = false, activeCounter = 0))
-  private[this] case class State(
+  private val state = AtomicAny(State(isCanceled = false, activeCounter = 0))
+  private case class State(
     isCanceled: Boolean,
     activeCounter: Int
   )

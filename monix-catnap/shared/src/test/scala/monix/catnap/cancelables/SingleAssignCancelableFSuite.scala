@@ -17,11 +17,13 @@
 
 package monix.catnap
 package cancelables
+import scala.annotation.nowarn
 
 import cats.effect.IO
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.{ CompositeException, DummyException }
 
+@nowarn
 object SingleAssignCancelableFSuite extends SimpleTestSuite {
   test("cancel") {
     var effect = 0

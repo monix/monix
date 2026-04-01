@@ -35,7 +35,7 @@ private[reactive] final class OnErrorRecoverWithObservable[A](source: Observable
 
     val main = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var ack: Future[Ack] = Continue
+      private var ack: Future[Ack] = Continue
 
       def onNext(elem: A) = {
         ack = out.onNext(elem)

@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.Scheduler
 import monix.execution.cancelables.{ CompositeCancelable, SingleAssignCancelable }
@@ -26,6 +27,7 @@ import monix.reactive.observers.Subscriber
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{ Future, Promise }
 
+@nowarn("msg=unused value of type")
 private[reactive] final class BufferWithSelectorObservable[+A, S](
   source: Observable[A],
   sampler: Observable[S],
@@ -42,18 +44,18 @@ private[reactive] final class BufferWithSelectorObservable[+A, S](
       implicit val scheduler: Scheduler = downstream.scheduler
 
       // MUST BE synchronized by `self`
-      private[this] var buffer = ListBuffer.empty[A]
+      private var buffer = ListBuffer.empty[A]
       // Maintain internal buffer weight not to compute the weight
       // of the buffer each time an element is added.
       // So to keep complexity to O(1) for each added element.
       // MUST BE synchronized by `self`
-      private[this] var bufferWeight: Int = 0
+      private var bufferWeight: Int = 0
       // MUST BE synchronized by `self`
-      private[this] var promise = Promise[Ack]()
+      private var promise = Promise[Ack]()
       // To be written in onComplete/onError, to be read from tick
-      private[this] var upstreamIsDone = false
+      private var upstreamIsDone = false
       // MUST BE synchronized by `self`.
-      private[this] var downstreamIsDone = false
+      private var downstreamIsDone = false
 
       def onNext(elem: A): Future[Ack] =
         upstreamSubscriber.synchronized {

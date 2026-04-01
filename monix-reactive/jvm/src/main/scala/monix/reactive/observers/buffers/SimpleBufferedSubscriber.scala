@@ -61,10 +61,10 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected 
   capacity: Int
 ) extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
-  private[this] val queue = _qRef
-  private[this] val em = out.scheduler.executionModel
+  private val queue = _qRef
+  private val em = out.scheduler.executionModel
   implicit val scheduler: Scheduler = out.scheduler
-  private[this] val itemsToPush =
+  private val itemsToPush =
     Atomic.withPadding(0, LeftRight256)
 
   def onNext(elem: A): Ack = {
@@ -111,7 +111,7 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected 
     }
   }
 
-  private[this] def pushToConsumer(): Unit = {
+  private def pushToConsumer(): Unit = {
     val currentNr = itemsToPush.getAndIncrement()
 
     // If a run-loop isn't started, then go, go, go!
@@ -123,7 +123,7 @@ private[observers] abstract class AbstractSimpleBufferedSubscriber[A] protected 
     }
   }
 
-  private[this] val consumerLoop = new Runnable {
+  private val consumerLoop = new Runnable {
     def run(): Unit = {
       // This lastIterationAck is also being set by the consumer-loop,
       // but it's important for the write to happen before `itemsToPush`,

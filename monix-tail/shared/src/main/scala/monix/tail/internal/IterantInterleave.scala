@@ -39,8 +39,8 @@ private[tail] object IterantInterleave {
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used by Concat:
 
-    private[this] var _lhStack: ChunkedArrayStack[F[Iterant[F, A]]] = _
-    private[this] var _rhStack: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var _lhStack: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
+    private var _rhStack: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
     private def lhStackPush(ref: F[Iterant[F, A]]): Unit = {
       if (_lhStack == null) _lhStack = ChunkedArrayStack()
@@ -62,13 +62,13 @@ private[tail] object IterantInterleave {
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-    private[this] val lhLoop = new LHLoop
-    private[this] val rhLoop = new RHLoop
+    private val lhLoop = new LHLoop
+    private val rhLoop = new RHLoop
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     private final class LHLoop extends Iterant.Visitor[F, A, Iterant[F, A]] {
-      protected var rhRef: F[Iterant[F, A]] = _
+      protected var rhRef: F[Iterant[F, A]] = null.asInstanceOf[F[Iterant[F, A]]]
 
       def continue(lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): F[Iterant[F, A]] = {
         rhRef = rh
@@ -135,7 +135,7 @@ private[tail] object IterantInterleave {
     }
 
     private final class RHLoop extends Iterant.Visitor[F, A, Iterant[F, A]] {
-      protected var lhRef: F[Iterant[F, A]] = _
+      protected var lhRef: F[Iterant[F, A]] = null.asInstanceOf[F[Iterant[F, A]]]
 
       def continue(lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): F[Iterant[F, A]] = {
         lhRef = lh

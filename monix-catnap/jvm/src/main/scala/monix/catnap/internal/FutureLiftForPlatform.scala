@@ -21,6 +21,7 @@ package internal
 import java.util.concurrent.{ CancellationException, CompletableFuture, CompletionException }
 import java.util.function.BiFunction
 import cats.effect.{ Async, Concurrent }
+import scala.annotation.nowarn
 
 private[catnap] abstract class FutureLiftForPlatform {
   /**
@@ -50,8 +51,10 @@ private[catnap] abstract class FutureLiftForPlatform {
     * A generic function that subsumes both [[javaCompletableToConcurrent]]
     * and [[javaCompletableToAsync]].
     */
+  @nowarn("cat=deprecation")
+  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   def javaCompletableToConcurrentOrAsync[F[_], A](fa: F[CompletableFuture[A]])(
-    implicit F: Concurrent[F] OrElse Async[F]
+    implicit F: OrElse[Concurrent[F], Async[F]]
   ): F[A] = {
 
     F.unify match {
@@ -65,8 +68,10 @@ private[catnap] abstract class FutureLiftForPlatform {
     * `java.util.concurrent.CompletableFuture` to any `Concurrent`
     * or `Async` data type.
     */
+  @nowarn("cat=deprecation")
+  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   implicit def javaCompletableLiftForConcurrentOrAsync[F[_]](
-    implicit F: Concurrent[F] OrElse Async[F]
+    implicit F: OrElse[Concurrent[F], Async[F]]
   ): FutureLift[F, CompletableFuture] = {
 
     F.unify match {

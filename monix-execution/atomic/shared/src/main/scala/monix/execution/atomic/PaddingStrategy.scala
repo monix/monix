@@ -32,8 +32,9 @@ package monix.execution.atomic
   *   import monix.execution.atomic.Atomic
   *   import monix.execution.atomic.PaddingStrategy.Right64
   *
-  *   val paddedAtomic = Atomic.withPadding(10, Right64)
-  * }}}
+   *   val paddedAtomic = Atomic.withPadding(10, Right64)
+   *   val _ = paddedAtomic.get()
+   * }}}
   *
   * @see [[PaddingStrategy.NoPadding]]
   * @see [[PaddingStrategy.Left64]]

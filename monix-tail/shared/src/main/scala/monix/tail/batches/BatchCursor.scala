@@ -319,7 +319,8 @@ object BatchCursor {
     */
   def fromArray[A](array: Array[A], offset: Int, length: Int): ArrayCursor[A] = {
     val tp = ClassTag[A](array.getClass.getComponentType)
-    new ArrayCursor[A](array, offset, length)(tp)
+    implicit val ct: ClassTag[A] = tp
+    new ArrayCursor[A](array, offset, length)
   }
 
   /** $fromAnyArrayDesc
@@ -328,6 +329,7 @@ object BatchCursor {
     * @param offset $paramArrayOffset
     * @param length $paramArrayLength
     */
+  @scala.annotation.nowarn("msg=`_` is deprecated for wildcard arguments of types: use `\\?` instead")
   def fromAnyArray[A](array: Array[_], offset: Int, length: Int): ArrayCursor[A] =
     fromArray(array, offset, length).asInstanceOf[ArrayCursor[A]]
 
@@ -335,6 +337,7 @@ object BatchCursor {
     *
     * @param array $paramArray
     */
+  @scala.annotation.nowarn("msg=`_` is deprecated for wildcard arguments of types: use `\\?` instead")
   def fromAnyArray[A](array: Array[_]): ArrayCursor[A] =
     fromAnyArray(array, 0, array.length)
 

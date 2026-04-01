@@ -39,8 +39,8 @@ private[reactive] final class FoldWhileLeftObservable[A, S](
 
       source.unsafeSubscribeFn(new Subscriber[A] {
         implicit val scheduler: Scheduler = out.scheduler
-        private[this] var isDone = false
-        private[this] var state = initialState
+        private var isDone = false
+        private var state = initialState
 
         def onNext(elem: A): Future[Ack] = {
           // Protects calls to user code from within the operator,

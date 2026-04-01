@@ -17,6 +17,7 @@
 
 package monix.reactive.observers.buffers
 
+import scala.annotation.nowarn
 import monix.execution.ChannelType
 import monix.execution.internal.Platform
 import monix.reactive.observers.Subscriber
@@ -27,6 +28,7 @@ import scala.collection.mutable.ListBuffer
   * [[monix.reactive.OverflowStrategy.BackPressure BackPressured]]
   * buffer overflowStrategy that sends events in bundles.
   */
+@nowarn("msg=unused value of type")
 private[monix] final class BatchedBufferedSubscriber[A] private (
   out: Subscriber[List[A]],
   _bufferSize: Int,

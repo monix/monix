@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.execution.Callback
 import monix.execution.atomic.AtomicInt
@@ -25,6 +26,7 @@ import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 import concurrent.duration._
 
+@nowarn
 object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Task.memoizeOnSuccess should work asynchronously for first subscriber") { implicit s =>
     var effect = 0

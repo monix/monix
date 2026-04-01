@@ -18,7 +18,6 @@
 package monix.execution
 
 import monix.execution.atomic.AtomicAny
-import monix.execution.internal.Platform
 import monix.execution.schedulers.TrampolinedRunnable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Promise
@@ -92,7 +91,10 @@ object Cancelable {
     */
   def fromPromise[A](p: Promise[A], e: Throwable): Cancelable =
     new Cancelable {
-      def cancel(): Unit = { p.tryFailure(e); () }
+      def cancel(): Unit = {
+        val _ = p.tryFailure(e)
+        ()
+      }
     }
 
   /** Given a collection of cancelables, cancel them all.
@@ -115,7 +117,8 @@ object Cancelable {
       case one :: Nil =>
         throw one
       case first :: rest =>
-        throw Platform.composeErrors(first, rest: _*)
+        rest.foreach(e => if (e ne first) first.addSuppressed(e))
+        throw first
       case _ =>
         () // Nothing
     }
@@ -129,7 +132,7 @@ object Cancelable {
 
   private final class CancelableTask(cb: () => Unit) extends Cancelable {
 
-    private[this] val callbackRef = /*_*/ AtomicAny(cb) /*_*/
+    private val callbackRef = /*_*/ AtomicAny(cb) /*_*/
 
     def cancel(): Unit = {
       // Setting the callback to null with a `getAndSet` is solving
@@ -145,7 +148,7 @@ object Cancelable {
   private final class CollectionTrampolined(refs: Iterable[Cancelable], sc: Scheduler)
     extends Cancelable with TrampolinedRunnable {
 
-    private[this] val atomic = /*_*/ AtomicAny(refs) /*_*/
+    private val atomic = /*_*/ AtomicAny(refs) /*_*/
 
     def cancel(): Unit =
       sc.execute(this)

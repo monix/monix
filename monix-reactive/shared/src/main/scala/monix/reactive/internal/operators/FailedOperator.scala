@@ -17,11 +17,13 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
+@nowarn("msg=unused value of type")
 private[reactive] object FailedOperator extends Operator[Any, Throwable] {
   def apply(out: Subscriber[Throwable]): Subscriber[Any] =
     new Subscriber.Sync[Any] {

@@ -16,10 +16,12 @@
  */
 
 package monix.catnap
+import scala.annotation.nowarn
 
 import cats.effect.IO
 import minitest.SimpleTestSuite
 
+@nowarn
 object CancelableFSuite extends SimpleTestSuite {
   test("apply") {
     var effect = 0

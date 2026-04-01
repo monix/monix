@@ -76,13 +76,13 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     var firstBatch = 0
     var secondBatch = 0
 
-    s.scheduleOnce(
+    val _ = s.scheduleOnce(
       10,
       TimeUnit.SECONDS,
       action {
         firstBatch += 1
         s.execute(action { firstBatch += 1 })
-        s.scheduleOnce(
+        val _ = s.scheduleOnce(
           10,
           TimeUnit.SECONDS,
           action {
@@ -93,13 +93,13 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
       }
     )
 
-    s.scheduleOnce(
+    val _ = s.scheduleOnce(
       20,
       TimeUnit.SECONDS,
       action {
         secondBatch += 1
         s.execute(action { secondBatch += 1 })
-        s.scheduleOnce(
+        val _ = s.scheduleOnce(
           10,
           TimeUnit.SECONDS,
           action {
@@ -139,7 +139,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, None)
 
     s.tick(10.seconds)
-    intercept[TimeoutException] { f.value.get.get; () }
+    val _ = intercept[TimeoutException] { val _ = f.value.get.get; () }
     ()
   }
 
@@ -167,7 +167,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
   test("complicated scheduling, test 1") { implicit s =>
     var counter = 0
 
-    delayedResult(50.millis, 300.millis) {
+    val _ = delayedResult(50.millis, 300.millis) {
       counter += 1
 
       delayedResult(50.millis, 300.millis) {
@@ -196,7 +196,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
   test("complicated scheduling, test 2") { implicit s =>
     var counter = 0
 
-    delayedResult(50.millis, 300.millis) {
+    val _ = delayedResult(50.millis, 300.millis) {
       counter += 1
 
       delayedResult(50.millis, 300.millis) {
@@ -279,7 +279,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, ex)
 
     // Other runnables have been rescheduled async
-    s.tickOne()
+    val _ = s.tickOne()
     assertEquals(effect, 1 + 2 + 3)
   }
 
@@ -310,7 +310,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     }
 
     assertEquals(effect, 0)
-    s.tickOne()
+    val _ = s.tickOne()
     assertEquals(effect, 3)
   }
 
@@ -338,14 +338,14 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
   def delayedResult[A](delay: FiniteDuration, timeout: FiniteDuration)(r: => A)(implicit s: Scheduler) = {
     val f1 = {
       val p = Promise[A]()
-      s.scheduleOnce(delay.length, delay.unit, action { p.success(r); () })
+      val _ = s.scheduleOnce(delay.length, delay.unit, action { p.success(r); () })
       p.future
     }
 
     // catching the exception here, for non-useless stack traces
     val err = Try(throw new TimeoutException)
     val promise = Promise[A]()
-    val task = s.scheduleOnce(timeout.length, timeout.unit, action { promise.tryComplete(err); () })
+    val task = s.scheduleOnce(timeout.length, timeout.unit, action { val _ = promise.tryComplete(err); () })
 
     f1.onComplete { result =>
       // canceling task to prevent waisted CPU resources and memory leaks

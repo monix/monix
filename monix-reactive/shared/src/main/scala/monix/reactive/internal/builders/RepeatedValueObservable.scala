@@ -43,11 +43,11 @@ private[reactive] final class RepeatedValueObservable[A](initialDelay: FiniteDur
     task
   }
 
-  private[this] def runnable(subscriber: Subscriber[A], task: MultiAssignCancelable): Runnable =
+  private def runnable(subscriber: Subscriber[A], task: MultiAssignCancelable): Runnable =
     new Runnable { self =>
-      private[this] implicit val s: Scheduler = subscriber.scheduler
-      private[this] val periodMs = period.toMillis
-      private[this] var startedAt = 0L
+      private implicit val s: Scheduler = subscriber.scheduler
+      private val periodMs = period.toMillis
+      private var startedAt = 0L
 
       def syncScheduleNext(): Unit = {
         val initialDelay = {

@@ -117,15 +117,16 @@ private[eval] sealed abstract class TaskConnection extends CancelableF[Task] {
   def toCancelable(implicit s: Scheduler): Cancelable
 }
 
+@scala.annotation.nowarn
 private[eval] object TaskConnection {
   /** Builder for [[TaskConnection]]. */
   def apply(): TaskConnection =
     new Impl
 
   /**
-    * Reusable [[TaskConnection]] reference that cannot
-    * be canceled.
-    */
+* Reusable [[TaskConnection]] reference that cannot
+* be canceled.
+*/
   val uncancelable: TaskConnection =
     new Uncancelable
 
@@ -143,11 +144,10 @@ private[eval] object TaskConnection {
   }
 
   private final class Impl extends TaskConnection { self =>
-    private[this] val state =
-      Atomic.withPadding(
-        (List.empty[AnyRef], Promise[Unit]()),
-        PaddingStrategy.LeftRight128
-      )
+    private val state = Atomic.withPadding(
+      (List.empty[AnyRef], Promise[Unit]()),
+      PaddingStrategy.LeftRight128
+    )
 
     val cancel = Task.suspend {
       state.transformAndExtract {

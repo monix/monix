@@ -16,11 +16,13 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import minitest.TestSuite
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 
+@nowarn
 object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {

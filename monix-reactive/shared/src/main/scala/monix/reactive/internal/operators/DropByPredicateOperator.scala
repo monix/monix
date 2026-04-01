@@ -30,8 +30,8 @@ private[reactive] final class DropByPredicateOperator[A](p: A => Boolean, inclus
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var continueDropping = true
-      private[this] var isDone = false
+      private var continueDropping = true
+      private var isDone = false
 
       def onNext(elem: A): Future[Ack] = {
         if (continueDropping) {

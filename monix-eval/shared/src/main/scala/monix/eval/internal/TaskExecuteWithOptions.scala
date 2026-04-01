@@ -20,20 +20,20 @@ package monix.eval.internal
 import monix.eval.Task
 import monix.eval.Task.{ Context, ContextSwitch, Options }
 
+@scala.annotation.nowarn
 private[eval] object TaskExecuteWithOptions {
   /**
-    * Implementation for `Task.executeWithOptions`
-    */
+* Implementation for `Task.executeWithOptions`
+*/
   def apply[A](self: Task[A], f: Options => Options): Task[A] =
     ContextSwitch(self, enable(f), disable)
 
-  private[this] def enable(f: Options => Options): Context => Context =
-    ctx => {
-      val opts2 = f(ctx.options)
-      if (opts2 != ctx.options) ctx.withOptions(opts2)
-      else ctx
-    }
+  private def enable(f: Options => Options): Context => Context = ctx => {
+    val opts2 = f(ctx.options)
+    if (opts2 != ctx.options) ctx.withOptions(opts2)
+    else ctx
+  }
 
-  private[this] val disable: (Any, Throwable, Context, Context) => Context =
+  private val disable: (Any, Throwable, Context, Context) => Context =
     (_, _, old, current) => current.withOptions(old.options)
 }

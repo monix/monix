@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.eval.internal.TaskConnection
 import monix.execution.Cancelable
@@ -23,6 +24,7 @@ import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
 
+@nowarn
 object TaskConnectionSuite extends BaseTestSuite {
   test("initial push") { implicit s =>
     var effect = 0

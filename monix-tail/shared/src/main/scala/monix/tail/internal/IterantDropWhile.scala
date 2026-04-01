@@ -32,7 +32,7 @@ private[tail] object IterantDropWhile {
 
   private class Loop[F[_], A](p: A => Boolean)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
-    private[this] var dropFinished = false
+    private var dropFinished = false
 
     def visit(ref: Next[F, A]): Iterant[F, A] =
       if (dropFinished) ref

@@ -31,8 +31,8 @@ private[reactive] final class OnErrorRetryCountedObservable[+A](source: Observab
   private def loop(subscriber: Subscriber[A], task: OrderedCancelable, retryIdx: Long): Unit = {
     val cancelable = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler: Scheduler = subscriber.scheduler
-      private[this] var isDone = false
-      private[this] var ack: Future[Ack] = Continue
+      private var isDone = false
+      private var ack: Future[Ack] = Continue
 
       def onNext(elem: A) = {
         ack = subscriber.onNext(elem)

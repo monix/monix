@@ -32,7 +32,7 @@ private[reactive] final class SwitchIfEmptyObservable[+A](source: Observable[A],
 
     val mainSub = source.unsafeSubscribeFn(new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var isEmpty = true
+      private var isEmpty = true
 
       def onNext(elem: A): Future[Ack] = {
         if (isEmpty) isEmpty = false

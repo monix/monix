@@ -16,6 +16,7 @@
  */
 
 package monix.catnap
+import scala.annotation.nowarn
 
 import cats.effect.{ Async, ContextShift, IO }
 import minitest.TestSuite
@@ -26,6 +27,7 @@ import monix.execution.{ Cancelable, CancelableFuture }
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Failure, Success }
 
+@nowarn
 object FutureLiftSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =

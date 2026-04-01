@@ -73,7 +73,7 @@ private[reactive] final class FirstStartedObservable[A](source: Observable[A]*) 
 
     observable.unsafeSubscribeFn(new Observer[A] {
       // for fast path
-      private[this] var finishLineCache = -1
+      private var finishLineCache = -1
 
       private def shouldStream(): Boolean = {
         if (finishLineCache != idx) finishLineCache = finishLine.get()

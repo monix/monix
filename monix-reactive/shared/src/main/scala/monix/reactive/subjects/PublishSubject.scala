@@ -17,6 +17,7 @@
 
 package monix.reactive.subjects
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
@@ -38,12 +39,14 @@ import scala.concurrent.Future
   *
   * @see [[Subject]]
   */
+@nowarn("msg=discarded non-Unit value")
+@nowarn("msg=unused value of type")
 final class PublishSubject[A] private () extends Subject[A, A] { self =>
   /*
    * NOTE: the stored vector value can be null and if it is, then
    * that means our subject has been terminated.
    */
-  private[this] val stateRef = Atomic.withPadding(State[A](), LeftRight128)
+  private val stateRef = Atomic.withPadding(State[A](), LeftRight128)
 
   private def onSubscribeCompleted(subscriber: Subscriber[A], ex: Throwable): Cancelable = {
     if (ex != null) subscriber.onError(ex)

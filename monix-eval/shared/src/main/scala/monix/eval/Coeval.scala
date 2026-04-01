@@ -181,6 +181,7 @@ import scala.util.{ Failure, Success, Try }
   *         it might be better to pass such a reference around as
   *         a parameter.
   */
+@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
 sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   import monix.eval.Coeval._
 
@@ -1646,7 +1647,7 @@ object Coeval extends CoevalInstancesLevel0 {
     * a `Monoid[Coeval[A]]` implementation.
     */
   implicit def catsMonoid[A](implicit A: Monoid[A]): Monoid[Coeval[A]] =
-    new CatsMonadToMonoid[Coeval, A]()(CatsSyncForCoeval, A)
+    new CatsMonadToMonoid[Coeval, A]()
 }
 
 private[eval] abstract class CoevalInstancesLevel0 extends CoevalDeprecatedCompanion {
@@ -1658,5 +1659,5 @@ private[eval] abstract class CoevalInstancesLevel0 extends CoevalDeprecatedCompa
     * in order to avoid conflicts.
     */
   implicit def catsSemigroup[A](implicit A: Semigroup[A]): Semigroup[Coeval[A]] =
-    new CatsMonadToSemigroup[Coeval, A]()(Coeval.catsSync, A)
+    new CatsMonadToSemigroup[Coeval, A]()
 }

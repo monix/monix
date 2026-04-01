@@ -55,8 +55,8 @@ import monix.reactive.observers.Subscriber
   */
 final class Var[A] private (initial: A)(implicit s: Scheduler) extends Observable[A] { self =>
 
-  private[this] var value: A = initial
-  private[this] val underlying = ConcurrentSubject.behavior(initial, OverflowStrategy.Unbounded)
+  private var value: A = initial
+  private val underlying = ConcurrentSubject.behavior(initial, OverflowStrategy.Unbounded)
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable =
     underlying.unsafeSubscribeFn(subscriber)

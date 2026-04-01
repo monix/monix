@@ -41,9 +41,9 @@ import scala.concurrent.{ Future, Promise }
 final class PublishToOneSubject[A] private () extends Subject[A, A] with BooleanCancelable {
   import PublishToOneSubject.{ canceledState, pendingCompleteState }
 
-  private[this] val subscriptionP = Promise[Ack]()
-  private[this] var errorThrown: Throwable = _
-  private[this] val ref = Atomic(null: Subscriber[A])
+  private val subscriptionP = Promise[Ack]()
+  private var errorThrown: Throwable = null.asInstanceOf[Throwable]
+  private val ref = Atomic(null: Subscriber[A])
 
   /** A `Future` that signals when the subscription happened
     * with a `Continue`, or with a `Stop` if the subscription

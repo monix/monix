@@ -56,8 +56,7 @@ import monix.execution.{ ExecutionModel => ExecModel }
 final class TrampolineScheduler(underlying: Scheduler, override val executionModel: ExecModel) extends Scheduler {
   self =>
 
-  private[this] val trampoline =
-    TrampolineExecutionContext(underlying)
+  private val trampoline = TrampolineExecutionContext(underlying)
   override def execute(runnable: Runnable): Unit =
     trampoline.execute(runnable)
 

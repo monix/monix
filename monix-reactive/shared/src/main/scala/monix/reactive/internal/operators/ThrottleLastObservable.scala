@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.Scheduler
 import monix.execution.cancelables.{ CompositeCancelable, SingleAssignCancelable }
@@ -25,6 +26,7 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
+@nowarn("msg=unused value of type")
 private[reactive] final class ThrottleLastObservable[+A, S](
   source: Observable[A],
   sampler: Observable[S],
@@ -41,13 +43,13 @@ private[reactive] final class ThrottleLastObservable[+A, S](
 
       // Value is volatile to keep write to lastValue visible
       // after this one is seen as being true
-      @volatile private[this] var hasValue = false
+      @volatile private var hasValue = false
       // MUST BE written before `hasValue = true`
-      private[this] var lastValue: A = _
+      private var lastValue: A = null.asInstanceOf[A]
       // To be written in onComplete/onError, to be read from tick
-      private[this] var upstreamIsDone = false
+      private var upstreamIsDone = false
       // MUST BE synchronized by `upstreamSubscriber`.
-      private[this] var downstreamIsDone = false
+      private var downstreamIsDone = false
 
       def onNext(elem: A): Ack =
         if (downstreamIsDone) Stop

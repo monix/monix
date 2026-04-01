@@ -38,7 +38,7 @@ private[reactive] final class FoldLeftTaskConsumer[A, R](initial: () => R, f: (R
     val out = new Subscriber[A] {
       implicit val scheduler: Scheduler = s
 
-      private[this] var state = initial()
+      private var state = initial()
 
       def onNext(elem: A): Future[Ack] = {
         // Protects calls to user code from within the operator,

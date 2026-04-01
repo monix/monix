@@ -26,6 +26,7 @@ import monix.eval.internal.TracingPlatform.{ enhancedExceptions, isStackTracing 
 import scala.reflect.NameTransformer
 import scala.util.control.NonFatal
 
+@scala.annotation.nowarn
 private[eval] object CoevalRunLoop {
   private type Current = Coeval[Any]
   private type Bind = Any => Coeval[Any]
@@ -178,10 +179,10 @@ private[eval] object CoevalRunLoop {
   }
 
   /**
-    * If stack tracing and contextual exceptions are enabled, this
-    * function will rewrite the stack trace of a captured exception
-    * to include the async stack trace.
-    */
+* If stack tracing and contextual exceptions are enabled, this
+* function will rewrite the stack trace of a captured exception
+* to include the async stack trace.
+*/
   private[internal] def augmentException(ex: Throwable, ctx: CoevalStackTracedContext): Unit = {
     val stackTrace = ex.getStackTrace
     if (stackTrace.nonEmpty) {
@@ -211,7 +212,7 @@ private[eval] object CoevalRunLoop {
   private def dropRunLoopFrames(frames: Array[StackTraceElement]): Array[StackTraceElement] =
     frames.takeWhile(ste => !runLoopFilter.exists(ste.getClassName.startsWith(_)))
 
-  private[this] val runLoopFilter = List(
+  private val runLoopFilter = List(
     "monix.eval.",
     "scala.runtime."
   )

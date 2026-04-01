@@ -17,6 +17,7 @@
 
 package monix.reactive.compression.internal.operators
 
+import scala.annotation.nowarn
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.util.zip.{ CRC32, Deflater }
@@ -44,6 +45,7 @@ import scala.concurrent.Future
 import scala.util.Success
 import scala.util.control.NonFatal
 
+@nowarn("msg=unused value of type")
 private[compression] final class GzipOperator(
   fileName: Option[String],
   modificationTime: Option[Instant],
@@ -55,8 +57,8 @@ private[compression] final class GzipOperator(
     new Subscriber[Array[Byte]] {
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var ack: Future[Ack] = _
-      private[this] val gzipper =
+      private var ack: Future[Ack] = null.asInstanceOf[Future[Ack]]
+      private val gzipper =
         new Gzipper(
           bufferSize,
           params.level,

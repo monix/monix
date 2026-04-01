@@ -16,6 +16,7 @@
  */
 
 package monix.catnap
+import scala.annotation.nowarn
 
 import cats.effect._
 import cats.implicits._
@@ -27,6 +28,7 @@ import monix.execution.schedulers.TestScheduler
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
+@nowarn
 object CircuitBreakerSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =

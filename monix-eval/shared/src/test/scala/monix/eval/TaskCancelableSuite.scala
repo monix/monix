@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.effect.ExitCase
 import monix.execution.Callback
@@ -24,6 +25,7 @@ import monix.execution.exceptions.DummyException
 
 import scala.util.{ Failure, Success, Try }
 
+@nowarn
 object TaskCancelableSuite extends BaseTestSuite {
   test("Task.cancelable0 should be stack safe on repeated, right-associated binds") { implicit s =>
     def signal[A](a: A): Task[A] = Task.cancelable0[A] { (_, cb) =>

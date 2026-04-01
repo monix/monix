@@ -23,6 +23,7 @@ import monix.execution.cancelables.{ ChainedCancelable, SingleAssignCancelable }
 import monix.execution.misc.Local
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
+import scala.annotation.nowarn
 import scala.concurrent._
 import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
@@ -121,7 +122,7 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
     this match {
       case Async(other, cRef, local) =>
         CancelableFuture.applyWithLocal(other.mapTo[S], cRef, local)
-      case p: Pure[_] =>
+      case p: Pure[Any] =>
         CancelableFuture.applyWithLocal(super.mapTo[S], Cancelable.empty, p.isolatedCtx)
       case Never =>
         Never
@@ -132,7 +133,9 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
     executor: ExecutionContext
   ): CancelableFuture[A] =
     transformWith { r =>
-      if (pf.isDefinedAt(r)) pf(r)
+      if (pf.isDefinedAt(r)) {
+        val _ = pf(r)
+      }
       this
     }
 
@@ -363,11 +366,13 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
 
     def onComplete[U](f: (Try[A]) => U)(implicit executor: ExecutionContext): Unit =
       executor.execute(() => {
-        f(immediate); ()
+        val _ = f(immediate)
+        ()
       })
   }
 
   /** An actual [[CancelableFuture]] implementation; internal. */
+  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   private[execution] final case class Async[+A](
     underlying: Future[A],
     cancelable: Cancelable,

@@ -41,7 +41,8 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
       atMost.length,
       atMost.unit,
       () => {
-        promise.tryFailure(err); ()
+        val _ = promise.tryFailure(err)
+        ()
       }
     )
 
@@ -76,7 +77,8 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
       atMost.length,
       atMost.unit,
       () => {
-        promise.trySuccess(None); ()
+        val _ = promise.trySuccess(None)
+        ()
       }
     )
 
@@ -129,7 +131,7 @@ object FutureUtils extends internal.FutureUtilsForPlatform {
     */
   def delayedResult[A](delay: FiniteDuration)(result: => A)(implicit s: Scheduler): Future[A] = {
     val p = Promise[A]()
-    s.scheduleOnce(delay.length, delay.unit, () => p.complete(Try(result)))
+    val _ = s.scheduleOnce(delay.length, delay.unit, () => p.complete(Try(result)))
     p.future
   }
 

@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack.Stop
@@ -31,6 +32,8 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Failure, Success }
 
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
+@nowarn("msg=unused value of type")
 private[reactive] object DoOnSubscribeObservable {
   // Implementation for doBeforeSubscribe
   final class Before[+A](source: Observable[A], task: Task[Unit]) extends Observable[A] {
@@ -63,8 +66,8 @@ private[reactive] object DoOnSubscribeObservable {
       val cancelable = source.unsafeSubscribeFn(
         new Subscriber[A] {
           implicit val scheduler: Scheduler = out.scheduler
-          private[this] val completeGuard = Atomic(true)
-          private[this] var isActive = false
+          private val completeGuard = Atomic(true)
+          private var isActive = false
 
           def onNext(elem: A): Future[Ack] = {
             if (isActive) {

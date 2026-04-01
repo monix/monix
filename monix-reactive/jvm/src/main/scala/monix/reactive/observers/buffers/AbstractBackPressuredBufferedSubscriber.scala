@@ -17,6 +17,7 @@
 
 package monix.reactive.observers.buffers
 
+import scala.annotation.nowarn
 import monix.execution.{ Ack, ChannelType }
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.BufferCapacity.Unbounded
@@ -37,6 +38,7 @@ import scala.util.{ Failure, Success }
 /** Shared internals between [[BackPressuredBufferedSubscriber]] and
   * [[BatchedBufferedSubscriber]].
   */
+@nowarn("msg=unused value of type")
 private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
   out: Subscriber[R],
   _bufferSize: Int,
@@ -45,8 +47,8 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
 
   require(_bufferSize > 0, "bufferSize must be a strictly positive number")
 
-  private[this] val bufferSize = math.nextPowerOf2(_bufferSize)
-  private[this] val em = out.scheduler.executionModel
+  private val bufferSize = math.nextPowerOf2(_bufferSize)
+  private val em = out.scheduler.executionModel
   implicit final val scheduler: Scheduler = out.scheduler
 
   protected final val queue: LowLevelConcurrentQueue[A] =
@@ -56,9 +58,9 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
       fenced = false
     )
 
-  private[this] val itemsToPush =
+  private val itemsToPush =
     Atomic.withPadding(0, LeftRight256)
-  private[this] val backPressured =
+  private val backPressured =
     Atomic.withPadding(null: Promise[Ack], LeftRight256)
 
   @tailrec
@@ -129,7 +131,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
   protected def fetchNext(): R
   protected def fetchSize(r: R): Int
 
-  private[this] val consumerRunLoop = new Runnable {
+  private val consumerRunLoop = new Runnable {
     def run(): Unit = {
       fastLoop(lastIterationAck, 0, 0)
     }

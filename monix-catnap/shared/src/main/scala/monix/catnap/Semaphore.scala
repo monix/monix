@@ -25,6 +25,7 @@ import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.internal.GenericSemaphore
 import monix.execution.internal.GenericSemaphore.Listener
+import scala.annotation.nowarn
 import scala.concurrent.Promise
 
 /** The `Semaphore` is an asynchronous semaphore implementation that
@@ -66,13 +67,15 @@ import scala.concurrent.Promise
   * inspired by the implementation in Cats-Effect, which was ported
   * from FS2.
   */
+@nowarn("cat=deprecation")
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)(
   implicit
-  F: Concurrent[F] OrElse Async[F],
+  F: OrElse[Concurrent[F], Async[F]],
   cs: ContextShift[F]
 ) extends cats.effect.concurrent.Semaphore[F] {
 
-  private[this] implicit val F0: Async[F] = F.unify
+  private val F0: Async[F] = F.unify
 
   /** Returns the number of permits currently available. Always non-negative.
     *
@@ -212,8 +215,7 @@ final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)(
   def awaitAvailable(n: Long): F[Unit] =
     underlying.awaitAvailable(n)
 
-  private[this] val underlying =
-    new Semaphore.Impl[F](provisioned, ps)
+  private val underlying = new Semaphore.Impl[F](provisioned, ps)(F, F0, cs)
 }
 
 object Semaphore {
@@ -232,9 +234,10 @@ object Semaphore {
     * @param cs is a `ContextShift` instance required in order to introduce
     *        async boundaries after successful `acquire` operations, for safety
     */
+  @nowarn("cat=deprecation")
   def apply[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(
     implicit
-    F: Concurrent[F] OrElse Async[F],
+    F: OrElse[Concurrent[F], Async[F]],
     cs: ContextShift[F]
   ): F[Semaphore[F]] = {
 
@@ -259,9 +262,10 @@ object Semaphore {
     *        async boundaries after successful `acquire` operations, for safety
     */
   @UnsafeBecauseImpure
+  @nowarn("cat=deprecation")
   def unsafe[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(
     implicit
-    F: Concurrent[F] OrElse Async[F],
+    F: OrElse[Concurrent[F], Async[F]],
     cs: ContextShift[F]
   ): Semaphore[F] =
     new Semaphore[F](provisioned, ps)
@@ -280,7 +284,7 @@ object Semaphore {
 
   private final class Impl[F[_]](provisioned: Long, ps: PaddingStrategy)(
     implicit
-    F: Concurrent[F] OrElse Async[F],
+    F: OrElse[Concurrent[F], Async[F]],
     F0: Async[F],
     cs: ContextShift[F]
   ) extends GenericSemaphore[F[Unit]](provisioned, ps) {
@@ -325,13 +329,13 @@ object Semaphore {
     protected def makeCancelable(f: (Listener[Unit]) => Unit, p: Listener[Unit]): F[Unit] =
       F0.delay(f(p))
 
+    @nowarn("msg=Implicit parameters should be provided with a `using` clause")
     private def make[A](k: (Either[Throwable, A] => Unit) => F[Unit]): F[A] =
       F.fold(
         F => F.cancelable(k),
         F => AsyncUtils.cancelable(k)(F)
       )
 
-    private[this] val bindFork: (Unit => F[Unit]) =
-      _ => cs.shift
+    private val bindFork: (Unit => F[Unit]) = _ => cs.shift
   }
 }

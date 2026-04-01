@@ -16,12 +16,15 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
+
 import cats.effect.{ ContextShift, IO }
 import monix.catnap.SchedulerEffect
 import monix.execution.exceptions.DummyException
 
 import scala.util.{ Failure, Success }
 
+@nowarn
 object TaskLiftSuite extends BaseTestSuite {
   import TaskConversionsSuite.{ CIO, CustomConcurrentEffect, CustomEffect }
 

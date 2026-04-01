@@ -41,7 +41,7 @@ import scala.annotation.tailrec
   */
 final class SerialCancelable private (initial: Cancelable) extends AssignableCancelable.Multi {
 
-  private[this] val state = {
+  private val state = {
     AtomicAny.withPadding(initial, PaddingStrategy.LeftRight128)
   }
 

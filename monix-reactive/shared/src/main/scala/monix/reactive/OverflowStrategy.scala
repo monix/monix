@@ -196,6 +196,6 @@ object OverflowStrategy {
   final def Default[A]: OverflowStrategy[A] =
     defaultInstance
 
-  private[this] val defaultInstance: OverflowStrategy[Nothing] =
+  private val defaultInstance: OverflowStrategy[Nothing] =
     BackPressure(bufferSize = Platform.recommendedBatchSize * 2)
 }

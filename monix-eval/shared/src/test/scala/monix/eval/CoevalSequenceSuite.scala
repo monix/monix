@@ -16,10 +16,12 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.laws._
 import cats.laws.discipline._
 
+@nowarn
 object CoevalSequenceSuite extends BaseTestSuite {
   test("Coeval.sequence") { _ =>
     check1 { (numbers: List[Int]) =>

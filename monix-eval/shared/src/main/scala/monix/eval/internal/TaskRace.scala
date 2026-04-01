@@ -21,10 +21,11 @@ import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.atomic.Atomic
 
+@scala.annotation.nowarn
 private[eval] object TaskRace {
   /**
-    * Implementation for `Task.race`.
-    */
+* Implementation for `Task.race`.
+*/
   def apply[A, B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
     Task.Async(
       new Register(fa, fb),
@@ -32,11 +33,11 @@ private[eval] object TaskRace {
       trampolineAfter = true
     )
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is a task that forks on evaluation.
-  //
-  // N.B. the contract is that the injected callback gets called after
-  // a full async boundary!
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is a task that forks on evaluation.
+//
+// N.B. the contract is that the injected callback gets called after
+// a full async boundary!
   private final class Register[A, B](fa: Task[A], fb: Task[B]) extends ForkedRegister[Either[A, B]] {
 
     def apply(context: Task.Context, cb: Callback[Throwable, Either[A, B]]): Unit = {

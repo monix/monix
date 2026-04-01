@@ -17,6 +17,7 @@
 
 package monix.reactive.compression.internal.operators
 
+import scala.annotation.nowarn
 import java.util.zip.{ DataFormatException, Inflater }
 import java.{ util => ju }
 
@@ -32,6 +33,7 @@ import scala.concurrent.Future
 import scala.util.Success
 import scala.util.control.NonFatal
 
+@nowarn("msg=unused value of type")
 private[compression] final class InflateOperator(bufferSize: Int, noWrap: Boolean)
   extends Operator[Array[Byte], Array[Byte]] {
 
@@ -39,9 +41,9 @@ private[compression] final class InflateOperator(bufferSize: Int, noWrap: Boolea
     new Subscriber[Array[Byte]] {
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var isDone = false
-      private[this] var ack: Future[Ack] = _
-      private[this] val inflater = new InflateAdapter(bufferSize, noWrap)
+      private var isDone = false
+      private var ack: Future[Ack] = null.asInstanceOf[Future[Ack]]
+      private val inflater = new InflateAdapter(bufferSize, noWrap)
 
       def onNext(elem: Array[Byte]): Future[Ack] = {
         if (isDone) {

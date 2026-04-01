@@ -25,7 +25,7 @@ import scala.annotation.unused
   *         by reference and not by value.
   */
 final class AtomicAny[A <: AnyRef] private[atomic] (initialValue: A) extends Atomic[A] {
-  private[this] var ref = initialValue
+  private var ref = initialValue
 
   def getAndSet(update: A): A = {
     val current = ref

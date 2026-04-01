@@ -29,10 +29,11 @@ import scala.util.control.NonFatal
   * `Task` integration utilities for the `cats.effect.ConcurrentEffect`
   * instance, provided in `monix.eval.instances`.
   */
+@scala.annotation.nowarn
 private[eval] object TaskEffect {
   /**
-    * `cats.effect.Effect#runAsync`
-    */
+* `cats.effect.Effect#runAsync`
+*/
   def runAsync[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit])(
     implicit
     s: Scheduler,
@@ -43,8 +44,8 @@ private[eval] object TaskEffect {
   }
 
   /**
-    * `cats.effect.ConcurrentEffect#runCancelable`
-    */
+* `cats.effect.ConcurrentEffect#runCancelable`
+*/
   def runCancelable[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit])(
     implicit
     s: Scheduler,

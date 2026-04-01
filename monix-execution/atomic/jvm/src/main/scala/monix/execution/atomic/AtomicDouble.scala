@@ -27,7 +27,7 @@ import scala.annotation.tailrec
   * Note that the equality test in `compareAndSet` is value based,
   * since `Double` is a primitive.
   */
-final class AtomicDouble private (val ref: BoxedLong) extends AtomicNumber[Double] {
+final class AtomicDouble private (private val ref: BoxedLong) extends AtomicNumber[Double] {
 
   def get(): Double = longBitsToDouble(ref.volatileGet())
   def set(update: Double): Unit = ref.volatileSet(doubleToLongBits(update))
@@ -131,9 +131,9 @@ final class AtomicDouble private (val ref: BoxedLong) extends AtomicNumber[Doubl
   def decrementAndGet(v: Int = 1): Double = incrementAndGet(-v)
   def getAndDecrement(v: Int = 1): Double = getAndIncrement(-v)
 
-  private[this] def plusOp(a: Double, b: Double): Double = a + b
-  private[this] def minusOp(a: Double, b: Double): Double = a - b
-  private[this] def incrementOp(a: Double, b: Int): Double = a + b
+  private def plusOp(a: Double, b: Double): Double = a + b
+  private def minusOp(a: Double, b: Double): Double = a - b
+  private def incrementOp(a: Double, b: Int): Double = a + b
 }
 
 /** @define createDesc Constructs an [[AtomicDouble]] reference, allowing

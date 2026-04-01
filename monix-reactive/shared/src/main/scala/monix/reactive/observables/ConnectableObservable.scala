@@ -17,6 +17,7 @@
 
 package monix.reactive.observables
 
+import scala.annotation.nowarn
 import monix.execution.annotations.{ UnsafeBecauseImpure, UnsafeProtocol }
 import monix.execution.{ Cancelable, Scheduler }
 import monix.reactive.observers.{ CacheUntilConnectSubscriber, Subscriber }
@@ -31,6 +32,7 @@ import monix.reactive.{ Observable, Pipe }
   * to multiple subscribers).
   */
 @UnsafeBecauseImpure
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 abstract class ConnectableObservable[+A] extends Observable[A] { self =>
   /** Starts emitting events to subscribers. */
   def connect(): Cancelable
@@ -44,6 +46,7 @@ abstract class ConnectableObservable[+A] extends Observable[A] { self =>
   }
 }
 
+@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 object ConnectableObservable {
   /** Builds a [[ConnectableObservable]] for the given observable source
     * and a given [[monix.reactive.subjects.Subject Subject]].
@@ -55,7 +58,7 @@ object ConnectableObservable {
   ): ConnectableObservable[B] = {
 
     new ConnectableObservable[B] {
-      private[this] lazy val connection: Cancelable =
+      private lazy val connection: Cancelable =
         source.unsafeSubscribeFn(Subscriber(subject, s))
 
       def connect(): Cancelable =
@@ -73,8 +76,8 @@ object ConnectableObservable {
   def multicast[A, B](source: Observable[A], recipe: Pipe[A, B])(implicit s: Scheduler): ConnectableObservable[B] = {
 
     new ConnectableObservable[B] {
-      private[this] val (input, output) = recipe.multicast(s)
-      private[this] lazy val connection = {
+      private val (input, output) = recipe.multicast(s)
+      private lazy val connection = {
         source.subscribe(input)
       }
 
@@ -97,13 +100,13 @@ object ConnectableObservable {
   ): ConnectableObservable[B] = {
 
     new ConnectableObservable[B] {
-      private[this] val (connectable, cancelRef) = {
+      private val (connectable, cancelRef) = {
         val ref = CacheUntilConnectSubscriber(Subscriber(subject, s))
         val c = source.unsafeSubscribeFn(ref) // connects immediately
         (ref, c)
       }
 
-      private[this] lazy val connection = {
+      private lazy val connection = {
         val connecting = connectable.connect()
         Cancelable { () =>
           try cancelRef.cancel()

@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import monix.eval.Task
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.{ Callback, Cancelable }
@@ -25,6 +26,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.util.control.NonFatal
 
+@nowarn("msg=unused value of type")
 private[reactive] final class PaginateEvalObservable[S, A](seed: S, f: S => Task[(A, Option[S])])
   extends Observable[A] {
 

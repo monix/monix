@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack
 import monix.execution.Ack.Stop
 import monix.execution.Scheduler
@@ -25,12 +26,13 @@ import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
+@nowarn("msg=discarded non-Unit value")
 private[reactive] final class TakeByPredicateOperator[A](p: A => Boolean, inclusive: Boolean) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var isActive = true
+      private var isActive = true
 
       def onNext(elem: A): Future[Ack] = {
         if (!isActive) Stop

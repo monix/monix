@@ -16,11 +16,13 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.execution.exceptions.DummyException
 import scala.concurrent.TimeoutException
 import scala.util.{ Failure, Success }
 
+@nowarn
 object CoevalErrorSuite extends BaseTestSuite {
   test("Coeval.attempt should expose error") { _ =>
     val dummy = DummyException("ex")

@@ -16,12 +16,14 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.effect.{ ContextShift, IO }
 import monix.catnap.SchedulerEffect
 
 import scala.util.Success
 
+@nowarn
 object TaskConversionsKSuite extends BaseTestSuite {
   test("Task.liftTo[IO]") { implicit s =>
     var effect = 0

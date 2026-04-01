@@ -17,6 +17,7 @@
 
 package monix.reactive.compression.internal.operators
 
+import scala.annotation.nowarn
 import java.util.zip.Deflater
 
 import monix.execution.Ack
@@ -30,6 +31,7 @@ import scala.concurrent.Future
 import scala.util.Success
 import scala.util.control.NonFatal
 
+@nowarn("msg=unused value of type")
 private[compression] final class DeflateOperator(
   bufferSize: Int,
   params: CompressionParameters,
@@ -39,8 +41,8 @@ private[compression] final class DeflateOperator(
     new Subscriber[Array[Byte]] {
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var ack: Future[Ack] = Continue
-      private[this] val deflate =
+      private var ack: Future[Ack] = Continue
+      private val deflate =
         new DeflateAdapter(
           bufferSize,
           params.level,

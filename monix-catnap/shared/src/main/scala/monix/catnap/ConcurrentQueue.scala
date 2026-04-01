@@ -28,6 +28,7 @@ import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.internal.Constants
 import monix.execution.internal.collection.{ LowLevelConcurrentQueue => LowLevelQueue }
 import monix.execution.{ BufferCapacity, CancelablePromise, ChannelType }
+import scala.annotation.nowarn
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 
@@ -197,17 +198,16 @@ final class ConcurrentQueue[F[_], A] private (
     */
   @UnsafeProtocol
   def tryPoll: F[Option[A]] = tryPollRef
-  private[this] val tryPollRef =
-    F.delay(Option(tryPollUnsafe()))
+  private val tryPollRef = F.delay(Option(tryPollUnsafe()))
 
   /** Fetches a value from the queue, or if the queue is empty it awaits
-    * asynchronously until a value is made available.
-    *
-    * @return a task that when evaluated, will eventually complete
-    *         after the value has been successfully pushed in the queue
-    */
+  * asynchronously until a value is made available.
+  *
+  * @return a task that when evaluated, will eventually complete
+  *         after the value has been successfully pushed in the queue
+  */
   def poll: F[A] = pollRef
-  private[this] val pollRef = F.defer[A] {
+  private val pollRef = F.defer[A] {
     val happy = tryPollUnsafe()
     // noinspection ForwardReference
     if (happy != null)
@@ -272,7 +272,7 @@ final class ConcurrentQueue[F[_], A] private (
     */
   def clear: F[Unit] = clearRef
   // noinspection ForwardReference
-  private[this] val clearRef = F.delay {
+  private val clearRef = F.delay {
     queue.clear()
     notifyProducers()
   }
@@ -355,25 +355,21 @@ final class ConcurrentQueue[F[_], A] private (
       )
     }
 
-  private[this] val queue: LowLevelQueue[A] =
-    LowLevelQueue(capacity, channelType, fenced = true)
-  private[this] val helpers: QueueHelpers[F] =
-    new QueueHelpers[F]
+  private val queue: LowLevelQueue[A] = LowLevelQueue(capacity, channelType, fenced = true)
+  private val helpers: QueueHelpers[F] = new QueueHelpers[F]
 
-  private[this] val consumersAwaiting =
+  private val consumersAwaiting = AtomicAny.withPadding[CancelablePromise[Unit]](null, LeftRight128)
+
+  private val producersAwaiting = if (capacity.isBounded)
     AtomicAny.withPadding[CancelablePromise[Unit]](null, LeftRight128)
+  else
+    null
 
-  private[this] val producersAwaiting =
-    if (capacity.isBounded)
-      AtomicAny.withPadding[CancelablePromise[Unit]](null, LeftRight128)
-    else
-      null
-
-  private[this] val pollQueue: () => A = () => tryPollUnsafe()
-  private[this] val pollTest: A => Boolean = _ != null
-  private[this] val pollMap: A => A = a => a
-  private[this] val offerTest: Boolean => Boolean = x => x
-  private[this] val offerMap: Boolean => Unit = _ => ()
+  private val pollQueue: () => A = () => tryPollUnsafe()
+  private val pollTest: A => Boolean = _ != null
+  private val pollMap: A => A = a => a
+  private val offerTest: Boolean => Boolean = x => x
+  private val offerMap: Boolean => Unit = _ => ()
 
   private def toSeq(buffer: ArrayBuffer[A]): Seq[A] =
     buffer.toArray[Any].toSeq.asInstanceOf[Seq[A]]
@@ -485,6 +481,7 @@ object ConcurrentQueue {
     * @param cs $csParam
     * @param F $concurrentParam
     */
+  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   @UnsafeProtocol
   @UnsafeBecauseImpure
   def unsafe[F[_], A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(
@@ -499,6 +496,7 @@ object ConcurrentQueue {
   /**
     * Returned by the [[apply]] builder.
     */
+  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   final class ApplyBuilders[F[_]](val F: Concurrent[F]) extends AnyVal {
     /**
       * @see documentation for [[ConcurrentQueue.bounded]]

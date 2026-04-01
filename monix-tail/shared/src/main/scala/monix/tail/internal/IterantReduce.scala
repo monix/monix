@@ -32,12 +32,12 @@ private[tail] object IterantReduce {
 
   private class Loop[F[_], A](op: (A, A) => A)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, F[Option[A]]] {
 
-    private[this] var isEmpty = true
-    private[this] var state: A = _
+    private var isEmpty = true
+    private var state: A = null.asInstanceOf[A]
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
-    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
       if (stackRef == null) stackRef = ChunkedArrayStack()
@@ -49,7 +49,7 @@ private[tail] object IterantReduce {
       else null.asInstanceOf[F[Iterant[F, A]]]
     }
 
-    private[this] val concatContinue: (Option[A] => F[Option[A]]) =
+    private val concatContinue: (Option[A] => F[Option[A]]) =
       state =>
         stackPop() match {
           case null => F.pure(state)

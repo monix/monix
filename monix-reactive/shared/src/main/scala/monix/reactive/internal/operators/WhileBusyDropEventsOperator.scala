@@ -30,8 +30,8 @@ private[reactive] final class WhileBusyDropEventsOperator[A] extends Operator[A,
     new Subscriber.Sync[A] {
       implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var ack = Continue: Future[Ack]
-      private[this] var isDone = false
+      private var ack = Continue: Future[Ack]
+      private var isDone = false
 
       def onNext(elem: A) =
         if (isDone) Stop

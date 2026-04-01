@@ -24,6 +24,7 @@ import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.internal.GenericVar
 import monix.execution.internal.GenericVar.Id
+import scala.annotation.nowarn
 
 /** A mutable location, that is either empty or contains
   * a value of type `A`.
@@ -200,15 +201,17 @@ object MVar {
     *
     * @see [[of]] and [[empty]]
     */
-  def apply[F[_]](implicit F: Concurrent[F] OrElse Async[F]): ApplyBuilders[F] =
+  @nowarn("cat=deprecation")
+  def apply[F[_]](implicit F: OrElse[Concurrent[F], Async[F]]): ApplyBuilders[F] =
     new ApplyBuilders[F](F)
 
   /**
     * Builds an [[MVar]] instance with an `initial` value.
     */
+  @nowarn("cat=deprecation")
   def of[F[_], A](initial: A, ps: PaddingStrategy = NoPadding)(
     implicit
-    F: Concurrent[F] OrElse Async[F],
+    F: OrElse[Concurrent[F], Async[F]],
     cs: ContextShift[F]
   ): F[MVar[F, A]] = {
 
@@ -221,9 +224,10 @@ object MVar {
   /**
     * Builds an empty [[MVar]] instance.
     */
+  @nowarn("cat=deprecation")
   def empty[F[_], A](
     ps: PaddingStrategy = NoPadding
-  )(implicit F: Concurrent[F] OrElse Async[F], cs: ContextShift[F]): F[MVar[F, A]] = {
+  )(implicit F: OrElse[Concurrent[F], Async[F]], cs: ContextShift[F]): F[MVar[F, A]] = {
 
     F.fold(
       implicit F => F.delay(new MVar(new ConcurrentImpl(None, ps))),
@@ -234,12 +238,14 @@ object MVar {
   /**
     * Returned by the [[apply]] builder.
     */
-  final class ApplyBuilders[F[_]](val F: Concurrent[F] OrElse Async[F]) extends AnyVal {
+  @nowarn("cat=deprecation")
+  final class ApplyBuilders[F[_]](val F: OrElse[Concurrent[F], Async[F]]) extends AnyVal {
     /**
       * Builds an `MVar` with an initial value.
       *
       * @see documentation for [[MVar.of]]
       */
+    @nowarn("msg=Implicit parameters should be provided with a `using` clause")
     def of[A](a: A, ps: PaddingStrategy = NoPadding)(implicit cs: ContextShift[F]): F[MVar[F, A]] =
       MVar.of(a, ps)(F, cs)
 
@@ -248,6 +254,7 @@ object MVar {
       *
       * @see documentation for [[MVar.empty]]
       */
+    @nowarn("msg=Implicit parameters should be provided with a `using` clause")
     def empty[A](ps: PaddingStrategy = NoPadding)(implicit cs: ContextShift[F]): F[MVar[F, A]] =
       MVar.empty(ps)(F, cs)
   }
@@ -308,12 +315,12 @@ object MVar {
         unsafeRead(cb)
       }
 
-    private[this] val bindFork: (Unit => F[Unit]) = {
+    private val bindFork: (Unit => F[Unit]) = {
       val shift = cs.shift
       _ => shift
     }
 
-    private[this] val bindForkA: (Any => F[Any]) = {
+    private val bindForkA: (Any => F[Any]) = {
       val shift = cs.shift
       x => F.map(shift)(_ => x)
     }

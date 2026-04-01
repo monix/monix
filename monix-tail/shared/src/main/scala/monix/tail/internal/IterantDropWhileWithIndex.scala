@@ -33,8 +33,8 @@ private[tail] object IterantDropWhileWithIndex {
   private class Loop[F[_], A](p: (A, Int) => Boolean)(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, A]] { loop =>
 
-    private[this] var index = 0
-    private[this] var dropFinished = false
+    private var index = 0
+    private var dropFinished = false
 
     private def getAndIncrement(): Int = {
       val old = index

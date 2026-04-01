@@ -32,7 +32,7 @@ private[reactive] final class CollectWhileOperator[-A, +B](pf: PartialFunction[A
   def apply(out: Subscriber[B]): Subscriber[A] =
     new Subscriber[A] {
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var isActive = true
+      private var isActive = true
 
       def onNext(elem: A): Future[Ack] = {
         if (!isActive) Stop

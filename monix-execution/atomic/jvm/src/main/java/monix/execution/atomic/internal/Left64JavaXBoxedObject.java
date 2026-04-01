@@ -17,45 +17,27 @@
 
 package monix.execution.atomic.internal;
 
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 
-/**
- * INTERNAL API — used in the implementation of
- * `monix.execution.atomic.Atomic`.
- *
- * Being internal it can always change between minor versions,
- * providing no backwards compatibility guarantees and is only public
- * because Java does not provide the capability of marking classes as
- * "internal" to a package and all its sub-packages.
- */
-final class Left64JavaXBoxedObject extends LeftPadding56 implements BoxedObject {
+final class Left64JavaXBoxedObject extends LeftPadding56 implements VarHandleBoxedObject {
+  private static final VarHandle VALUE_VH;
 
-  public volatile Object value;
+  static {
+    try {
+      VALUE_VH = MethodHandles.lookup().findVarHandle(Left64JavaXBoxedObject.class, "value", Object.class);
+    } catch (NoSuchFieldException | IllegalAccessException e) {
+      throw new AssertionError(e);
+    }
+  }
 
-  private static final AtomicReferenceFieldUpdater<Left64JavaXBoxedObject, Object> UPDATER =
-    AtomicReferenceFieldUpdater.newUpdater(Left64JavaXBoxedObject.class, Object.class, "value");
+  private Object value;
 
   Left64JavaXBoxedObject(Object initialValue) {
     this.value = initialValue;
   }
 
-  public Object volatileGet() {
-    return value;
-  }
-
-  public void volatileSet(Object update) {
-    value = update;
-  }
-
-  public void lazySet(Object update) {
-    UPDATER.lazySet(this, update);
-  }
-
-  public boolean compareAndSet(Object current, Object update) {
-    return UPDATER.compareAndSet(this, current, update);
-  }
-
-  public Object getAndSet(Object update) {
-    return UPDATER.getAndSet(this, update);
+  public VarHandle valueHandle() {
+    return VALUE_VH;
   }
 }

@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack.Stop
 import monix.execution.Scheduler
 import monix.execution.cancelables.OrderedCancelable
@@ -25,7 +26,8 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-private[reactive] final class DelayExecutionWithTriggerObservable[A](source: Observable[A], trigger: Observable[_])
+@nowarn("msg=`_` is deprecated for wildcard arguments of types: use `?` instead")
+private[reactive] final class DelayExecutionWithTriggerObservable[A](source: Observable[A], trigger: Observable[?])
   extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
@@ -35,7 +37,7 @@ private[reactive] final class DelayExecutionWithTriggerObservable[A](source: Obs
       .asInstanceOf[Observable[Any]]
       .unsafeSubscribeFn(new Subscriber[Any] {
         implicit val scheduler: Scheduler = subscriber.scheduler
-        private[this] var isDone = false
+        private var isDone = false
 
         def onNext(elem: Any): Future[Ack] = {
           if (isDone) Stop

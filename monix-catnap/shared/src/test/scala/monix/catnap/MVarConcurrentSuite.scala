@@ -16,6 +16,7 @@
  */
 
 package monix.catnap
+import scala.annotation.nowarn
 
 import cats.effect.concurrent.{ Deferred, Ref }
 import cats.effect.{ ContextShift, IO, Timer }
@@ -26,6 +27,7 @@ import monix.execution.internal.Platform
 
 import scala.concurrent.duration._
 
+@nowarn
 object MVarConcurrentSuite extends BaseMVarSuite {
   def init[A](a: A): IO[MVar[IO, A]] =
     MVar[IO](OrElse.primary(IO.ioConcurrentEffect)).of(a)(cs)

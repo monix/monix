@@ -193,34 +193,33 @@ object Local extends LocalCompanionDeprecated {
       // $COVERAGE-ON$
     }
 
-    private[this] final def isolateLoop(): Unbound =
-      this match {
-        case unbound: Unbound =>
-          val map = unbound.ref.get()
-          new Unbound(AtomicAny(map))
-        case _ =>
-          var it = this
-          var done = false
-          var map = Map.empty[Key, Any]
-          val bannedKeys = collection.mutable.Set.empty[Key]
-          while (!done) {
-            it match {
-              case unbound: Unbound =>
-                done = true
-                unbound.ref.get().foreach {
-                  case (k, v) if !bannedKeys(k) && !map.contains(k) => map = map.updated(k, v)
-                  case _ => ()
-                }
-              case bound: Bound =>
-                if (!map.contains(bound.key) && !bannedKeys(bound.key)) {
-                  if (bound.hasValue) map = map.updated(bound.key, bound.value)
-                  else bannedKeys += bound.key
-                }
-                it = bound.rest
-            }
+    private def isolateLoop(): Unbound = this match {
+      case unbound: Unbound =>
+        val map = unbound.ref.get()
+        new Unbound(AtomicAny(map))
+      case _ =>
+        var it = this
+        var done = false
+        var map = Map.empty[Key, Any]
+        val bannedKeys = collection.mutable.Set.empty[Key]
+        while (!done) {
+          it match {
+            case unbound: Unbound =>
+              done = true
+              unbound.ref.get().foreach {
+                case (k, v) if !bannedKeys(k) && !map.contains(k) => map = map.updated(k, v)
+                case _ => ()
+              }
+            case bound: Bound =>
+              if (!map.contains(bound.key) && !bannedKeys(bound.key)) {
+                if (bound.hasValue) map = map.updated(bound.key, bound.value)
+                else bannedKeys += bound.key
+              }
+              it = bound.rest
           }
-          new Unbound(AtomicAny(map))
-      }
+        }
+        new Unbound(AtomicAny(map))
+    }
   }
 
   private[execution] final class Unbound(val ref: AtomicAny[Map[Key, Any]]) extends Context

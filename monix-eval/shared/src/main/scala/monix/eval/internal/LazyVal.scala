@@ -37,8 +37,8 @@ import scala.util.control.NonFatal
   */
 private[eval] final class LazyVal[A] private (f: () => A, val cacheErrors: Boolean) extends (() => Coeval.Eager[A]) {
 
-  private[this] var thunk = f
-  private[this] var cache: Coeval.Eager[A] = _
+  private var thunk = f
+  private var cache: Coeval.Eager[A] = null.asInstanceOf[Coeval.Eager[A]]
 
   override def apply(): Coeval.Eager[A] =
     cache match {
@@ -69,6 +69,7 @@ private[eval] final class LazyVal[A] private (f: () => A, val cacheErrors: Boole
     }
 }
 
+@scala.annotation.nowarn
 private[eval] object LazyVal {
   /** Builder. */
   def apply[A](f: () => A, cacheErrors: Boolean): (() => Coeval.Eager[A]) =

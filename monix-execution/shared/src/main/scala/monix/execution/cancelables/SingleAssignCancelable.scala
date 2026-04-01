@@ -114,7 +114,7 @@ final class SingleAssignCancelable private (extra: Cancelable) extends Assignabl
     )
   }
 
-  private[this] val state = AtomicAny(Empty: State)
+  private val state = AtomicAny(Empty: State)
 }
 
 object SingleAssignCancelable {

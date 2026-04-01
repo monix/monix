@@ -125,9 +125,9 @@ private[eval] object TaskTrace {
       case None => methodName
     }
 
-  private[this] val anonfunRegex = "^\\$+anonfun\\$+(.+)\\$+\\d+$".r
+  private val anonfunRegex = "^\\$+anonfun\\$+(.+)\\$+\\d+$".r
 
-  private[this] val stackTraceFilter = List(
+  private val stackTraceFilter = List(
     "monix.",
     "cats.effect.",
     "cats.",

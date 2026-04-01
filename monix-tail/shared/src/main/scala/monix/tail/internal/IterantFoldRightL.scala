@@ -31,12 +31,12 @@ private[tail] object IterantFoldRightL {
   private final class Loop[F[_], A, B](b: F[B], f: (A, F[B]) => F[B])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[B]] { self =>
 
-    private[this] var remainder: Iterant[F, A] = _
-    private[this] var suspendRef: F[B] = _
+    private var remainder: Iterant[F, A] = null.asInstanceOf[Iterant[F, A]]
+    private var suspendRef: F[B] = null.asInstanceOf[F[B]]
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
-    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
       if (stackRef == null) stackRef = ChunkedArrayStack()

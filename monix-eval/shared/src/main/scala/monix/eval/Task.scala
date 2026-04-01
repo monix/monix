@@ -471,6 +471,8 @@ import scala.annotation.unused
   *         it might be better to pass such a reference around as
   *         a parameter.
   */
+@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
+@scala.annotation.nowarn("msg=unused value of type")
 sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompat[A] {
   import cats.effect.Async
   import monix.eval.Task._
@@ -2868,7 +2870,7 @@ object Task extends TaskInstancesLevel1 {
     *        `Task` value is cancelable if the source is
     */
   def fromConcurrentEffect[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] =
-    TaskConversions.fromConcurrentEffect(fa)(F)
+    TaskConversions.fromConcurrentEffect(fa)
 
   /** Builds a [[Task]] instance out of any data type that implements
     * [[https://typelevel.org/cats-effect/typeclasses/async.html Async]] and
@@ -3613,7 +3615,7 @@ object Task extends TaskInstancesLevel1 {
     *  It's a simple version of [[traverse]].
     */
   def sequence[A, M[X] <: Iterable[X]](in: M[Task[A]])(implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] =
-    TaskSequence.list(in)(bf)
+    TaskSequence.list(in)
 
   /** Given a `Iterable[A]` and a function `A => Task[B]`, sequentially
     * apply the function to each element of the collection and gather their
@@ -3624,7 +3626,7 @@ object Task extends TaskInstancesLevel1 {
   def traverse[A, B, M[X] <: Iterable[X]](in: M[A])(f: A => Task[B])(
     implicit bf: BuildFrom[M[A], B, M[B]]
   ): Task[M[B]] =
-    TaskSequence.traverse(in, f)(bf)
+    TaskSequence.traverse(in, f)
 
   /**
     * Returns the given argument if `cond` is true, otherwise `Task.Unit`
@@ -4564,11 +4566,10 @@ object Task extends TaskInstancesLevel1 {
     implicit def forCancelableDummy[T <: Cancelable.Empty]: AsyncBuilder[T] =
       forCancelableDummyRef.asInstanceOf[AsyncBuilder[T]]
 
-    private[this] val forCancelableDummyRef: AsyncBuilder[Cancelable.Empty] =
-      new AsyncBuilder[Cancelable.Empty] {
-        def create[A](register: (Scheduler, Callback[Throwable, A]) => Cancelable.Empty): Task[A] =
-          TaskCreate.async0(register)
-      }
+    private val forCancelableDummyRef: AsyncBuilder[Cancelable.Empty] = new AsyncBuilder[Cancelable.Empty] {
+      def create[A](register: (Scheduler, Callback[Throwable, A]) => Cancelable.Empty): Task[A] =
+        TaskCreate.async0(register)
+    }
   }
 
   private[Task] abstract class AsyncBuilder0 {
@@ -4580,11 +4581,10 @@ object Task extends TaskInstancesLevel1 {
     implicit def forCancelable[T <: Cancelable]: AsyncBuilder[T] =
       forCancelableRef.asInstanceOf[AsyncBuilder[T]]
 
-    private[this] val forCancelableRef =
-      new AsyncBuilder[Cancelable] {
-        def create[A](register: (Scheduler, Callback[Throwable, A]) => Cancelable): Task[A] =
-          TaskCreate.cancelableCancelable(register)
-      }
+    private val forCancelableRef = new AsyncBuilder[Cancelable] {
+      def create[A](register: (Scheduler, Callback[Throwable, A]) => Cancelable): Task[A] =
+        TaskCreate.cancelableCancelable(register)
+    }
   }
 
   /** Internal API — The `Context` under which [[Task]] is supposed to be executed.
@@ -4653,7 +4653,7 @@ object Task extends TaskInstancesLevel1 {
         Callback.callSuccess(cb, value)
         Task.unit
       } else {
-        super.runAsyncOptF(cb)(s, opts)
+        super.runAsyncOptF(cb)
       }
     }
 
@@ -4668,7 +4668,7 @@ object Task extends TaskInstancesLevel1 {
         Callback.callSuccess(cb, value)
         Cancelable.empty
       } else {
-        super.runAsyncOpt(cb)(s, opts)
+        super.runAsyncOpt(cb)
       }
     }
 
@@ -4681,7 +4681,7 @@ object Task extends TaskInstancesLevel1 {
       if (s.executionModel != AlwaysAsyncExecution)
         Callback.callSuccess(cb, value)
       else
-        super.runAsyncUncancelableOpt(cb)(s, opts)
+        super.runAsyncUncancelableOpt(cb)
     }
 
     // Optimization to avoid the run-loop
@@ -4699,7 +4699,7 @@ object Task extends TaskInstancesLevel1 {
         Callback.callError(cb, e)
         Task.unit
       } else {
-        super.runAsyncOptF(cb)(s, opts)
+        super.runAsyncOptF(cb)
       }
     }
 
@@ -4714,7 +4714,7 @@ object Task extends TaskInstancesLevel1 {
         Callback.callError(cb, e)
         Cancelable.empty
       } else {
-        super.runAsyncOpt(cb)(s, opts)
+        super.runAsyncOpt(cb)
       }
     }
 
@@ -4731,7 +4731,7 @@ object Task extends TaskInstancesLevel1 {
       if (s.executionModel != AlwaysAsyncExecution)
         Callback.callError(cb, e)
       else
-        super.runAsyncUncancelableOpt(cb)(s, opts)
+        super.runAsyncUncancelableOpt(cb)
     }
   }
 
@@ -4822,8 +4822,7 @@ object Task extends TaskInstancesLevel1 {
     TaskRunLoop.startFull(source, context, cb, null, null, null, context.frameRef())
 
   /** Internal, reusable reference. */
-  private[this] val neverRef: Async[Nothing] =
-    Async((_, _) => (), trampolineBefore = false, trampolineAfter = false)
+  private val neverRef: Async[Nothing] = Async((_, _) => (), trampolineBefore = false, trampolineAfter = false)
 
   /** Internal, reusable reference. */
   private val nowConstructor: Any => Task[Nothing] =
@@ -4924,7 +4923,7 @@ private[eval] abstract class TaskInstancesLevel1 extends TaskInstancesLevel0 {
     * a `Monoid[ Task[A] ]` implementation.
     */
   implicit def catsMonoid[A](implicit A: Monoid[A]): Monoid[Task[A]] =
-    new CatsMonadToMonoid[Task, A]()(CatsConcurrentForTask, A)
+    new CatsMonadToMonoid[Task, A]()
 }
 
 private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
@@ -4973,7 +4972,7 @@ private[eval] abstract class TaskInstancesLevel0 extends TaskParallelNewtype {
     * in order to avoid conflicts.
     */
   implicit def catsSemigroup[A](implicit A: Semigroup[A]): Semigroup[Task[A]] =
-    new CatsMonadToSemigroup[Task, A]()(CatsConcurrentForTask, A)
+    new CatsMonadToSemigroup[Task, A]()
 }
 
 private[eval] abstract class TaskParallelNewtype extends TaskContextShift {

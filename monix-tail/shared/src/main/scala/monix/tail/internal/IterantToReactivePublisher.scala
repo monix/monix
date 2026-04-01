@@ -34,6 +34,9 @@ import org.reactivestreams.{ Publisher, Subscriber }
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
+@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
+@scala.annotation.nowarn("msg=`_` is deprecated for wildcard arguments of types: use `\\?` instead")
+@scala.annotation.nowarn
 private[tail] object IterantToReactivePublisher {
   /**
     * Implementation for `toReactivePublisher`
@@ -69,9 +72,9 @@ private[tail] object IterantToReactivePublisher {
     implicit F: Effect[F]
   ) extends Subscription { parent =>
 
-    private[this] val cancelable =
+    private val cancelable =
       SingleAssignCancelable()
-    private[this] val state =
+    private val state =
       Atomic.withPadding(null: RequestState, LeftRight128)
 
     def request(n: Long): Unit = {
@@ -160,13 +163,13 @@ private[tail] object IterantToReactivePublisher {
     }
 
     private final class Loop extends Iterant.Visitor[F, A, F[Unit]] {
-      private[this] var requested = 0L
-      private[this] var haltSignal = Option.empty[Option[Throwable]]
-      private[this] var streamErrors = true
+      private var requested = 0L
+      private var haltSignal = Option.empty[Option[Throwable]]
+      private var streamErrors = true
 
       // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
       // Used in visit(Concat)
-      private[this] var _stack: ChunkedArrayStack[F[Iterant[F, A]]] = _
+      private var _stack: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
       private def stackPush(item: F[Iterant[F, A]]): Unit = {
         if (_stack == null) _stack = ChunkedArrayStack()
@@ -181,7 +184,7 @@ private[tail] object IterantToReactivePublisher {
       private def isStackEmpty(): Boolean =
         _stack == null || _stack.isEmpty
 
-      private[this] val concatContinue: (Unit => F[Unit]) =
+      private val concatContinue: (Unit => F[Unit]) =
         state =>
           stackPop() match {
             case null => F.pure(state)
@@ -319,8 +322,8 @@ private[tail] object IterantToReactivePublisher {
         }
       }
 
-      private[this] var suspendedRef: Iterant[F, A] = _
-      private[this] val afterPoll: Unit => F[Unit] = _ => {
+      private var suspendedRef: Iterant[F, A] = null.asInstanceOf[Iterant[F, A]]
+      private val afterPoll: Unit => F[Unit] = _ => {
         haltSignal match {
           case None =>
             if (requested == 0)
@@ -344,5 +347,5 @@ private[tail] object IterantToReactivePublisher {
 
   private final case class Interrupt(err: Option[Throwable]) extends RequestState
 
-  private[this] val rightUnit = Right(())
+  private val rightUnit = Right(())
 }

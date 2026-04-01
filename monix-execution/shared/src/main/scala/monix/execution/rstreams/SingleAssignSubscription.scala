@@ -35,7 +35,7 @@ final class SingleAssignSubscription private () extends Subscription {
   import SingleAssignSubscription.State
   import SingleAssignSubscription.State._
 
-  private[this] val state = AtomicAny(Empty: State)
+  private val state = AtomicAny(Empty: State)
 
   def :=(s: org.reactivestreams.Subscription): Unit = set(s)
 

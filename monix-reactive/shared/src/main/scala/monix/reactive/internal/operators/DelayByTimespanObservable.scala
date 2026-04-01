@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import java.util.concurrent.TimeUnit
 
 import monix.execution.Ack.{ Continue, Stop }
@@ -29,6 +30,8 @@ import monix.execution.atomic.Atomic
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ Future, Promise }
 
+@nowarn("msg=discarded non-Unit value")
+@nowarn("msg=unused value of type")
 private[reactive] final class DelayByTimespanObservable[A](source: Observable[A], delay: FiniteDuration)
   extends Observable[A] {
 
@@ -38,12 +41,12 @@ private[reactive] final class DelayByTimespanObservable[A](source: Observable[A]
 
     composite += source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>
       implicit val scheduler: Scheduler = out.scheduler
-      private[this] var hasError = false
-      private[this] val isDone = Atomic(false)
-      private[this] var completeTriggered = false
-      private[this] val delayMs = delay.toMillis
-      private[this] var currentElem: A = _
-      private[this] var ack: Promise[Ack] = _
+      private var hasError = false
+      private val isDone = Atomic(false)
+      private var completeTriggered = false
+      private val delayMs = delay.toMillis
+      private var currentElem: A = null.asInstanceOf[A]
+      private var ack: Promise[Ack] = null.asInstanceOf[Promise[Ack]]
 
       def onNext(elem: A): Future[Ack] = {
         currentElem = elem

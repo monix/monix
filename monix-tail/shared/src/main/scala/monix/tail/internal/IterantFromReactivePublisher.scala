@@ -53,8 +53,8 @@ private[tail] object IterantFromReactivePublisher {
   private final class IterantSubscriber[F[_], A](bufferSize: Int, eagerBuffer: Boolean)(implicit F: Async[F])
     extends Subscriber[A] {
 
-    private[this] val sub = SingleAssignSubscription()
-    private[this] val state = Atomic.withPadding(Uninitialized: State[F, A], LeftRight128)
+    private val sub = SingleAssignSubscription()
+    private val state = Atomic.withPadding(Uninitialized: State[F, A], LeftRight128)
 
     def start: F[Iterant[F, A]] =
       F.async { cb =>
@@ -72,7 +72,7 @@ private[tail] object IterantFromReactivePublisher {
     private def initialize(): Boolean =
       state.compareAndSet(Uninitialized, Empty(bufferSize))
 
-    private[this] val generate: (Int => F[Iterant[F, A]]) = {
+    private val generate: (Int => F[Iterant[F, A]]) = {
       if (eagerBuffer) {
         val task = F.async[Iterant[F, A]](take)
         toReceive => {
@@ -106,7 +106,7 @@ private[tail] object IterantFromReactivePublisher {
     @tailrec def onNext(a: A): Unit =
       state.get() match {
         case Uninitialized =>
-          initialize()
+          val _ = initialize()
           onNext(a)
 
         case current @ Enqueue(queue, length, toReceive) =>
@@ -131,7 +131,7 @@ private[tail] object IterantFromReactivePublisher {
     @tailrec private def finish(fa: Iterant[F, A]): Unit =
       state.get() match {
         case Uninitialized =>
-          initialize()
+          val _ = initialize()
           finish(fa)
 
         case current @ Enqueue(queue, length, _) =>
@@ -171,7 +171,7 @@ private[tail] object IterantFromReactivePublisher {
     @tailrec private def take(cb: Either[Throwable, Iterant[F, A]] => Unit): Unit =
       state.get() match {
         case Uninitialized =>
-          initialize()
+          val _ = initialize()
           take(cb)
 
         case current @ Enqueue(queue, length, toReceive) =>

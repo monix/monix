@@ -26,8 +26,8 @@ import scala.collection.immutable.LongMap
   */
 private[monix] class LinkedMap[K, +V](
   val entries: Map[K, (V, Long)],
-  private[this] val insertionOrder: LongMap[K],
-  private[this] val nextId: Long
+  private val insertionOrder: LongMap[K],
+  private val nextId: Long
 ) {
 
   /** Returns `true` if this map is empty, or `false` otherwise. */

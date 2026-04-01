@@ -25,6 +25,7 @@ import monix.eval.Task
 
 import scala.concurrent.duration.Duration
 
+@scala.annotation.nowarn
 private[eval] object TaskSleep {
   /** Implementation for `Task.sleep`. */
   def apply(timespan: Duration): Task[Unit] =
@@ -34,11 +35,11 @@ private[eval] object TaskSleep {
       trampolineAfter = false
     )
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is a task that forks on evaluation.
-  //
-  // N.B. the contract is that the injected callback gets called after
-  // a full async boundary!
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is a task that forks on evaluation.
+//
+// N.B. the contract is that the injected callback gets called after
+// a full async boundary!
   private final class Register(timespan: Duration) extends ForkedRegister[Unit] {
     def apply(ctx: Context, cb: Callback[Throwable, Unit]): Unit = {
       implicit val s = ctx.scheduler
@@ -58,11 +59,11 @@ private[eval] object TaskSleep {
     }
   }
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is a task that forks on evaluation.
-  //
-  // N.B. the contract is that the injected callback gets called after
-  // a full async boundary!
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is a task that forks on evaluation.
+//
+// N.B. the contract is that the injected callback gets called after
+// a full async boundary!
   private final class SleepRunnable(ctx: Context, cb: Callback[Throwable, Unit]) extends Runnable {
     def run(): Unit = {
       ctx.connection.pop()

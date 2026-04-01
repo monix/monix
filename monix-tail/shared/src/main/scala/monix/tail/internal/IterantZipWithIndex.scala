@@ -37,9 +37,9 @@ private[tail] object IterantZipWithIndex {
 
   private class Loop[F[_], A](implicit F: Sync[F]) extends (Iterant[F, A] => Iterant[F, (A, Long)]) {
 
-    private[this] var index = 0L
+    private var index = 0L
 
-    private[this] def processSeq(ref: NextCursor[F, A]): NextCursor[F, (A, Long)] = {
+    private def processSeq(ref: NextCursor[F, A]): NextCursor[F, (A, Long)] = {
       val NextCursor(cursor, rest) = ref
       val buffer = ArrayBuffer.empty[(A, Long)]
 

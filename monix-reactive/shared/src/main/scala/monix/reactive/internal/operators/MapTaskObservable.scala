@@ -83,13 +83,13 @@ private[reactive] final class MapTaskObservable[A, B](source: Observable[A], f: 
 
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
-    private[this] val stateRef =
+    private val stateRef =
       Atomic.withPadding(WaitOnNext: MapTaskState, LeftRight128)
 
     // Boolean for keeping the `isActive` state, needed because we could miss
     // out on seeing a `Cancelled` state due to the `lazySet` instructions,
     // making the visibility of the `Cancelled` state thread-unsafe!
-    private[this] val isActive = Atomic(true)
+    private val isActive = Atomic(true)
 
     /** For canceling the current active task, in case there is any. Here
       * we can afford a `compareAndSet`, not being a big deal since
@@ -223,7 +223,7 @@ private[reactive] final class MapTaskObservable[A, B](source: Observable[A], f: 
 
     // Reusable function reference, to prevent creating a new instance
     // on each `onNext` / `transformWith` call below
-    private[this] val childOnSuccess = (value: B) => {
+    private val childOnSuccess = (value: B) => {
       // Shoot first, ask questions later :-)
       val next = out.onNext(value)
 
@@ -256,7 +256,7 @@ private[reactive] final class MapTaskObservable[A, B](source: Observable[A], f: 
 
     // Reusable function reference, to prevent creating a new instance
     // on each `onNext` / `transformWith` call below
-    private[this] val childOnError = (error: Throwable) => {
+    private val childOnError = (error: Throwable) => {
       // The cancelable passed in WaitComplete here can be `null`
       // because it would only replace the child's own cancelable
       stateRef.getAndSet(WaitComplete(Some(error), null)) match {

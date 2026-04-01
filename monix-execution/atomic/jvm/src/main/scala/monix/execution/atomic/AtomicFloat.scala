@@ -27,7 +27,7 @@ import java.lang.Float.{ floatToIntBits, intBitsToFloat }
   * Note that the equality test in `compareAndSet` is value based,
   * since `Float` is a primitive.
   */
-final class AtomicFloat private (private[this] val ref: BoxedInt) extends AtomicNumber[Float] {
+final class AtomicFloat private (private val ref: BoxedInt) extends AtomicNumber[Float] {
 
   def get(): Float = intBitsToFloat(ref.volatileGet())
   def set(update: Float): Unit = ref.volatileSet(floatToIntBits(update))
@@ -131,9 +131,9 @@ final class AtomicFloat private (private[this] val ref: BoxedInt) extends Atomic
   def decrementAndGet(v: Int = 1): Float = incrementAndGet(-v)
   def getAndDecrement(v: Int = 1): Float = getAndIncrement(-v)
 
-  private[this] def plusOp(a: Float, b: Float): Float = a + b
-  private[this] def minusOp(a: Float, b: Float): Float = a - b
-  private[this] def incrementOp(a: Float, b: Int): Float = a + b
+  private def plusOp(a: Float, b: Float): Float = a + b
+  private def minusOp(a: Float, b: Float): Float = a - b
+  private def incrementOp(a: Float, b: Int): Float = a + b
 }
 
 /** @define createDesc Constructs an [[AtomicFloat]] reference, allowing

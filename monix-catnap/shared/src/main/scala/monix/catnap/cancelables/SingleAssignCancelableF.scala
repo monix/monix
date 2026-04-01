@@ -36,7 +36,7 @@ final class SingleAssignCancelableF[F[_]] private (extra: CancelableF[F])(implic
   extends AssignableCancelableF.Bool[F] {
 
   import SingleAssignCancelableF._
-  private[this] val state = Atomic(Empty: State[F])
+  private val state = Atomic(Empty: State[F])
 
   val isCanceled: F[Boolean] =
     F.delay(state.get() match {

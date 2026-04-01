@@ -29,6 +29,8 @@ import monix.tail.batches.{ Batch, BatchCursor }
 
 import scala.collection.mutable.ArrayBuffer
 
+@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
+@scala.annotation.nowarn
 private[tail] object IterantZipMap {
   /**
     * Implementation for `Iterant#zipMap`
@@ -60,8 +62,8 @@ private[tail] object IterantZipMap {
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used by Concat:
 
-    private[this] var _lhStack: ChunkedArrayStack[F[Iterant[F, A]]] = _
-    private[this] var _rhStack: ChunkedArrayStack[F[Iterant[F, B]]] = _
+    private var _lhStack: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
+    private var _rhStack: ChunkedArrayStack[F[Iterant[F, B]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, B]]]]
 
     private def lhStackPush(ref: F[Iterant[F, A]]): Unit = {
       if (_lhStack == null) _lhStack = ChunkedArrayStack()
@@ -83,27 +85,27 @@ private[tail] object IterantZipMap {
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-    private[this] val lhLoop = new LHLoop
+    private val lhLoop = new LHLoop
 
-    private[this] var _rhNextLoop: RHNextLoop = _
+    private var _rhNextLoop: RHNextLoop = null.asInstanceOf[RHNextLoop]
     private def rhNextLoop = {
       if (_rhNextLoop == null) _rhNextLoop = new RHNextLoop
       _rhNextLoop
     }
 
-    private[this] var _rhNextCursorLoop: RHNextCursorLoop = _
+    private var _rhNextCursorLoop: RHNextCursorLoop = null.asInstanceOf[RHNextCursorLoop]
     private def rhNextCursorLoop = {
       if (_rhNextCursorLoop == null) _rhNextCursorLoop = new RHNextCursorLoop
       _rhNextCursorLoop
     }
 
-    private[this] var _rhSuspendLoop: RHSuspendLoop = _
+    private var _rhSuspendLoop: RHSuspendLoop = null.asInstanceOf[RHSuspendLoop]
     private def rhSuspendLoop = {
       if (_rhSuspendLoop == null) _rhSuspendLoop = new RHSuspendLoop
       _rhSuspendLoop
     }
 
-    private[this] var _rhLastLoop: RHLastLoop = _
+    private var _rhLastLoop: RHLastLoop = null.asInstanceOf[RHLastLoop]
     private def rhLastLoop = {
       if (_rhLastLoop == null) _rhLastLoop = new RHLastLoop
       _rhLastLoop
@@ -112,7 +114,7 @@ private[tail] object IterantZipMap {
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     private final class LHLoop extends Iterant.Visitor[F, A, Iterant[F, C]] {
-      protected var rhRef: Iterant[F, B] = _
+      protected var rhRef: Iterant[F, B] = null.asInstanceOf[Iterant[F, B]]
 
       def withRh(ref: Iterant[F, B]): LHLoop = {
         rhRef = ref
@@ -175,7 +177,7 @@ private[tail] object IterantZipMap {
 
     private abstract class RHBaseLoop[LH <: Iterant[F, A]] extends Iterant.Visitor[F, B, Iterant[F, C]] {
 
-      protected var lhRef: LH = _
+      protected var lhRef: LH = null.asInstanceOf[LH]
 
       def visit(lh: LH, rh: Iterant[F, B]): Iterant[F, C] = {
         lhRef = lh

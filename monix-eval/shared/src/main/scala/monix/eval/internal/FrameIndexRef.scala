@@ -68,6 +68,7 @@ private[eval] sealed abstract class FrameIndexRef {
   def reset(): Unit
 }
 
+@scala.annotation.nowarn
 private[eval] object FrameIndexRef {
   /** Builds a [[FrameIndexRef]]. */
   def apply(em: ExecutionModel): FrameIndexRef =
@@ -76,15 +77,15 @@ private[eval] object FrameIndexRef {
       case BatchedExecution(_) => new Local
     }
 
-  // Keeps our frame index in a thread-local
+// Keeps our frame index in a thread-local
   private final class Local extends FrameIndexRef {
-    private[this] val local = ThreadLocal(1)
+    private val local = ThreadLocal(1)
     def apply(): FrameIndex = local.get()
     def `:=`(update: FrameIndex): Unit = local.set(update)
     def reset(): Unit = local.reset()
   }
 
-  // Dummy implementation that doesn't do anything
+// Dummy implementation that doesn't do anything
   private object Dummy extends FrameIndexRef {
     def apply(): FrameIndex = 1
     def `:=`(update: FrameIndex): Unit = ()

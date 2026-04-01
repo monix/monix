@@ -19,6 +19,7 @@ package monix.execution
 
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
+import scala.annotation.nowarn
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ CanAwait, ExecutionContext, Future, Promise }
 import scala.util.{ Failure, Success, Try }
@@ -55,7 +56,8 @@ sealed abstract class Ack extends Future[Ack] with Serializable {
 
   final def onComplete[U](func: Try[Ack] => U)(implicit executor: ExecutionContext): Unit =
     executor.execute(() => {
-      func(AsSuccess); ()
+      val _ = func(AsSuccess)
+      ()
     })
 }
 
@@ -102,6 +104,7 @@ object Ack {
     *         Use with great care as an optimization. Don't use
     *         it in tail-recursive loops!
     */
+  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   implicit class AckExtensions[Self <: Future[Ack]](val source: Self) extends AnyVal {
     /** Returns `true` if self is a direct reference to
       * `Continue` or `Stop`, `false` otherwise.
@@ -217,12 +220,10 @@ object Ack {
       * promise with a value.
       */
     def syncOnContinueFollow[A](p: Promise[A], value: A): Self = {
-      if (source eq Continue)
-        p.trySuccess(value)
+      if (source eq Continue) { val _ = p.trySuccess(value); () }
       else if (source ne Stop)
         source.onComplete { r =>
-          if (r.isSuccess && (r.get eq Continue))
-            p.trySuccess(value)
+          if (r.isSuccess && (r.get eq Continue)) { val _ = p.trySuccess(value); () }
         }(immediate)
       source
     }
@@ -231,12 +232,10 @@ object Ack {
       * promise with a value.
       */
     def syncOnStopFollow[A](p: Promise[A], value: A): Self = {
-      if (source eq Stop)
-        p.trySuccess(value)
+      if (source eq Stop) { val _ = p.trySuccess(value); () }
       else if (source ne Continue)
         source.onComplete { r =>
-          if (r.isSuccess && (r.get eq Stop))
-            p.trySuccess(value)
+          if (r.isSuccess && (r.get eq Stop)) { val _ = p.trySuccess(value); () }
         }(immediate)
       source
     }

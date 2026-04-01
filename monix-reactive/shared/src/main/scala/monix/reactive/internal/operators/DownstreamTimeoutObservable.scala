@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import java.util.concurrent.TimeUnit
 
 import monix.execution.Ack.{ Continue, Stop }
@@ -29,6 +30,7 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration.{ FiniteDuration, MILLISECONDS }
 
+@nowarn("msg=unused value of type")
 private[reactive] final class DownstreamTimeoutObservable[+A](source: Observable[A], timeout: FiniteDuration)
   extends Observable[A] {
 
@@ -40,13 +42,13 @@ private[reactive] final class DownstreamTimeoutObservable[+A](source: Observable
     mainTask := source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>
       implicit val scheduler: Scheduler = downstream.scheduler
 
-      private[this] val timeoutMillis = timeout.toMillis
+      private val timeoutMillis = timeout.toMillis
       // MUST BE synchronized by `self`
-      private[this] var isProcessingOnNext = false
+      private var isProcessingOnNext = false
       // MUST BE synchronized by `self`
-      private[this] var isDone = false
+      private var isDone = false
       // MUST BE synchronized by `self`
-      private[this] var lastEmittedMillis: Long =
+      private var lastEmittedMillis: Long =
         scheduler.clockMonotonic(MILLISECONDS)
 
       locally {

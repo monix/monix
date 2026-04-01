@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.execution.CancelableFuture
 import monix.execution.exceptions.DummyException
@@ -25,6 +26,7 @@ import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 import monix.execution.atomic.Atomic
 
+@nowarn
 object TaskRaceSuite extends BaseTestSuite {
   test("Task.raceMany should switch to other") { implicit s =>
     val task =
