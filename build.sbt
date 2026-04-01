@@ -444,11 +444,12 @@ lazy val sharedJSSettings = Seq(
 
 def mimaSettings(projectName: String) = Seq(
   ThisBuild / mimaFailOnNoPrevious := false,
-  // mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
-  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
-  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0,
-  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_3_0,
-  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_4_0
+  mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_3_0,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_4_0,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_5_0
 )
 
 lazy val doctestTestSettings = Seq(
@@ -626,8 +627,9 @@ lazy val executionShadedJCTools = project
 
 lazy val executionAtomicProfile =
   crossModule(
-    projectName  = "monix-execution-atomic",
-    withDocTests = true,
+    projectName    = "monix-execution-atomic",
+    withMimaChecks = false,
+    withDocTests   = true,
     crossSettings = Seq(
       description := "Sub-module of Monix, exposing low-level atomic references. See: https://monix.io",
     )

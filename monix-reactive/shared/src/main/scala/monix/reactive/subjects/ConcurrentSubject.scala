@@ -41,7 +41,7 @@ abstract class ConcurrentSubject[I, +O] extends Subject[I, O] with Observer.Sync
 @nowarn("msg=Implicit parameters should be provided with a `using` clause")
 @nowarn("msg=The syntax `x: _*` is no longer supported for vararg splices; use `x*` instead")
 @nowarn("msg=`_` is deprecated for wildcard arguments of types: use `?` instead")
-object ConcurrentSubject {
+object ConcurrentSubject extends monix.reactive.internal.deprecated.ConcurrentSubjectDeprecatedBuilders {
   def apply[A](multicast: MulticastStrategy[A])(implicit s: Scheduler): ConcurrentSubject[A, A] =
     apply(multicast, Unbounded)(s)
 

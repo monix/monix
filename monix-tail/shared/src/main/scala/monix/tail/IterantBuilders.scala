@@ -118,6 +118,20 @@ object IterantBuilders {
     def suspend[A](rest: F[Iterant[F, A]]): Iterant[F, A] =
       Iterant.suspend(rest)
 
+    /** Binary-compatibility shim — the `Applicative[F]` constraint is no longer needed.
+      *
+      * In 3.4.0, `suspend(rest)` required an implicit `Applicative[F]`; in 3.5.0 it does not.
+      * This overload preserves the old JVM bytecode descriptor so that pre-compiled
+      * 3.4.0 call-sites remain link-compatible at runtime.
+      *
+      * @deprecated Use Iterant.suspend without the implicit instead.
+      */
+    @deprecated("The Applicative[F] constraint is no longer needed; use suspend without it.", "3.5.0")
+    private[monix] def suspend[A](rest: F[Iterant[F, A]])(implicit F: Applicative[F]): Iterant[F, A] =
+      // $COVERAGE-OFF$
+      Iterant.suspend(rest)
+    // $COVERAGE-ON$
+
     // -----------------------------------------------------------------
     // -- Requiring Applicative
 
