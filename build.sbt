@@ -196,7 +196,8 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
           "-Xfatal-warnings",
           "-Xsource:3-cross",
           // Silence various warnings that are false positives or intentional patterns
-          "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent,any:warning-verbose"
+          "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent,any:warning-verbose",
+          "-Wconf:cat=unused-nowarn:s"
         )
       case Some((3, _)) => 
         Seq(
