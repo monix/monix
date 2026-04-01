@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.deprecated
 
-import scala.annotation.nowarn
 import monix.execution.Scheduler
 import monix.reactive.subjects.ConcurrentSubject
 
@@ -26,7 +25,6 @@ import monix.reactive.subjects.ConcurrentSubject
   * These methods preserve the binary interface of `ConcurrentSubject` from 3.4.0.
   * They are package-private and must not be called by user code.
   */
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[monix] trait ConcurrentSubjectDeprecatedBuilders extends Any {
 
   /** Binary-compatibility shim — the `Scheduler` parameter is no longer needed.
@@ -38,8 +36,8 @@ private[monix] trait ConcurrentSubjectDeprecatedBuilders extends Any {
     * @deprecated Use [[ConcurrentSubject.async[A]:* ConcurrentSubject.async]] instead.
     */
   @deprecated("The Scheduler parameter is no longer needed; use ConcurrentSubject.async without it.", "3.5.0")
-  private[monix] def async[A](implicit s: Scheduler): ConcurrentSubject[A, A] =
+  private[deprecated] def async[A](implicit s: Scheduler): ConcurrentSubject[A, A] =
     // $COVERAGE-OFF$
     ConcurrentSubject.async[A]
-    // $COVERAGE-ON$
+  // $COVERAGE-ON$
 }

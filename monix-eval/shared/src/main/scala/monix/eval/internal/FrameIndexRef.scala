@@ -68,7 +68,6 @@ private[eval] sealed abstract class FrameIndexRef {
   def reset(): Unit
 }
 
-@scala.annotation.nowarn
 private[eval] object FrameIndexRef {
   /** Builds a [[FrameIndexRef]]. */
   def apply(em: ExecutionModel): FrameIndexRef =

@@ -181,7 +181,6 @@ import scala.util.{ Failure, Success, Try }
   *         it might be better to pass such a reference around as
   *         a parameter.
   */
-@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
 sealed abstract class Coeval[+A] extends (() => A) with Serializable { self =>
   import monix.eval.Coeval._
 

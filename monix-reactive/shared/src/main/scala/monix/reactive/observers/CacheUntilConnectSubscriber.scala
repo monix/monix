@@ -17,7 +17,6 @@
 
 package monix.reactive.observers
 
-import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.{ Ack, CancelableFuture }
 import monix.execution.Scheduler
@@ -25,18 +24,17 @@ import monix.reactive.Observable
 import scala.collection.mutable
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Failure, Success }
+import scala.annotation.unchecked.uncheckedVariance
 
 /** Wraps an `underlying` [[Subscriber]] into an implementation that caches
   * all events until the call to `connect()` happens. After being connected,
   * the buffer is drained into the `underlying` observer, after which all
   * subsequent events are pushed directly.
   */
-@nowarn("msg=unused value of type")
-@nowarn("msg=The syntax")
 final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) extends Subscriber[A] { self =>
   implicit val scheduler: Scheduler = downstream.scheduler
   // MUST BE synchronized by `self`, only available if isConnected == false
-  private[this] var queue = mutable.ArrayBuffer.empty[A]
+  private var queue: mutable.ArrayBuffer[A @uncheckedVariance] = mutable.ArrayBuffer.empty
   // MUST BE synchronized by `self`
   private var isConnectionStarted = false
   // MUST BE synchronized by `self`, as long as isConnected == false
@@ -121,11 +119,9 @@ final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) 
           def onComplete(): Unit = {
             // Applying back-pressure, otherwise the next onNext might
             // break the back-pressure contract.
-            ack.syncOnContinue {
-              bufferWasDrained.trySuccess(Continue)
-              ()
+            val _ = ack.syncOnContinue {
+              val _ = bufferWasDrained.trySuccess(Continue)
             }
-            ()
           }
 
           def onError(ex: Throwable): Unit = {
@@ -186,7 +182,8 @@ final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) 
     */
   def onComplete(): Unit = {
     // we cannot take a fast path here
-    connectedFuture.syncTryFlatten
+    val _ = connectedFuture
+      .syncTryFlatten
       .syncOnContinue(downstream.onComplete())
     ()
   }
@@ -199,7 +196,8 @@ final class CacheUntilConnectSubscriber[-A] private (downstream: Subscriber[A]) 
     */
   def onError(ex: Throwable): Unit = {
     // we cannot take a fast path here
-    connectedFuture.syncTryFlatten
+    val _ = connectedFuture
+      .syncTryFlatten
       .syncOnContinue(downstream.onError(ex))
     ()
   }

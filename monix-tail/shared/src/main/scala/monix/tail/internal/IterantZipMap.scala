@@ -26,11 +26,8 @@ import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant
 import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 import monix.tail.batches.{ Batch, BatchCursor }
-
 import scala.collection.mutable.ArrayBuffer
 
-@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@scala.annotation.nowarn
 private[tail] object IterantZipMap {
   /**
     * Implementation for `Iterant#zipMap`

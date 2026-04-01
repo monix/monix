@@ -23,7 +23,6 @@ import monix.eval.Task
 import monix.execution.exceptions.CallbackCalledMultipleTimesException
 import monix.execution.schedulers.TrampolinedRunnable
 
-@scala.annotation.nowarn
 private[eval] object TaskDoOnCancel {
   /**
 * Implementation for `Task.doOnCancel`
@@ -61,7 +60,7 @@ private[eval] object TaskDoOnCancel {
     override def tryOnSuccess(value: A): Boolean = {
       if (isActive) {
         isActive = false
-        ctx.connection.pop()
+        val _ = ctx.connection.pop()
         this.value = value
         ctx.scheduler.execute(this)
         true
@@ -73,7 +72,7 @@ private[eval] object TaskDoOnCancel {
     override def tryOnError(e: Throwable): Boolean = {
       if (isActive) {
         isActive = false
-        ctx.connection.pop()
+        val _ = ctx.connection.pop()
         this.error = e
         ctx.scheduler.execute(this)
         true

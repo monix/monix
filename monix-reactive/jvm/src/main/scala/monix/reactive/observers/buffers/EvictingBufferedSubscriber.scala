@@ -24,7 +24,6 @@ import monix.execution.Scheduler
 import monix.execution.atomic.PaddingStrategy.{ LeftRight128, LeftRight256 }
 import monix.execution.atomic.{ Atomic, AtomicAny, AtomicInt }
 import monix.execution.internal.math
-import scala.annotation.nowarn
 import scala.util.control.NonFatal
 import monix.reactive.OverflowStrategy._
 import monix.reactive.observers.buffers.AbstractEvictingBufferedSubscriber._
@@ -34,6 +33,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.concurrent.Future
 import scala.util.{ Failure, Success }
+import scala.annotation.unchecked.uncheckedVariance
 
 /** A [[BufferedSubscriber]] implementation for the
   * [[monix.reactive.OverflowStrategy.DropOld DropOld]]
@@ -107,7 +107,6 @@ private[observers] object EvictingBufferedSubscriber {
   }
 }
 
-@nowarn("msg=The syntax")
 private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
   out: Subscriber[A],
   strategy: Evicted[Nothing],
@@ -125,8 +124,8 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
 
   private val itemsToPush =
     Atomic.withPadding(0, LeftRight256)
-  private[this] val queue =
-    new ConcurrentBuffer[A](strategy)
+  private val queue: ConcurrentBuffer[A @uncheckedVariance] =
+    new ConcurrentBuffer(strategy)
 
   def onNext(elem: A): Ack = {
     if (upstreamIsComplete || downstreamIsComplete) Stop

@@ -386,7 +386,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
 
     val pub = new Publisher[Int] {
-      def subscribe(s: Subscriber[_ >: Int]): Unit = {
+      def subscribe(s: Subscriber[? >: Int]): Unit = {
         s.onSubscribe(new Subscription {
           def request(n: Long): Unit = throw dummy
           def cancel(): Unit = throw dummy
@@ -399,7 +399,7 @@ object TaskConversionsSuite extends BaseTestSuite {
 
   test("Task.fromReactivePublisher yields expected input") { implicit s =>
     val pub = new Publisher[Int] {
-      def subscribe(s: Subscriber[_ >: Int]): Unit = {
+      def subscribe(s: Subscriber[? >: Int]): Unit = {
         s.onSubscribe(new Subscription {
           var isActive = true
           def request(n: Long): Unit = {

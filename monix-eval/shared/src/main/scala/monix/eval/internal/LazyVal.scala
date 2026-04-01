@@ -69,7 +69,6 @@ private[eval] final class LazyVal[A] private (f: () => A, val cacheErrors: Boole
     }
 }
 
-@scala.annotation.nowarn
 private[eval] object LazyVal {
   /** Builder. */
   def apply[A](f: () => A, cacheErrors: Boolean): (() => Coeval.Eager[A]) =

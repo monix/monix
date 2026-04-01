@@ -17,7 +17,6 @@
 
 package monix.reactive.observers
 
-import scala.annotation.nowarn
 import java.io.PrintStream
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.BooleanCancelable
@@ -33,19 +32,17 @@ import scala.util.control.NonFatal
   * A `Subscriber` can be seen as an address that the data source needs
   * in order to send events, along with an execution context.
   */
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 trait Subscriber[-A] extends Observer[A] {
   implicit def scheduler: Scheduler
 }
 
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 object Subscriber {
   /** Subscriber builder */
   def apply[A](observer: Observer[A], scheduler: Scheduler): Subscriber[A] =
     observer match {
-      case ref: Subscriber[_] if ref.scheduler == scheduler =>
+      case ref: Subscriber[?] if ref.scheduler == scheduler =>
         ref.asInstanceOf[Subscriber[A]]
-      case ref: Observer.Sync[_] =>
+      case ref: Observer.Sync[?] =>
         Subscriber.Sync(ref.asInstanceOf[Observer.Sync[A]], scheduler)
       case _ =>
         new Implementation[A](observer, scheduler)
@@ -62,7 +59,7 @@ object Subscriber {
     /** `Subscriber.Sync` builder */
     def apply[A](observer: Observer.Sync[A], scheduler: Scheduler): Subscriber.Sync[A] =
       observer match {
-        case ref: Subscriber.Sync[_] if ref.scheduler == scheduler =>
+        case ref: Subscriber.Sync[?] if ref.scheduler == scheduler =>
           ref.asInstanceOf[Subscriber.Sync[A]]
         case _ =>
           new SyncImplementation[A](observer, scheduler)

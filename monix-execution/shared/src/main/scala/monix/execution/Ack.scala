@@ -19,7 +19,6 @@ package monix.execution
 
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import scala.annotation.nowarn
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ CanAwait, ExecutionContext, Future, Promise }
 import scala.util.{ Failure, Success, Try }
@@ -104,7 +103,6 @@ object Ack {
     *         Use with great care as an optimization. Don't use
     *         it in tail-recursive loops!
     */
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   implicit class AckExtensions[Self <: Future[Ack]](val source: Self) extends AnyVal {
     /** Returns `true` if self is a direct reference to
       * `Continue` or `Stop`, `false` otherwise.

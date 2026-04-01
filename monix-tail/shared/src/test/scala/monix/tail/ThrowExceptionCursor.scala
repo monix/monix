@@ -22,7 +22,7 @@ import monix.tail.batches.BatchCursor
 
 /** BatchCursor that throws exception on access. */
 final class ThrowExceptionCursor[A](ex: Throwable) extends BatchCursor[A] { self =>
-  private[this] val triggered = Atomic(false)
+  private val triggered = Atomic(false)
   def isTriggered: Boolean = triggered.get()
 
   private def triggerError(): Nothing = {

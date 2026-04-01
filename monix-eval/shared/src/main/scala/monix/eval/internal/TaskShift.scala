@@ -24,7 +24,6 @@ import monix.execution.schedulers.TracingScheduler
 import monix.execution.{ Callback, Scheduler }
 import scala.concurrent.ExecutionContext
 
-@scala.annotation.nowarn
 private[eval] object TaskShift {
   /**
 * Implementation for `Task.shift`

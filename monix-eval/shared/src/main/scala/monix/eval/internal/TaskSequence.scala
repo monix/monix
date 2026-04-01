@@ -22,7 +22,6 @@ import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal._
 import scala.collection.mutable
 
-@scala.annotation.nowarn
 private[eval] object TaskSequence {
   /** Implementation for `Task.sequence`. */
   def list[A, M[X] <: Iterable[X]](in: M[Task[A]])(implicit bf: BuildFrom[M[Task[A]], A, M[A]]): Task[M[A]] = {

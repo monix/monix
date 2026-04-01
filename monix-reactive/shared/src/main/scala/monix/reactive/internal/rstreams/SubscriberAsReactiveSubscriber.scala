@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.rstreams
 
-import scala.annotation.nowarn
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.SingleProducer
@@ -29,8 +28,6 @@ import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
 import org.reactivestreams.{ Subscriber => RSubscriber, Subscription => RSubscription }
 import scala.concurrent.Future
 
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@nowarn("msg=unused value of type")
 private[reactive] object SubscriberAsReactiveSubscriber {
   /** Wraps a [[monix.reactive.Observer Observer]] instance into a
     * `org.reactiveSubscriber` instance. The resulting subscriber respects
@@ -68,7 +65,7 @@ private[reactive] object SubscriberAsReactiveSubscriber {
     */
   def apply[A](subscriber: Subscriber[A], requestCount: Int = 128): RSubscriber[A] =
     subscriber match {
-      case _: Subscriber.Sync[_] =>
+      case _: Subscriber.Sync[?] =>
         new SyncSubscriberAsReactiveSubscriber[A](subscriber.asInstanceOf[Subscriber.Sync[A]], requestCount)
       case _ =>
         new AsyncSubscriberAsReactiveSubscriber[A](subscriber, requestCount)
@@ -123,7 +120,6 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A](target: Sub
         Stop
       }
 
-      @nowarn("msg=Implicit parameters should be provided with a `using` clause")
       private def finiteOnNext(elem: A): Future[Ack] =
         target.onNext(elem).syncTryFlatten match {
           case Continue => continue()

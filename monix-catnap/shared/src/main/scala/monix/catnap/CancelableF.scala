@@ -22,7 +22,6 @@ import cats.effect.{ CancelToken, Sync }
 import monix.catnap.cancelables.BooleanCancelableF
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.exceptions.CompositeException
-import scala.annotation.nowarn
 import scala.collection.mutable.ListBuffer
 
 /** Represents a pure data structure that describes an effectful,
@@ -85,11 +84,9 @@ object CancelableF {
   /** Builds a [[CancelableF]] reference from a sequence,
     * cancelling everything when `cancel` gets evaluated.
     */
-  @nowarn("cat=deprecation")
   def collection[F[_]](refs: CancelableF[F]*)(implicit F: Sync[F]): CancelableF[F] =
     wrap[F](cancelAllSeq(refs))
 
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   private def cancelAllSeq[F[_]](seq: Seq[CancelableF[F]])(implicit F: Sync[F]): CancelToken[F] =
     if (seq.isEmpty) F.unit
     else F.defer(new CancelAllFrame[F](seq.iterator.map(_.cancel))(F).loop)
@@ -103,7 +100,6 @@ object CancelableF {
     *  - for the JVM "Suppressed Exceptions" are used
     *  - for JS they are wrapped in a `CompositeException`
     */
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   def cancelAll[F[_]](seq: CancelableF[F]*)(implicit F: Sync[F]): CancelToken[F] = {
 
     if (seq.isEmpty) F.unit
@@ -122,7 +118,6 @@ object CancelableF {
     *  - for the JVM "Suppressed Exceptions" are used
     *  - for JS they are wrapped in a `CompositeException`
     */
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   def cancelAllTokens[F[_]](seq: CancelToken[F]*)(implicit F: Sync[F]): CancelToken[F] = {
 
     if (seq.isEmpty) F.unit

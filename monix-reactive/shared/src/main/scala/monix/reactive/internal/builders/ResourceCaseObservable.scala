@@ -19,8 +19,6 @@ package monix.reactive
 package internal
 package builders
 
-import scala.annotation.nowarn
-
 import cats.effect.ExitCase
 import monix.execution.Callback
 import monix.eval.Task
@@ -31,7 +29,6 @@ import monix.reactive.observables.ChainedObservable
 import monix.reactive.observers.Subscriber
 import scala.util.Success
 
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] final class ResourceCaseObservable[A](
   acquire: Task[A],
   release: (A, ExitCase[Throwable]) => Task[Unit]

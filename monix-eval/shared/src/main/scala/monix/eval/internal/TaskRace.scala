@@ -21,7 +21,6 @@ import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.atomic.Atomic
 
-@scala.annotation.nowarn
 private[eval] object TaskRace {
   /**
 * Implementation for `Task.race`.
@@ -60,7 +59,7 @@ private[eval] object TaskRace {
           def onSuccess(valueA: A): Unit =
             if (isActive.getAndSet(false)) {
               connB.cancel.map { _ =>
-                conn.pop()
+                val _ = conn.pop()
                 cb.onSuccess(Left(valueA))
               }.runAsyncAndForget
             }
@@ -68,7 +67,7 @@ private[eval] object TaskRace {
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
               connB.cancel.map { _ =>
-                conn.pop()
+                val _ = conn.pop()
                 cb.onError(ex)
               }.runAsyncAndForget
             } else {
@@ -85,7 +84,7 @@ private[eval] object TaskRace {
           def onSuccess(valueB: B): Unit =
             if (isActive.getAndSet(false)) {
               connA.cancel.map { _ =>
-                conn.pop()
+                val _ = conn.pop()
                 cb.onSuccess(Right(valueB))
               }.runAsyncAndForget
             }
@@ -93,7 +92,7 @@ private[eval] object TaskRace {
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
               connA.cancel.map { _ =>
-                conn.pop()
+                val _ = conn.pop()
                 cb.onError(ex)
               }.runAsyncAndForget
             } else {

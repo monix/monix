@@ -217,9 +217,6 @@ import scala.concurrent.duration.{ Duration, FiniteDuration }
   *             Eq.fromUniversalEquals
   *         }}}
   */
-@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@scala.annotation.nowarn("msg=The syntax `x: _\\*` is no longer supported for vararg splices; use `x\\*` instead")
-@scala.annotation.nowarn
 sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   self =>
 
@@ -1906,8 +1903,8 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *       val sub = SingleAssignSubscription()
     *
     *       source.subscribe(new Subscriber[Int] {
-    *         private[this] var requested = 0L
-    *         private[this] var sum = 0L
+    *         private var requested = 0L
+    *         private var sum = 0L
     *
     *         def onSubscribe(s: Subscription): Unit = {
     *           sub := s
@@ -2370,9 +2367,6 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
   *         `period` of time. The given `period` of time acts as a
   *         fixed delay between successive events.
   */
-@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@scala.annotation.nowarn("msg=The syntax `x: _\\*` is no longer supported for vararg splices; use `x\\*` instead")
-@scala.annotation.nowarn
 object Iterant extends IterantInstances {
   /**
     * Alias for [[monix.catnap.ConsumerF]], using `Option[Throwable]` as
@@ -2578,9 +2572,9 @@ object Iterant extends IterantInstances {
   /** Converts any `scala.collection.Seq` into a stream. */
   def fromSeq[F[_], A](xs: Seq[A])(implicit F: Applicative[F]): Iterant[F, A] =
     xs match {
-      case ref: LinearSeq[_] =>
+      case ref: LinearSeq[?] =>
         fromList[F, A](ref.asInstanceOf[LinearSeq[A]])(F)
-      case ref: IndexedSeq[_] =>
+      case ref: IndexedSeq[?] =>
         fromIndexedSeq[F, A](ref.asInstanceOf[IndexedSeq[A]])(F)
       case _ =>
         fromIterable(xs)(F)
@@ -2895,7 +2889,7 @@ object Iterant extends IterantInstances {
       result
     case _ =>
       var result: Iterant[F, A] = null
-      result = NextBatch(Batch(elems: _*), F.delay(result))
+      result = NextBatch(Batch(elems*), F.delay(result))
       result
   }
 
@@ -3221,7 +3215,6 @@ private[tail] trait IterantInstances {
     new CatsSyncInstances[F]()
 
   /** Provides the `cats.effect.Sync` instance for [[Iterant]]. */
-  @scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
   class CatsSyncInstances[F[_]](implicit F: Sync[F])
     extends StackSafeMonad[Iterant[F, *]] with MonadError[Iterant[F, *], Throwable] with Defer[Iterant[F, *]]
     with MonoidK[Iterant[F, *]] with CoflatMap[Iterant[F, *]] with FunctorFilter[Iterant[F, *]] {

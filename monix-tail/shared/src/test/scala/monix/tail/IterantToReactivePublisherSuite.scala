@@ -344,9 +344,9 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       val subscription = SingleAssignSubscription()
 
       stream.toReactivePublisher.subscribe(new Subscriber[Int] {
-        private[this] var s: Subscription = _
-        private[this] var requested = 0L
-        private[this] var sum = 0L
+        private var s: Subscription = _
+        private var requested = 0L
+        private var sum = 0L
 
         def onSubscribe(s: Subscription): Unit = {
           this.s = s

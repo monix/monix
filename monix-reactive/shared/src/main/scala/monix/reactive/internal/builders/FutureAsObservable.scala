@@ -56,7 +56,7 @@ private[reactive] final class FutureAsObservable[A](factory: => Future[A]) exten
           }
 
           evaluated match {
-            case c: CancelableFuture[_] => c
+            case c: CancelableFuture[?] => c
             case _ => Cancelable.empty
           }
       }

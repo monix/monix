@@ -28,7 +28,6 @@ import monix.execution.rstreams.SingleAssignSubscription
 
 import scala.util.control.NonFatal
 
-@scala.annotation.nowarn
 private[eval] object TaskConversions {
   /**
 * Implementation for `Task#toIO`.
@@ -185,7 +184,9 @@ private[eval] object TaskConversions {
     def run(): Unit = {
       if (canCall) {
         canCall = false
-        if (conn ne null) conn.pop()
+        if (conn ne null) {
+          val _ = conn.pop()
+        }
         cb(value)
         value = null
       }

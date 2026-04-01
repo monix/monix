@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.builders
 
-import scala.annotation.nowarn
 import java.io.Reader
 import java.util
 
@@ -36,7 +35,6 @@ import scala.annotation.tailrec
 import scala.concurrent.{ blocking, Future }
 import scala.util.{ Failure, Success }
 
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] final class CharsReaderObservable(in: Reader, chunkSize: Int) extends Observable[Array[Char]] {
 
   require(chunkSize > 0, "chunkSize > 0")

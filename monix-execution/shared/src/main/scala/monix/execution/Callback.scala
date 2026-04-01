@@ -22,7 +22,6 @@ import monix.execution.schedulers.{ TrampolineExecutionContext, TrampolinedRunna
 import scala.concurrent.{ ExecutionContext, Promise }
 import scala.util.control.NonFatal
 import scala.util.{ Failure, Success, Try }
-import scala.annotation.nowarn
 
 /** Represents a callback that should be called asynchronously
   * with the result of a computation.
@@ -335,11 +334,9 @@ object Callback {
   private[monix] def signalErrorTrampolined[E, A](cb: Callback[E, A], e: E): Unit =
     TrampolineExecutionContext.immediate.execute(() => cb.onError(e))
 
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   private final class AsyncFork[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext)
     extends Base[E, A](cb)(ec)
 
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   private final class TrampolinedCallback[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext)
     extends Base[E, A](cb)(ec) with TrampolinedRunnable
 

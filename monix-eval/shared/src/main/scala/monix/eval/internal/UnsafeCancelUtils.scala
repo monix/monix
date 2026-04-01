@@ -26,7 +26,6 @@ import monix.execution.internal.Platform
 import scala.collection.mutable.ListBuffer
 import scala.util.control.NonFatal
 
-@scala.annotation.nowarn
 private[eval] object UnsafeCancelUtils {
   /**
 * Internal API.
@@ -151,7 +150,7 @@ private[eval] object UnsafeCancelUtils {
           case Nil =>
             Task.unit
           case first :: rest =>
-            Task.raiseError(Platform.composeErrors(first, rest: _*))
+            Task.raiseError(Platform.composeErrors(first, rest*))
         }
       }
     }

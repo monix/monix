@@ -91,8 +91,7 @@ private[internal] abstract class TaskRestartCallback(contextInit: Context, callb
       // $COVERAGE-ON$
     }
 
-  @scala.annotation.nowarn("msg=`_` is deprecated for wildcard arguments of types: use `\\?` instead")
-  protected def prepareStart(@unused task: Task.Async[_]): Unit = ()
+  protected def prepareStart(@unused task: Task.Async[?]): Unit = ()
   protected def prepareCallback: Callback[Throwable, Any] = callback
   private val wrappedCallback = prepareCallback
 
@@ -131,8 +130,6 @@ private[internal] abstract class TaskRestartCallback(contextInit: Context, callb
   }
 }
 
-@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@scala.annotation.nowarn("msg=unused value of type")
 private[internal] object TaskRestartCallback {
   /** Builder for [[TaskRestartCallback]], returning a specific instance
   * optimized for the passed in `Task.Options`.
@@ -155,8 +152,7 @@ private[internal] object TaskRestartCallback {
     private var preparedLocals: Local.Context = null.asInstanceOf[Local.Context]
     private var previousLocals: Local.Context = null.asInstanceOf[Local.Context]
 
-    @scala.annotation.nowarn("msg=`_` is deprecated for wildcard arguments of types: use `\\?` instead")
-    override protected def prepareStart(task: Task.Async[_]): Unit = {
+    override protected def prepareStart(task: Task.Async[?]): Unit = {
       preparedLocals = if (task.restoreLocals) Local.getContext() else null
     }
 

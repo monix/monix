@@ -29,7 +29,6 @@ import scala.util.control.NonFatal
   * `Task` integration utilities for the `cats.effect.ConcurrentEffect`
   * instance, provided in `monix.eval.instances`.
   */
-@scala.annotation.nowarn
 private[eval] object TaskEffect {
   /**
 * `cats.effect.Effect#runAsync`
@@ -39,7 +38,7 @@ private[eval] object TaskEffect {
     s: Scheduler,
     opts: Task.Options
   ): SyncIO[Unit] = SyncIO {
-    execute(fa, cb)
+    val _ = execute(fa, cb)
     ()
   }
 

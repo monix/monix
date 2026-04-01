@@ -26,7 +26,6 @@ import scala.util.control.NonFatal
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-@scala.annotation.nowarn
 private[eval] object TaskParSequence {
   /**
 * Implementation for [[Task.parSequence]]
@@ -70,7 +69,7 @@ private[eval] object TaskParSequence {
         completed += 1
         if (completed >= tasksCount) {
           isActive = false
-          mainConn.pop()
+          val _ = mainConn.pop()
 
           val builder = makeBuilder()
           var idx = 0

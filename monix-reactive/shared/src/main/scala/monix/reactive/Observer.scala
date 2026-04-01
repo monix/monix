@@ -17,7 +17,6 @@
 
 package monix.reactive
 
-import scala.annotation.nowarn
 import java.io.PrintStream
 
 import monix.execution.Ack.{ Continue, Stop }
@@ -44,7 +43,6 @@ import scala.util.control.NonFatal
   * and after onComplete or onError, a well behaved `Observable`
   * implementation shouldn't send any more onNext events.
   */
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 trait Observer[-A] extends Any with Serializable {
   def onNext(elem: A): Future[Ack]
 
@@ -69,7 +67,6 @@ trait Observer[-A] extends Any with Serializable {
   *         asynchronous boundaries, and when it is seen as being `isCanceled`,
   *         streaming is stopped
   */
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 object Observer {
   /** An `Observer.Sync` is an [[Observer]] that signals demand
     * to upstream synchronously (i.e. the upstream observable doesn't need to

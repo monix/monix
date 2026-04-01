@@ -28,7 +28,6 @@ import scala.annotation.tailrec
 import scala.concurrent.{ ExecutionContext, Promise }
 import scala.util.{ Failure, Success, Try }
 
-@scala.annotation.nowarn
 private[eval] object TaskMemoize {
   /**
 * Implementation for `.memoize` and `.memoizeOnSuccess`.
@@ -93,7 +92,7 @@ private[eval] object TaskMemoize {
             // Resetting the state to `null` will trigger the
             // execution again on next `runAsync`
             if (state.compareAndSet(p, null)) {
-              p.tryComplete(value)
+              val _ = p.tryComplete(value)
               ()
             } else {
               // Race condition, retry

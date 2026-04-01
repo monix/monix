@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import scala.annotation.nowarn
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack.Stop
@@ -38,7 +37,6 @@ import scala.concurrent.Future
   *
   * Tricky concurrency handling within, here be dragons!
   */
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], seed: Task[S], op: (S, A) => Task[S])
   extends Observable[S] {
 

@@ -17,7 +17,6 @@
 
 package monix.reactive.observables
 
-import scala.annotation.nowarn
 import monix.execution.{ Ack, Cancelable }
 import monix.execution.Scheduler
 import monix.reactive.Observable
@@ -33,7 +32,6 @@ import scala.concurrent.Future
   *
   * @param source - the connectable observable we are wrapping
   */
-@nowarn("msg=discarded non-Unit value")
 final class RefCountObservable[+A] private (source: ConnectableObservable[A]) extends Observable[A] {
 
   private val refs = Atomic(-1)
@@ -60,7 +58,7 @@ final class RefCountObservable[+A] private (source: ConnectableObservable[A]) ex
       val countdown = Cancelable(() => countDownToConnectionCancel())
       // Subscribing and triggering connect() if this is the first subscription
       val ret = source.unsafeSubscribeFn(wrap(subscriber, countdown))
-      if (current == -1) connection // triggers connect()
+      if (current == -1) { val _ = connection } // triggers connect()
       // A composite that both cancels this subscription and does the countdown
       Cancelable { () =>
         try ret.cancel()

@@ -61,7 +61,7 @@ object CancelableFSuite extends SimpleTestSuite {
   test("cancel multiple cancelables") {
     var effect = 0
     val seq = (0 until 100).map(_ => CancelableF.unsafeApply(IO { effect += 1 }))
-    val col = CancelableF.collection(seq: _*)
+    val col = CancelableF.collection(seq*)
 
     assertEquals(effect, 0)
     col.cancel.unsafeRunSync()
@@ -71,7 +71,7 @@ object CancelableFSuite extends SimpleTestSuite {
   test("cancel multiple tokens") {
     var effect = 0
     val seq = (0 until 100).map(_ => IO { effect += 1 })
-    val cancel = CancelableF.cancelAllTokens(seq: _*)
+    val cancel = CancelableF.cancelAllTokens(seq*)
 
     assertEquals(effect, 0)
     cancel.unsafeRunSync()

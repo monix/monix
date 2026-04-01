@@ -22,7 +22,6 @@ import cats.effect.{ Async, Concurrent }
 import monix.execution.CancelableFuture
 import monix.execution.internal.AttemptCallback
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import scala.annotation.nowarn
 import scala.concurrent.{ Future => ScalaFuture }
 
 /**
@@ -145,8 +144,6 @@ object FutureLift extends internal.FutureLiftForPlatform {
     * N.B. this works with [[monix.execution.CancelableFuture]]
     * if the given `Future` is such an instance.
     */
-  @nowarn("cat=deprecation")
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   def scalaToConcurrentOrAsync[F[_], MF[T] <: ScalaFuture[T], A](fa: F[MF[A]])(
     implicit F: OrElse[Concurrent[F], Async[F]]
   ): F[A] = {
@@ -164,8 +161,6 @@ object FutureLift extends internal.FutureLiftForPlatform {
     * [[scala.concurrent.Future]] or [[monix.execution.CancelableFuture]] to
     * any `Concurrent` or `Async` data type.
     */
-  @nowarn("cat=deprecation")
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   implicit def scalaFutureLiftForConcurrentOrAsync[F[_], MF[T] <: ScalaFuture[T]](
     implicit F: OrElse[Concurrent[F], Async[F]]
   ): FutureLift[F, MF] = {

@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.Scheduler
 import monix.execution.cancelables.{ CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable }
@@ -29,8 +28,6 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
-@nowarn("msg=discarded non-Unit value")
-@nowarn("msg=unused value of type")
 private[reactive] final class ThrottleLatestObservable[A](
   source: Observable[A],
   duration: FiniteDuration,
@@ -66,7 +63,7 @@ private[reactive] final class ThrottleLatestObservable[A](
             hasValue = false
             val now = scheduler.clockMonotonic(TimeUnit.MILLISECONDS)
             ack = out.onNext(lastEvent)
-            ack.syncFlatMap {
+            val _ = ack.syncFlatMap {
               case Continue =>
                 val elapsed = scheduler.clockMonotonic(TimeUnit.MILLISECONDS) - now
                 val delay =
@@ -82,7 +79,6 @@ private[reactive] final class ThrottleLatestObservable[A](
                 }
                 Stop
             }
-            ()
           } else {
             shouldEmitNext = true
           }
@@ -118,14 +114,13 @@ private[reactive] final class ThrottleLatestObservable[A](
       override def onComplete(): Unit = self.synchronized {
         if (!isDone) {
           val lastAck = if (ack == null) Continue else ack
-          lastAck.syncTryFlatten.syncOnContinue { signalOnComplete() }
+          val _ = lastAck.syncTryFlatten.syncOnContinue { signalOnComplete() }
         }
-        ()
       }
 
       private def signalOnComplete(): Unit = {
         if (emitLast && hasValue) {
-          out.onNext(lastEvent).syncTryFlatten.syncOnContinue {
+          val _ = out.onNext(lastEvent).syncTryFlatten.syncOnContinue {
             isDone = true
             out.onComplete()
             task.cancel()
@@ -135,7 +130,6 @@ private[reactive] final class ThrottleLatestObservable[A](
           out.onComplete()
           task.cancel()
         }
-        ()
       }
     })
 

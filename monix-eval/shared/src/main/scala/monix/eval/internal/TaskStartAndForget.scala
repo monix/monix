@@ -21,7 +21,6 @@ package internal
 import monix.execution.Callback
 import monix.eval.Task.Context
 
-@scala.annotation.nowarn
 private[eval] object TaskStartAndForget {
   /**
 * Implementation for `Task.startAndForget`.

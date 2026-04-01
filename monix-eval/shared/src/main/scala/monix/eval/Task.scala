@@ -471,8 +471,6 @@ import scala.annotation.unused
   *         it might be better to pass such a reference around as
   *         a parameter.
   */
-@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@scala.annotation.nowarn("msg=unused value of type")
 sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompat[A] {
   import cats.effect.Async
   import monix.eval.Task._
@@ -934,7 +932,13 @@ sealed abstract class Task[+A] extends Serializable with TaskDeprecated.BinCompa
   def runAsyncUncancelableOpt(cb: Either[Throwable, A] => Unit)(implicit s: Scheduler, opts: Task.Options): Unit = {
     val opts2 = opts.withSchedulerFeatures
     Local.bindCurrentIf(opts2.localContextPropagation) {
-      TaskRunLoop.startLight(this, s, opts2, Callback.fromAttempt(cb), isCancelable = false)
+      val _ = TaskRunLoop.startLight(
+        this,
+        s,
+        opts2,
+        Callback.fromAttempt(cb),
+        isCancelable = false
+      )
       ()
     }
   }

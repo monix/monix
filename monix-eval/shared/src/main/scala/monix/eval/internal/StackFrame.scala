@@ -28,7 +28,6 @@ private[eval] abstract class StackFrame[-A, +R] extends (A => R) { self =>
   def recover(e: Throwable): R
 }
 
-@scala.annotation.nowarn
 private[eval] object StackFrame {
   /** [[StackFrame]] used in the implementation of `redeemWith`. */
   final class RedeemWith[-A, +R](fe: Throwable => R, fa: A => R) extends StackFrame[A, R] {

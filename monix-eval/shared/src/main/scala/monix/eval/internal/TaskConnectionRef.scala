@@ -95,7 +95,6 @@ private[eval] final class TaskConnectionRef extends CancelableF[Task] {
   private val state = Atomic(Empty: State)
 }
 
-@scala.annotation.nowarn
 private[eval] object TaskConnectionRef {
   /**
 * Returns a new `TaskForwardConnection` reference.

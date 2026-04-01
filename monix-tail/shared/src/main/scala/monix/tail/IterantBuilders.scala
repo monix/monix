@@ -26,6 +26,7 @@ import monix.execution.internal.Platform.recommendedBufferChunkSize
 import monix.execution.{ BufferCapacity, ChannelType }
 import monix.tail.Iterant.Channel
 import monix.tail.batches.{ Batch, BatchCursor }
+import monix.tail.internal.deprecated.IterantDeprecatedBuilders
 import org.reactivestreams.Publisher
 
 import scala.collection.immutable.LinearSeq
@@ -51,9 +52,6 @@ import scala.concurrent.duration.FiniteDuration
   *   Iterant[Task].pure(1)
   * }}}
   */
-@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@scala.annotation.nowarn("msg=The syntax `x: _\\*` is no longer supported for vararg splices; use `x\\*` instead")
-@scala.annotation.nowarn
 object IterantBuilders {
   /**
     * See the description on [[IterantBuilders]] for the purpose of this class.
@@ -61,7 +59,7 @@ object IterantBuilders {
     * Class defined inside object due to Scala's limitations on declaring
     * `AnyVal` classes.
     */
-  final class Apply[F[_]](val v: Boolean = true) extends AnyVal {
+  final class Apply[F[_]](val v: Boolean = true) extends AnyVal with IterantDeprecatedBuilders[F] {
     /** Aliased builder, see documentation for [[Iterant.now]]. */
     def now[A](a: A): Iterant[F, A] =
       Iterant.now(a)
@@ -117,20 +115,6 @@ object IterantBuilders {
     /** Aliased builder, see documentation for [[Iterant.suspend[F[_],A](rest* Iterant.suspend]]. */
     def suspend[A](rest: F[Iterant[F, A]]): Iterant[F, A] =
       Iterant.suspend(rest)
-
-    /** Binary-compatibility shim — the `Applicative[F]` constraint is no longer needed.
-      *
-      * In 3.4.0, `suspend(rest)` required an implicit `Applicative[F]`; in 3.5.0 it does not.
-      * This overload preserves the old JVM bytecode descriptor so that pre-compiled
-      * 3.4.0 call-sites remain link-compatible at runtime.
-      *
-      * @deprecated Use Iterant.suspend without the implicit instead.
-      */
-    @deprecated("The Applicative[F] constraint is no longer needed; use suspend without it.", "3.5.0")
-    private[monix] def suspend[A](rest: F[Iterant[F, A]])(implicit F: Applicative[F]): Iterant[F, A] =
-      // $COVERAGE-OFF$
-      Iterant.suspend(rest)
-    // $COVERAGE-ON$
 
     // -----------------------------------------------------------------
     // -- Requiring Applicative
@@ -226,7 +210,7 @@ object IterantBuilders {
 
     /** Aliased builder, see documentation for [[Iterant.repeat]]. */
     def repeat[A](elems: A*)(implicit F: Sync[F]): Iterant[F, A] =
-      Iterant.repeat(elems: _*)
+      Iterant.repeat(elems*)
 
     /** Aliased builder, see documentation for [[Iterant.repeatEval]]. */
     def repeatEval[A](thunk: => A)(implicit F: Sync[F]): Iterant[F, A] =

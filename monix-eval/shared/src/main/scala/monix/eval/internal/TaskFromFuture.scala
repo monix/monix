@@ -26,7 +26,6 @@ import monix.execution.schedulers.TrampolinedRunnable
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.Try
 
-@scala.annotation.nowarn
 private[eval] object TaskFromFuture {
   /** Implementation for `Task.fromFuture`. */
   def strict[A](f: Future[A]): Task[A] = {
@@ -78,7 +77,7 @@ private[eval] object TaskFromFuture {
     val start: Start[A] = (ctx, cb) => {
       implicit val ec = ctx.scheduler
       if (p.isCompleted) {
-        p.subscribe(trampolinedCB(cb, null))
+        val _ = p.subscribe(trampolinedCB(cb, null))
         ()
       } else {
         val conn = ctx.connection
@@ -128,7 +127,7 @@ private[eval] object TaskFromFuture {
         conn.push(c)(ctx.scheduler)
         // Async boundary
         f.onComplete { result =>
-          conn.pop()
+          val _ = conn.pop()
           cb(result)
         }(ctx.scheduler)
     }
@@ -147,7 +146,9 @@ private[eval] object TaskFromFuture {
       }
 
       def run(): Unit = {
-        if (conn ne null) conn.pop()
+        if (conn ne null) {
+          val _ = conn.pop()
+        }
         val v = value
         value = null
         cb(v)

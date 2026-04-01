@@ -117,7 +117,6 @@ private[eval] sealed abstract class TaskConnection extends CancelableF[Task] {
   def toCancelable(implicit s: Scheduler): Cancelable
 }
 
-@scala.annotation.nowarn
 private[eval] object TaskConnection {
   /** Builder for [[TaskConnection]]. */
   def apply(): TaskConnection =

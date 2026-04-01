@@ -20,7 +20,6 @@ package monix.eval.internal
 import monix.eval.Task
 import monix.eval.Task.{ Context, ContextSwitch, Options }
 
-@scala.annotation.nowarn
 private[eval] object TaskExecuteWithOptions {
   /**
 * Implementation for `Task.executeWithOptions`

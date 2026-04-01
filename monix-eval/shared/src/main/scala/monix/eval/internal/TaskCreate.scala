@@ -30,7 +30,6 @@ import monix.execution.{ Callback, Cancelable, Scheduler, UncaughtExceptionRepor
 
 import scala.util.control.NonFatal
 
-@scala.annotation.nowarn
 private[eval] object TaskCreate {
   /**
 * Implementation for `cats.effect.Concurrent#cancelable`.
@@ -167,7 +166,7 @@ private[eval] object TaskCreate {
     }
   }
 
-  private final class ForwardErrorCallback(cb: Callback[Throwable, _])(implicit r: UncaughtExceptionReporter)
+  private final class ForwardErrorCallback(cb: Callback[Throwable, ?])(implicit r: UncaughtExceptionReporter)
     extends Callback[Throwable, Unit] {
 
     override def onSuccess(value: Unit): Unit = ()
@@ -220,7 +219,9 @@ private[eval] object TaskCreate {
 
     private def startExecution(): Unit = {
       // Cleanup of the current finalizer
-      if (shouldPop) ctx.connection.pop()
+      if (shouldPop) {
+        val _ = ctx.connection.pop()
+      }
       // Optimization — if the callback was called on the same thread
       // where it was created, then we are not going to fork
       // This is not safe to do when localContextPropagation enabled

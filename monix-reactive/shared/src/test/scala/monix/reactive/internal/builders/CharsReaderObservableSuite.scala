@@ -331,7 +331,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
 
   def inputWithError(ex: Throwable, whenToThrow: Int, onFinish: () => Unit): Reader =
     new Reader {
-      private[this] var callIdx = 0
+      private var callIdx = 0
 
       def read(cbuf: Array[Char], off: Int, len: Int): Int = {
         callIdx += 1

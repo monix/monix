@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import scala.annotation.nowarn
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack.Stop
@@ -32,8 +31,6 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Failure, Success }
 
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@nowarn("msg=unused value of type")
 private[reactive] object DoOnSubscribeObservable {
   // Implementation for doBeforeSubscribe
   final class Before[+A](source: Observable[A], task: Task[Unit]) extends Observable[A] {
@@ -115,12 +112,12 @@ private[reactive] object DoOnSubscribeObservable {
 
       ref := task.runAsync(new Callback[Throwable, Unit] {
         def onSuccess(value: Unit): Unit = {
-          conn.pop()
+          val _ = conn.pop()
           p.success(())
           ()
         }
         def onError(ex: Throwable): Unit = {
-          conn.pop()
+          val _ = conn.pop()
           p.failure(ex)
           ()
         }

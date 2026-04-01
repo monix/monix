@@ -329,16 +329,14 @@ object BatchCursor {
     * @param offset $paramArrayOffset
     * @param length $paramArrayLength
     */
-  @scala.annotation.nowarn("msg=`_` is deprecated for wildcard arguments of types: use `\\?` instead")
-  def fromAnyArray[A](array: Array[_], offset: Int, length: Int): ArrayCursor[A] =
+  def fromAnyArray[A](array: Array[?], offset: Int, length: Int): ArrayCursor[A] =
     fromArray(array, offset, length).asInstanceOf[ArrayCursor[A]]
 
   /** $fromAnyArrayDesc
     *
     * @param array $paramArray
     */
-  @scala.annotation.nowarn("msg=`_` is deprecated for wildcard arguments of types: use `\\?` instead")
-  def fromAnyArray[A](array: Array[_]): ArrayCursor[A] =
+  def fromAnyArray[A](array: Array[?]): ArrayCursor[A] =
     fromAnyArray(array, 0, array.length)
 
   /** Builds a [[BatchCursor]] from a Scala `Seq`, with lazy

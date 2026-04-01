@@ -17,16 +17,12 @@
 
 package monix.reactive.internal.operators
 
-import scala.annotation.nowarn
 import monix.execution.Ack.Continue
 import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-
 import scala.concurrent.Future
 
-@nowarn("msg=discarded non-Unit value")
-@nowarn("msg=unused value of type")
 private[reactive] final class IntersperseObservable[+A](
   source: Observable[A],
   start: Option[A],
@@ -58,16 +54,16 @@ private[reactive] final class IntersperseObservable[+A](
       }
 
       def onError(ex: Throwable) = {
-        downstreamAck.syncOnContinue(out.onError(ex))
-        ()
+        val _ = downstreamAck.syncOnContinue(out.onError(ex))
       }
 
       def onComplete() = {
-        downstreamAck.syncOnContinue {
-          if (atLeastOne && end.nonEmpty) out.onNext(end.get)
+        val _ = downstreamAck.syncOnContinue {
+          if (atLeastOne && end.nonEmpty) {
+            val _ = out.onNext(end.get)
+          }
           out.onComplete()
         }
-        ()
       }
     })
 

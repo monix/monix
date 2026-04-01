@@ -24,7 +24,6 @@ import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.internal.GenericVar
 import monix.execution.internal.GenericVar.Id
-import scala.annotation.nowarn
 
 /** A mutable location, that is either empty or contains
   * a value of type `A`.
@@ -201,14 +200,12 @@ object MVar {
     *
     * @see [[of]] and [[empty]]
     */
-  @nowarn("cat=deprecation")
   def apply[F[_]](implicit F: OrElse[Concurrent[F], Async[F]]): ApplyBuilders[F] =
     new ApplyBuilders[F](F)
 
   /**
     * Builds an [[MVar]] instance with an `initial` value.
     */
-  @nowarn("cat=deprecation")
   def of[F[_], A](initial: A, ps: PaddingStrategy = NoPadding)(
     implicit
     F: OrElse[Concurrent[F], Async[F]],
@@ -224,7 +221,6 @@ object MVar {
   /**
     * Builds an empty [[MVar]] instance.
     */
-  @nowarn("cat=deprecation")
   def empty[F[_], A](
     ps: PaddingStrategy = NoPadding
   )(implicit F: OrElse[Concurrent[F], Async[F]], cs: ContextShift[F]): F[MVar[F, A]] = {
@@ -238,14 +234,12 @@ object MVar {
   /**
     * Returned by the [[apply]] builder.
     */
-  @nowarn("cat=deprecation")
   final class ApplyBuilders[F[_]](val F: OrElse[Concurrent[F], Async[F]]) extends AnyVal {
     /**
       * Builds an `MVar` with an initial value.
       *
       * @see documentation for [[MVar.of]]
       */
-    @nowarn("msg=Implicit parameters should be provided with a `using` clause")
     def of[A](a: A, ps: PaddingStrategy = NoPadding)(implicit cs: ContextShift[F]): F[MVar[F, A]] =
       MVar.of(a, ps)(F, cs)
 
@@ -254,7 +248,6 @@ object MVar {
       *
       * @see documentation for [[MVar.empty]]
       */
-    @nowarn("msg=Implicit parameters should be provided with a `using` clause")
     def empty[A](ps: PaddingStrategy = NoPadding)(implicit cs: ContextShift[F]): F[MVar[F, A]] =
       MVar.empty(ps)(F, cs)
   }

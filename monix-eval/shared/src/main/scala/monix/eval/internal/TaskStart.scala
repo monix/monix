@@ -21,7 +21,6 @@ package internal
 import monix.eval.Task.{ Async, Context }
 import monix.execution.{ Callback, CancelablePromise }
 
-@scala.annotation.nowarn
 private[eval] object TaskStart {
   /**
 * Implementation for `Task.fork`.

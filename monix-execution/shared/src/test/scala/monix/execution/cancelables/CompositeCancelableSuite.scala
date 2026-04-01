@@ -146,7 +146,7 @@ object CompositeCancelableSuite extends SimpleTestSuite with Checkers {
 
   test("reset") {
     val seq = for (_ <- 0 until 10) yield BooleanCancelable()
-    val cc = CompositeCancelable(seq: _*)
+    val cc = CompositeCancelable(seq*)
 
     cc.reset()
     cc.cancel()

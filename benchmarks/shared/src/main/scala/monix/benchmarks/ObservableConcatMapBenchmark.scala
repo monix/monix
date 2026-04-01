@@ -78,7 +78,7 @@ class ObservableConcatMapBenchmark {
     val p = Promise[Long]()
     stream.unsafeSubscribeFn(new Subscriber.Sync[Long] {
       val scheduler = global
-      private[this] var sum: Long = 0
+      private var sum: Long = 0
 
       def onError(ex: Throwable): Unit = {
         p.failure(ex)

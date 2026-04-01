@@ -92,7 +92,7 @@ object InlineMacrosTest extends SimpleTestSuite {
     val box = TestBox(1)
     val mapped = box.map {
       def incr = 1
-      x: Int => x + incr
+      (x: Int) => x + incr
     }
 
     assertEquals(mapped, TestBox(2))

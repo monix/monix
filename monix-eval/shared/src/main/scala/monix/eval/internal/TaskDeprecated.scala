@@ -27,7 +27,6 @@ import monix.execution.{ Callback, Cancelable, CancelableFuture, Scheduler }
 import scala.annotation.unchecked.uncheckedVariance
 import scala.util.{ Failure, Success, Try }
 
-@scala.annotation.nowarn
 private[eval] object TaskDeprecated {
   /**
 * BinCompat trait describing deprecated `Task` operations.

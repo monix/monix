@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import scala.annotation.nowarn
 import monix.execution.Ack.Stop
 import monix.execution.Scheduler
 import monix.execution.cancelables.OrderedCancelable
@@ -26,7 +25,6 @@ import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
-@nowarn("msg=`_` is deprecated for wildcard arguments of types: use `?` instead")
 private[reactive] final class DelayExecutionWithTriggerObservable[A](source: Observable[A], trigger: Observable[?])
   extends Observable[A] {
 

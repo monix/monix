@@ -17,7 +17,6 @@
 
 package monix.reactive.observables
 
-import scala.annotation.nowarn
 import monix.execution.annotations.{ UnsafeBecauseImpure, UnsafeProtocol }
 import monix.execution.{ Cancelable, Scheduler }
 import monix.reactive.observers.{ CacheUntilConnectSubscriber, Subscriber }
@@ -32,7 +31,6 @@ import monix.reactive.{ Observable, Pipe }
   * to multiple subscribers).
   */
 @UnsafeBecauseImpure
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 abstract class ConnectableObservable[+A] extends Observable[A] { self =>
   /** Starts emitting events to subscribers. */
   def connect(): Cancelable
@@ -46,7 +44,6 @@ abstract class ConnectableObservable[+A] extends Observable[A] { self =>
   }
 }
 
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 object ConnectableObservable {
   /** Builds a [[ConnectableObservable]] for the given observable source
     * and a given [[monix.reactive.subjects.Subject Subject]].

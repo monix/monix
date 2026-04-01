@@ -17,13 +17,11 @@
 
 package monix.reactive.internal.deprecated
 
-import scala.annotation.nowarn
 import cats.Eval
 import cats.effect.IO
 import monix.execution.Scheduler
 import monix.reactive.{ Observable, OverflowStrategy }
 
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] trait ObservableDeprecatedBuilders extends Any {
   /** DEPRECATED — please use [[Observable!.executeAsync .executeAsync]].
     *

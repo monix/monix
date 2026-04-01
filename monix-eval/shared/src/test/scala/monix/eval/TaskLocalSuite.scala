@@ -277,7 +277,7 @@ object TaskLocalSuite extends SimpleTestSuite {
       l: TaskLocal[String],
       ch: ConcurrentChannel[Task, Unit, Int]
     ) {
-      private[this] def produceLoop(n: Int): Task[Unit] = if (n == 0) Task.unit
+      private def produceLoop(n: Int): Task[Unit] = if (n == 0) Task.unit
       else
         ch.push(n) >> l.read.flatMap { s =>
           Task(assertEquals(s, "producer"))

@@ -60,7 +60,6 @@ import monix.execution.Scheduler
   *
   * Works on top of JavaScript as well ;-)
   */
-@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
 trait TaskApp {
   // To implement ...
   def run(args: List[String]): Task[ExitCode]

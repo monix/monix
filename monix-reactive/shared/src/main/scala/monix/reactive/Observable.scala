@@ -17,7 +17,6 @@
 
 package monix.reactive
 
-import scala.annotation.nowarn
 import java.io.{ BufferedReader, InputStream, PrintStream, Reader }
 
 import cats.{
@@ -278,10 +277,6 @@ import scala.util.{ Failure, Success, Try }
   *             Eq.fromUniversalEquals
   *         }}}
   */
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@nowarn("msg=The syntax `<function> _` is no longer supported;")
-@nowarn("msg=The syntax `x: _*` is no longer supported for vararg splices; use `x*` instead")
-@nowarn("msg=`_` is deprecated for wildcard arguments of types: use `?` instead")
 abstract class Observable[+A] extends Serializable { self =>
 
   // -----------------------------------------------------------------------
@@ -2720,7 +2715,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecover[B >: A](pf: PartialFunction[Throwable, B]): Observable[B] =
-    onErrorHandleWith(ex => (pf.andThen(b => Observable.now(b)).applyOrElse(ex, Observable.raiseError _)))
+    onErrorHandleWith(ex => (pf.andThen(b => Observable.now(b)).applyOrElse(ex, Observable.raiseError)))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -2739,7 +2734,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *        throws an error.
     */
   final def onErrorRecoverWith[B >: A](pf: PartialFunction[Throwable, Observable[B]]): Observable[B] =
-    onErrorHandleWith(ex => pf.applyOrElse(ex, Observable.raiseError _))
+    onErrorHandleWith(ex => pf.applyOrElse(ex, Observable.raiseError))
 
   /** Returns an Observable that mirrors the behavior of the source,
     * unless the source is terminated with an `onError`, in which case
@@ -4845,10 +4840,6 @@ abstract class Observable[+A] extends Serializable { self =>
   *         [[monix.execution.Scheduler.withExecutionModel Scheduler.withExecutionModel]],
   *         or per `Observable`, see [[Observable.executeWithModel]].
   */
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@nowarn("msg=The syntax `<function> _` is no longer supported;")
-@nowarn("msg=The syntax `x: _*` is no longer supported for vararg splices; use `x*` instead")
-@nowarn("msg=`_` is deprecated for wildcard arguments of types: use `?` instead")
 object Observable extends ObservableDeprecatedBuilders {
   /** An `Operator` is a function for transforming observers,
     * that can be used for lifting observables.
@@ -5642,9 +5633,8 @@ object Observable extends ObservableDeprecatedBuilders {
 
   /** Creates an Observable that continuously emits the given ''item'' repeatedly.
     */
-  @nowarn("msg=The syntax")
   def repeat[A](elems: A*): Observable[A] =
-    new builders.RepeatObservable(elems: _*)
+    new builders.RepeatObservable(elems*)
 
   /** Repeats the execution of the given `task`, emitting
     * the results indefinitely.
@@ -6348,9 +6338,8 @@ object Observable extends ObservableDeprecatedBuilders {
     * result: - - 1 1 1 - 1 - 1 - -
     * </pre>
     */
-  @nowarn("msg=The syntax")
   def firstStartedOf[A](source: Observable[A]*): Observable[A] =
-    new builders.FirstStartedObservable(source: _*)
+    new builders.FirstStartedObservable(source*)
 
   /** Implicit type class instances for [[Observable]]. */
   implicit val catsInstances: CatsInstances =
