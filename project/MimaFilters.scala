@@ -207,12 +207,9 @@ object MimaFilters {
     // processOneASeqB changed signature due to internal Cats-Effect API alignment.
     exclude[DirectMissingMethodProblem]("monix.tail.internal.IterantZipMap#Loop.processOneASeqB"),
 
-    // ConcurrentSubject.async(Scheduler) shim: in 3.4.0 the method was public, so scalac generated a
-    // static forwarder on the outer ConcurrentSubject class for Java callers. In 3.5.0 the shim is
-    // private[monix], so scalac no longer emits that static forwarder. The method itself remains public
-    // on the ConcurrentSubject$ module class, which is what Scala-compiled call-sites use
-    // (via MODULE$.async(s)). This filter suppresses the Java-only static-forwarder absence; Scala
-    // binary compatibility is fully preserved.
+    // ConcurrentSubject.async(Scheduler) remains available to Scala call-sites via the companion-module
+    // method on ConcurrentSubject$. The package-qualified source shim no longer gets a Java static
+    // forwarder on the outer ConcurrentSubject class, so MiMa reports only that Java-facing forwarder.
     exclude[DirectMissingMethodProblem]("monix.reactive.subjects.ConcurrentSubject.async"),
 
     // CollectWhileOperator is private[reactive] — inaccessible outside the reactive package.
@@ -237,6 +234,84 @@ object MimaFilters {
     exclude[IncompatibleResultTypeProblem]("monix.execution.cancelables.AssignableCancelable.alreadyCanceled"),
     exclude[IncompatibleResultTypeProblem]("monix.execution.cancelables.BooleanCancelable.alreadyCanceled"),
     exclude[IncompatibleResultTypeProblem]("monix.catnap.cancelables.AssignableCancelableF.alreadyCanceled"),
-    exclude[IncompatibleResultTypeProblem]("monix.catnap.cancelables.BooleanCancelableF.alreadyCanceled")
+    exclude[IncompatibleResultTypeProblem]("monix.catnap.cancelables.BooleanCancelableF.alreadyCanceled"),
+
+    // Scala 2.13.17+ stopped emitting scala.runtime.AbstractFunctionN as a mixin on case-class
+    // companion objects. MiMa surfaces this as MissingTypesProblem on the companion ($) class.
+    // This is a pure encoding artifact — no actual binary break for downstream code.
+
+    // monix-execution: Ack.Continue / Ack.Stop are case objects extending Future; their value()
+    // and result() methods shift encoding when AbstractFunctionN mixin is removed.
+    exclude[DirectMissingMethodProblem]("monix.execution.Ack#Continue.value"),
+    exclude[IncompatibleResultTypeProblem]("monix.execution.Ack#Continue.result"),
+    exclude[DirectMissingMethodProblem]("monix.execution.Ack#Stop.value"),
+    exclude[IncompatibleResultTypeProblem]("monix.execution.Ack#Stop.result"),
+
+    // monix-reactive: AbstractFunctionN encoding artifact on case-class companions
+    exclude[MissingTypesProblem]("monix.reactive.Notification$OnError$"),
+    exclude[MissingTypesProblem]("monix.reactive.OverflowStrategy$BackPressure$"),
+    exclude[MissingTypesProblem]("monix.reactive.OverflowStrategy$ClearBuffer$"),
+    exclude[MissingTypesProblem]("monix.reactive.OverflowStrategy$DropNew$"),
+    exclude[MissingTypesProblem]("monix.reactive.OverflowStrategy$DropOld$"),
+    exclude[MissingTypesProblem]("monix.reactive.OverflowStrategy$Fail$"),
+    exclude[MissingTypesProblem]("monix.reactive.internal.operators.ConcatMapObservable$FlatMapState$Active$"),
+    exclude[MissingTypesProblem]("monix.reactive.internal.operators.ConcatMapObservable$FlatMapState$WaitComplete$"),
+    exclude[MissingTypesProblem]("monix.reactive.internal.operators.ConcatMapObservable$FlatMapState$WaitOnNextChild$"),
+    exclude[MissingTypesProblem]("monix.reactive.internal.operators.MapTaskObservable$MapTaskState$Active$"),
+    exclude[MissingTypesProblem]("monix.reactive.internal.operators.MapTaskObservable$MapTaskState$WaitComplete$"),
+    exclude[MissingTypesProblem]("monix.reactive.internal.rstreams.ReactiveSubscriberAsMonixSubscriber$RequestsQueue$ActiveState$"),
+
+    exclude[MissingTypesProblem]("monix.execution.BufferCapacity$Bounded$"),
+    exclude[MissingTypesProblem]("monix.execution.BufferCapacity$Unbounded$"),
+    exclude[MissingTypesProblem]("monix.execution.ExecutionModel$BatchedExecution$"),
+    exclude[MissingTypesProblem]("monix.execution.cancelables.CompositeCancelable$Active$"),
+    exclude[MissingTypesProblem]("monix.execution.cancelables.OrderedCancelable$Active$"),
+    exclude[MissingTypesProblem]("monix.execution.cancelables.RefCountCancelable$State$"),
+    exclude[MissingTypesProblem]("monix.execution.cancelables.SingleAssignCancelable$State$IsActive$"),
+    exclude[MissingTypesProblem]("monix.execution.exceptions.DummyException$"),
+    // DummyException extends Exception which extends Function1 in 3.4.0 encoding; andThen/compose
+    // were inherited from AbstractFunction1 which is no longer mixed in as of Scala 2.13.17+.
+    exclude[DirectMissingMethodProblem]("monix.execution.exceptions.DummyException.andThen"),
+    exclude[DirectMissingMethodProblem]("monix.execution.exceptions.DummyException.compose"),
+    exclude[MissingTypesProblem]("monix.execution.internal.GenericSemaphore$State$"),
+    exclude[MissingTypesProblem]("monix.execution.rstreams.ReactivePullStrategy$FixedWindow$"),
+    exclude[MissingTypesProblem]("monix.execution.rstreams.SingleAssignSubscription$State$EmptyRequest$"),
+    exclude[MissingTypesProblem]("monix.execution.rstreams.SingleAssignSubscription$State$WithSubscription$"),
+    exclude[MissingTypesProblem]("monix.execution.schedulers.ReferenceScheduler$WrappedScheduler$"),
+    // StartAsyncBatchRunnable$ companion lost AbstractFunctionN mixin; tupled/curried were
+    // inherited from AbstractFunction2 which is no longer mixed in as of Scala 2.13.17+.
+    exclude[MissingTypesProblem]("monix.execution.schedulers.StartAsyncBatchRunnable$"),
+    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.StartAsyncBatchRunnable.tupled"),
+    exclude[DirectMissingMethodProblem]("monix.execution.schedulers.StartAsyncBatchRunnable.curried"),
+    exclude[MissingTypesProblem]("monix.execution.schedulers.TestScheduler$State$"),
+    exclude[MissingTypesProblem]("monix.catnap.CircuitBreaker$Closed$"),
+    exclude[MissingTypesProblem]("monix.eval.Coeval$Error$"),
+    exclude[MissingTypesProblem]("monix.eval.Task$Options$"),
+    exclude[MissingTypesProblem]("monix.eval.internal.ForwardCancelable$Active$"),
+    exclude[MissingTypesProblem]("monix.eval.internal.ForwardCancelable$Empty$"),
+    // makeReleaseFrame is a method on private inner classes inside monix.eval.internal.TaskBracket;
+    // the companion lost AbstractFunctionN mixin, causing the method signature to shift.
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskBracket#StartCase.makeReleaseFrame"),
+    exclude[DirectMissingMethodProblem]("monix.eval.internal.TaskBracket#StartE.makeReleaseFrame"),
+    exclude[MissingTypesProblem]("monix.eval.internal.TaskConnectionComposite$Active$"),
+    exclude[MissingTypesProblem]("monix.eval.internal.TaskConnectionRef$IsActive$"),
+    exclude[MissingTypesProblem]("monix.eval.tracing.CoevalEvent$StackTrace$"),
+    // PrintingOptions is a case class; its companion lost AbstractFunctionN mixin so
+    // apply/copy/copy$default$N static forwarders are no longer emitted by scalac 2.13.17+.
+    exclude[DirectMissingMethodProblem]("monix.eval.tracing.PrintingOptions.apply"),
+    exclude[DirectMissingMethodProblem]("monix.eval.tracing.PrintingOptions.copy"),
+    exclude[DirectMissingMethodProblem]("monix.eval.tracing.PrintingOptions.copy$default$1"),
+    exclude[DirectMissingMethodProblem]("monix.eval.tracing.PrintingOptions.copy$default$2"),
+    exclude[DirectMissingMethodProblem]("monix.eval.tracing.PrintingOptions.copy$default$3"),
+    exclude[MissingTypesProblem]("monix.eval.tracing.TaskEvent$StackTrace$"),
+    exclude[MissingTypesProblem]("monix.tail.internal.IterantToReactivePublisher$Await$"),
+    exclude[MissingTypesProblem]("monix.tail.internal.IterantToReactivePublisher$Interrupt$"),
+    exclude[MissingTypesProblem]("monix.tail.internal.IterantToReactivePublisher$Request$"),
+
+    // EmptyBatch.cursor return type widened from EmptyCursor to BatchCursor (covariant widening).
+    // MiMa reports both IncompatibleResultTypeProblem (type change) and DirectMissingMethodProblem
+    // (old bridge method absent). Safe: widening is covariant and EmptyCursor extends BatchCursor.
+    exclude[IncompatibleResultTypeProblem]("monix.tail.batches.EmptyBatch.cursor"),
+    exclude[DirectMissingMethodProblem]("monix.tail.batches.EmptyBatch.cursor")
   )
 }
