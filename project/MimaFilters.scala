@@ -259,8 +259,9 @@ object MimaFilters {
     exclude[MissingTypesProblem]("monix.reactive.internal.operators.ConcatMapObservable$FlatMapState$WaitOnNextChild$"),
     exclude[MissingTypesProblem]("monix.reactive.internal.operators.MapTaskObservable$MapTaskState$Active$"),
     exclude[MissingTypesProblem]("monix.reactive.internal.operators.MapTaskObservable$MapTaskState$WaitComplete$"),
-    exclude[MissingTypesProblem]("monix.reactive.internal.rstreams.ReactiveSubscriberAsMonixSubscriber$RequestsQueue$ActiveState$"),
-
+    exclude[MissingTypesProblem](
+      "monix.reactive.internal.rstreams.ReactiveSubscriberAsMonixSubscriber$RequestsQueue$ActiveState$"
+    ),
     exclude[MissingTypesProblem]("monix.execution.BufferCapacity$Bounded$"),
     exclude[MissingTypesProblem]("monix.execution.BufferCapacity$Unbounded$"),
     exclude[MissingTypesProblem]("monix.execution.ExecutionModel$BatchedExecution$"),
@@ -313,7 +314,7 @@ object MimaFilters {
     // (old bridge method absent). Safe: widening is covariant and EmptyCursor extends BatchCursor.
     exclude[IncompatibleResultTypeProblem]("monix.tail.batches.EmptyBatch.cursor"),
     exclude[DirectMissingMethodProblem]("monix.tail.batches.EmptyBatch.cursor"),
-    
+
     // BREAKAGE — unfortunately it's something we must live with
     exclude[DirectMissingMethodProblem]("monix.tail.IterantBuilders#Apply.suspend$extension"),
   )
