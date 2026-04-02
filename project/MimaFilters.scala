@@ -312,6 +312,9 @@ object MimaFilters {
     // MiMa reports both IncompatibleResultTypeProblem (type change) and DirectMissingMethodProblem
     // (old bridge method absent). Safe: widening is covariant and EmptyCursor extends BatchCursor.
     exclude[IncompatibleResultTypeProblem]("monix.tail.batches.EmptyBatch.cursor"),
-    exclude[DirectMissingMethodProblem]("monix.tail.batches.EmptyBatch.cursor")
+    exclude[DirectMissingMethodProblem]("monix.tail.batches.EmptyBatch.cursor"),
+    
+    // BREAKAGE — unfortunately it's something we must live with
+    exclude[DirectMissingMethodProblem]("monix.tail.IterantBuilders#Apply.suspend$extension"),
   )
 }

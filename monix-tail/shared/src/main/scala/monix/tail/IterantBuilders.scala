@@ -26,6 +26,7 @@ import monix.execution.internal.Platform.recommendedBufferChunkSize
 import monix.execution.{ BufferCapacity, ChannelType }
 import monix.tail.Iterant.Channel
 import monix.tail.batches.{ Batch, BatchCursor }
+import monix.tail.internal.deprecated.IterantDeprecatedBuilders
 import org.reactivestreams.Publisher
 
 import scala.collection.immutable.LinearSeq
@@ -58,7 +59,7 @@ object IterantBuilders {
     * Class defined inside object due to Scala's limitations on declaring
     * `AnyVal` classes.
     */
-  final class Apply[F[_]](val v: Boolean = true) extends AnyVal {
+  final class Apply[F[_]](val v: Boolean = true) extends AnyVal with IterantDeprecatedBuilders[F] {
     /** Aliased builder, see documentation for [[Iterant.now]]. */
     def now[A](a: A): Iterant[F, A] =
       Iterant.now(a)
@@ -114,14 +115,6 @@ object IterantBuilders {
     /** Aliased builder, see documentation for [[Iterant.suspend[F[_],A](rest* Iterant.suspend]]. */
     def suspend[A](rest: F[Iterant[F, A]]): Iterant[F, A] =
       Iterant.suspend(rest)
-
-    /** Binary-compatibility shim — the `Applicative[F]` constraint is no longer needed.  */
-    @deprecated("The Applicative[F] constraint is no longer needed; use suspend without it.", "3.5.0")
-    private[tail] def suspend[A](rest: F[Iterant[F, A]])(implicit F: Applicative[F]): Iterant[F, A] = {
-      // $COVERAGE-OFF$
-      Iterant.suspend(rest)
-      // $COVERAGE-ON$
-    }
 
     // -----------------------------------------------------------------
     // -- Requiring Applicative
