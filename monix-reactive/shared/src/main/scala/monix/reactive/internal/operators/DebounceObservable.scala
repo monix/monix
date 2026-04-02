@@ -98,7 +98,6 @@ private[reactive] final class DebounceObservable[A](source: Observable[A], timeo
             }
           }
         }
-        ()
       }
 
       def onNext(elem: A): Ack = self.synchronized {

@@ -47,7 +47,7 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
       .range(0, 10000)
       .toReactivePublisher
       .subscribe(new Subscriber[Long] {
-        private[this] var s = null: Subscription
+        private var s = null: Subscription
 
         def onSubscribe(s: Subscription): Unit = {
           this.s = s
@@ -150,8 +150,8 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
       .range(0, range)
       .toReactivePublisher
       .subscribe(new Subscriber[Long] {
-        private[this] var s = null: Subscription
-        private[this] var requested = chunkSize
+        private var s = null: Subscription
+        private var requested = chunkSize
 
         def onSubscribe(s: Subscription): Unit = {
           this.s = s
@@ -193,8 +193,8 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
       .range(0, range)
       .toReactivePublisher
       .subscribe(new Subscriber[Long] {
-        private[this] var s = null: Subscription
-        private[this] var requested = chunkSize
+        private var s = null: Subscription
+        private var requested = chunkSize
 
         def onSubscribe(s: Subscription): Unit = {
           this.s = s

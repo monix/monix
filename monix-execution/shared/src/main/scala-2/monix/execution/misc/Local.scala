@@ -59,7 +59,7 @@ object Local extends LocalCompanionDeprecated {
   def newContext(): Context = new Unbound(AtomicAny(Map()))
 
   /** Current [[Context]] kept in a `ThreadLocal`. */
-  private[this] val localContext: ThreadLocal[Context] =
+  private val localContext: ThreadLocal[Context] =
     ThreadLocal(newContext())
 
   /** Return the state of the current Local state. */
@@ -122,7 +122,7 @@ object Local extends LocalCompanionDeprecated {
     localContext.get().set(key, null, isPresent = false)
   }
 
-  private def restoreKey(key: Key, value: Option[_]): Unit =
+  private def restoreKey(key: Key, value: Option[?]): Unit =
     value match {
       case None => clearKey(key)
       case Some(v) => saveKey(key, v)

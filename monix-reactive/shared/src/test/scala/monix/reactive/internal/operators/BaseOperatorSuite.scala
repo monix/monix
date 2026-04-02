@@ -116,7 +116,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
       case None => ignore()
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         obs.unsafeSubscribeFn(new Observer[Long] {
-          private[this] var sum = 0L
+          private var sum = 0L
 
           def onNext(elem: Long): Ack = {
             received += 1
@@ -145,8 +145,8 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
       case None => ignore()
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         obs.unsafeSubscribeFn(new Observer[Long] {
-          private[this] var sum = 0L
-          private[this] var ack: Future[Ack] = Continue
+          private var sum = 0L
+          private var ack: Future[Ack] = Continue
 
           def onNext(elem: Long): Future[Ack] = {
             assert(ack.isCompleted, s"Contact breach at elem $elem of $sourceCount, last ack is not completed")

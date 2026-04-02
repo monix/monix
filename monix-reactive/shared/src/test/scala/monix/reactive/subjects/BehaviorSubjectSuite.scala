@@ -41,7 +41,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     var received = 0
     var wasCompleted = 0
 
-    for (i <- 0 until 10)
+    for (_ <- 0 until 10)
       subject.unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int): Future[Ack] = {
           received += elem
@@ -67,7 +67,7 @@ object BehaviorSubjectSuite extends BaseSubjectSuite {
     var received = 0
     var wasCompleted = 0
 
-    for (i <- 0 until 10)
+    for (_ <- 0 until 10)
       subject.unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = Future {
           received += elem

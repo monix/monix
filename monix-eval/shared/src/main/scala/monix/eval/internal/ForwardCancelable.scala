@@ -75,8 +75,6 @@ final private[internal] class ForwardCancelable private () {
     }
 }
 
-@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@scala.annotation.nowarn("msg=unused value of type")
 private[internal] object ForwardCancelable {
   /**
   * Builds reference.
@@ -106,7 +104,7 @@ private[internal] object ForwardCancelable {
 
   private def execute(token: CancelToken[Task], stack: List[Callback[Throwable, Unit]])(implicit s: Scheduler): Unit =
     context.execute(() => {
-      token.runAsync { r =>
+      val _ = token.runAsync { r =>
         for (cb <- stack)
           try {
             cb(r)

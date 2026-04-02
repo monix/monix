@@ -25,7 +25,6 @@ import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.atomic.{ Atomic, AtomicAny, PaddingStrategy }
 import monix.execution.exceptions.ExecutionRejectedException
 import monix.execution.internal.Constants
-import scala.annotation.nowarn
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 
@@ -270,8 +269,6 @@ final class CircuitBreaker[F[_]] private (
     *        be cancelable, to properly dispose of the registered
     *        listener in case of cancellation.
     */
-  @nowarn("cat=deprecation")
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   def awaitClose(implicit F: OrElse[Concurrent[F], Async[F]]): F[Unit] = {
     val F0 = F.unify
     F0.defer {
@@ -737,7 +734,6 @@ object CircuitBreaker extends CircuitBreakerDocs {
       * @param padding $paddingParam
       */
     @UnsafeBecauseImpure
-    @nowarn("msg=Implicit parameters should be provided with a `using` clause")
     def unsafe(
       maxFailures: Int,
       resetTimeout: FiniteDuration,

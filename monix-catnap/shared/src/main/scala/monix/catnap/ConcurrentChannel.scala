@@ -29,7 +29,6 @@ import monix.execution.internal.collection.{ LowLevelConcurrentQueue => LowLevel
 import monix.execution.internal.{ Constants, Platform }
 import monix.execution.{ CancelablePromise, ChannelType }
 
-import scala.annotation.nowarn
 import scala.annotation.{ switch, tailrec }
 import scala.collection.mutable.ArrayBuffer
 
@@ -586,7 +585,6 @@ object ConcurrentChannel {
     * @param cs $csParam
     * @param F $concurrentParam
     */
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   @UnsafeProtocol
   @UnsafeBecauseImpure
   def unsafe[F[_], E, A](
@@ -599,7 +597,6 @@ object ConcurrentChannel {
   /**
     * Returned by the [[apply]] builder.
     */
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   final class ApplyBuilders[F[_]](val F: Concurrent[F]) extends AnyVal {
     /**
       * @see documentation for [[ConcurrentChannel.of]]

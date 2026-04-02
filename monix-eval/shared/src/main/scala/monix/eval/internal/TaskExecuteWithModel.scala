@@ -23,7 +23,6 @@ import monix.eval.Task.{ Async, Context }
 import monix.execution.ExecutionModel
 import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, BatchedExecution, SynchronousExecution }
 
-@scala.annotation.nowarn
 private[eval] object TaskExecuteWithModel {
   /**
 * Implementation for `Task.executeWithModel`

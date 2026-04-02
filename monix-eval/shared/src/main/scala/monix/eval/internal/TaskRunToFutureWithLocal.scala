@@ -29,7 +29,6 @@ import monix.execution.{ Callback, CancelableFuture, Scheduler }
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
 
-@scala.annotation.nowarn
 private[eval] object TaskRunToFutureWithLocal {
   /** A run-loop that attempts to complete a `CancelableFuture`
 * synchronously falling back to [[startFull]] and actual

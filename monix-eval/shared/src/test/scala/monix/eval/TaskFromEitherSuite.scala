@@ -28,7 +28,7 @@ import scala.util.{ Failure, Success }
 object TaskFromEitherSuite extends BaseTestSuite {
   test("Task.fromEither (`E <: Throwable` version) should returns a Now with a Right") { _ =>
     val t = Task.fromEither(Right(10))
-    assert(t.isInstanceOf[Now[_]])
+    assert(t.isInstanceOf[Now[?]])
   }
 
   test("Task.fromEither (`E <: Throwable` version) should succeed with a Right") { implicit s =>
@@ -40,7 +40,7 @@ object TaskFromEitherSuite extends BaseTestSuite {
   test("Task.fromEither (`E <: Throwable` version) should returns an Error with a Left") { _ =>
     val dummy = DummyException("dummy")
     val t = Task.fromEither(Left(dummy))
-    assert(t.isInstanceOf[Error[_]])
+    assert(t.isInstanceOf[Error[?]])
   }
 
   test("Task.fromEither (`E <: Throwable` version) should fail with a Left") { implicit s =>
@@ -66,7 +66,7 @@ object TaskFromEitherSuite extends BaseTestSuite {
 
   test("Task.fromEither (free `E` version) should returns a Now with a Right") { _ =>
     val t = Task.fromEither(DummyException(_))(Right(10))
-    assert(t.isInstanceOf[Now[_]])
+    assert(t.isInstanceOf[Now[?]])
   }
 
   test("Task.fromEither (free `E` version) should succeed with a Right") { implicit s =>
@@ -77,7 +77,7 @@ object TaskFromEitherSuite extends BaseTestSuite {
 
   test("Task.fromEither (free `E` version) should returns an Error with a Left") { _ =>
     val t = Task.fromEither(DummyException(_))(Left("dummy"))
-    assert(t.isInstanceOf[Error[_]])
+    assert(t.isInstanceOf[Error[?]])
   }
 
   test("Task.fromEither (free `E` version) should fail with a Left") { implicit s =>

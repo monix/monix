@@ -22,7 +22,6 @@ import monix.execution.{ CancelableFuture, FutureUtils }
 import monix.execution.schedulers.TrampolineExecutionContext
 
 import scala.annotation.implicitNotFound
-import scala.annotation.nowarn
 import scala.concurrent.Future
 import scala.annotation.unused
 
@@ -121,7 +120,6 @@ private[misc] abstract class CanIsolateInstancesLevel0 {
 
   /** Implementation for [[CanBindLocals.cancelableFuture]]. */
   protected object CancelableFutureInstance extends CanBindLocals[CancelableFuture[Any]] {
-    @nowarn("msg=Implicit parameters should be provided with a `using` clause")
     override def bindContext(ctx: Local.Context)(f: => CancelableFuture[Any]): CancelableFuture[Any] = {
       val prev = Local.getContext()
       Local.setContext(ctx)
@@ -139,7 +137,6 @@ private[misc] abstract class CanIsolateInstancesLevel0 {
 
   /** Implementation for [[CanBindLocals.future]]. */
   protected object FutureInstance extends CanBindLocals[Future[Any]] {
-    @nowarn("msg=Implicit parameters should be provided with a `using` clause")
     override def bindContext(ctx: Local.Context)(f: => Future[Any]): Future[Any] = {
       val prev = Local.getContext()
       Local.setContext(ctx)

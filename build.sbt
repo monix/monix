@@ -191,11 +191,21 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   // Enable this to debug warnings...
   Compile / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 13)) => Seq(
+      case Some((2, 13)) =>
+        Seq(
+          "-Xfatal-warnings",
+          "-Xsource:3-cross",
           // Silence various warnings that are false positives or intentional patterns
-          "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent,any:warning-verbose"
+          "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent,any:warning-verbose",
+          "-Wconf:cat=unused-nowarn:s"
         )
-      case _ => Seq.empty
+      case Some((3, _)) =>
+        Seq(
+          "-Werror",
+          "-Wconf:msg=Implicit parameters should be provided with a `using` clause:s"
+        )
+      case _ =>
+        Seq.empty
     }
   },
   Test / scalacOptions ++= {
@@ -204,25 +214,15 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
           // Silence various warnings in tests
           "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent"
         )
-      case Some((3, _)) => Seq(
+      case Some((3, _)) =>
+        Seq(
           // Scala 3.8.x surfaces a very large warning volume in legacy tests and doctests.
           // Keep -Werror for main sources, but silence test warnings to preserve CI signal.
           "-Wconf:any:silent"
         )
-      case _ => Seq.empty
+      case _ =>
+        Seq.empty
     }
-  },
-  // sbt-tpolecat 0.5.x in CI mode adds only ScalacOptions.fatalWarnings (-Xfatal-warnings),
-  // which is deprecated in Scala 3.6+ and itself causes a fatal error in 3.8+.
-  // Override tpolecatCiModeOptions to use the version-aware fatalWarningOptions from
-  // scalac-options 0.1.9, which emits -Werror for Scala 3.x and -Xfatal-warnings for older.
-  // Scala 2.13.18 introduced many new warnings; keep fatal warnings disabled there.
-  tpolecatCiModeOptions := {
-    val opts = tpolecatDevModeOptions.value ++ ScalacOptions.fatalWarningOptions
-    if (scalaBinaryVersion.value == "2.13" && scalaVersion.value.startsWith("2.13.18"))
-      opts -- ScalacOptions.fatalWarningOptions
-    else
-      opts
   },
 
   // Turning off fatal warnings for doc generation
@@ -237,14 +237,6 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
       ScalacOptions.warnUnusedParams,
       ScalacOptions.warnUnusedNoWarn,
     )
-  },
-
-  // Silence everything in auto-generated files
-  scalacOptions ++= {
-    if (isDotty.value)
-      Seq.empty
-    else
-      Seq.empty
   },
 
   // Syntax improvements, linting, etc.
@@ -444,17 +436,12 @@ lazy val sharedJSSettings = Seq(
 
 def mimaSettings(projectName: String) = Seq(
   ThisBuild / mimaFailOnNoPrevious := false,
-  // mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
-  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
-  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0,
-  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_3_0,
-  // mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_4_0
-)
-
-lazy val doctestTestSettings = Seq(
-  doctestTestFramework := DoctestTestFramework.Minitest,
-  doctestIgnoreRegex := Some(s".*TaskApp.scala|.*reactive.internal.(builders|operators|rstreams).*"),
-  doctestOnlyCodeBlocksMode := true
+  mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_3_0,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_4_0,
+  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_5_0
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -492,13 +479,11 @@ def monixSubModule(
 def jvmModule(
   projectName: String,
   withMimaChecks: Boolean,
-  withDocTests: Boolean,
   publishArtifacts: Boolean
 ): Project => Project =
   pr => {
     pr.configure(monixSubModule(projectName, publishArtifacts = publishArtifacts))
       .settings(testDependencies)
-      .settings(if (withDocTests) doctestTestSettings else Seq.empty)
       .settings(if (withMimaChecks) mimaSettings(projectName) else Seq.empty)
   }
 
@@ -513,7 +498,6 @@ def jsProfile(projectName: String, publishArtifacts: Boolean): Project => Projec
 def crossModule(
   projectName: String,
   withMimaChecks: Boolean                        = true,
-  withDocTests: Boolean                          = true,
   publishArtifacts: Boolean                      = true,
   crossSettings: Seq[sbt.Def.SettingsDefinition] = Nil
 ): MonixCrossModule = {
@@ -522,7 +506,6 @@ def crossModule(
     jvm = jvmModule(
       projectName      = projectName,
       withMimaChecks   = withMimaChecks,
-      withDocTests     = withDocTests,
       publishArtifacts = publishArtifacts
     ).andThen(_.settings(crossSettings: _*)),
     js = jsProfile(
@@ -577,7 +560,6 @@ lazy val coreProfile =
   crossModule(
     projectName    = "monix",
     withMimaChecks = false,
-    withDocTests   = false,
     crossSettings = Seq(
       description := "Root project for Monix, a library for asynchronous programming in Scala. See: https://monix.io"
     )
@@ -604,7 +586,6 @@ lazy val executionShadedJCTools = project
     jvmModule(
       projectName      = "monix-internal-jctools",
       withMimaChecks   = false,
-      withDocTests     = false,
       publishArtifacts = true
     )
   )
@@ -626,8 +607,8 @@ lazy val executionShadedJCTools = project
 
 lazy val executionAtomicProfile =
   crossModule(
-    projectName  = "monix-execution-atomic",
-    withDocTests = true,
+    projectName    = "monix-execution-atomic",
+    withMimaChecks = false,
     crossSettings = Seq(
       description := "Sub-module of Monix, exposing low-level atomic references. See: https://monix.io",
     )
@@ -646,8 +627,7 @@ lazy val executionAtomicJS = project.in(file("monix-execution/atomic/js"))
 
 lazy val executionProfile =
   crossModule(
-    projectName  = "monix-execution",
-    withDocTests = false,
+    projectName = "monix-execution",
     crossSettings = Seq(
       description := "Sub-module of Monix, exposing low-level primitives for dealing with async execution. See: https://monix.io",
       libraryDependencies += implicitBoxLib.value
@@ -767,7 +747,6 @@ lazy val javaJVM = project
     jvmModule(
       projectName      = "monix-java",
       withMimaChecks   = true,
-      withDocTests     = true,
       publishArtifacts = true
     )
   )

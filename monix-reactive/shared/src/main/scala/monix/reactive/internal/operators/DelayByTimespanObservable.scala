@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import scala.annotation.nowarn
 import java.util.concurrent.TimeUnit
 
 import monix.execution.Ack.{ Continue, Stop }
@@ -30,8 +29,6 @@ import monix.execution.atomic.Atomic
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ Future, Promise }
 
-@nowarn("msg=discarded non-Unit value")
-@nowarn("msg=unused value of type")
 private[reactive] final class DelayByTimespanObservable[A](source: Observable[A], delay: FiniteDuration)
   extends Observable[A] {
 
@@ -62,11 +59,9 @@ private[reactive] final class DelayByTimespanObservable[A](source: Observable[A]
       def onComplete(): Unit = {
         completeTriggered = true
         val lastAck = if (ack eq null) Continue else ack.future
-
-        lastAck.syncTryFlatten.syncOnContinue {
+        val _ = lastAck.syncTryFlatten.syncOnContinue {
           if (!isDone.getAndSet(true)) out.onComplete()
         }
-        ()
       }
 
       // Method `onError` is concurrent with run(), so we need to synchronize
@@ -77,7 +72,7 @@ private[reactive] final class DelayByTimespanObservable[A](source: Observable[A]
             hasError = true
             try out.onError(ex)
             finally {
-              if (ack != null) ack.trySuccess(Stop)
+              if (ack != null) { val _ = ack.trySuccess(Stop) }
               task.cancel()
             }
           }

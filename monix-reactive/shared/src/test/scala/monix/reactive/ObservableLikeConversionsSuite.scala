@@ -279,7 +279,7 @@ object ObservableLikeConversionsSuite extends BaseTestSuite {
 
   test("Observable.from(ReactivePublisher)") { implicit s =>
     val pub = new Publisher[Int] {
-      def subscribe(s: Subscriber[_ >: Int]): Unit = {
+      def subscribe(s: Subscriber[? >: Int]): Unit = {
         s.onSubscribe(new Subscription {
           var isActive = true
           def request(n: Long): Unit = {

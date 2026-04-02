@@ -73,7 +73,7 @@ object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(sum, 6)
 
-    for (i <- 0 until 10) subject.onNext(1)
+    for (_ <- 0 until 10) subject.onNext(1)
     s.tick()
     assertEquals(sum, 6)
 

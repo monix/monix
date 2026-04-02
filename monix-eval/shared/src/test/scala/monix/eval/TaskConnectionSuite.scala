@@ -209,7 +209,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     val tasks = (0 until count).map(_ => Task { effect += 1 })
 
     val sc = TaskConnection()
-    sc.pushConnections(connections1: _*)
+    sc.pushConnections(connections1*)
     for (bc <- cancelables) sc.push(bc)
     for (tk <- tasks) sc.push(tk)
     for (cn <- connections2) sc.push(cn)
@@ -243,7 +243,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     for (r <- connections2) assert(!r.isCanceled, "r.isCanceled")
     assertEquals(effect, 0)
 
-    sc.pushConnections(connections1: _*)
+    sc.pushConnections(connections1*)
     for (bc <- cancelables) sc.push(bc)
     for (tk <- tasks) sc.push(tk)
     for (cn <- connections2) sc.push(cn)

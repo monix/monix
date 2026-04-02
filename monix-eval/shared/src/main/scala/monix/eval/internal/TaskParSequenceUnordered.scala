@@ -30,7 +30,6 @@ import scala.util.control.NonFatal
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 
-@scala.annotation.nowarn
 private[eval] object TaskParSequenceUnordered {
   /**
 * Implementation for [[Task.parSequenceUnordered]]
@@ -61,7 +60,7 @@ private[eval] object TaskParSequenceUnordered {
       currentState match {
         case State.Active(list, 0) =>
           ref.lazySet(State.Complete)
-          mainConn.pop()
+          val _ = mainConn.pop()
           if (list ne Nil)
             finalCallback.onSuccess(list)
           else {

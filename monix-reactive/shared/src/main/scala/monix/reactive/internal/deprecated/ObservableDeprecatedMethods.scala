@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.deprecated
 
-import scala.annotation.nowarn
 import cats.effect.{ Effect, ExitCase }
 import cats.{ Monoid, Order }
 import monix.eval.{ Task, TaskLike }
@@ -28,7 +27,6 @@ import monix.reactive.internal.operators.DoOnTerminateOperator
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] trait ObservableDeprecatedMethods[+A] extends Any {
   def self: Observable[A]
 

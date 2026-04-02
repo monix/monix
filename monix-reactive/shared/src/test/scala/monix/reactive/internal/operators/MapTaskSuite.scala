@@ -98,7 +98,7 @@ object MapTaskSuite extends BaseOperatorSuite {
 
     val obs = Observable.range(0L, sourceCount.toLong).mapEval(x => Task.now(x))
     obs.unsafeSubscribeFn(new Observer[Long] {
-      private[this] var sum = 0L
+      private var sum = 0L
 
       def onNext(elem: Long): Ack = {
         received += 1
@@ -121,7 +121,7 @@ object MapTaskSuite extends BaseOperatorSuite {
 
     val obs = Observable.range(0L, sourceCount.toLong).mapEval(x => Task.evalAsync(x))
     obs.unsafeSubscribeFn(new Observer[Long] {
-      private[this] var sum = 0L
+      private var sum = 0L
 
       def onNext(elem: Long): Ack = {
         received += 1

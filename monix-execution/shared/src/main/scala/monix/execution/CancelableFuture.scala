@@ -23,7 +23,6 @@ import monix.execution.cancelables.{ ChainedCancelable, SingleAssignCancelable }
 import monix.execution.misc.Local
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import scala.annotation.nowarn
 import scala.concurrent._
 import scala.concurrent.duration.Duration
 import scala.reflect.ClassTag
@@ -173,7 +172,7 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
         // future, in which case we need to chain the cancelable
         // reference in order to not create a memory leak
         nextRef match {
-          case ref: CancelableFuture[_] if ref ne Never =>
+          case ref: CancelableFuture[?] if ref ne Never =>
             val cf = ref.asInstanceOf[CancelableFuture[S]]
             // If the resulting Future is completed, there's no reason
             // to chain cancelable tokens
@@ -372,7 +371,6 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
   }
 
   /** An actual [[CancelableFuture]] implementation; internal. */
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   private[execution] final case class Async[+A](
     underlying: Future[A],
     cancelable: Cancelable,

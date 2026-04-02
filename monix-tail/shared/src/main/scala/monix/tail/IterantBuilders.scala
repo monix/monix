@@ -26,6 +26,7 @@ import monix.execution.internal.Platform.recommendedBufferChunkSize
 import monix.execution.{ BufferCapacity, ChannelType }
 import monix.tail.Iterant.Channel
 import monix.tail.batches.{ Batch, BatchCursor }
+import monix.tail.internal.deprecated.IterantDeprecatedBuilders
 import org.reactivestreams.Publisher
 
 import scala.collection.immutable.LinearSeq
@@ -51,9 +52,6 @@ import scala.concurrent.duration.FiniteDuration
   *   Iterant[Task].pure(1)
   * }}}
   */
-@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@scala.annotation.nowarn("msg=The syntax `x: _\\*` is no longer supported for vararg splices; use `x\\*` instead")
-@scala.annotation.nowarn
 object IterantBuilders {
   /**
     * See the description on [[IterantBuilders]] for the purpose of this class.
@@ -61,7 +59,7 @@ object IterantBuilders {
     * Class defined inside object due to Scala's limitations on declaring
     * `AnyVal` classes.
     */
-  final class Apply[F[_]](val v: Boolean = true) extends AnyVal {
+  final class Apply[F[_]](val v: Boolean = true) extends AnyVal with IterantDeprecatedBuilders[F] {
     /** Aliased builder, see documentation for [[Iterant.now]]. */
     def now[A](a: A): Iterant[F, A] =
       Iterant.now(a)
@@ -212,7 +210,7 @@ object IterantBuilders {
 
     /** Aliased builder, see documentation for [[Iterant.repeat]]. */
     def repeat[A](elems: A*)(implicit F: Sync[F]): Iterant[F, A] =
-      Iterant.repeat(elems: _*)
+      Iterant.repeat(elems*)
 
     /** Aliased builder, see documentation for [[Iterant.repeatEval]]. */
     def repeatEval[A](thunk: => A)(implicit F: Sync[F]): Iterant[F, A] =

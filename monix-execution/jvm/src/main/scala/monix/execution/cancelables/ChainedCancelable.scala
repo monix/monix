@@ -107,7 +107,7 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
     state.getAndSet(Canceled) match {
       case null | Canceled => ()
       case ref: Cancelable => ref.cancel()
-      case wr: WeakReference[_] =>
+      case wr: WeakReference[?] =>
         val cc = wr.get.asInstanceOf[CC]
         if (cc != null) cc.cancel()
       case other =>
@@ -125,7 +125,7 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
         case Canceled =>
           value.cancel()
           return
-        case wr: WeakReference[_] =>
+        case wr: WeakReference[?] =>
           val cc = wr.get.asInstanceOf[CC]
           if (cc != null) cc.update(value)
           return
@@ -178,7 +178,7 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
         // Short-circuit if we discover a cycle
         if (cursor eq this) return
         cursor.state.get() match {
-          case ref2: WeakReference[_] =>
+          case ref2: WeakReference[?] =>
             cursor = ref2.get.asInstanceOf[CC]
             if (cursor eq null) {
               cursor = null
@@ -202,7 +202,7 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
         case null => ()
         case Canceled => cancel()
         case _: IsDummy => ()
-        case w: WeakReference[_] =>
+        case w: WeakReference[?] =>
           val cc = w.get
           if (cc != null) cc.asInstanceOf[CC].update(newRoot)
         case prev: Cancelable =>

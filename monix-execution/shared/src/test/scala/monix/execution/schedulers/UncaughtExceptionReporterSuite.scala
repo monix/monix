@@ -19,7 +19,6 @@ package monix.execution.schedulers
 
 import scala.concurrent.{ ExecutionContext, Promise }
 import scala.concurrent.duration._
-import scala.annotation.nowarn
 import minitest.TestSuite
 import monix.execution.{ ExecutionModel, FutureUtils, Scheduler, UncaughtExceptionReporter }
 
@@ -37,7 +36,6 @@ class UncaughtExceptionReporterBaseSuite extends TestSuite[Promise[Throwable]] {
     ()
   }
 
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   def testReports(name: String)(f: UncaughtExceptionReporter => Scheduler) = {
     testAsync(name) { p =>
       f(reporter(p)).execute(throwRunnable)

@@ -220,7 +220,7 @@ object GenericCursorSuite extends BatchCursorSuite[Int] {
 
   override def fromList(list: List[Int]): Cursor =
     new GenericCursor[Int] {
-      private[this] val iter = list.iterator
+      private val iter = list.iterator
 
       def hasNext(): Boolean = iter.hasNext
       def next(): Int = iter.next()

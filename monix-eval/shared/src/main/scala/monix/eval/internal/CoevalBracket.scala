@@ -22,7 +22,6 @@ import cats.effect.ExitCase
 import monix.execution.internal.Platform
 import scala.util.control.NonFatal
 
-@scala.annotation.nowarn
 private[eval] object CoevalBracket {
   /**
 * Implementation for `Coeval.bracketE`.

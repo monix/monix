@@ -17,7 +17,6 @@
 
 package monix.reactive.observers
 
-import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.{ Ack, CancelableFuture, Scheduler }
 import monix.reactive.Observable
@@ -25,6 +24,7 @@ import monix.reactive.Observable
 import scala.collection.mutable
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Failure, Success }
+import scala.annotation.unchecked.uncheckedVariance
 
 /** Wraps a [[Subscriber]] into an implementation that abstains from emitting items until the call
   * to `connect()` happens. Prior to `connect()` you can enqueue
@@ -81,15 +81,11 @@ import scala.util.{ Failure, Success }
   *   // NOTE: that onNext("c") never happens
   * }}}
   */
-@nowarn("msg=unused value of type")
-@nowarn("msg=The syntax")
 final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extends Subscriber[A] { self =>
-
-  implicit val scheduler: Scheduler =
-    underlying.scheduler
+  implicit val scheduler: Scheduler = underlying.scheduler
 
   // MUST BE synchronized by `self`, only available if isConnected == false
-  private[this] var queue = mutable.ArrayBuffer.empty[A]
+  private var queue = mutable.ArrayBuffer.empty[A @uncheckedVariance]
   // MUST BE synchronized by `self`, only available if isConnected == false
   private var scheduledDone = false
   // MUST BE synchronized by `self`, only available if isConnected == false
@@ -172,7 +168,9 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
 
             def onComplete(): Unit = {
               if (!scheduledDone) {
-                val _ = ack.syncOnContinue { bufferWasDrained.trySuccess(Continue); () }
+                val _ = ack.syncOnContinue {
+                  val _ = bufferWasDrained.trySuccess(Continue)
+                }
               } else if (scheduledError ne null) {
                 if (bufferWasDrained.trySuccess(Stop))
                   underlying.onError(scheduledError)
@@ -310,7 +308,8 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
     */
   def onComplete(): Unit = {
     // we cannot take a fast path here
-    connectedFuture.syncTryFlatten
+    val _ = connectedFuture
+      .syncTryFlatten
       .syncOnContinue(underlying.onComplete())
     ()
   }
@@ -323,7 +322,8 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
     */
   def onError(ex: Throwable): Unit = {
     // we cannot take a fast path here
-    connectedFuture.syncTryFlatten
+    val _ = connectedFuture
+      .syncTryFlatten
       .syncOnContinue(underlying.onError(ex))
     ()
   }

@@ -43,10 +43,10 @@ object IterantHeadOptionSuite extends BaseTestSuite {
 
   test("Iterant.headOption suspends execution for NextCursor or NextBatch") { _ =>
     check1 { (list: List[Int]) =>
-      val iter1 = Iterant[Coeval].nextBatchS(Batch(list: _*), Coeval.now(Iterant[Coeval].empty[Int]))
+      val iter1 = Iterant[Coeval].nextBatchS(Batch(list*), Coeval.now(Iterant[Coeval].empty[Int]))
       iter1.headOptionL <-> Coeval.suspend(Coeval.now(list.headOption))
 
-      val iter2 = Iterant[Coeval].nextCursorS(BatchCursor(list: _*), Coeval.now(Iterant[Coeval].empty[Int]))
+      val iter2 = Iterant[Coeval].nextCursorS(BatchCursor(list*), Coeval.now(Iterant[Coeval].empty[Int]))
       iter2.headOptionL <-> Coeval.suspend(Coeval.now(list.headOption))
     }
   }

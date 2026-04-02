@@ -115,7 +115,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
 
       val obs = Observable.range(0L, sourceCount.toLong).mapParallelOrdered(parallelism = 4)(x => Task.now(x))
       obs.unsafeSubscribeFn(new Observer[Long] {
-        private[this] var sum = 0L
+        private var sum = 0L
 
         def onNext(elem: Long) = {
           received += 1
@@ -145,7 +145,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
 
       val obs = Observable.range(0L, sourceCount.toLong).mapParallelOrdered(parallelism = 4)(x => Task(x))
       obs.unsafeSubscribeFn(new Observer[Long] {
-        private[this] var sum = 0L
+        private var sum = 0L
 
         def onNext(elem: Long) = {
           received += 1
@@ -307,7 +307,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
     val p = Promise[Int]()
 
     val tasks = List.fill(8)(Task.fromFuture(p.future))
-    Observable(tasks: _*)
+    Observable(tasks*)
       .doOnNext(_ => Task(initiated += 1))
       .mapParallelOrdered(parallelism = 4)(x => x)
       .unsafeSubscribeFn(new Observer[Int] {

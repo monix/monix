@@ -28,7 +28,6 @@ import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.internal.Constants
 import monix.execution.internal.collection.{ LowLevelConcurrentQueue => LowLevelQueue }
 import monix.execution.{ BufferCapacity, CancelablePromise, ChannelType }
-import scala.annotation.nowarn
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 
@@ -481,7 +480,6 @@ object ConcurrentQueue {
     * @param cs $csParam
     * @param F $concurrentParam
     */
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   @UnsafeProtocol
   @UnsafeBecauseImpure
   def unsafe[F[_], A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(
@@ -496,7 +494,6 @@ object ConcurrentQueue {
   /**
     * Returned by the [[apply]] builder.
     */
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   final class ApplyBuilders[F[_]](val F: Concurrent[F]) extends AnyVal {
     /**
       * @see documentation for [[ConcurrentQueue.bounded]]

@@ -86,7 +86,7 @@ class ObservableIteratorBenchmark {
     val p = Promise[Int]()
     stream.unsafeSubscribeFn(new Subscriber.Sync[Int] {
       val scheduler = benchmarks.scheduler
-      private[this] var sum: Int = 0
+      private var sum: Int = 0
 
       def onError(ex: Throwable): Unit =
         p.failure(ex)

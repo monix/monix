@@ -17,7 +17,6 @@
 
 package monix.reactive.subjects
 
-import scala.annotation.nowarn
 import monix.execution.ChannelType.MultiProducer
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.{ Ack, Cancelable, ChannelType, Scheduler }
@@ -33,15 +32,9 @@ import org.reactivestreams.{ Processor => RProcessor, Subscriber => RSubscriber,
   *
   *     (onNext)* (onComplete | onError)
   */
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@nowarn("msg=The syntax `x: _*` is no longer supported for vararg splices; use `x*` instead")
-@nowarn("msg=`_` is deprecated for wildcard arguments of types: use `?` instead")
 abstract class ConcurrentSubject[I, +O] extends Subject[I, O] with Observer.Sync[I]
 
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@nowarn("msg=The syntax `x: _*` is no longer supported for vararg splices; use `x*` instead")
-@nowarn("msg=`_` is deprecated for wildcard arguments of types: use `?` instead")
-object ConcurrentSubject {
+object ConcurrentSubject extends monix.reactive.internal.deprecated.ConcurrentSubjectDeprecatedBuilders {
   def apply[A](multicast: MulticastStrategy[A])(implicit s: Scheduler): ConcurrentSubject[A, A] =
     apply(multicast, Unbounded)(s)
 
@@ -148,9 +141,8 @@ object ConcurrentSubject {
     * @param initial is an initial sequence of elements that will be pushed
     *        to subscribers before any elements emitted by the source.
     */
-  @nowarn("msg=The syntax")
   def replay[A](initial: Seq[A])(implicit s: Scheduler): ConcurrentSubject[A, A] =
-    from(ReplaySubject[A](initial: _*), Unbounded)
+    from(ReplaySubject[A](initial*), Unbounded)
 
   /** Subject recipe for building [[ReplaySubject replay]] subjects.
     *
@@ -160,9 +152,8 @@ object ConcurrentSubject {
     *        used for buffering, which specifies what to do in case
     *        we're dealing with slow consumers.
     */
-  @nowarn("msg=The syntax")
   def replay[A](initial: Seq[A], strategy: Synchronous[A])(implicit s: Scheduler): ConcurrentSubject[A, A] =
-    from(ReplaySubject[A](initial: _*), strategy)
+    from(ReplaySubject[A](initial*), strategy)
 
   /** Subject recipe for building [[ReplaySubject replay]] subjects.
     * This variant creates a size-bounded replay subject.

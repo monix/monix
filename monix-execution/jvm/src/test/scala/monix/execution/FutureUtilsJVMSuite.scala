@@ -23,7 +23,6 @@ import java.util.concurrent.atomic.AtomicLong
 import minitest.TestSuite
 import monix.execution.FutureUtils.extensions._
 import monix.execution.schedulers.TestScheduler
-import scala.annotation.nowarn
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -48,7 +47,6 @@ object FutureUtilsJVMSuite extends TestSuite[TestScheduler] {
 
     val originalTimeout = 50.millis
 
-    @nowarn("msg=Implicit parameters should be provided with a `using` clause")
     def runFuture(timeout: FiniteDuration): Future[Unit] = {
       total.incrementAndGet()
 

@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.builders
 
-import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.CompositeCancelable
 import monix.execution.{ Ack, Cancelable, Scheduler }
@@ -44,8 +43,6 @@ import scala.util.Success
   * same order as received from the source, and at most a single item from a
   * given source will be in flight at a time.
   */
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@nowarn("msg=unused value of type")
 private[reactive] final class MergePrioritizedListObservable[A](
   sources: Seq[(Int, Observable[A])]
 ) extends Observable[A] {
@@ -164,7 +161,7 @@ private[reactive] final class MergePrioritizedListObservable[A](
               } else {
                 val p = Promise[Ack]()
                 pq.enqueue(PQElem(elem, p, pri))
-                signalOnNext()
+                val _ = signalOnNext()
                 p.future
               }
             }

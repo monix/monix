@@ -112,7 +112,7 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
 
   test("fromReactivePublisher handles immediate completion") { implicit s =>
     val publisher = new Publisher[Unit] {
-      def subscribe(subscriber: Subscriber[_ >: Unit]): Unit = {
+      def subscribe(subscriber: Subscriber[? >: Unit]): Unit = {
         subscriber.onComplete()
       }
     }
@@ -132,11 +132,11 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     def this(range: Range, finish: Option[Throwable], onCancel: Promise[Unit])(implicit sc: Scheduler) =
       this(range.start, range.end, range.step, finish, onCancel)
 
-    def subscribe(s: Subscriber[_ >: Int]): Unit = {
+    def subscribe(s: Subscriber[? >: Int]): Unit = {
       s.onSubscribe(new Subscription { self =>
-        private[this] val cancelled = Atomic(false)
-        private[this] val requested = Atomic(0L)
-        private[this] var index = from
+        private val cancelled = Atomic(false)
+        private val requested = Atomic(0L)
+        private var index = from
 
         def isInRange(x: Long, until: Long, step: Long): Boolean = {
           (step > 0 && x < until) || (step < 0 && x > until)

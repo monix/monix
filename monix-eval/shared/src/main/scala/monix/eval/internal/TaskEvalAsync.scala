@@ -21,7 +21,6 @@ import monix.execution.Callback
 import monix.eval.Task
 import scala.util.control.NonFatal
 
-@scala.annotation.nowarn
 private[eval] object TaskEvalAsync {
   /**
 * Implementation for `Task.evalAsync`.

@@ -26,7 +26,6 @@ import monix.eval.internal.TracingPlatform.{ enhancedExceptions, isStackTracing 
 import scala.reflect.NameTransformer
 import scala.util.control.NonFatal
 
-@scala.annotation.nowarn
 private[eval] object CoevalRunLoop {
   private type Current = Coeval[Any]
   private type Bind = Any => Coeval[Any]
@@ -150,7 +149,7 @@ private[eval] object CoevalRunLoop {
             val ref = bRest.pop()
             if (ref eq null)
               return null
-            else if (ref.isInstanceOf[StackFrame[_, _]])
+            else if (ref.isInstanceOf[StackFrame[?, ?]])
               return ref.asInstanceOf[StackFrame[Any, Coeval[Any]]]
           }
           // $COVERAGE-OFF$
@@ -161,7 +160,7 @@ private[eval] object CoevalRunLoop {
   }
 
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
-    if ((bFirst ne null) && !bFirst.isInstanceOf[StackFrame.ErrorHandler[_, _]])
+    if ((bFirst ne null) && !bFirst.isInstanceOf[StackFrame.ErrorHandler[?, ?]])
       return bFirst
 
     if (bRest eq null) return null
@@ -169,7 +168,7 @@ private[eval] object CoevalRunLoop {
       val next = bRest.pop()
       if (next eq null) {
         return null
-      } else if (!next.isInstanceOf[StackFrame.ErrorHandler[_, _]]) {
+      } else if (!next.isInstanceOf[StackFrame.ErrorHandler[?, ?]]) {
         return next
       }
     }

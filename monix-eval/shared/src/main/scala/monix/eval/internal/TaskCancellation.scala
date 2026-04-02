@@ -24,7 +24,6 @@ import monix.execution.{ Callback, Scheduler }
 import monix.execution.atomic.{ Atomic, AtomicBoolean }
 import monix.execution.schedulers.TrampolinedRunnable
 
-@scala.annotation.nowarn
 private[eval] object TaskCancellation {
   /**
 * Implementation for `Task.uncancelable`.
@@ -72,14 +71,14 @@ private[eval] object TaskCancellation {
 
     def onSuccess(value: A): Unit =
       if (waitsForResult.getAndSet(false)) {
-        conn.pop()
+        val _ = conn.pop()
         this.value = value
         s.execute(this)
       }
 
     def onError(e: Throwable): Unit =
       if (waitsForResult.getAndSet(false)) {
-        conn.pop()
+        val _ = conn.pop()
         this.error = e
         s.execute(this)
       } else {
@@ -94,11 +93,10 @@ private[eval] object TaskCancellation {
     cb: Callback[Throwable, A],
     e: Throwable
   ): CancelToken[Task] = {
-
     Task.suspend {
       if (waitsForResult.getAndSet(false))
         conn2.cancel.map { _ =>
-          conn.tryReactivate()
+          val _ = conn.tryReactivate()
           cb.onError(e)
         }
       else

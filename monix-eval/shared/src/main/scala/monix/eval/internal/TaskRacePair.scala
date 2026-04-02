@@ -23,7 +23,6 @@ import monix.execution.atomic.Atomic
 
 import scala.concurrent.Promise
 
-@scala.annotation.nowarn
 private[eval] object TaskRacePair { // Type aliasing the result only b/c it's a mouthful
   type RaceEither[A, B] = Either[(A, Fiber[B]), (Fiber[A], B)]
 
@@ -67,7 +66,7 @@ private[eval] object TaskRacePair { // Type aliasing the result only b/c it's a 
           def onSuccess(valueA: A): Unit =
             if (isActive.getAndSet(false)) {
               val fiberB = Fiber(TaskFromFuture.strict(pb.future), connB.cancel)
-              conn.pop()
+              val _ = conn.pop()
               cb.onSuccess(Left((valueA, fiberB)))
             } else {
               pa.success(valueA)
@@ -77,7 +76,7 @@ private[eval] object TaskRacePair { // Type aliasing the result only b/c it's a 
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
               connB.cancel.map { _ =>
-                conn.pop()
+                val _ = conn.pop()
                 cb.onError(ex)
               }.runAsyncAndForget
             } else {
@@ -95,7 +94,7 @@ private[eval] object TaskRacePair { // Type aliasing the result only b/c it's a 
           def onSuccess(valueB: B): Unit =
             if (isActive.getAndSet(false)) {
               val fiberA = Fiber(TaskFromFuture.strict(pa.future), connA.cancel)
-              conn.pop()
+              val _ = conn.pop()
               cb.onSuccess(Right((fiberA, valueB)))
             } else {
               pb.success(valueB)
@@ -105,7 +104,7 @@ private[eval] object TaskRacePair { // Type aliasing the result only b/c it's a 
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
               connA.cancel.map { _ =>
-                conn.pop()
+                val _ = conn.pop()
                 cb.onError(ex)
               }.runAsyncAndForget
             } else {

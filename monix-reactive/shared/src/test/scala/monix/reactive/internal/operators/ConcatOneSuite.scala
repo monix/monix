@@ -100,7 +100,7 @@ object ConcatOneSuite extends BaseOperatorSuite {
     createObservable(sourceCount) match {
       case Some(Sample(obs, count, sum, _, _)) =>
         obs.unsafeSubscribeFn(new Observer[Long] {
-          private[this] var sum = 0L
+          private var sum = 0L
 
           def onNext(elem: Long): Ack = {
             received += 1

@@ -35,7 +35,7 @@ private[atomic] trait HygieneUtilMacros {
     /** Returns true if the given expressions are either
       * stable symbols or clean functions, false otherwise.
       */
-    def isClean(es: c.Expr[_]*): Boolean =
+    def isClean(es: c.Expr[?]*): Boolean =
       es.forall {
         _.tree match {
           case t @ Ident(_: TermName) if t.symbol.asTerm.isStable => true

@@ -25,7 +25,6 @@ import monix.eval.Task
 
 import scala.concurrent.duration.Duration
 
-@scala.annotation.nowarn
 private[eval] object TaskSleep {
   /** Implementation for `Task.sleep`. */
   def apply(timespan: Duration): Task[Unit] =
@@ -66,7 +65,7 @@ private[eval] object TaskSleep {
 // a full async boundary!
   private final class SleepRunnable(ctx: Context, cb: Callback[Throwable, Unit]) extends Runnable {
     def run(): Unit = {
-      ctx.connection.pop()
+      val _ = ctx.connection.pop()
       // We had an async boundary, as we must reset the frame
       ctx.frameRef.reset()
       cb.onSuccess(())

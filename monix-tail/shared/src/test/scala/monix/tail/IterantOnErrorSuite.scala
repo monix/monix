@@ -63,7 +63,7 @@ object IterantOnErrorSuite extends BaseTestSuite {
 
   test("fa.onErrorHandleWith(_ => fb) <-> fa for successful streams") { _ =>
     check1 { (list: List[Int]) =>
-      val iter = Iterant[Coeval].of(list: _*)
+      val iter = Iterant[Coeval].of(list*)
 
       iter.onErrorHandleWith(_ => Iterant[Coeval].empty[Int]) <-> iter
     }

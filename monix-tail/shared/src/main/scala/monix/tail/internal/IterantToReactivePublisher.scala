@@ -34,9 +34,6 @@ import org.reactivestreams.{ Publisher, Subscriber }
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
-@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@scala.annotation.nowarn("msg=`_` is deprecated for wildcard arguments of types: use `\\?` instead")
-@scala.annotation.nowarn
 private[tail] object IterantToReactivePublisher {
   /**
     * Implementation for `toReactivePublisher`
@@ -48,7 +45,7 @@ private[tail] object IterantToReactivePublisher {
 
   private final class IterantPublisher[F[_], A](source: Iterant[F, A])(implicit F: Effect[F]) extends Publisher[A] {
 
-    def subscribe(out: Subscriber[_ >: A]): Unit = {
+    def subscribe(out: Subscriber[? >: A]): Unit = {
       // Reactive Streams requirement
       if (out == null) throw null
 
@@ -68,7 +65,7 @@ private[tail] object IterantToReactivePublisher {
     }
   }
 
-  private final class IterantSubscription[F[_], A](source: Iterant[F, A], out: Subscriber[_ >: A])(
+  private final class IterantSubscription[F[_], A](source: Iterant[F, A], out: Subscriber[? >: A])(
     implicit F: Effect[F]
   ) extends Subscription { parent =>
 

@@ -236,7 +236,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     var sum = 0L
 
     val observer = new Observer[Long] {
-      private[this] var received = 0
+      private var received = 0
 
       def onNext(elem: Long) = Future {
         received += 1
@@ -273,12 +273,12 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
   }
 
   test("should cancel precisely with requests of size 1") { implicit s =>
-    for (i <- 0 until 100) {
+    for (_ <- 0 until 100) {
       var completed = 0
       var sum = 0L
 
       val observer = new Observer[Long] {
-        private[this] var received = 0
+        private var received = 0
 
         def onNext(elem: Long) = Future {
           received += 1
@@ -320,7 +320,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     var sum = 0L
 
     val observer = new Observer[Long] {
-      private[this] var received = 0
+      private var received = 0
 
       def onNext(elem: Long) = Future {
         received += 1
@@ -353,7 +353,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     var sum = 0L
 
     val observer = new Observer[Long] {
-      private[this] var received = 0
+      private var received = 0
 
       def onNext(elem: Long) = Future {
         received += 1

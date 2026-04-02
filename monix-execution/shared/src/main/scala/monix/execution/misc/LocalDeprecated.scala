@@ -18,7 +18,6 @@
 package monix.execution.misc
 
 import monix.execution.atomic.AtomicAny
-import scala.annotation.nowarn
 
 private[execution] trait LocalDeprecated[A] { self: Local[A] =>
   /**
@@ -58,7 +57,6 @@ private[execution] trait LocalCompanionDeprecated { self: Local.type =>
     * DEPRECATED — switch to `local.closed[R: CanIsolate]`.
     */
   @deprecated("Switch to local.closed[R: CanIsolate]", since = "3.0.0")
-  @nowarn("msg=Implicit parameters should be provided with a `using` clause")
   def closed[R](fn: () => R): () => R = {
     // $COVERAGE-OFF$
     import CanBindLocals.Implicits.synchronousAsDefault

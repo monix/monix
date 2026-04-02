@@ -24,7 +24,6 @@ import monix.execution.Callback
 /**
   * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
   */
-@scala.annotation.nowarn
 private[eval] object TracedAsync { // Convenience function for internal Async calls that intend
 // to opt into tracing so the following code isn't repeated.
   def apply[A](

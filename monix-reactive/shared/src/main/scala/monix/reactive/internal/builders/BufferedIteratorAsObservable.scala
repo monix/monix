@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.builders
 
-import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.BooleanCancelable
@@ -32,7 +31,6 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{ Failure, Success }
 
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] final class BufferedIteratorAsObservable[A](iterator: Iterator[A], bufferSize: Int)
   extends Observable[Seq[A]] {
   require(bufferSize > 0, "bufferSize must be strictly positive")

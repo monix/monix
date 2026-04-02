@@ -138,7 +138,7 @@ object PublisherIsObservableSuite extends TestSuite[TestScheduler] {
   ): Publisher[Long] = {
 
     new Publisher[Long] {
-      override def subscribe(subscriber: Subscriber[_ >: Long]): Unit =
+      override def subscribe(subscriber: Subscriber[? >: Long]): Unit =
         subscriber.onSubscribe(new Subscription {
           override def cancel(): Unit =
             isPublisherActive.set(false)

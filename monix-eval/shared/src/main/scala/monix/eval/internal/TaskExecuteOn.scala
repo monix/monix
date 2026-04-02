@@ -23,7 +23,6 @@ import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Scheduler
 
-@scala.annotation.nowarn
 private[eval] object TaskExecuteOn {
   /**
 * Implementation for `Task.executeOn`.

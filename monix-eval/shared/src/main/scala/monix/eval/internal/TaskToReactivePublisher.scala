@@ -22,14 +22,13 @@ import monix.execution.rstreams.Subscription
 import monix.execution.{ Callback, Scheduler, UncaughtExceptionReporter }
 import org.reactivestreams.Subscriber
 
-@scala.annotation.nowarn
 private[eval] object TaskToReactivePublisher {
   /**
 * Implementation for `Task.toReactivePublisher`
 */
   def apply[A](self: Task[A])(implicit s: Scheduler): org.reactivestreams.Publisher[A] =
     new org.reactivestreams.Publisher[A] {
-      def subscribe(out: Subscriber[_ >: A]): Unit = {
+      def subscribe(out: Subscriber[? >: A]): Unit = {
         out.onSubscribe(new Subscription {
           private var isActive = true
           private val conn = TaskConnection()
@@ -50,7 +49,7 @@ private[eval] object TaskToReactivePublisher {
       }
     }
 
-  private final class PublisherCallback[A](out: Subscriber[_ >: A])(implicit s: UncaughtExceptionReporter)
+  private final class PublisherCallback[A](out: Subscriber[? >: A])(implicit s: UncaughtExceptionReporter)
     extends Callback[Throwable, A] {
     private var isActive = true
 

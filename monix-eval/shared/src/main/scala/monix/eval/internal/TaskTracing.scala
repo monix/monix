@@ -26,7 +26,6 @@ import monix.eval.tracing.TaskEvent
 /**
   * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
   */
-@scala.annotation.nowarn
 private[eval] object TaskTracing {
   def decorated[A](source: Task[A]): Task[A] =
     Trace(source, buildFrame())
@@ -34,10 +33,10 @@ private[eval] object TaskTracing {
   def uncached(): TaskEvent =
     buildFrame()
 
-  def cached(clazz: Class[_]): TaskEvent =
+  def cached(clazz: Class[?]): TaskEvent =
     buildCachedFrame(clazz)
 
-  private def buildCachedFrame(clazz: Class[_]): TaskEvent = {
+  private def buildCachedFrame(clazz: Class[?]): TaskEvent = {
     val currentFrame = frameCache.get(clazz)
     if (currentFrame eq null) {
       val newFrame = buildFrame()
@@ -55,5 +54,5 @@ private[eval] object TaskTracing {
 * Global cache for trace frames. Keys are references to lambda classes.
 * Should converge to the working set of traces very quickly for hot code paths.
 */
-  private val frameCache: ConcurrentHashMap[Class[_], TaskEvent] = new ConcurrentHashMap()
+  private val frameCache: ConcurrentHashMap[Class[?], TaskEvent] = new ConcurrentHashMap()
 }

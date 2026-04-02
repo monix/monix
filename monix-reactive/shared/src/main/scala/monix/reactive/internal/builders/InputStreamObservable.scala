@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.builders
 
-import scala.annotation.nowarn
 import java.io.InputStream
 import java.util
 
@@ -35,7 +34,6 @@ import scala.concurrent.{ blocking, Future }
 import scala.util.control.NonFatal
 import scala.util.{ Failure, Success }
 
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: Int) extends Observable[Array[Byte]] {
 
   require(chunkSize > 0, "chunkSize > 0")

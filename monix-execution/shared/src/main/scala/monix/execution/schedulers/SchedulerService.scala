@@ -20,7 +20,6 @@ package monix.execution.schedulers
 import monix.execution.{ ExecutionModel => ExecModel, Scheduler, UncaughtExceptionReporter }
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import scala.annotation.nowarn
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.{ FiniteDuration, TimeUnit }
 
@@ -125,7 +124,6 @@ object SchedulerService {
       self.awaitTermination(timeout, awaitOn)
 
     @deprecated("Extension methods are now implemented on `SchedulerService` directly", "3.4.0")
-    @nowarn("msg=Implicit parameters should be provided with a `using` clause")
     def awaitTermination(timeout: FiniteDuration)(implicit permit: CanBlock): Boolean =
       self.awaitTermination(timeout)(permit)
   }

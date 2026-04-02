@@ -27,8 +27,6 @@ import monix.execution.internal.Platform
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
 
-@scala.annotation.nowarn("msg=Implicit parameters should be provided with a `using` clause")
-@scala.annotation.nowarn("msg=unused value of type")
 private[monix] object TaskBracket { // -----------------------------------------------------------------
 // Task.guaranteeCase
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -295,7 +293,7 @@ private[monix] object TaskBracket { // -----------------------------------------
   private val withConnectionUncancelable: Context => Context = _.withConnection(TaskConnection.uncancelable)
 
   private val disableUncancelableAndPop: (Any, Throwable, Context, Context) => Context = (_, _, old, _) => {
-    old.connection.pop()
+    val _ = old.connection.pop()
     old
   }
 }

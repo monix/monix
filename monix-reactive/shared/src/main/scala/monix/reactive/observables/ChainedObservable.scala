@@ -68,7 +68,7 @@ object ChainedObservable {
     // to delay it and force ordering; plus it protects from stack overflows
     out.scheduler.executeTrampolined { () =>
       source match {
-        case _: ChainedObservable[_] =>
+        case _: ChainedObservable[?] =>
           source.asInstanceOf[ChainedObservable[A]].unsafeSubscribeFn(conn, out)
         case _ =>
           conn := source.unsafeSubscribeFn(out)

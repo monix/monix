@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import scala.annotation.nowarn
 import java.util.concurrent.TimeUnit
 
 import monix.execution.Ack.{ Continue, Stop }
@@ -30,8 +29,6 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration.{ Duration, FiniteDuration, MILLISECONDS }
 
-@nowarn("msg=discarded non-Unit value")
-@nowarn("msg=unused value of type")
 private[reactive] final class BufferTimedObservable[+A](source: Observable[A], timespan: FiniteDuration, maxCount: Int)
   extends Observable[Seq[A]] {
 
@@ -54,7 +51,7 @@ private[reactive] final class BufferTimedObservable[+A](source: Observable[A], t
 
       locally {
         // Scheduling the first tick, in the constructor
-        periodicTask := out.scheduler.scheduleOnce(timespanMillis, TimeUnit.MILLISECONDS, self)
+        val _ = periodicTask := out.scheduler.scheduleOnce(timespanMillis, TimeUnit.MILLISECONDS, self)
       }
 
       // Runs periodically, every `timespan`
@@ -66,17 +63,16 @@ private[reactive] final class BufferTimedObservable[+A](source: Observable[A], t
           // problem, or we rushed to signaling the bundle upon reaching
           // the maximum size in onNext. So we sleep some more.
           val remaining = expiresAt - now
-          periodicTask := scheduler.scheduleOnce(remaining, TimeUnit.MILLISECONDS, self)
+          val _ = periodicTask := scheduler.scheduleOnce(remaining, TimeUnit.MILLISECONDS, self)
         } else if (buffer != null) {
           // The timespan has passed since the last signal so we need
           // to send the current bundle
-          sendNextAndReset(now).syncOnContinue(
+          val _ = sendNextAndReset(now).syncOnContinue(
             // Schedule the next tick, but only after we are done
             // sending the bundle
             run()
           )
         }
-        ()
       }
 
       // Must be synchronized by `self`
@@ -118,8 +114,8 @@ private[reactive] final class BufferTimedObservable[+A](source: Observable[A], t
           // In case the last onNext isn't finished, then
           // we need to apply back-pressure, otherwise this
           // onNext will break the contract.
-          ack.syncOnContinue {
-            out.onNext(bundleToSend)
+          val _ = ack.syncOnContinue {
+            val _ = out.onNext(bundleToSend)
             out.onComplete()
           }
         } else {

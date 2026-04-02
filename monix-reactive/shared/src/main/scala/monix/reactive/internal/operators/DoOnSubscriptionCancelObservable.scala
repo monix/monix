@@ -17,13 +17,11 @@
 
 package monix.reactive.internal.operators
 
-import scala.annotation.nowarn
 import monix.eval.Task
 import monix.execution.Cancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] final class DoOnSubscriptionCancelObservable[+A](source: Observable[A], task: Task[Unit])
   extends Observable[A] {
 

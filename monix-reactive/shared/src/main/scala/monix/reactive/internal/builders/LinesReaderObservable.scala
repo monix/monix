@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.builders
 
-import scala.annotation.nowarn
 import java.io.{ BufferedReader, Reader }
 
 import monix.execution.Ack.{ Continue, Stop }
@@ -34,7 +33,6 @@ import scala.annotation.tailrec
 import scala.concurrent.{ blocking, Future }
 import scala.util.{ Failure, Success }
 
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] final class LinesReaderObservable(reader: Reader) extends Observable[String] { self =>
 
   private val in: BufferedReader =

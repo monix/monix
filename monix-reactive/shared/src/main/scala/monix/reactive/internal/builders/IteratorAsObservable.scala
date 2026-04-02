@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.builders
 
-import scala.annotation.nowarn
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution._
@@ -31,7 +30,6 @@ import scala.concurrent.Future
 import scala.util.{ Failure, Success }
 
 /** Converts any `Iterator` into an observable */
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] final class IteratorAsObservable[A](iterator: Iterator[A]) extends Observable[A] {
   private val wasSubscribed = Atomic(false)
 

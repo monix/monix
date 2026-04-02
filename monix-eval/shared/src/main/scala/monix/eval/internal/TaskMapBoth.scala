@@ -28,7 +28,6 @@ import monix.execution.internal.exceptions.matchError
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
-@scala.annotation.nowarn
 private[eval] object TaskMapBoth {
   /**
 * Implementation for `Task.mapBoth`.
@@ -56,13 +55,13 @@ private[eval] object TaskMapBoth {
       try {
         val r = f(a1, a2)
         streamErrors = false
-        mainConn.pop()
+        val _ = mainConn.pop()
         cb.onSuccess(r)
       } catch {
         case NonFatal(ex) if streamErrors =>
           // Both tasks completed by this point, so we don't need
           // to worry about the `state` being a `Stop`
-          mainConn.pop()
+          val _ = mainConn.pop()
           cb.onError(ex)
       }
     }

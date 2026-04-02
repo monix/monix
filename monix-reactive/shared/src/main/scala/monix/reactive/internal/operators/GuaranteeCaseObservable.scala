@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import scala.annotation.nowarn
 import cats.effect.ExitCase
 import monix.execution.Callback
 import monix.eval.Task
@@ -33,7 +32,6 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 import scala.util.{ Failure, Success, Try }
 
-@nowarn("msg=Implicit parameters should be provided with a `using` clause")
 private[reactive] class GuaranteeCaseObservable[A](source: Observable[A], f: ExitCase[Throwable] => Task[Unit])
   extends Observable[A] {
 

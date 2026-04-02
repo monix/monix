@@ -124,7 +124,7 @@ object SafeSubscriber {
     */
   def apply[A](subscriber: Subscriber[A]): SafeSubscriber[A] =
     subscriber match {
-      case ref: SafeSubscriber[_] => ref.asInstanceOf[SafeSubscriber[A]]
+      case ref: SafeSubscriber[?] => ref.asInstanceOf[SafeSubscriber[A]]
       case _ => new SafeSubscriber[A](subscriber)
     }
 }

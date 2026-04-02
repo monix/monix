@@ -96,7 +96,7 @@ class ChunkedEvalFilterMapSumBenchmark {
 
   @Benchmark
   def fs2Stream = {
-    val stream = FS2Stream(allElements: _*)
+    val stream = FS2Stream(allElements*)
       .chunkN(chunkSize)
       .evalMap[MonixTask, Int](chunk => MonixTask(sumIntScala(chunk.iterator)))
       .filter(_ > 0)
@@ -109,7 +109,7 @@ class ChunkedEvalFilterMapSumBenchmark {
 
   @Benchmark
   def fs2StreamPreChunked = {
-    val stream = FS2Stream(fs2Chunks: _*)
+    val stream = FS2Stream(fs2Chunks*)
       .evalMap[MonixTask, Int](chunk => MonixTask(sumIntScala(chunk.iterator)))
       .filter(_ > 0)
       .map(_.toLong)
@@ -148,7 +148,7 @@ class ChunkedEvalFilterMapSumBenchmark {
   @Benchmark
   def zioStreamPreChunked = {
     val stream = ZStream
-      .fromChunks(zioChunks: _*)
+      .fromChunks(zioChunks*)
       .mapChunksM(chunk => UIO(Chunk.single(sumIntScala(chunk))))
       .filter(_ > 0)
       .map(_.toLong)

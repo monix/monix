@@ -17,8 +17,6 @@
 
 package org.reactivestreams
 
-import scala.annotation.nowarn
-
 /**
   * Mirrors the `Publisher` interface from the
   * [[http://www.reactive-streams.org/ Reactive Streams]] project.
@@ -45,6 +43,5 @@ trait Publisher[T] extends Any {
     * @param subscriber the [[Subscriber]] that will consume signals
     *                   from this [[Publisher]]
     */
-  @nowarn("msg=.*")
-  def subscribe(subscriber: Subscriber[_ >: T]): Unit
+  def subscribe(subscriber: Subscriber[? >: T]): Unit
 }

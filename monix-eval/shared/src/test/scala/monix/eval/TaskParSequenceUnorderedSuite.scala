@@ -102,7 +102,7 @@ object TaskParSequenceUnorderedSuite extends BaseTestSuite {
     def fold[A, B](ta: Task[ListBuffer[A]], tb: Task[A]): Task[ListBuffer[A]] =
       Task.parSequenceUnordered(List(ta, tb)).map {
         case a :: b :: Nil =>
-          val (accR, valueR) = if (a.isInstanceOf[ListBuffer[_]]) (a, b) else (b, a)
+          val (accR, valueR) = if (a.isInstanceOf[ListBuffer[?]]) (a, b) else (b, a)
           val acc = accR.asInstanceOf[ListBuffer[A]]
           val value = valueR.asInstanceOf[A]
           acc += value

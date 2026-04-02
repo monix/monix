@@ -107,7 +107,7 @@ object TaskParTraverseUnorderedSuite extends BaseTestSuite {
         }
       }.map {
         case a :: b :: Nil =>
-          val (accR, valueR) = if (a.isInstanceOf[ListBuffer[_]]) (a, b) else (b, a)
+          val (accR, valueR) = if (a.isInstanceOf[ListBuffer[?]]) (a, b) else (b, a)
           val acc = accR.asInstanceOf[ListBuffer[A]]
           val value = valueR.asInstanceOf[A]
           acc += value

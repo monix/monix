@@ -291,7 +291,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
 
   def inputWithError(ex: Throwable, whenToThrow: Int, onFinish: () => Unit): InputStream =
     new InputStream {
-      private[this] var callIdx = 0
+      private var callIdx = 0
 
       def read(): Int = {
         callIdx += 1

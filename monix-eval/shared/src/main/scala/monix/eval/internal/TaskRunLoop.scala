@@ -31,7 +31,6 @@ import monix.eval.tracing.{ TaskEvent, TaskTrace }
 
 import scala.reflect.NameTransformer
 
-@scala.annotation.nowarn
 private[eval] object TaskRunLoop {
   type Current = Task[Any]
   type Bind = Any => Task[Any]
@@ -842,7 +841,7 @@ private[eval] object TaskRunLoop {
             val ref = bRest.pop()
             if (ref eq null)
               return null
-            else if (ref.isInstanceOf[StackFrame[_, _]])
+            else if (ref.isInstanceOf[StackFrame[?, ?]])
               return ref.asInstanceOf[StackFrame[Any, Task[Any]]]
           }
           // $COVERAGE-OFF$
@@ -853,7 +852,7 @@ private[eval] object TaskRunLoop {
   }
 
   private[internal] def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
-    if ((bFirst ne null) && !bFirst.isInstanceOf[StackFrame.ErrorHandler[_, _]])
+    if ((bFirst ne null) && !bFirst.isInstanceOf[StackFrame.ErrorHandler[?, ?]])
       return bFirst
 
     if (bRest eq null) return null
@@ -861,7 +860,7 @@ private[eval] object TaskRunLoop {
       val next = bRest.pop()
       if (next eq null) {
         return null
-      } else if (!next.isInstanceOf[StackFrame.ErrorHandler[_, _]]) {
+      } else if (!next.isInstanceOf[StackFrame.ErrorHandler[?, ?]]) {
         return next
       }
     }

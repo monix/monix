@@ -65,7 +65,7 @@ object IterantConcatSuite extends BaseTestSuite {
   test("Iterant.concat(Iterant*)") { implicit s =>
     check1 { (ll: List[List[Int]]) =>
       val li = ll.map(Iterant[Coeval].fromList)
-      val concat = Iterant.concat(li: _*)
+      val concat = Iterant.concat(li*)
       val expected = Iterant[Coeval].fromList(ll.flatten)
       concat <-> expected
     }
