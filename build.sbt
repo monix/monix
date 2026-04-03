@@ -45,7 +45,7 @@ addCommandAlias(
 val cats_Version              = "2.13.0"
 val catsEffect_Version        = "2.5.5"
 val fs2_Version               = "2.5.11"
-val jcTools_Version           = "4.0.5"
+val jcTools_Version           = "4.0.6"
 val reactiveStreams_Version   = "1.0.4"
 val macrotaskExecutor_Version = "1.1.1"
 val minitest_Version          = "2.9.6"
