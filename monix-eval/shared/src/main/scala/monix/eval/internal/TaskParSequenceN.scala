@@ -38,10 +38,13 @@ private[eval] object TaskParSequenceN {
       in.head.map(List(_))
     } else {
       for {
-        error <- cats/effect/Deferred[Task, Throwable]
+        error <- cats / effect / Deferred[Task, Throwable]
         queue <- ConcurrentQueue
-          .withConfig[Task, (cats/effect/Deferred[Task, A], Task[A])](BufferCapacity.Bounded(itemSize), ChannelType.SPMC)
-        pairs <- Task.traverse(in.toList)(task => cats/effect/Deferred[Task, A].map(p => (p, task)))
+          .withConfig[Task, (cats / effect / Deferred[Task, A], Task[A])](
+            BufferCapacity.Bounded(itemSize),
+            ChannelType.SPMC
+          )
+        pairs <- Task.traverse(in.toList)(task => cats / effect / Deferred[Task, A].map(p => (p, task)))
         _     <- queue.offerMany(pairs)
         workers = Task.parSequence(List.fill(parallelism.min(itemSize)) {
           queue.poll.flatMap {

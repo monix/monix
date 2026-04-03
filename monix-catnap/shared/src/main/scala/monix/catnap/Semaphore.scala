@@ -232,8 +232,8 @@ object Semaphore {
     *        async boundaries after successful `acquire` operations, for safety
     */
   def apply[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(
-    implicit
-    F: OrElse[Concurrent[F], Async[F]]): F[Semaphore[F]] = {
+    implicit F: OrElse[Concurrent[F], Async[F]]
+  ): F[Semaphore[F]] = {
 
     F.unify.delay(new Semaphore[F](provisioned, ps))
   }
@@ -257,8 +257,8 @@ object Semaphore {
     */
   @UnsafeBecauseImpure
   def unsafe[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(
-    implicit
-    F: OrElse[Concurrent[F], Async[F]]): Semaphore[F] =
+    implicit F: OrElse[Concurrent[F], Async[F]]
+  ): Semaphore[F] =
     new Semaphore[F](provisioned, ps)
 
   implicit final class DeprecatedExtensions[F[_]](val source: Semaphore[F]) extends AnyVal {
