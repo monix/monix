@@ -40,4 +40,11 @@ object compat {
 
     type Flags <: Long with monix.execution.Features.FlagsTag
   }
+
+  def uninitialized[@specialized T]: T =
+    new Uninitialized[T].value
+
+  private final class Uninitialized[@specialized T] {
+    var value: T = _
+  }
 }
