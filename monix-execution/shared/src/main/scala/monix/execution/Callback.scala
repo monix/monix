@@ -19,6 +19,7 @@ package monix.execution
 
 import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, UncaughtErrorException }
 import monix.execution.schedulers.{ TrampolineExecutionContext, TrampolinedRunnable }
+import monix.execution.compat.uninitialized
 import scala.concurrent.{ ExecutionContext, Promise }
 import scala.util.control.NonFatal
 import scala.util.{ Failure, Success, Try }
@@ -182,6 +183,17 @@ abstract class Callback[-E, -A] extends (Either[E, A] => Unit) {
   *         [[monix.execution.exceptions.CallbackCalledMultipleTimesException CallbackCalledMultipleTimesException]].
   */
 object Callback {
+  /**
+    * For building [[Callback]] objects using the
+    * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type]]
+    * technique.
+    *
+    * For example these are Equivalent:
+    *
+    * `Callback[Throwable].empty[String] <-> Callback.empty[Throwable, String]`
+    */
+  def apply[E]: Builders[E] = new Builders[E]
+
   /** Wraps any [[Callback]] into a safer implementation that
     * protects against protocol violations (e.g. `onSuccess` or `onError`
     * must be called at most once).
@@ -332,10 +344,43 @@ object Callback {
     }
 
   private[monix] def signalErrorTrampolined[E, A](cb: Callback[E, A], e: E): Unit =
-    TrampolineExecutionContext.immediate.execute(() => cb.onError(e))
+    TrampolineExecutionContext.immediate.execute(new Runnable {
+      override def run(): Unit =
+        cb.onError(e)
+    })
 
-  private final class AsyncFork[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext)
-    extends Base[E, A](cb)(ec)
+  /** Functions exposed via [[apply]]. */
+  final class Builders[E](val ev: Boolean = true) extends AnyVal {
+    /** See [[Callback.safe]]. */
+    def safe[A](cb: Callback[E, A])(implicit r: UncaughtExceptionReporter): Callback[E, A] =
+      Callback.safe(cb)
+
+    /** See [[Callback.empty]]. */
+    def empty[A](implicit r: UncaughtExceptionReporter): Callback[E, A] =
+      Callback.empty
+
+    /** See [[Callback.fromPromise]]. */
+    def fromPromise[A](p: Promise[A])(implicit ev: Throwable <:< E): Callback[Throwable, A] =
+      Callback.fromPromise(p)
+
+    /** See [[Callback.forked]]. */
+    def forked[A](cb: Callback[E, A])(implicit ec: ExecutionContext): Callback[E, A] =
+      Callback.forked(cb)
+
+    /** See [[Callback.trampolined]]. */
+    def trampolined[A](cb: Callback[E, A])(implicit ec: ExecutionContext): Callback[E, A] =
+      Callback.trampolined(cb)
+
+    /** See [[Callback.fromAttempt]]. */
+    def fromAttempt[A](cb: Either[E, A] => Unit): Callback[E, A] =
+      Callback.fromAttempt(cb)
+
+    /** See [[Callback.fromTry]]. */
+    def fromTry[A](cb: Try[A] => Unit)(implicit ev: Throwable <:< E): Callback[Throwable, A] =
+      Callback.fromTry(cb)
+  }
+
+  private final class AsyncFork[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext) extends Base[E, A](cb)(ec)
 
   private final class TrampolinedCallback[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext)
     extends Base[E, A](cb)(ec) with TrampolinedRunnable
@@ -343,8 +388,8 @@ object Callback {
   /** Base implementation for `trampolined` and `forked`. */
   private class Base[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext) extends Callback[E, A] with Runnable {
     private val state = monix.execution.atomic.AtomicInt(0)
-    private var value: A = null.asInstanceOf[A]
-    private var error: E = null.asInstanceOf[E]
+    private var value: A = uninitialized[A]
+    private var error: E = uninitialized[E]
 
     override final def onSuccess(value: A): Unit =
       if (!tryOnSuccess(value)) {
@@ -408,7 +453,8 @@ object Callback {
   private final class Safe[-E, -A](underlying: Callback[E, A])(implicit r: UncaughtExceptionReporter)
     extends Callback[E, A] {
 
-    private val isActive = monix.execution.atomic.AtomicBoolean(true)
+    private val isActive =
+      monix.execution.atomic.AtomicBoolean(true)
 
     override def onSuccess(value: A): Unit = {
       if (isActive.compareAndSet(true, false))

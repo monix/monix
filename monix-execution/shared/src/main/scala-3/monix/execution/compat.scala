@@ -68,4 +68,12 @@ object compat {
       def |(y: Flag): Long = x | y
     }
   }
+
+  def uninitialized[@specialized T]: T = {
+    new Uninitialized[T].value
+  }
+
+  private final class Uninitialized[@specialized T] {
+    var value: T = scala.compiletime.uninitialized
+  }
 }
