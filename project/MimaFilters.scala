@@ -108,11 +108,6 @@ object MimaFilters {
   )
 
   lazy val changesFor_3_5_0 = Seq(
-    // Callback#Builders was internal scaffolding for builder DSL; apply()Boolean was its companion helper — both removed in Callback cleanup.
-    exclude[DirectMissingMethodProblem]("monix.execution.Callback.apply"),
-    exclude[MissingClassProblem]("monix.execution.Callback$Builders"),
-    exclude[MissingClassProblem]("monix.execution.Callback$Builders$"),
-
     // Atomic API classes moved to monix-execution-atomic sub-artifact (3.5.0 modularisation);
     // monix-execution declares monix-execution-atomic as a compile dependency so all consumers receive
     // the classes transitively — no actual binary break for downstream code.
@@ -215,11 +210,6 @@ object MimaFilters {
     // CollectWhileOperator is private[reactive] — inaccessible outside the reactive package.
     exclude[MissingClassProblem]("monix.reactive.internal.operators.CollectWhileOperator"),
     exclude[MissingClassProblem]("monix.reactive.internal.operators.CollectWhileOperator$"),
-
-    // Scala 3-specific: Callback.Builders was a synthetic static field in the Scala 3 encoding of
-    // the nested Builders class/object inside Callback companion; already filtered as MissingClassProblem
-    // above, but Scala 3 Mima also surfaces it as a MissingFieldProblem for the static field accessor.
-    exclude[MissingFieldProblem]("monix.execution.Callback.Builders"),
 
     // Scala 3-specific: AsyncQueue constructor is private[monix] — external code cannot call it.
     // The synthetic default accessor for the 3rd constructor parameter ($default$3) is exposed
