@@ -1,6 +1,7 @@
 import sbt.Keys.version
 import sbt.{ Def, Global, Tags }
 import com.github.sbt.git.SbtGit.GitKeys.useConsoleForROGit
+import com.typesafe.tools.mima.core.ProblemFilter
 import org.typelevel.scalacoptions.ScalacOptions
 
 import scala.collection.immutable.SortedSet
@@ -195,9 +196,14 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
         Seq(
           "-Xfatal-warnings",
           "-Xsource:3-cross",
+          // These break binary backwards compatibility, enabled by -Xsource:3, so disabling them
+          "-Xsource-features:-case-apply-copy-access,-case-companion-function,-infer-override",
           // Silence various warnings that are false positives or intentional patterns
-          "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent,any:warning-verbose",
-          "-Wconf:cat=unused-nowarn:s"
+          // "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent,any:warning-verbose",
+          // @nowarn statements for Scala 3 will generate unused-nowarn for Scala 2.13
+          "-Wconf:cat=unused-nowarn:s",
+          // Disabling via -Xsource-features will generate these warnings
+          "-Wconf:cat=scala3-migration:s",
         )
       case Some((3, _)) =>
         Seq(
@@ -434,14 +440,10 @@ lazy val sharedJSSettings = Seq(
   }
 )
 
-def mimaSettings(projectName: String) = Seq(
+def mimaSettings(projectName: String, exclusions: Seq[ProblemFilter]) = Seq(
   ThisBuild / mimaFailOnNoPrevious := false,
   mimaPreviousArtifacts := Set("io.monix" %% projectName % monixSeries),
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_0_1,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_2_0,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_3_0,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_4_0,
-  mimaBinaryIssueFilters ++= MimaFilters.changesFor_3_5_0
+  mimaBinaryIssueFilters ++= exclusions
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -478,13 +480,13 @@ def monixSubModule(
 
 def jvmModule(
   projectName: String,
-  withMimaChecks: Boolean,
-  publishArtifacts: Boolean
+  publishArtifacts: Boolean,
+  withMimaChecks: Option[Seq[ProblemFilter]]
 ): Project => Project =
   pr => {
     pr.configure(monixSubModule(projectName, publishArtifacts = publishArtifacts))
       .settings(testDependencies)
-      .settings(if (withMimaChecks) mimaSettings(projectName) else Seq.empty)
+      .settings(withMimaChecks.toSeq.flatMap(mimaSettings(projectName, _)))
   }
 
 def jsProfile(projectName: String, publishArtifacts: Boolean): Project => Project =
@@ -497,16 +499,16 @@ def jsProfile(projectName: String, publishArtifacts: Boolean): Project => Projec
 
 def crossModule(
   projectName: String,
-  withMimaChecks: Boolean                        = true,
-  publishArtifacts: Boolean                      = true,
-  crossSettings: Seq[sbt.Def.SettingsDefinition] = Nil
+  withMimaChecks: Option[Seq[ProblemFilter]],
+  publishArtifacts: Boolean,
+  crossSettings: Seq[sbt.Def.SettingsDefinition]
 ): MonixCrossModule = {
 
   MonixCrossModule(
     jvm = jvmModule(
       projectName      = projectName,
-      withMimaChecks   = withMimaChecks,
-      publishArtifacts = publishArtifacts
+      publishArtifacts = publishArtifacts,
+      withMimaChecks   = withMimaChecks
     ).andThen(_.settings(crossSettings: _*)),
     js = jsProfile(
       projectName      = projectName,
@@ -558,8 +560,9 @@ lazy val monix = project
 
 lazy val coreProfile =
   crossModule(
-    projectName    = "monix",
-    withMimaChecks = false,
+    projectName      = "monix",
+    withMimaChecks   = None,
+    publishArtifacts = true,
     crossSettings = Seq(
       description := "Root project for Monix, a library for asynchronous programming in Scala. See: https://monix.io"
     )
@@ -585,8 +588,8 @@ lazy val executionShadedJCTools = project
   .configure(
     jvmModule(
       projectName      = "monix-internal-jctools",
-      withMimaChecks   = false,
-      publishArtifacts = true
+      publishArtifacts = true,
+      withMimaChecks   = None
     )
   )
   .settings(assemblyShadeSettings)
@@ -607,8 +610,9 @@ lazy val executionShadedJCTools = project
 
 lazy val executionAtomicProfile =
   crossModule(
-    projectName    = "monix-execution-atomic",
-    withMimaChecks = false,
+    projectName      = "monix-execution-atomic",
+    withMimaChecks   = None,
+    publishArtifacts = true,
     crossSettings = Seq(
       description := "Sub-module of Monix, exposing low-level atomic references. See: https://monix.io",
     )
@@ -627,7 +631,9 @@ lazy val executionAtomicJS = project.in(file("monix-execution/atomic/js"))
 
 lazy val executionProfile =
   crossModule(
-    projectName = "monix-execution",
+    projectName      = "monix-execution",
+    withMimaChecks   = Some(MimaFilters.MonixExecution.all),
+    publishArtifacts = true,
     crossSettings = Seq(
       description := "Sub-module of Monix, exposing low-level primitives for dealing with async execution. See: https://monix.io",
       libraryDependencies += implicitBoxLib.value
@@ -654,7 +660,9 @@ lazy val executionJS = project
 
 lazy val catnapProfile =
   crossModule(
-    projectName = "monix-catnap",
+    projectName      = "monix-catnap",
+    withMimaChecks   = Some(MimaFilters.MonixCatnap.all),
+    publishArtifacts = true,
     crossSettings = Seq(
       description := "Sub-module of Monix, exposing pure abstractions built on top of the Cats-Effect type classes. See: https://monix.io",
       libraryDependencies += catsEffectLib.value
@@ -676,7 +684,9 @@ lazy val catnapJS = project
 
 lazy val evalProfile =
   crossModule(
-    projectName = "monix-eval",
+    projectName      = "monix-eval",
+    withMimaChecks   = Some(MimaFilters.MonixEval.all),
+    publishArtifacts = true,
     crossSettings = Seq(
       description := "Sub-module of Monix, exposing Task and Coeval, for suspending side-effects. See: https://monix.io"
     )
@@ -699,7 +709,9 @@ lazy val evalJS = project
 
 lazy val tailProfile =
   crossModule(
-    projectName = "monix-tail",
+    projectName      = "monix-tail",
+    withMimaChecks   = Some(MimaFilters.MonixTail.all),
+    publishArtifacts = true,
     crossSettings = Seq(
       description := "Sub-module of Monix, exposing Iterant for purely functional pull based streaming. See: https://monix.io"
     )
@@ -722,7 +734,9 @@ lazy val tailJS = project
 
 lazy val reactiveProfile =
   crossModule(
-    projectName = "monix-reactive",
+    projectName      = "monix-reactive",
+    withMimaChecks   = Some(MimaFilters.MonixReactive.all),
+    publishArtifacts = true,
     crossSettings = Seq(
       description := "Sub-module of Monix, exposing the Observable pattern for modeling of reactive streams. See: https://monix.io"
     )
@@ -744,12 +758,13 @@ lazy val reactiveJS = project
 lazy val javaJVM = project
   .in(file("monix-java"))
   .configure(
-    jvmModule(
+    monixSubModule(
       projectName      = "monix-java",
-      withMimaChecks   = true,
       publishArtifacts = true
     )
   )
+  .settings(testDependencies)
+  .settings(mimaSettings("monix-java", MimaFilters.MonixJava.all))
   .dependsOn(executionJVM % "provided->compile; test->test")
   .dependsOn(evalJVM % "provided->compile; test->test")
 
