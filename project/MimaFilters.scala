@@ -226,6 +226,7 @@ object MimaFilters {
     exclude[IncompatibleResultTypeProblem]("monix.catnap.cancelables.AssignableCancelableF.alreadyCanceled"),
     exclude[IncompatibleResultTypeProblem]("monix.catnap.cancelables.BooleanCancelableF.alreadyCanceled"),
 
+    /*
     // Scala 2.13.17+ stopped emitting scala.runtime.AbstractFunctionN as a mixin on case-class
     // companion objects. MiMa surfaces this as MissingTypesProblem on the companion ($) class.
     // This is a pure encoding artifact — no actual binary break for downstream code.
@@ -304,6 +305,7 @@ object MimaFilters {
     // (old bridge method absent). Safe: widening is covariant and EmptyCursor extends BatchCursor.
     exclude[IncompatibleResultTypeProblem]("monix.tail.batches.EmptyBatch.cursor"),
     exclude[DirectMissingMethodProblem]("monix.tail.batches.EmptyBatch.cursor"),
+    */
 
     // BREAKAGE — unfortunately it's something we must live with
     exclude[DirectMissingMethodProblem]("monix.tail.IterantBuilders#Apply.suspend$extension"),

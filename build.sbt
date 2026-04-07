@@ -195,9 +195,14 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
         Seq(
           "-Xfatal-warnings",
           "-Xsource:3-cross",
+          // These break binary backwards compatibility, enabled by -Xsource:3, so disabling them
+          "-Xsource-features:-case-apply-copy-access,-case-companion-function,-infer-override",
           // Silence various warnings that are false positives or intentional patterns
-          "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent,any:warning-verbose",
-          "-Wconf:cat=unused-nowarn:s"
+          // "-Wconf:cat=other-pure-statement:silent,cat=lint-constant:silent,cat=unused-privates:silent,cat=unused-locals:silent,cat=unused-params:silent,cat=unused-imports:silent,cat=w-flag-numeric-widen:silent,any:warning-verbose",
+          // @nowarn statements for Scala 3 will generate unused-nowarn for Scala 2.13
+          "-Wconf:cat=unused-nowarn:s",
+          // Disabling via -Xsource-features will generate these warnings
+          "-Wconf:cat=scala3-migration:s",
         )
       case Some((3, _)) =>
         Seq(
