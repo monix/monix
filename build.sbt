@@ -446,19 +446,6 @@ def mimaSettings(projectName: String, exclusions: Seq[ProblemFilter]) = Seq(
   mimaBinaryIssueFilters ++= exclusions
 )
 
-// Temporary compatibility bridge — remove after build.sbt call-site migration (Task 10)
-def mimaSettings(projectName: String): Seq[Def.Setting[_]] =
-  mimaSettings(
-    projectName,
-    Seq(
-      MimaFilters.changesFor_3_0_1,
-      MimaFilters.changesFor_3_2_0,
-      MimaFilters.changesFor_3_3_0,
-      MimaFilters.changesFor_3_4_0,
-      MimaFilters.changesFor_3_5_0
-    ).flatten
-  )
-
 // ------------------------------------------------------------------------------------------------
 // Configuration profiles
 
@@ -493,18 +480,6 @@ def monixSubModule(
 
 def jvmModule(
   projectName: String,
-  withMimaChecks: Boolean,
-  publishArtifacts: Boolean
-): Project => Project =
-  pr => {
-    pr.configure(monixSubModule(projectName, publishArtifacts = publishArtifacts))
-      .settings(testDependencies)
-      .settings(if (withMimaChecks) mimaSettings(projectName) else Seq.empty)
-  }
-
-// New primary — uses per-module filter sequence
-def jvmModule(
-  projectName: String,
   publishArtifacts: Boolean,
   withMimaChecks: Option[Seq[ProblemFilter]]
 ): Project => Project =
@@ -522,27 +497,6 @@ def jsProfile(projectName: String, publishArtifacts: Boolean): Project => Projec
       .settings(sharedJSSettings)
   }
 
-def crossModule(
-  projectName: String,
-  withMimaChecks: Boolean                        = true,
-  publishArtifacts: Boolean                      = true,
-  crossSettings: Seq[sbt.Def.SettingsDefinition] = Nil
-): MonixCrossModule = {
-
-  MonixCrossModule(
-    jvm = jvmModule(
-      projectName      = projectName,
-      withMimaChecks   = withMimaChecks,
-      publishArtifacts = publishArtifacts
-    ).andThen(_.settings(crossSettings: _*)),
-    js = jsProfile(
-      projectName      = projectName,
-      publishArtifacts = publishArtifacts
-    ).andThen(_.settings(crossSettings: _*))
-  )
-}
-
-// New primary — uses per-module filter sequence
 def crossModule(
   projectName: String,
   withMimaChecks: Option[Seq[ProblemFilter]],
