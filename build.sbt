@@ -563,7 +563,7 @@ lazy val coreProfile =
     projectName      = "monix",
     withMimaChecks   = None,
     publishArtifacts = true,
-    crossSettings    = Seq(
+    crossSettings = Seq(
       description := "Root project for Monix, a library for asynchronous programming in Scala. See: https://monix.io"
     )
   )
@@ -613,7 +613,7 @@ lazy val executionAtomicProfile =
     projectName      = "monix-execution-atomic",
     withMimaChecks   = None,
     publishArtifacts = true,
-    crossSettings    = Seq(
+    crossSettings = Seq(
       description := "Sub-module of Monix, exposing low-level atomic references. See: https://monix.io",
     )
   )
@@ -634,7 +634,7 @@ lazy val executionProfile =
     projectName      = "monix-execution",
     withMimaChecks   = Some(MimaFilters.MonixExecution.all),
     publishArtifacts = true,
-    crossSettings    = Seq(
+    crossSettings = Seq(
       description := "Sub-module of Monix, exposing low-level primitives for dealing with async execution. See: https://monix.io",
       libraryDependencies += implicitBoxLib.value
     )
@@ -663,7 +663,7 @@ lazy val catnapProfile =
     projectName      = "monix-catnap",
     withMimaChecks   = Some(MimaFilters.MonixCatnap.all),
     publishArtifacts = true,
-    crossSettings    = Seq(
+    crossSettings = Seq(
       description := "Sub-module of Monix, exposing pure abstractions built on top of the Cats-Effect type classes. See: https://monix.io",
       libraryDependencies += catsEffectLib.value
     )
@@ -687,7 +687,7 @@ lazy val evalProfile =
     projectName      = "monix-eval",
     withMimaChecks   = Some(MimaFilters.MonixEval.all),
     publishArtifacts = true,
-    crossSettings    = Seq(
+    crossSettings = Seq(
       description := "Sub-module of Monix, exposing Task and Coeval, for suspending side-effects. See: https://monix.io"
     )
   )
@@ -712,7 +712,7 @@ lazy val tailProfile =
     projectName      = "monix-tail",
     withMimaChecks   = Some(MimaFilters.MonixTail.all),
     publishArtifacts = true,
-    crossSettings    = Seq(
+    crossSettings = Seq(
       description := "Sub-module of Monix, exposing Iterant for purely functional pull based streaming. See: https://monix.io"
     )
   )
@@ -737,7 +737,7 @@ lazy val reactiveProfile =
     projectName      = "monix-reactive",
     withMimaChecks   = Some(MimaFilters.MonixReactive.all),
     publishArtifacts = true,
-    crossSettings    = Seq(
+    crossSettings = Seq(
       description := "Sub-module of Monix, exposing the Observable pattern for modeling of reactive streams. See: https://monix.io"
     )
   )

@@ -20,8 +20,12 @@ object MimaFilters {
   object MonixExecution {
     lazy val changesFor_3_0_1: Seq[ProblemFilter] = Seq(
       exclude[DirectMissingMethodProblem]("monix.execution.internal.Trampoline.*"),
-      exclude[DirectMissingMethodProblem]("monix.execution.schedulers.TrampolineExecutionContext#JVMNormalTrampoline.*"),
-      exclude[DirectMissingMethodProblem]("monix.execution.schedulers.TrampolineExecutionContext#JVMOptimalTrampoline.*")
+      exclude[DirectMissingMethodProblem](
+        "monix.execution.schedulers.TrampolineExecutionContext#JVMNormalTrampoline.*"
+      ),
+      exclude[DirectMissingMethodProblem](
+        "monix.execution.schedulers.TrampolineExecutionContext#JVMOptimalTrampoline.*"
+      )
     )
 
     lazy val changesFor_3_3_0: Seq[ProblemFilter] = Seq(
@@ -30,7 +34,9 @@ object MimaFilters {
       ),
       exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue#Java7.this"),
       exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue#MPMC.this"),
-      exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue#Java8SPSC.this"),
+      exclude[IncompatibleMethTypeProblem](
+        "monix.execution.internal.collection.queues.FromCircularQueue#Java8SPSC.this"
+      ),
       exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue.apply"),
       exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue.this"),
       exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromMessagePassingQueue.apply"),
@@ -44,14 +50,18 @@ object MimaFilters {
         "monix.execution.internal.collection.queues.FromMessagePassingQueue#MPMC.this"
       ),
       exclude[MissingTypesProblem]("monix.execution.internal.collection.queues.QueueDrain"),
-      exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue#Java8MPSC.this"),
+      exclude[IncompatibleMethTypeProblem](
+        "monix.execution.internal.collection.queues.FromCircularQueue#Java8MPSC.this"
+      ),
       exclude[IncompatibleMethTypeProblem](
         "monix.execution.internal.collection.queues.FromMessagePassingQueue#Java8MPSC.this"
       ),
       exclude[IncompatibleMethTypeProblem](
         "monix.execution.internal.collection.queues.FromMessagePassingQueue#Java7.this"
       ),
-      exclude[IncompatibleMethTypeProblem]("monix.execution.internal.collection.queues.FromCircularQueue#Java8SPMC.this"),
+      exclude[IncompatibleMethTypeProblem](
+        "monix.execution.internal.collection.queues.FromCircularQueue#Java8SPMC.this"
+      ),
       exclude[MissingTypesProblem]("monix.execution.Scheduler$Extensions"),
       exclude[MissingClassProblem]("monix.execution.internal.forkJoin.package"),
       exclude[MissingClassProblem]("monix.execution.internal.forkJoin.package$"),
