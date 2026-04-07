@@ -2,9 +2,9 @@ name: build
 
 on:
   pull_request:
-    branches: ['series/*']
+    branches: ['series/*', 'main']
   push:
-    branches: ['series/*']
+    branches: ['series/*', 'main']
     tags: ["v[0-9]+*"]
 
 jobs:
