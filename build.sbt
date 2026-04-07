@@ -280,10 +280,6 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
 
-  // Series/4.x is unpublished.
-  // Delete this after the first release ...
-  ThisBuild / dynverVTagPrefix := false,
-
   // -- Settings meant for deployment on oss.sonatype.org
   ThisBuild / publishTo := sonatypePublishToBundle.value,
   ThisBuild / isSnapshot := {
@@ -293,8 +289,6 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   ThisBuild / sonatypeProfileName := organization.value,
   sonatypeSessionName := s"[sbt-sonatype] ${name.value}-${version.value}",
 
-  // Only on the Series 4.x branch
-  ThisBuild / dynverVTagPrefix := false,
   publishMavenStyle := true,
   Test / publishArtifact := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies

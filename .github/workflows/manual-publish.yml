@@ -6,7 +6,7 @@ on:
       ref_to_publish:
         description: 'Ref (branch or tag)'
         required: true
-        default: 'refs/heads/series/4.x'
+        default: 'refs/heads/main'
       stable_version:
         description: 'Stable version? (true=staging, false=snapshot)'
         required: true

@@ -270,7 +270,7 @@ jobs:
 
   # publish:
   #   name: Publish to Sonatype
-  #   if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/series/4.x')
+  #   if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
   #   needs: [ all_tests ]
 
   #   env:
