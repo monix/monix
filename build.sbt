@@ -288,7 +288,6 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   ThisBuild / dynverSonatypeSnapshots := !(isVersionStable.value && publishStableMonixVersion.value),
   ThisBuild / sonatypeProfileName := organization.value,
   sonatypeSessionName := s"[sbt-sonatype] ${name.value}-${version.value}",
-
   publishMavenStyle := true,
   Test / publishArtifact := false,
   pomIncludeRepository := { _ => false }, // removes optional dependencies
