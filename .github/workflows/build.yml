@@ -23,7 +23,7 @@ jobs:
       CI: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java }}"
@@ -78,7 +78,7 @@ jobs:
       CI: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java }}"
@@ -131,7 +131,7 @@ jobs:
           - { java: 17, scala: 3.8.2 }
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java }}"
@@ -178,7 +178,7 @@ jobs:
           - { java: 17, scala: 3.8.2 }
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java }}"
@@ -225,7 +225,7 @@ jobs:
           - { java: 17, scala: 3.8.2 }
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-java@v4
         with:
           java-version: "${{ matrix.java }}"
@@ -278,7 +278,7 @@ jobs:
 
   #   runs-on: ubuntu-22.04
   #   steps:
-  #     - uses: actions/checkout@v4
+  #     - uses: actions/checkout@v6
   #       with:
   #         fetch-depth: 100
 
