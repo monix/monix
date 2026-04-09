@@ -3,6 +3,7 @@ import sbt.{ Def, Global, Tags }
 import com.github.sbt.git.SbtGit.GitKeys.useConsoleForROGit
 import com.typesafe.tools.mima.core.ProblemFilter
 import org.typelevel.scalacoptions.ScalacOptions
+import xerial.sbt.Sonatype.sonatypeCentralHost
 
 import scala.collection.immutable.SortedSet
 import MonixBuildUtils._
@@ -280,7 +281,8 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
 
-  // -- Settings meant for deployment on oss.sonatype.org
+  // -- Settings meant for deployment on central.sonatype.com
+  ThisBuild / sonatypeCredentialHost := sonatypeCentralHost,
   ThisBuild / publishTo := sonatypePublishToBundle.value,
   ThisBuild / isSnapshot := {
     !isVersionStable.value || !publishStableMonixVersion.value
