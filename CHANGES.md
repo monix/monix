@@ -1,4 +1,4 @@
-## Version 3.5.0 (Mar 31, 2026)
+## Future changes...
 
 This release updates Monix 3.x support baselines for modern JVM and Scala toolchains.
 
