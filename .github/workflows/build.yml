@@ -30,20 +30,20 @@ jobs:
           distribution: temurin
 
       - name: Cache ivy2
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
@@ -85,20 +85,20 @@ jobs:
           distribution: temurin
 
       - name: Cache ivy2
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
@@ -138,20 +138,20 @@ jobs:
           distribution: temurin
 
       - name: Cache ivy2
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
@@ -185,20 +185,20 @@ jobs:
           distribution: temurin
 
       - name: Cache ivy2
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
@@ -232,20 +232,20 @@ jobs:
           distribution: temurin
 
       - name: Cache ivy2
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
