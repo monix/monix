@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,17 +17,17 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.{Ack, AsyncSemaphore, Callback, Cancelable}
+import monix.execution.{ Ack, AsyncSemaphore, Callback, Cancelable, Scheduler }
 import monix.eval.Task
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.MultiProducer
-import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
-import monix.reactive.{Observable, OverflowStrategy}
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import monix.execution.cancelables.{ CompositeCancelable, SingleAssignCancelable }
+import monix.reactive.{ Observable, OverflowStrategy }
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
 
 import scala.concurrent.Future
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /** Implementation for a `mapTask`-like operator that can execute
   * multiple tasks in parallel. Similar with
@@ -45,8 +45,8 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
   source: Observable[A],
   parallelism: Int,
   f: A => Task[B],
-  overflowStrategy: OverflowStrategy[B])
-  extends Observable[B] {
+  overflowStrategy: OverflowStrategy[B]
+) extends Observable[B] {
 
   def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
     if (parallelism <= 0) {
@@ -66,20 +66,20 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
   private final class MapAsyncParallelSubscription(out: Subscriber[B], composite: CompositeCancelable)
     extends Subscriber[A] with Cancelable { self =>
 
-    implicit val scheduler = out.scheduler
+    implicit val scheduler: Scheduler = out.scheduler
     // Ensures we don't execute more than a maximum number of tasks in parallel
-    private[this] val semaphore = AsyncSemaphore(parallelism.toLong)
+    private val semaphore = AsyncSemaphore(parallelism.toLong)
     // Buffer with the supplied  overflow strategy.
-    private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy, MultiProducer)
+    private val buffer = BufferedSubscriber[B](out, overflowStrategy, MultiProducer)
 
     // Flag indicating whether a final event was called, after which
     // nothing else can happen. It's a very light protection, as
     // access to it is concurrent and not synchronized
-    private[this] var isDone = false
+    private var isDone = false
     // Turns to `Stop` when a stop acknowledgement is observed
     // coming from the `buffer` - this indicates that the downstream
     // no longer wants any events, so we must cancel
-    private[this] var lastAck: Ack = Continue
+    private var lastAck: Ack = Continue
 
     private def process(elem: A) = {
       // For protecting against user code, without violating the

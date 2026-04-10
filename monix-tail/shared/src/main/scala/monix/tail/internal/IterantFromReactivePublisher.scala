@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,9 +22,9 @@ import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.tail.Iterant
-import monix.tail.Iterant.{Last, Next, NextBatch, Scope}
+import monix.tail.Iterant.{ Last, Next, NextBatch, Scope }
 import monix.tail.batches.Batch
-import org.reactivestreams.{Publisher, Subscriber, Subscription}
+import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 
@@ -33,7 +33,8 @@ private[tail] object IterantFromReactivePublisher {
     * Implementation for `Iterant.fromReactivePublisher`.
     */
   def apply[F[_], A](pub: Publisher[A], requestCount: Int, eagerBuffer: Boolean)(
-    implicit F: Async[F]): Iterant[F, A] = {
+    implicit F: Async[F]
+  ): Iterant[F, A] = {
 
     if (requestCount < 1) {
       Iterant.raiseError(new IllegalArgumentException("requestSize must be greater than 1"))
@@ -52,8 +53,8 @@ private[tail] object IterantFromReactivePublisher {
   private final class IterantSubscriber[F[_], A](bufferSize: Int, eagerBuffer: Boolean)(implicit F: Async[F])
     extends Subscriber[A] {
 
-    private[this] val sub = SingleAssignSubscription()
-    private[this] val state = Atomic.withPadding(Uninitialized: State[F, A], LeftRight128)
+    private val sub = SingleAssignSubscription()
+    private val state = Atomic.withPadding(Uninitialized: State[F, A], LeftRight128)
 
     def start: F[Iterant[F, A]] =
       F.async { cb =>
@@ -71,7 +72,7 @@ private[tail] object IterantFromReactivePublisher {
     private def initialize(): Boolean =
       state.compareAndSet(Uninitialized, Empty(bufferSize))
 
-    private[this] val generate: (Int => F[Iterant[F, A]]) = {
+    private val generate: (Int => F[Iterant[F, A]]) = {
       if (eagerBuffer) {
         val task = F.async[Iterant[F, A]](take)
         toReceive => {
@@ -105,7 +106,7 @@ private[tail] object IterantFromReactivePublisher {
     @tailrec def onNext(a: A): Unit =
       state.get() match {
         case Uninitialized =>
-          initialize()
+          val _ = initialize()
           onNext(a)
 
         case current @ Enqueue(queue, length, toReceive) =>
@@ -130,7 +131,7 @@ private[tail] object IterantFromReactivePublisher {
     @tailrec private def finish(fa: Iterant[F, A]): Unit =
       state.get() match {
         case Uninitialized =>
-          initialize()
+          val _ = initialize()
           finish(fa)
 
         case current @ Enqueue(queue, length, _) =>
@@ -148,7 +149,7 @@ private[tail] object IterantFromReactivePublisher {
             finish(fa)
           }
 
-        case current : Take[F, A] @unchecked =>
+        case current: Take[F, A] @unchecked =>
           if (state.compareAndSet(current, Stop(fa)))
             current.cb(Right(fa))
           else
@@ -170,7 +171,7 @@ private[tail] object IterantFromReactivePublisher {
     @tailrec private def take(cb: Either[Throwable, Iterant[F, A]] => Unit): Unit =
       state.get() match {
         case Uninitialized =>
-          initialize()
+          val _ = initialize()
           take(cb)
 
         case current @ Enqueue(queue, length, toReceive) =>

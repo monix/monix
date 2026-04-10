@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,10 +30,12 @@ private[schedulers] abstract class AdaptedThreadPoolExecutor(corePoolSize: Int, 
     super.afterExecute(r, t)
     var exception: Throwable = t
 
-    if ((exception eq null) && r.isInstanceOf[Future[_]]) {
+    if ((exception eq null) && classOf[Future[AnyRef]].isInstance(r)) {
       try {
-        val future = r.asInstanceOf[Future[_]]
-        if (future.isDone) future.get()
+        val future = r.asInstanceOf[Future[AnyRef]]
+        if (future.isDone) {
+          val _ = future.get()
+        }
       } catch {
         case ex: ExecutionException =>
           exception = ex.getCause

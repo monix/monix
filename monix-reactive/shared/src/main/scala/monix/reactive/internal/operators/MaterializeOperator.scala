@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,21 +17,24 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.reactive.Notification
-import monix.reactive.Notification.{OnComplete, OnError, OnNext}
+import monix.reactive.Notification.{ OnComplete, OnError, OnNext }
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
+@nowarn("msg=unused value of type")
 private[reactive] final class MaterializeOperator[A] extends Operator[A, Notification[A]] {
 
   def apply(out: Subscriber[Notification[A]]): Subscriber[A] =
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
-      private[this] var isDone = false
-      private[this] var ack: Future[Ack] = Continue
+      implicit val scheduler: Scheduler = out.scheduler
+      private var isDone = false
+      private var ack: Future[Ack] = Continue
 
       def onNext(elem: A): Future[Ack] = {
         ack = out.onNext(OnNext(elem))

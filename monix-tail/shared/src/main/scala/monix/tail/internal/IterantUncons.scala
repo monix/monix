@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.tail.internal
 import cats.effect.Sync
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, NextCursor, Suspend}
+import monix.tail.Iterant.{ Concat, NextCursor, Suspend }
 import cats.implicits._
 
 private[tail] object IterantUncons {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,9 +26,11 @@ package monix.eval.tracing
   *
   * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
   */
-final case class PrintingOptions private (showFullStackTraces: Boolean,
-                                          maxStackTraceLines: Int,
-                                          ignoreStackTraceLines: Int) {
+final case class PrintingOptions private (
+  showFullStackTraces: Boolean,
+  maxStackTraceLines: Int,
+  ignoreStackTraceLines: Int
+) {
   def withShowFullStackTraces(showFullStackTraces: Boolean): PrintingOptions =
     copy(showFullStackTraces = showFullStackTraces)
 

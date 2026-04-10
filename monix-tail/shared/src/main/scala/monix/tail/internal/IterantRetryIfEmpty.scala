@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 
 private[tail] object IterantRetryIfEmpty {
   /**
@@ -41,9 +41,9 @@ private[tail] object IterantRetryIfEmpty {
   private final class Loop[F[_], A](source: Iterant[F, A], maxRetries: Option[Int])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
-    private[this] var hasElements = false
-    private[this] var retriesRemaining = maxRetries.getOrElse(-1)
-    private[this] val retryTask = F.delay {
+    private var hasElements = false
+    private var retriesRemaining = maxRetries.getOrElse(-1)
+    private val retryTask = F.delay {
       if (hasElements || retriesRemaining == 0)
         Iterant.empty[F, A]
       else {

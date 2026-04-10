@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.eval
 package internal
 
-import cats.effect.{CancelToken, IO, SyncIO}
+import cats.effect.{ CancelToken, IO, SyncIO }
 import monix.execution.Callback
 import monix.execution.Scheduler
 import monix.execution.internal.AttemptCallback.noop
@@ -31,28 +31,31 @@ import scala.util.control.NonFatal
   */
 private[eval] object TaskEffect {
   /**
-    * `cats.effect.Effect#runAsync`
-    */
+* `cats.effect.Effect#runAsync`
+*/
   def runAsync[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit])(
-    implicit s: Scheduler,
+    implicit
+    s: Scheduler,
     opts: Task.Options
   ): SyncIO[Unit] = SyncIO {
-    execute(fa, cb)
+    val _ = execute(fa, cb)
     ()
   }
 
   /**
-    * `cats.effect.ConcurrentEffect#runCancelable`
-    */
+* `cats.effect.ConcurrentEffect#runCancelable`
+*/
   def runCancelable[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit])(
-    implicit s: Scheduler,
+    implicit
+    s: Scheduler,
     opts: Task.Options
   ): SyncIO[CancelToken[Task]] = SyncIO {
     execute(fa, cb)
   }
 
   private def execute[A](fa: Task[A], cb: Either[Throwable, A] => IO[Unit])(
-    implicit s: Scheduler,
+    implicit
+    s: Scheduler,
     opts: Task.Options
   ): CancelToken[Task] = {
     fa.runAsyncOptF(new Callback[Throwable, A] {

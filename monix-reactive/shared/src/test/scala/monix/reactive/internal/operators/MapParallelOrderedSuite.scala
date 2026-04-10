@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,11 +24,11 @@ import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import monix.reactive.{Observable, Observer, OverflowStrategy}
+import monix.reactive.{ Observable, Observer, OverflowStrategy }
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.concurrent.duration._
-import scala.util.{Failure, Random}
+import scala.util.{ Failure, Random }
 
 object MapParallelOrderedSuite extends BaseOperatorSuite {
 
@@ -96,7 +96,8 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
         Task {
           counter += 1
           x
-        }.delayExecution(1.second))
+        }.delayExecution(1.second)
+      )
       .toListL
       .runToFuture
 
@@ -114,7 +115,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
 
       val obs = Observable.range(0L, sourceCount.toLong).mapParallelOrdered(parallelism = 4)(x => Task.now(x))
       obs.unsafeSubscribeFn(new Observer[Long] {
-        private[this] var sum = 0L
+        private var sum = 0L
 
         def onNext(elem: Long) = {
           received += 1
@@ -144,7 +145,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
 
       val obs = Observable.range(0L, sourceCount.toLong).mapParallelOrdered(parallelism = 4)(x => Task(x))
       obs.unsafeSubscribeFn(new Observer[Long] {
-        private[this] var sum = 0L
+        private var sum = 0L
 
         def onNext(elem: Long) = {
           received += 1
@@ -306,7 +307,7 @@ object MapParallelOrderedSuite extends BaseOperatorSuite {
     val p = Promise[Int]()
 
     val tasks = List.fill(8)(Task.fromFuture(p.future))
-    Observable(tasks: _*)
+    Observable(tasks*)
       .doOnNext(_ => Task(initiated += 1))
       .mapParallelOrdered(parallelism = 4)(x => x)
       .unsafeSubscribeFn(new Observer[Int] {

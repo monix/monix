@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,20 +21,20 @@ import cats.effect.CancelToken
 import monix.catnap.CancelableF
 import monix.execution.Callback
 import monix.eval.Task
-import monix.execution.atomic.{Atomic, PaddingStrategy}
+import monix.execution.atomic.{ Atomic, PaddingStrategy }
 
 private[eval] object TaskRaceList {
   /**
-    * Implementation for `Task.raceList`
-    */
+* Implementation for `Task.raceList`
+*/
   def apply[A](tasks: Iterable[Task[A]]): Task[A] =
     Task.Async(new Register(tasks), trampolineBefore = true, trampolineAfter = true)
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is a task that forks on evaluation.
-  //
-  // N.B. the contract is that the injected callback gets called after
-  // a full async boundary!
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is a task that forks on evaluation.
+//
+// N.B. the contract is that the injected callback gets called after
+// a full async boundary!
   private final class Register[A](tasks: Iterable[Task[A]]) extends ForkedRegister[A] {
 
     def apply(context: Task.Context, callback: Callback[Throwable, A]): Unit = {
@@ -44,7 +44,7 @@ private[eval] object TaskRaceList {
       val isActive = Atomic.withPadding(true, PaddingStrategy.LeftRight128)
       val taskArray = tasks.toArray
       val cancelableArray = buildCancelableArray(taskArray.length)
-      conn.pushConnections(cancelableArray.toIndexedSeq: _*)
+      conn.pushConnections(cancelableArray.toIndexedSeq*)
 
       var index = 0
       while (index < taskArray.length) {
@@ -58,12 +58,12 @@ private[eval] object TaskRaceList {
           taskContext,
           new Callback[Throwable, A] {
             private def popAndCancelRest(): CancelToken[Task] = {
-              conn.pop()
+              val _ = conn.pop()
               val arr2 = cancelableArray.collect {
                 case cc if cc ne taskCancelable =>
                   cc.cancel
               }
-              CancelableF.cancelAllTokens[Task](arr2.toIndexedSeq: _*)
+              CancelableF.cancelAllTokens[Task](arr2.toIndexedSeq*)
             }
 
             def onSuccess(value: A): Unit =

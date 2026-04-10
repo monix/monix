@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,21 +17,22 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable}
-import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
+import monix.execution.cancelables.{ CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable }
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.{Future, Promise}
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
+import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
 
 private[reactive] final class ThrottleLatestObservable[A](
   source: Observable[A],
   duration: FiniteDuration,
-  emitLast: Boolean)
-  extends Observable[A] {
+  emitLast: Boolean
+) extends Observable[A] {
 
   def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val task = MultiAssignCancelable()
@@ -40,14 +41,14 @@ private[reactive] final class ThrottleLatestObservable[A](
 
     mainTask := source.unsafeSubscribeFn(new Subscriber[A] with Runnable {
       self =>
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] val durationMilis = duration.toMillis
-      private[this] var isDone = false
-      private[this] var lastEvent: A = _
-      private[this] var hasValue = false
-      private[this] var shouldEmitNext = true
-      private[this] var ack: Future[Ack] = _
+      private val durationMilis = duration.toMillis
+      private var isDone = false
+      private var lastEvent: A = null.asInstanceOf[A]
+      private var hasValue = false
+      private var shouldEmitNext = true
+      private var ack: Future[Ack] = null.asInstanceOf[Future[Ack]]
 
       def scheduleNext(delayMillis: Long): Unit = {
         // No need to synchronize this assignment, since we have a
@@ -62,7 +63,7 @@ private[reactive] final class ThrottleLatestObservable[A](
             hasValue = false
             val now = scheduler.clockMonotonic(TimeUnit.MILLISECONDS)
             ack = out.onNext(lastEvent)
-            ack.syncFlatMap {
+            val _ = ack.syncFlatMap {
               case Continue =>
                 val elapsed = scheduler.clockMonotonic(TimeUnit.MILLISECONDS) - now
                 val delay =
@@ -78,7 +79,6 @@ private[reactive] final class ThrottleLatestObservable[A](
                 }
                 Stop
             }
-            ()
           } else {
             shouldEmitNext = true
           }
@@ -113,15 +113,14 @@ private[reactive] final class ThrottleLatestObservable[A](
 
       override def onComplete(): Unit = self.synchronized {
         if (!isDone) {
-          val lastAck = if(ack == null) Continue else ack
-          lastAck.syncTryFlatten.syncOnContinue{signalOnComplete()}
+          val lastAck = if (ack == null) Continue else ack
+          val _ = lastAck.syncTryFlatten.syncOnContinue { signalOnComplete() }
         }
-        ()
       }
 
       private def signalOnComplete(): Unit = {
         if (emitLast && hasValue) {
-          out.onNext(lastEvent).syncTryFlatten.syncOnContinue {
+          val _ = out.onNext(lastEvent).syncTryFlatten.syncOnContinue {
             isDone = true
             out.onComplete()
             task.cancel()
@@ -131,7 +130,6 @@ private[reactive] final class ThrottleLatestObservable[A](
           out.onComplete()
           task.cancel()
         }
-        ()
       }
     })
 

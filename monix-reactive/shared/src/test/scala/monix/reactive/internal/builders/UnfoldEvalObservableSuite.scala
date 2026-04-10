@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,10 +22,11 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Task
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform.recommendedBatchSize
 import monix.reactive.observers.Subscriber
-import monix.reactive.{BaseTestSuite, Observable}
+import monix.reactive.{ BaseTestSuite, Observable }
 
 import scala.concurrent.duration.MILLISECONDS
 
@@ -47,7 +48,7 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
   test("unfoldEval and fromAsyncStateAction results should be equal given generated inputs") { implicit s =>
     check2 { (s: Int, i: Int) =>
       val seed = s % (recommendedBatchSize * 2)
-      val n = i    % (recommendedBatchSize * 2)
+      val n = i % (recommendedBatchSize * 2)
 
       val f: Int => Task[Option[(Int, Int)]] = i => if (i < n) Task.delay(Some((i, i + 1))) else Task.now(None)
       val f2: Int => Task[(Int, Int)] = i => Task.delay((i, i + 1))
@@ -63,7 +64,7 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     val cancelable = Observable
       .unfoldEval(s.clockMonotonic(MILLISECONDS))(intNowOption)
       .unsafeSubscribeFn(new Subscriber[Int] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
 
         def onNext(elem: Int) = {
           sum += 1
@@ -99,7 +100,7 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
   test("unfoldEvalF and fromAsyncStateActionF results should be equal given generated inputs") { implicit s =>
     check2 { (s: Int, i: Int) =>
       val seed = s % (recommendedBatchSize * 2)
-      val n = i    % (recommendedBatchSize * 2)
+      val n = i % (recommendedBatchSize * 2)
 
       val f: Int => IO[Option[(Int, Int)]] = i => if (i < n) IO.delay(Some((i, i + 1))) else IO.pure(None)
       val f2: Int => IO[(Int, Int)] = i => IO.delay((i, i + 1))
@@ -115,7 +116,7 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     val cancelable = Observable
       .unfoldEvalF(s.clockMonotonic(MILLISECONDS))(intOptionIO)
       .unsafeSubscribeFn(new Subscriber[Int] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
 
         def onNext(elem: Int) = {
           sum += 1
@@ -141,7 +142,7 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
 
   def int(seed: Long): (Int, Long) = {
     // `&` is bitwise AND. We use the current seed to generate a new seed.
-    val newSeed = (seed * 0X5DEECE66DL + 0XBL) & 0XFFFFFFFFFFFFL
+    val newSeed = (seed * 0x5deece66dL + 0xbL) & 0xffffffffffffL
     // The next state, which is an `RNG` instance created from the new seed.
     val nextRNG = newSeed
     // `>>>` is right binary shift with zero fill. The value `n` is our new pseudo-random integer.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +18,8 @@
 package monix.eval.internal
 
 import cats.effect.ExitCase
-import cats.effect.ExitCase.{Canceled, Completed, Error}
-import monix.eval.Task.{Context, ContextSwitch}
+import cats.effect.ExitCase.{ Canceled, Completed, Error }
+import monix.eval.Task.{ Context, ContextSwitch }
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.atomic.Atomic
@@ -27,11 +27,9 @@ import monix.execution.internal.Platform
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
 
-private[monix] object TaskBracket {
-
-  // -----------------------------------------------------------------
-  // Task.guaranteeCase
-  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+private[monix] object TaskBracket { // -----------------------------------------------------------------
+// Task.guaranteeCase
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
   def guaranteeCase[A](task: Task[A], finalizer: ExitCase[Throwable] => Task[Unit]): Task[A] =
     TracedAsync(
@@ -78,17 +76,18 @@ private[monix] object TaskBracket {
       releaseFn(ExitCase.Canceled)
   }
 
-  // -----------------------------------------------------------------
-  // Task.bracketE
-  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// -----------------------------------------------------------------
+// Task.bracketE
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
   /**
-    * [[monix.eval.Task.bracket]] and [[monix.eval.Task.bracketCase]]
-    */
+  * [[monix.eval.Task.bracket]] and [[monix.eval.Task.bracketCase]]
+  */
   def either[A, B](
     acquire: Task[A],
     use: A => Task[B],
-    release: (A, Either[Option[Throwable], B]) => Task[Unit]): Task[B] = {
+    release: (A, Either[Option[Throwable], B]) => Task[Unit]
+  ): Task[B] = {
 
     TracedAsync(
       new StartE(acquire, use, release),
@@ -102,8 +101,8 @@ private[monix] object TaskBracket {
   private final class StartE[A, B](
     acquire: Task[A],
     use: A => Task[B],
-    release: (A, Either[Option[Throwable], B]) => Task[Unit])
-    extends BaseStart(acquire, use) {
+    release: (A, Either[Option[Throwable], B]) => Task[Unit]
+  ) extends BaseStart(acquire, use) {
 
     def makeReleaseFrame(ctx: Context, value: A) =
       new ReleaseFrameE(ctx, value, release)
@@ -122,13 +121,13 @@ private[monix] object TaskBracket {
       release(a, leftNone)
   }
 
-  // -----------------------------------------------------------------
-  // Task.bracketCase
-  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// -----------------------------------------------------------------
+// Task.bracketCase
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
   /**
-    * [[monix.eval.Task.bracketE]]
-    */
+  * [[monix.eval.Task.bracketE]]
+  */
   def exitCase[A, B](acquire: Task[A], use: A => Task[B], release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
     TracedAsync(
       new StartCase(acquire, use, release),
@@ -141,8 +140,8 @@ private[monix] object TaskBracket {
   private final class StartCase[A, B](
     acquire: Task[A],
     use: A => Task[B],
-    release: (A, ExitCase[Throwable]) => Task[Unit])
-    extends BaseStart(acquire, use) {
+    release: (A, ExitCase[Throwable]) => Task[Unit]
+  ) extends BaseStart(acquire, use) {
 
     def makeReleaseFrame(ctx: Context, value: A) =
       new ReleaseFrameCase(ctx, value, release)
@@ -161,9 +160,9 @@ private[monix] object TaskBracket {
       release(a, Canceled)
   }
 
-  // -----------------------------------------------------------------
-  // Base Implementation
-  // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// -----------------------------------------------------------------
+// Base Implementation
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
   private abstract class BaseStart[A, B](acquire: Task[A], use: A => Task[B])
     extends ((Context, Callback[Throwable, B]) => Unit) {
@@ -209,8 +208,8 @@ private[monix] object TaskBracket {
   }
 
   private abstract class BaseReleaseFrame[A, B](ctx: Context, a: A) extends StackFrame[B, Task[B]] {
-    private[this] val waitsForResult = Atomic(true)
-    private[this] val p: Promise[Unit] = Promise()
+    private val waitsForResult = Atomic(true)
+    private val p: Promise[Unit] = Promise()
     protected def releaseOnSuccess(a: A, b: B): Task[Unit]
     protected def releaseOnError(a: A, e: Throwable): Task[Unit]
     protected def releaseOnCancel(a: A): Task[Unit]
@@ -254,7 +253,10 @@ private[monix] object TaskBracket {
 
     private final def unsafeApply(b: B): Task[B] = {
       if (waitsForResult.compareAndSet(expect = true, update = false))
-        releaseOnSuccess(a, b).redeemWith(ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)), _ => Task{p.success(()); b})
+        releaseOnSuccess(a, b).redeemWith(
+          ex => Task(p.success(())).flatMap(_ => Task.raiseError(ex)),
+          _ => Task { p.success(()); b }
+        )
       else
         Task.never
 
@@ -288,12 +290,10 @@ private[monix] object TaskBracket {
 
   private val leftNone = Left(None)
 
-  private[this] val withConnectionUncancelable: Context => Context =
-    _.withConnection(TaskConnection.uncancelable)
+  private val withConnectionUncancelable: Context => Context = _.withConnection(TaskConnection.uncancelable)
 
-  private[this] val disableUncancelableAndPop: (Any, Throwable, Context, Context) => Context =
-    (_, _, old, _) => {
-      old.connection.pop()
-      old
-    }
+  private val disableUncancelableAndPop: (Any, Throwable, Context, Context) => Context = (_, _, old, _) => {
+    val _ = old.connection.pop()
+    old
+  }
 }

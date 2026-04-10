@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,15 +19,16 @@ package monix.reactive.observers.buffers
 
 import monix.eval.Coeval
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.atomic.PaddingStrategy.{LeftRight128, LeftRight256}
-import monix.execution.atomic.{Atomic, AtomicInt}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
+import monix.execution.atomic.PaddingStrategy.{ LeftRight128, LeftRight256 }
+import monix.execution.atomic.{ Atomic, AtomicInt }
 
 import scala.util.control.NonFatal
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /** A high-performance and non-blocking [[BufferedSubscriber]]
   * implementation for the [[monix.reactive.OverflowStrategy.DropNew DropNew]]
@@ -37,22 +38,22 @@ import scala.util.{Failure, Success}
 private[observers] final class DropNewBufferedSubscriber[A] private (
   out: Subscriber[A],
   bufferSize: Int,
-  onOverflow: Long => Coeval[Option[A]] = null)
-  extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
+  onOverflow: Long => Coeval[Option[A]],
+) extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   require(bufferSize > 0, "bufferSize must be a strictly positive number")
 
-  implicit val scheduler = out.scheduler
-  private[this] val em = out.scheduler.executionModel
+  implicit val scheduler: Scheduler = out.scheduler
+  private val em = out.scheduler.executionModel
 
-  private[this] val itemsToPush =
+  private val itemsToPush =
     Atomic.withPadding(0, LeftRight256)
 
-  private[this] val droppedCount: AtomicInt =
+  private val droppedCount: AtomicInt =
     if (onOverflow != null) AtomicInt.withPadding(0, LeftRight128)
     else null
 
-  private[this] val queue =
+  private val queue =
     ConcurrentQueue.limited[A](bufferSize)
 
   def onNext(elem: A): Ack = {
@@ -84,7 +85,7 @@ private[observers] final class DropNewBufferedSubscriber[A] private (
     }
   }
 
-  private[this] def pushToConsumer(): Unit = {
+  private def pushToConsumer(): Unit = {
     val currentNr = itemsToPush.getAndIncrement()
 
     // If a run-loop isn't started, then go, go, go!
@@ -95,7 +96,7 @@ private[observers] final class DropNewBufferedSubscriber[A] private (
     }
   }
 
-  private[this] val consumerRunLoop = new Runnable {
+  private val consumerRunLoop = new Runnable {
     def run(): Unit = {
       // This lastIterationAck is also being set by the consumer-loop,
       // but it's important for the write to happen before `itemsToPush`,
@@ -279,6 +280,7 @@ private[observers] object DropNewBufferedSubscriber {
   def withSignal[A](
     underlying: Subscriber[A],
     bufferSize: Int,
-    onOverflow: Long => Coeval[Option[A]]): DropNewBufferedSubscriber[A] =
+    onOverflow: Long => Coeval[Option[A]]
+  ): DropNewBufferedSubscriber[A] =
     new DropNewBufferedSubscriber[A](underlying, bufferSize, onOverflow)
 }

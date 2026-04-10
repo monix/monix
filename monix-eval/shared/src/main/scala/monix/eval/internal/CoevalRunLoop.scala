@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,10 +18,10 @@
 package monix.eval.internal
 
 import monix.eval.Coeval
-import monix.eval.Coeval.{Always, Eager, Error, FlatMap, Map, Now, Suspend, Trace}
-import monix.eval.tracing.{CoevalEvent, CoevalTrace}
+import monix.eval.Coeval.{ Always, Eager, Error, FlatMap, Map, Now, Suspend, Trace }
+import monix.eval.tracing.{ CoevalEvent, CoevalTrace }
 import monix.execution.internal.collection.ChunkedArrayStack
-import monix.eval.internal.TracingPlatform.{enhancedExceptions, isStackTracing}
+import monix.eval.internal.TracingPlatform.{ enhancedExceptions, isStackTracing }
 
 import scala.reflect.NameTransformer
 import scala.util.control.NonFatal
@@ -43,7 +43,7 @@ private[eval] object CoevalRunLoop {
 
     while (true) {
       current match {
-        case bind@FlatMap(fa, bindNext, _) =>
+        case bind @ FlatMap(fa, bindNext, _) =>
           if (isStackTracing) {
             val trace = bind.trace
             if (tracingCtx eq null) tracingCtx = new CoevalStackTracedContext
@@ -149,7 +149,7 @@ private[eval] object CoevalRunLoop {
             val ref = bRest.pop()
             if (ref eq null)
               return null
-            else if (ref.isInstanceOf[StackFrame[_, _]])
+            else if (ref.isInstanceOf[StackFrame[?, ?]])
               return ref.asInstanceOf[StackFrame[Any, Coeval[Any]]]
           }
           // $COVERAGE-OFF$
@@ -160,7 +160,7 @@ private[eval] object CoevalRunLoop {
   }
 
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
-    if ((bFirst ne null) && !bFirst.isInstanceOf[StackFrame.ErrorHandler[_, _]])
+    if ((bFirst ne null) && !bFirst.isInstanceOf[StackFrame.ErrorHandler[?, ?]])
       return bFirst
 
     if (bRest eq null) return null
@@ -168,7 +168,7 @@ private[eval] object CoevalRunLoop {
       val next = bRest.pop()
       if (next eq null) {
         return null
-      } else if (!next.isInstanceOf[StackFrame.ErrorHandler[_, _]]) {
+      } else if (!next.isInstanceOf[StackFrame.ErrorHandler[?, ?]]) {
         return next
       }
     }
@@ -178,10 +178,10 @@ private[eval] object CoevalRunLoop {
   }
 
   /**
-    * If stack tracing and contextual exceptions are enabled, this
-    * function will rewrite the stack trace of a captured exception
-    * to include the async stack trace.
-    */
+* If stack tracing and contextual exceptions are enabled, this
+* function will rewrite the stack trace of a captured exception
+* to include the async stack trace.
+*/
   private[internal] def augmentException(ex: Throwable, ctx: CoevalStackTracedContext): Unit = {
     val stackTrace = ex.getStackTrace
     if (stackTrace.nonEmpty) {
@@ -195,10 +195,12 @@ private[eval] object CoevalRunLoop {
             case (methodSite, callSite) =>
               val op = NameTransformer.decode(methodSite.getMethodName)
 
-              new StackTraceElement(op + " @ " + callSite.getClassName,
+              new StackTraceElement(
+                op + " @ " + callSite.getClassName,
                 callSite.getMethodName,
                 callSite.getFileName,
-                callSite.getLineNumber)
+                callSite.getLineNumber
+              )
           }
           .toArray
         ex.setStackTrace(prefix ++ suffix)
@@ -209,7 +211,7 @@ private[eval] object CoevalRunLoop {
   private def dropRunLoopFrames(frames: Array[StackTraceElement]): Array[StackTraceElement] =
     frames.takeWhile(ste => !runLoopFilter.exists(ste.getClassName.startsWith(_)))
 
-  private[this] val runLoopFilter = List(
+  private val runLoopFilter = List(
     "monix.eval.",
     "scala.runtime."
   )

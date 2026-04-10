@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@ import cats.syntax.all._
 import monix.execution.internal.collection.ChunkedArrayStack
 
 import scala.util.control.NonFatal
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 import monix.tail.batches.BatchCursor
 
 import scala.collection.mutable.ArrayBuffer
@@ -42,8 +42,8 @@ private[tail] object IterantScan {
 
   class Loop[F[_], A, S](initial: S, f: (S, A) => S)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, S]] {
 
-    private[this] var state = initial
-    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var state = initial
+    private var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
       if (stackRef == null) stackRef = ChunkedArrayStack()
@@ -101,7 +101,7 @@ private[tail] object IterantScan {
     def fail(e: Throwable): Iterant[F, S] =
       Iterant.raiseError(e)
 
-    private[this] def processCursor(cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
+    private def processCursor(cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
       if (!cursor.hasNext()) {
         Suspend(rest.map(this))
       } else if (cursor.recommendedBatchSize <= 1) {

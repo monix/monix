@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,20 +18,19 @@
 package monix.reactive.internal.builders
 
 import monix.execution.Cancelable
-import monix.execution.cancelables.{AssignableCancelable, MultiAssignCancelable}
+import monix.execution.cancelables.{ AssignableCancelable, MultiAssignCancelable }
 import scala.util.control.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observables.ChainedObservable
-import monix.reactive.observables.ChainedObservable.{subscribe => chain}
+import monix.reactive.observables.ChainedObservable.{ subscribe => chain }
 import monix.reactive.observers.Subscriber
 
 private[reactive] final class DeferObservable[+A](factory: () => Observable[A]) extends ChainedObservable[A] {
-
   override def unsafeSubscribeFn(out: Subscriber[A]): Cancelable = {
     val fa =
       try factory()
       catch { case e if NonFatal(e) => Observable.raiseError(e) }
-    if (fa.isInstanceOf[ChainedObservable[_]]) {
+    if (fa.isInstanceOf[ChainedObservable[?]]) {
       val ch = fa.asInstanceOf[ChainedObservable[A]]
       val conn = MultiAssignCancelable()
       ch.unsafeSubscribeFn(conn, out)

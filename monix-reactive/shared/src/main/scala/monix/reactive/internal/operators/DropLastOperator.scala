@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.collection.mutable
@@ -30,9 +31,9 @@ private[reactive] final class DropLastOperator[A](n: Int) extends Operator[A, A]
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
-      private[this] var queue = mutable.Queue.empty[A]
-      private[this] var length = 0
+      implicit val scheduler: Scheduler = out.scheduler
+      private var queue = mutable.Queue.empty[A]
+      private var length = 0
 
       override def onNext(elem: A): Future[Ack] = {
         queue.enqueue(elem)

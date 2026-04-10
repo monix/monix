@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,15 +17,18 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable}
+import scala.annotation.nowarn
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
+import monix.execution.cancelables.{ CompositeCancelable, MultiAssignCancelable }
 import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
+@nowarn("msg=unused value of type")
 private[reactive] final class DelayBySelectorObservable[A, S](source: Observable[A], selector: A => Observable[S])
   extends Observable[A] {
 
@@ -34,15 +37,15 @@ private[reactive] final class DelayBySelectorObservable[A, S](source: Observable
     val composite = CompositeCancelable(task)
 
     composite += source.unsafeSubscribeFn(new Subscriber[A] { self =>
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var completeTriggered = false
-      private[this] var isDone = false
-      private[this] var currentElem: A = _
-      private[this] var ack: Promise[Ack] = _
+      private var completeTriggered = false
+      private var isDone = false
+      private var currentElem: A = null.asInstanceOf[A]
+      private var ack: Promise[Ack] = null.asInstanceOf[Promise[Ack]]
 
-      private[this] val trigger = new Subscriber.Sync[Any] {
-        implicit val scheduler = out.scheduler
+      private val trigger = new Subscriber.Sync[Any] {
+        implicit val scheduler: Scheduler = out.scheduler
         def onNext(elem: Any): Ack = throw new IllegalStateException
         def onError(ex: Throwable): Unit = self.onError(ex)
         def onComplete(): Unit = self.sendOnNext()

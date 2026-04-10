@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,9 @@
 package monix.execution.internal
 
 import monix.execution.schedulers.CanBlock
-import scala.concurrent.{Await, Awaitable}
+import scala.annotation.nowarn
+import scala.annotation.unused
+import scala.concurrent.{ Await, Awaitable }
 import scala.concurrent.duration.Duration
 import scala.util.Try
 
@@ -141,7 +143,7 @@ private[monix] object Platform {
     * This operation is only supported on top of the JVM, whereas for
     * JavaScript a dummy is provided.
     */
-  def await[A](fa: Awaitable[A], timeout: Duration)(implicit permit: CanBlock): A =
+  def await[A](fa: Awaitable[A], timeout: Duration)(implicit @unused permit: CanBlock): A =
     Await.result(fa, timeout)
 
   /** Composes multiple errors together, meant for those cases in which
@@ -160,7 +162,7 @@ private[monix] object Platform {
   /** Useful utility that combines an `Either` result, which is what
     * `MonadError#attempt` returns.
     */
-  def composeErrors(first: Throwable, second: Either[Throwable, _]): Throwable =
+  def composeErrors(first: Throwable, second: Either[Throwable, Any]): Throwable =
     second match {
       case Left(e2) if first ne e2 =>
         first.addSuppressed(e2)
@@ -175,6 +177,7 @@ private[monix] object Platform {
     * To be used for multi-threading optimizations. Note that
     * in JavaScript this always returns the same value.
     */
+  @nowarn("cat=deprecation")
   def currentThreadId(): Long = {
     Thread.currentThread().getId
   }

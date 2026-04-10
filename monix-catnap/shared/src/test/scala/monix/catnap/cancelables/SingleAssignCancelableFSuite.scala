@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,13 @@
 
 package monix.catnap
 package cancelables
+import scala.annotation.nowarn
 
 import cats.effect.IO
 import minitest.SimpleTestSuite
-import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.exceptions.{ CompositeException, DummyException }
 
+@nowarn
 object SingleAssignCancelableFSuite extends SimpleTestSuite {
   test("cancel") {
     var effect = 0

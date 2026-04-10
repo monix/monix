@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,17 +27,16 @@ import monix.eval.tracing.TaskEvent
   * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
   */
 private[eval] object TaskTracing {
-
   def decorated[A](source: Task[A]): Task[A] =
     Trace(source, buildFrame())
 
   def uncached(): TaskEvent =
     buildFrame()
 
-  def cached(clazz: Class[_]): TaskEvent =
+  def cached(clazz: Class[?]): TaskEvent =
     buildCachedFrame(clazz)
 
-  private def buildCachedFrame(clazz: Class[_]): TaskEvent = {
+  private def buildCachedFrame(clazz: Class[?]): TaskEvent = {
     val currentFrame = frameCache.get(clazz)
     if (currentFrame eq null) {
       val newFrame = buildFrame()
@@ -52,9 +51,8 @@ private[eval] object TaskTracing {
     TaskEvent.StackTrace(new Throwable().getStackTrace.toList)
 
   /**
-    * Global cache for trace frames. Keys are references to lambda classes.
-    * Should converge to the working set of traces very quickly for hot code paths.
-    */
-  private[this] val frameCache: ConcurrentHashMap[Class[_], TaskEvent] = new ConcurrentHashMap()
-
+* Global cache for trace frames. Keys are references to lambda classes.
+* Should converge to the working set of traces very quickly for hot code paths.
+*/
+  private val frameCache: ConcurrentHashMap[Class[?], TaskEvent] = new ConcurrentHashMap()
 }

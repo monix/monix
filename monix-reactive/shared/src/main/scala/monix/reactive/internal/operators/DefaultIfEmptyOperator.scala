@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,19 +17,22 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack
+import monix.execution.Scheduler
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
+@nowarn("msg=unused value of type")
 private[reactive] final class DefaultIfEmptyOperator[A](default: () => A) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
-      private[this] var isEmpty = true
+      implicit val scheduler: Scheduler = out.scheduler
+      private var isEmpty = true
 
       def onNext(elem: A): Future[Ack] = {
         if (isEmpty) isEmpty = false

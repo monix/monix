@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,14 +17,14 @@
 
 package monix.eval.internal
 
-import monix.eval.tracing.{CoevalEvent, CoevalTrace}
+import monix.eval.tracing.{ CoevalEvent, CoevalTrace }
 import monix.eval.internal.TracingPlatform.traceBufferLogSize
 import monix.execution.internal.RingBuffer
 
 private[eval] final class CoevalStackTracedContext {
-  private[this] val events: RingBuffer[CoevalEvent] = new RingBuffer(traceBufferLogSize)
-  private[this] var captured: Int = 0
-  private[this] var omitted: Int = 0
+  private val events: RingBuffer[CoevalEvent] = new RingBuffer(traceBufferLogSize)
+  private var captured: Int = 0
+  private var omitted: Int = 0
 
   def pushEvent(fr: CoevalEvent): Unit = {
     captured += 1

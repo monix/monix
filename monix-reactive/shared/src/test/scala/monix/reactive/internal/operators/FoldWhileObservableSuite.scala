@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +26,9 @@ object FoldWhileObservableSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val n = sourceCount / 2
     val obs =
-      Observable.range(0L, sourceCount.toLong).foldWhileLeft(0L)((acc, e) => if (e < n) Left(acc + e) else Right(acc + e))
+      Observable.range(0L, sourceCount.toLong).foldWhileLeft(0L)((acc, e) =>
+        if (e < n) Left(acc + e) else Right(acc + e)
+      )
 
     Sample(obs, 1, n * (n + 1) / 2, 0.seconds, 0.seconds)
   }

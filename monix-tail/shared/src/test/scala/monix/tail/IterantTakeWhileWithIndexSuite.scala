@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,11 +20,11 @@ package monix.tail
 import cats.effect.Sync
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.tail.batches.{ Batch, BatchCursor }
 import org.scalacheck.Test
 import org.scalacheck.Test.Parameters
 
@@ -126,8 +126,8 @@ object IterantTakeWhileWithIndexSuite extends BaseTestSuite {
       val suffix = Iterant[Coeval].nextCursorS[Int](new ThrowExceptionCursor(dummy), Coeval.now(Iterant[Coeval].empty))
       val stream = (iter.onErrorIgnore ++ suffix).guarantee(Coeval.eval(cancelable.cancel()))
 
-      intercept[DummyException] { 
-        stream.takeWhileWithIndex((_, _) => true).toListL.value() 
+      intercept[DummyException] {
+        stream.takeWhileWithIndex((_, _) => true).toListL.value()
         ()
       }
       cancelable.isCanceled

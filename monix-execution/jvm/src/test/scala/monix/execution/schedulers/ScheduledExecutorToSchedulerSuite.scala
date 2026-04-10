@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,10 +23,10 @@ import minitest.TestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.{Features, UncaughtExceptionReporter, ExecutionModel => ExecModel}
+import monix.execution.{ ExecutionModel => ExecModel, Features, UncaughtExceptionReporter }
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Promise}
+import scala.concurrent.{ Await, Promise }
 
 object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
   val lastError = Atomic(null: Throwable)
@@ -39,7 +39,8 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
         "ExecutorSchedulerSuite",
         reporter,
         daemonic = true
-      ))
+      )
+    )
 
     ExecutorScheduler(executor, reporter, ExecModel.Default, Features.empty)
   }
@@ -55,7 +56,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
   test("scheduleOnce with delay") { implicit s =>
     val p = Promise[Long]()
     val startedAt = System.nanoTime()
-    s.scheduleOnce(100.millis) { p.success(System.nanoTime()); () }
+    val _ = s.scheduleOnce(100.millis) { p.success(System.nanoTime()); () }
 
     val timeTaken = Await.result(p.future, 30.second)
     assert((timeTaken - startedAt).nanos.toMillis >= 100)
@@ -63,7 +64,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
 
   test("scheduleOnce with negative delay") { implicit s =>
     val p = Promise[Boolean]()
-    s.scheduleOnce(-100.millis) { p.success(true); () }
+    val _ = s.scheduleOnce(-100.millis) { p.success(true); () }
 
     val result = Await.result(p.future, 30.second)
     assert(result)
@@ -77,7 +78,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
 
   test("scheduleOnce with delay lower than 1.milli") { implicit s =>
     val p = Promise[Int]()
-    s.scheduleOnce(20.nanos) { p.success(1); () }
+    val _ = s.scheduleOnce(20.nanos) { p.success(1); () }
     assert(Await.result(p.future, 3.seconds) == 1)
   }
 
@@ -86,8 +87,8 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
     val task = s.scheduleOnce(100.millis) { p.success(1); () }
     task.cancel()
 
-    intercept[TimeoutException] {
-      Await.result(p.future, 150.millis)
+    val _ = intercept[TimeoutException] {
+      val _ = Await.result(p.future, 150.millis)
       ()
     }
     ()

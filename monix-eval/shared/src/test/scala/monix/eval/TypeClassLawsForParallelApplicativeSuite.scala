@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,12 +16,14 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.CommutativeApplicative
 import cats.laws.discipline.CommutativeApplicativeTests
 import monix.catnap.internal.ParallelApplicative
 import monix.eval.instances.CatsParallelForTask
 
+@nowarn
 object TypeClassLawsForParallelApplicativeSuite extends BaseLawsSuite {
   implicit val ap: CommutativeApplicative[Task] =
     ParallelApplicative(new CatsParallelForTask)

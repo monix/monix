@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,17 +16,19 @@
  */
 
 package monix.catnap
+import scala.annotation.nowarn
 
 import cats.effect._
 import cats.implicits._
 import minitest.TestSuite
-import monix.catnap.CircuitBreaker.{Closed, Open}
-import monix.execution.exceptions.{DummyException, ExecutionRejectedException}
+import monix.catnap.CircuitBreaker.{ Closed, Open }
+import monix.execution.exceptions.{ DummyException, ExecutionRejectedException }
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
+@nowarn
 object CircuitBreakerSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =

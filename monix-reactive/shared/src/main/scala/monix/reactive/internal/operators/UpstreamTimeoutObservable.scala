@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,18 +17,20 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import java.util.concurrent.TimeUnit
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.cancelables.{ CompositeCancelable, MultiAssignCancelable, SingleAssignCancelable }
 import monix.execution.exceptions.UpstreamTimeoutException
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
+import scala.concurrent.duration.{ FiniteDuration, MILLISECONDS }
 
+@nowarn("msg=unused value of type")
 private[reactive] final class UpstreamTimeoutObservable[+A](source: Observable[A], timeout: FiniteDuration)
   extends Observable[A] {
 
@@ -40,13 +42,13 @@ private[reactive] final class UpstreamTimeoutObservable[+A](source: Observable[A
     mainTask := source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>
       implicit val scheduler: Scheduler = downstream.scheduler
 
-      private[this] val timeoutMillis = timeout.toMillis
+      private val timeoutMillis = timeout.toMillis
       // MUST BE synchronized by `self`
-      private[this] var isProcessingOnNext = false
+      private var isProcessingOnNext = false
       // MUST BE synchronized by `self`
-      private[this] var isDone = false
+      private var isDone = false
       // MUST BE synchronized by `self`
-      private[this] var lastEmittedMillis: Long =
+      private var lastEmittedMillis: Long =
         scheduler.clockMonotonic(MILLISECONDS)
 
       locally {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,17 +17,18 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Continue, Stop}
+import scala.annotation.nowarn
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.execution.exceptions.CompositeException
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.util.Failure
 
 /** Implementation for `Observable.scanTask`.
@@ -36,12 +37,13 @@ import scala.util.Failure
   *
   * Tricky concurrency handling within, here be dragons!
   */
+@nowarn("msg=unused value of type")
 private[reactive] final class FlatScanObservable[A, R](
   source: Observable[A],
   initial: () => R,
   op: (R, A) => Observable[R],
-  delayErrors: Boolean)
-  extends Observable[R] {
+  delayErrors: Boolean
+) extends Observable[R] {
 
   def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
     var streamErrors = true
@@ -71,24 +73,24 @@ private[reactive] final class FlatScanObservable[A, R](
     import ConcatMapObservable.FlatMapState
     import ConcatMapObservable.FlatMapState._
 
-    implicit val scheduler = out.scheduler
+    implicit val scheduler: Scheduler = out.scheduler
 
     // For gathering errors
-    private[this] val errors =
+    private val errors =
       if (delayErrors) Atomic(List.empty[Throwable])
       else null
 
     // Boolean for keeping the `isActive` state, needed because we could miss
     // out on seeing a `Cancelled` state due to the `lazySet` instructions,
     // making the visibility of the `Cancelled` state thread-unsafe!
-    private[this] val isActive = Atomic(true)
+    private val isActive = Atomic(true)
 
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
-    private[this] val stateRef = Atomic.withPadding(WaitOnNextChild(Continue): FlatMapState, LeftRight128)
+    private val stateRef = Atomic.withPadding(WaitOnNextChild(Continue): FlatMapState, LeftRight128)
 
     // Mutable reference to the current state
-    private[this] var currentState = initial
+    private var currentState = initial
 
     /** For canceling the current active task, in case there is any. Here
       * we can afford a `compareAndSet`, not being a big deal since
@@ -307,17 +309,18 @@ private[reactive] final class FlatScanObservable[A, R](
           s"State $state in the Monix ConcatMap.$method implementation is invalid, " +
             "due to either a broken Subscriber implementation, or a bug, " +
             "please open an issue, see: https://monix.io"
-        ))
+        )
+      )
       // $COVERAGE-ON$
     }
 
     private final class ChildSubscriber(out: Subscriber[R], asyncUpstreamAck: Promise[Ack]) extends Subscriber[R] {
 
-      implicit val scheduler = out.scheduler
-      private[this] var ack: Future[Ack] = Continue
+      implicit val scheduler: Scheduler = out.scheduler
+      private var ack: Future[Ack] = Continue
 
       // Reusable reference to stop creating function references for each `onNext`
-      private[this] val onStopOrFailureRef = (err: Option[Throwable]) => {
+      private val onStopOrFailureRef = (err: Option[Throwable]) => {
         if (err.isDefined) out.scheduler.reportFailure(err.get)
         signalChildOnComplete(Stop, isStop = true)
       }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,21 +19,20 @@ package monix.eval.internal
 
 import monix.eval.Task
 import monix.execution.rstreams.Subscription
-import monix.execution.{Callback, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{ Callback, Scheduler, UncaughtExceptionReporter }
 import org.reactivestreams.Subscriber
 
 private[eval] object TaskToReactivePublisher {
   /**
-    * Implementation for `Task.toReactivePublisher`
-    */
+* Implementation for `Task.toReactivePublisher`
+*/
   def apply[A](self: Task[A])(implicit s: Scheduler): org.reactivestreams.Publisher[A] =
     new org.reactivestreams.Publisher[A] {
-      def subscribe(out: Subscriber[_ >: A]): Unit = {
+      def subscribe(out: Subscriber[? >: A]): Unit = {
         out.onSubscribe(new Subscription {
-          private[this] var isActive = true
-          private[this] val conn = TaskConnection()
-          private[this] val context =
-            Task.Context(s, Task.defaultOptions.withSchedulerFeatures, conn, new StackTracedContext)
+          private var isActive = true
+          private val conn = TaskConnection()
+          private val context = Task.Context(s, Task.defaultOptions.withSchedulerFeatures, conn, new StackTracedContext)
 
           def request(n: Long): Unit = {
             require(n > 0, "n must be strictly positive, according to the Reactive Streams contract, rule 3.9")
@@ -50,9 +49,9 @@ private[eval] object TaskToReactivePublisher {
       }
     }
 
-  private final class PublisherCallback[A](out: Subscriber[_ >: A])(implicit s: UncaughtExceptionReporter)
+  private final class PublisherCallback[A](out: Subscriber[? >: A])(implicit s: UncaughtExceptionReporter)
     extends Callback[Throwable, A] {
-    private[this] var isActive = true
+    private var isActive = true
 
     def onError(e: Throwable): Unit =
       if (isActive) {

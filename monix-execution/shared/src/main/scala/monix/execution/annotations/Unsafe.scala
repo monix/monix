@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ import scala.annotation.StaticAnnotation
   *    as specified or otherwise the behavior can be undefined,
   *    see [[UnsafeProtocol]]
   */
-class Unsafe(reason: String) extends StaticAnnotation
+class Unsafe(val reason: String) extends StaticAnnotation
 
 /** An annotation meant to warn users on functions that are
   * breaking referential transparency.

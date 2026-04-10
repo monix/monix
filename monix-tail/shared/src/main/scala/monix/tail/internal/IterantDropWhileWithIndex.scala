@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 
 private[tail] object IterantDropWhileWithIndex {
   /**
@@ -33,8 +33,8 @@ private[tail] object IterantDropWhileWithIndex {
   private class Loop[F[_], A](p: (A, Int) => Boolean)(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, A]] { loop =>
 
-    private[this] var index = 0
-    private[this] var dropFinished = false
+    private var index = 0
+    private var dropFinished = false
 
     private def getAndIncrement(): Int = {
       val old = index

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,9 +20,10 @@ package monix.reactive.internal.builders
 import cats.laws._
 import cats.laws.discipline._
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.execution.internal.Platform.recommendedBatchSize
 import monix.reactive.observers.Subscriber
-import monix.reactive.{BaseTestSuite, Observable}
+import monix.reactive.{ BaseTestSuite, Observable }
 
 import scala.concurrent.duration.MILLISECONDS
 
@@ -59,7 +60,7 @@ object UnfoldObservableSuite extends BaseTestSuite {
     val cancelable = Observable
       .unfold(s.clockMonotonic(MILLISECONDS))(intOption)
       .unsafeSubscribeFn(new Subscriber[Int] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
 
         def onNext(elem: Int) = {
           sum += 1
@@ -82,7 +83,7 @@ object UnfoldObservableSuite extends BaseTestSuite {
   test("unfold and fromStateAction results should be equal given generated inputs") { implicit s =>
     check2 { (s: Int, i: Int) =>
       val seed = s % (recommendedBatchSize * 2)
-      val n = i    % (recommendedBatchSize * 2)
+      val n = i % (recommendedBatchSize * 2)
 
       val f: Int => Option[(Int, Int)] = i => if (i < n) Some((i, i + 1)) else None
       val f2: Int => (Int, Int) = i => (i, i + 1)
@@ -95,7 +96,7 @@ object UnfoldObservableSuite extends BaseTestSuite {
 
   def int(seed: Long): (Int, Long) = {
     // `&` is bitwise AND. We use the current seed to generate a new seed.
-    val newSeed = (seed * 0X5DEECE66DL + 0XBL) & 0XFFFFFFFFFFFFL
+    val newSeed = (seed * 0x5deece66dL + 0xbL) & 0xffffffffffffL
     // The next state, which is an `RNG` instance created from the new seed.
     val nextRNG = newSeed
     // `>>>` is right binary shift with zero fill. The value `n` is our new pseudo-random integer.

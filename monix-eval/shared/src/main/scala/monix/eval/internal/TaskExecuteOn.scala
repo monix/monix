@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.{ Async, Context }
 import java.util.concurrent.RejectedExecutionException
 import monix.execution.Callback
 import monix.eval.Task
@@ -25,8 +25,8 @@ import monix.execution.Scheduler
 
 private[eval] object TaskExecuteOn {
   /**
-    * Implementation for `Task.executeOn`.
-    */
+* Implementation for `Task.executeOn`.
+*/
   def apply[A](source: Task[A], s: Scheduler, forceAsync: Boolean): Task[A] = {
     val withTrampoline = !forceAsync
     val start =
@@ -41,8 +41,8 @@ private[eval] object TaskExecuteOn {
     )
   }
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is task that forks on evaluation
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is task that forks on evaluation
   private final class AsyncRegister[A](source: Task[A], s: Scheduler) extends ForkedRegister[A] {
     def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
       val oldS = ctx.scheduler
@@ -53,8 +53,8 @@ private[eval] object TaskExecuteOn {
           source,
           ctx2,
           new Callback[Throwable, A] with Runnable {
-            private[this] var value: A = _
-            private[this] var error: Throwable = _
+            private var value: A = null.asInstanceOf[A]
+            private var error: Throwable = null.asInstanceOf[Throwable]
 
             def onSuccess(value: A): Unit = {
               this.value = value

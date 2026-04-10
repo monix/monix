@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,13 +16,15 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.Eval
 import cats.effect.IO
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
+@nowarn
 object CoevalCatsConversions extends BaseTestSuite {
   test("Coeval.now(value).to[Eval]") { _ =>
     assertEquals(Coeval.now(10).to[Eval].value, 10)
@@ -99,7 +101,7 @@ object CoevalCatsConversions extends BaseTestSuite {
     assertEquals(eval.value(), 1)
   }
 
-  test("Coeval.from protects against user error") { implicit s =>
+  test("Coeval.from protects against user error") { _ =>
     val dummy = DummyException("dummy")
     val eval = Coeval.from(Eval.always { throw dummy })
     assertEquals(eval.runTry(), Failure(dummy))

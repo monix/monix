@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,11 +20,11 @@ package monix.tail
 import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.eq._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.tail.batches.{ Batch, BatchCursor }
 
 object IterantRepeatSuite extends BaseTestSuite {
   test("Iterant.repeat works for one item") { _ =>
@@ -46,7 +46,8 @@ object IterantRepeatSuite extends BaseTestSuite {
           Iterant[Coeval].fromIterable(
             (0 until (count / list.length + 1))
               .flatMap(_ => list)
-              .take(count))
+              .take(count)
+          )
         }
 
       fa <-> expected

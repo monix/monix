@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,13 +23,12 @@ import monix.execution.atomic.Atomic
 
 import scala.concurrent.Promise
 
-private[eval] object TaskRacePair {
-  // Type aliasing the result only b/c it's a mouthful
+private[eval] object TaskRacePair { // Type aliasing the result only b/c it's a mouthful
   type RaceEither[A, B] = Either[(A, Fiber[B]), (Fiber[A], B)]
 
   /**
-    * Implementation for `Task.racePair`.
-    */
+  * Implementation for `Task.racePair`.
+  */
   def apply[A, B](fa: Task[A], fb: Task[B]): Task[RaceEither[A, B]] =
     Task.Async(
       new Register(fa, fb),
@@ -37,11 +36,11 @@ private[eval] object TaskRacePair {
       trampolineAfter = true
     )
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is a task that forks on evaluation.
-  //
-  // N.B. the contract is that the injected callback gets called after
-  // a full async boundary!
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is a task that forks on evaluation.
+//
+// N.B. the contract is that the injected callback gets called after
+// a full async boundary!
   private final class Register[A, B](fa: Task[A], fb: Task[B]) extends ForkedRegister[RaceEither[A, B]] {
 
     def apply(context: Task.Context, cb: Callback[Throwable, RaceEither[A, B]]): Unit = {
@@ -67,7 +66,7 @@ private[eval] object TaskRacePair {
           def onSuccess(valueA: A): Unit =
             if (isActive.getAndSet(false)) {
               val fiberB = Fiber(TaskFromFuture.strict(pb.future), connB.cancel)
-              conn.pop()
+              val _ = conn.pop()
               cb.onSuccess(Left((valueA, fiberB)))
             } else {
               pa.success(valueA)
@@ -77,7 +76,7 @@ private[eval] object TaskRacePair {
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
               connB.cancel.map { _ =>
-                conn.pop()
+                val _ = conn.pop()
                 cb.onError(ex)
               }.runAsyncAndForget
             } else {
@@ -95,7 +94,7 @@ private[eval] object TaskRacePair {
           def onSuccess(valueB: B): Unit =
             if (isActive.getAndSet(false)) {
               val fiberA = Fiber(TaskFromFuture.strict(pa.future), connA.cancel)
-              conn.pop()
+              val _ = conn.pop()
               cb.onSuccess(Right((fiberA, valueB)))
             } else {
               pb.success(valueB)
@@ -105,7 +104,7 @@ private[eval] object TaskRacePair {
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
               connA.cancel.map { _ =>
-                conn.pop()
+                val _ = conn.pop()
                 cb.onError(ex)
               }.runAsyncAndForget
             } else {

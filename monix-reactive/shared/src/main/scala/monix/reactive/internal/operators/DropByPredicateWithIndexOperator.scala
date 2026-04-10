@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,8 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
@@ -26,10 +27,10 @@ private[reactive] final class DropByPredicateWithIndexOperator[A](p: (A, Int) =>
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
-      private[this] var continueDropping = true
-      private[this] var index = 0
-      private[this] var isDone = false
+      implicit val scheduler: Scheduler = out.scheduler
+      private var continueDropping = true
+      private var index = 0
+      private var isDone = false
 
       def onNext(elem: A) = {
         if (continueDropping) {

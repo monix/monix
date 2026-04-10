@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,15 +17,15 @@
 
 package monix.eval
 
-import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.{ CountDownLatch, TimeUnit }
 
 import minitest.SimpleTestSuite
-import monix.execution.exceptions.{CallbackCalledMultipleTimesException, DummyException}
+import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, DummyException }
 import monix.execution.schedulers.SchedulerService
-import monix.execution.{Callback, Scheduler, TestUtils}
+import monix.execution.{ Callback, Scheduler, TestUtils }
 
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
   val WORKERS = 10
@@ -47,14 +47,16 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
     runConcurrentCallbackTest(f =>
       Task.cancelable { cb =>
         f(cb); Task(())
-      })
+      }
+    )
   }
 
   test("Task.cancelable0 has a safe callback") {
     runConcurrentCallbackTest(f =>
       Task.cancelable0 { (_, cb) =>
         f(cb); Task(())
-      })
+      }
+    )
   }
 
   def runConcurrentCallbackTest(create: (Callback[Throwable, Int] => Unit) => Task[Int]): Unit = {
@@ -92,13 +94,16 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
 
     run(cb =>
       try cb.onSuccess(1)
-      catch { case _: CallbackCalledMultipleTimesException => () })
+      catch { case _: CallbackCalledMultipleTimesException => () }
+    )
     run(cb =>
       try cb(Right(1))
-      catch { case _: CallbackCalledMultipleTimesException => () })
+      catch { case _: CallbackCalledMultipleTimesException => () }
+    )
     run(cb =>
       try cb(Success(1))
-      catch { case _: CallbackCalledMultipleTimesException => () })
+      catch { case _: CallbackCalledMultipleTimesException => () }
+    )
 
     val dummy = DummyException("dummy")
 
@@ -108,13 +113,16 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
 
     run(cb =>
       try cb.onError(dummy)
-      catch { case _: CallbackCalledMultipleTimesException => () })
+      catch { case _: CallbackCalledMultipleTimesException => () }
+    )
     run(cb =>
       try cb(Left(dummy))
-      catch { case _: CallbackCalledMultipleTimesException => () })
+      catch { case _: CallbackCalledMultipleTimesException => () }
+    )
     run(cb =>
       try cb(Failure(dummy))
-      catch { case _: CallbackCalledMultipleTimesException => () })
+      catch { case _: CallbackCalledMultipleTimesException => () }
+    )
   }
 
   def runConcurrently(sc: Scheduler)(f: => Unit): Unit = {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,7 +37,7 @@ object IterantBufferSuite extends BaseTestSuite {
   test("bufferSliding(c, s) is consistent with List.sliding(c, s)") { implicit s =>
     check4 { (list: List[Int], idx: Int, c: Int, s: Int) =>
       val count = math.abs(c % 4) + 2
-      val skip = math.abs(s  % 4) + 2
+      val skip = math.abs(s % 4) + 2
       val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
 
       stream.bufferSliding(count, skip).map(_.toList).toListL <->

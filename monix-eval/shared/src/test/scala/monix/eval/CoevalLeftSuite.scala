@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.eval
 
 object CoevalLeftSuite extends BaseTestSuite {
-  test("Coeval.left should return a Now with a Left") { implicit s =>
+  test("Coeval.left should return a Now with a Left") { _ =>
     val t = Coeval.left[Int, String](1)
 
     t.value() match {

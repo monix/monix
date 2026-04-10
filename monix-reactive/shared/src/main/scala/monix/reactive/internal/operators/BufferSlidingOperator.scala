@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,13 +17,16 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import monix.execution.compat.internal.toSeq
 
+@nowarn("msg=unused value of type")
 private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int) extends Operator[A, Seq[A]] {
 
   require(count > 0, "count must be strictly positive")
@@ -31,17 +34,17 @@ private[reactive] final class BufferSlidingOperator[A](count: Int, skip: Int) ex
 
   def apply(out: Subscriber[Seq[A]]): Subscriber[A] =
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var isDone = false
-      private[this] var ack: Future[Ack] = _
+      private var isDone = false
+      private var ack: Future[Ack] = null.asInstanceOf[Future[Ack]]
 
-      private[this] val toDrop = if (count > skip) 0 else skip - count
-      private[this] val toRepeat = if (skip > count) 0 else count - skip
+      private val toDrop = if (count > skip) 0 else skip - count
+      private val toRepeat = if (skip > count) 0 else count - skip
 
-      private[this] var buffer = new Array[AnyRef](count)
-      private[this] var dropped = 0
-      private[this] var length = 0
+      private var buffer = new Array[AnyRef](count)
+      private var dropped = 0
+      private var length = 0
 
       def onNext(elem: A): Future[Ack] = {
         if (isDone)

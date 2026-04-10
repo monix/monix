@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,18 +17,21 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
-import monix.execution.{Ack, Cancelable}
+import scala.annotation.nowarn
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
+import monix.execution.cancelables.{ CompositeCancelable, SingleAssignCancelable }
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
+@nowarn("msg=unused value of type")
 private[reactive] final class ThrottleLastObservable[+A, S](
   source: Observable[A],
   sampler: Observable[S],
-  shouldRepeatOnSilence: Boolean)
-  extends Observable[A] {
+  shouldRepeatOnSilence: Boolean
+) extends Observable[A] {
 
   def unsafeSubscribeFn(downstream: Subscriber[A]): Cancelable = {
     val upstreamSubscription = SingleAssignCancelable()
@@ -36,17 +39,17 @@ private[reactive] final class ThrottleLastObservable[+A, S](
     val composite = CompositeCancelable(upstreamSubscription, samplerSubscription)
 
     upstreamSubscription := source.unsafeSubscribeFn(new Subscriber.Sync[A] { upstreamSubscriber =>
-      implicit val scheduler = downstream.scheduler
+      implicit val scheduler: Scheduler = downstream.scheduler
 
       // Value is volatile to keep write to lastValue visible
       // after this one is seen as being true
-      @volatile private[this] var hasValue = false
+      @volatile private var hasValue = false
       // MUST BE written before `hasValue = true`
-      private[this] var lastValue: A = _
+      private var lastValue: A = null.asInstanceOf[A]
       // To be written in onComplete/onError, to be read from tick
-      private[this] var upstreamIsDone = false
+      private var upstreamIsDone = false
       // MUST BE synchronized by `upstreamSubscriber`.
-      private[this] var downstreamIsDone = false
+      private var downstreamIsDone = false
 
       def onNext(elem: A): Ack =
         if (downstreamIsDone) Stop
@@ -71,7 +74,7 @@ private[reactive] final class ThrottleLastObservable[+A, S](
         }
 
       samplerSubscription := sampler.unsafeSubscribeFn(new Subscriber[S] { self =>
-        implicit val scheduler = downstream.scheduler
+        implicit val scheduler: Scheduler = downstream.scheduler
 
         def onNext(elem: S): Future[Ack] =
           upstreamSubscriber.synchronized(signalNext())

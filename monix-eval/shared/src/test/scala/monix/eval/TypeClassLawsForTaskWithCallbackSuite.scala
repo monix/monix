@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,11 +16,12 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.Eq
-import cats.effect.laws.discipline.{ConcurrentEffectTests, ConcurrentTests}
+import cats.effect.laws.discipline.{ ConcurrentEffectTests, ConcurrentTests }
 import cats.kernel.laws.discipline.MonoidTests
-import cats.laws.discipline.{CoflatMapTests, CommutativeApplicativeTests, ParallelTests}
+import cats.laws.discipline.{ CoflatMapTests, CommutativeApplicativeTests, ParallelTests }
 import monix.eval.Task.Options
 import monix.execution.Callback
 import monix.execution.schedulers.TestScheduler
@@ -31,6 +32,7 @@ import scala.concurrent.Promise
   * Type class tests for Task that use an alternative `Eq`, making
   * use of Task's `runAsync(callback)`.
   */
+@nowarn
 object TypeClassLawsForTaskWithCallbackSuite
   extends BaseTypeClassLawsForTaskWithCallbackSuite()(
     Task.defaultOptions.disableAutoCancelableRunLoops
@@ -51,7 +53,8 @@ class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options) ext
     implicit
     A: Eq[A],
     ec: TestScheduler,
-    opts: Options) = {
+    opts: Options
+  ): Eq[Task[A]] = {
 
     Eq.by { task =>
       val p = Promise[A]()
@@ -64,7 +67,8 @@ class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options) ext
     implicit
     A: Eq[A],
     ec: TestScheduler,
-    opts: Options): Eq[Task.Par[A]] = {
+    opts: Options
+  ): Eq[Task.Par[A]] = {
 
     import Task.Par.unwrap
     Eq.by { task =>

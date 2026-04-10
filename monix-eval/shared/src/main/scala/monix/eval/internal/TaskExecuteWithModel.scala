@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,14 +19,14 @@ package monix.eval.internal
 
 import monix.execution.Callback
 import monix.eval.Task
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.{ Async, Context }
 import monix.execution.ExecutionModel
-import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
+import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, BatchedExecution, SynchronousExecution }
 
 private[eval] object TaskExecuteWithModel {
   /**
-    * Implementation for `Task.executeWithModel`
-    */
+* Implementation for `Task.executeWithModel`
+*/
   def apply[A](self: Task[A], em: ExecutionModel): Task[A] = {
     val start = (context: Context, cb: Callback[Throwable, A]) => {
       val context2 = context.withExecutionModel(em)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +30,7 @@ object CombineLatestListSuite extends BaseOperatorSuite {
     val source = Observable.range(0L, sourceCount.toLong)
     val sources = (1 to NumberOfObservables).map(_ => Observable.now(1L))
     val o: Observable[Long] =
-      Observable.combineLatestList((sources :+ source): _*).map { seq =>
+      Observable.combineLatestList((sources :+ source)*).map { seq =>
         seq.sum
       }
 
@@ -45,7 +45,7 @@ object CombineLatestListSuite extends BaseOperatorSuite {
     val sample1 = {
       val sources =
         (0 until NumberOfObservables).map(_ => Observable.range(0, 10).delayOnNext(1.second))
-      Observable.combineLatestList(sources: _*).map { seq =>
+      Observable.combineLatestList(sources*).map { seq =>
         seq.sum
       }
     }

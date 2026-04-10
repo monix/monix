@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,11 +19,11 @@ package monix.reactive.subjects
 
 import monix.execution.ChannelType.MultiProducer
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.{Ack, Cancelable, ChannelType, Scheduler}
-import monix.reactive.OverflowStrategy.{Synchronous, Unbounded}
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
-import monix.reactive.{MulticastStrategy, Observer, OverflowStrategy}
-import org.reactivestreams.{Subscription, Processor => RProcessor, Subscriber => RSubscriber}
+import monix.execution.{ Ack, Cancelable, ChannelType, Scheduler }
+import monix.reactive.OverflowStrategy.{ Synchronous, Unbounded }
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
+import monix.reactive.{ MulticastStrategy, Observer, OverflowStrategy }
+import org.reactivestreams.{ Processor => RProcessor, Subscriber => RSubscriber, Subscription }
 
 /** A concurrent subject is meant for imperative style feeding of events.
   *
@@ -34,12 +34,13 @@ import org.reactivestreams.{Subscription, Processor => RProcessor, Subscriber =>
   */
 abstract class ConcurrentSubject[I, +O] extends Subject[I, O] with Observer.Sync[I]
 
-object ConcurrentSubject {
+object ConcurrentSubject extends monix.reactive.internal.deprecated.ConcurrentSubjectDeprecatedBuilders {
   def apply[A](multicast: MulticastStrategy[A])(implicit s: Scheduler): ConcurrentSubject[A, A] =
     apply(multicast, Unbounded)(s)
 
   def apply[A](multicast: MulticastStrategy[A], overflow: OverflowStrategy.Synchronous[A])(
-    implicit s: Scheduler): ConcurrentSubject[A, A] = {
+    implicit s: Scheduler
+  ): ConcurrentSubject[A, A] = {
 
     multicast match {
       case MulticastStrategy.Publish =>
@@ -69,7 +70,8 @@ object ConcurrentSubject {
   def from[I, O](
     p: Subject[I, O],
     overflowStrategy: Synchronous[I],
-    producerType: ChannelType.ProducerSide = MultiProducer)(implicit s: Scheduler): ConcurrentSubject[I, O] =
+    producerType: ChannelType.ProducerSide = MultiProducer
+  )(implicit s: Scheduler): ConcurrentSubject[I, O] =
     new SubjectAsConcurrent(p, overflowStrategy, producerType, s)
 
   /** Subject recipe for building [[PublishSubject publish]] subjects. */
@@ -118,7 +120,7 @@ object ConcurrentSubject {
     from(BehaviorSubject[A](initial), strategy)
 
   /** Subject recipe for building [[AsyncSubject async]] subjects. */
-  def async[A](implicit s: Scheduler): ConcurrentSubject[A, A] =
+  def async[A]: ConcurrentSubject[A, A] =
     new ConcurrentAsyncSubject(AsyncSubject[A]())
 
   /** Subject recipe for building [[ReplaySubject replay]] subjects. */
@@ -140,7 +142,7 @@ object ConcurrentSubject {
     *        to subscribers before any elements emitted by the source.
     */
   def replay[A](initial: Seq[A])(implicit s: Scheduler): ConcurrentSubject[A, A] =
-    from(ReplaySubject[A](initial: _*), Unbounded)
+    from(ReplaySubject[A](initial*), Unbounded)
 
   /** Subject recipe for building [[ReplaySubject replay]] subjects.
     *
@@ -151,7 +153,7 @@ object ConcurrentSubject {
     *        we're dealing with slow consumers.
     */
   def replay[A](initial: Seq[A], strategy: Synchronous[A])(implicit s: Scheduler): ConcurrentSubject[A, A] =
-    from(ReplaySubject[A](initial: _*), strategy)
+    from(ReplaySubject[A](initial*), strategy)
 
   /** Subject recipe for building [[ReplaySubject replay]] subjects.
     * This variant creates a size-bounded replay subject.
@@ -219,7 +221,8 @@ object ConcurrentSubject {
     *        we're dealing with slow consumers.
     */
   def replayLimited[A](capacity: Int, initial: Seq[A], strategy: Synchronous[A])(
-    implicit s: Scheduler): ConcurrentSubject[A, A] =
+    implicit s: Scheduler
+  ): ConcurrentSubject[A, A] =
     from(ReplaySubject.createLimited[A](capacity, initial), strategy)
 
   /** Transforms the source [[ConcurrentSubject]] into a `org.reactivestreams.Processor`
@@ -232,13 +235,14 @@ object ConcurrentSubject {
     *                   the reactive streams specification
     */
   def toReactiveProcessor[I, O](source: ConcurrentSubject[I, O], bufferSize: Int)(
-    implicit s: Scheduler): RProcessor[I, O] = {
+    implicit s: Scheduler
+  ): RProcessor[I, O] = {
 
     new RProcessor[I, O] {
-      private[this] val subscriber: RSubscriber[I] =
+      private val subscriber: RSubscriber[I] =
         Subscriber(source, s).toReactive(bufferSize)
 
-      def subscribe(subscriber: RSubscriber[_ >: O]): Unit = {
+      def subscribe(subscriber: RSubscriber[? >: O]): Unit = {
         val sub = SingleAssignCancelable()
         sub := source.unsafeSubscribeFn(Subscriber.fromReactiveSubscriber(subscriber, sub))
         ()
@@ -260,10 +264,10 @@ object ConcurrentSubject {
     subject: Subject[I, O],
     overflowStrategy: OverflowStrategy.Synchronous[I],
     producerType: ChannelType.ProducerSide,
-    scheduler: Scheduler)
-    extends ConcurrentSubject[I, O] {
+    scheduler: Scheduler
+  ) extends ConcurrentSubject[I, O] {
 
-    private[this] val in: Subscriber.Sync[I] =
+    private val in: Subscriber.Sync[I] =
       BufferedSubscriber.synchronous(Subscriber(subject, scheduler), overflowStrategy, producerType)
 
     def size: Int =

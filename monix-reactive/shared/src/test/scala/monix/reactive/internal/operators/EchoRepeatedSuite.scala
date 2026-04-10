@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.extensions._
 import monix.reactive.subjects.PublishSubject
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 import scala.concurrent.duration._
 

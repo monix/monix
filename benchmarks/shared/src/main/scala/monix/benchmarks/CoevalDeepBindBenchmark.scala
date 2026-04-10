@@ -57,7 +57,7 @@ class CoevalDeepBindBenchmark {
     def loop(i: Int): Coeval[Int] =
       for {
         j <- Coeval.pure(i)
-        _ <- if(j > size) Coeval.pure(j) else loop(j + 1)
+        _ <- if (j > size) Coeval.pure(j) else loop(j + 1)
       } yield j
 
     loop(0).value()
@@ -68,7 +68,7 @@ class CoevalDeepBindBenchmark {
     def loop(i: Int): Coeval[Int] =
       for {
         j <- Coeval(i)
-        _ <- if(j > size) Coeval(j) else loop(j + 1)
+        _ <- if (j > size) Coeval(j) else loop(j + 1)
       } yield j
 
     loop(0).value()

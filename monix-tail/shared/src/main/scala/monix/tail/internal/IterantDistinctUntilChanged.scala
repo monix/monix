@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import cats.Eq
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 import monix.tail.batches.BatchCursor
 import scala.collection.mutable.ArrayBuffer
 
@@ -36,7 +36,7 @@ private[tail] object IterantDistinctUntilChanged {
   private class Loop[F[_], A, K](f: A => K)(implicit F: Sync[F], K: Eq[K])
     extends Iterant.Visitor[F, A, Iterant[F, A]] {
 
-    private[this] var current: K = null.asInstanceOf[K]
+    private var current: K = null.asInstanceOf[K]
 
     def visit(ref: Next[F, A]): Iterant[F, A] = {
       val a = ref.item

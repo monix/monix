@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +18,9 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Stop
+import monix.execution.Scheduler
 import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -36,9 +37,9 @@ private[reactive] final class ScanObservable[A, R](source: Observable[A], initia
 
       // Initial state was evaluated, subscribing to source
       source.unsafeSubscribeFn(new Subscriber[A] {
-        implicit val scheduler = out.scheduler
-        private[this] var isDone = false
-        private[this] var state = initialState
+        implicit val scheduler: Scheduler = out.scheduler
+        private var isDone = false
+        private var state = initialState
 
         def onNext(elem: A): Future[Ack] = {
           // Protects calls to user code from within the operator and

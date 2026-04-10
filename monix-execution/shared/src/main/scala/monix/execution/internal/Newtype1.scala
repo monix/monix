@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +31,7 @@ package monix.execution.internal
 private[monix] abstract class Newtype1[F[_]] { self =>
   type Base
   trait Tag extends Any
-  type Type[+A] <: Base with Tag
+  type Type[+A] <: Base
 
   def apply[A](fa: F[A]): Type[A] =
     fa.asInstanceOf[Type[A]]

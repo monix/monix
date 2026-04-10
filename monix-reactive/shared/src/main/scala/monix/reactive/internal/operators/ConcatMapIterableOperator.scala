@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,8 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
@@ -30,9 +31,9 @@ private[reactive] final class ConcatMapIterableOperator[-A, +B](f: A => immutabl
 
   def apply(out: Subscriber[B]): Subscriber[A] = {
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
-      private[this] var isDone = false
-      private[this] var ack: Future[Ack] = Continue
+      implicit val scheduler: Scheduler = out.scheduler
+      private var isDone = false
+      private var ack: Future[Ack] = Continue
 
       def onNext(elem: A): Future[Ack] = {
         // Protects calls to user code from within the operator and

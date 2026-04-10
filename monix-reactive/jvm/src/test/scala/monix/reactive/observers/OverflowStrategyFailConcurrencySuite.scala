@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,13 +17,13 @@
 
 package monix.reactive.observers
 
-import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.{ CountDownLatch, TimeUnit }
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.exceptions.{BufferOverflowException, DummyException}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.exceptions.{ BufferOverflowException, DummyException }
 import monix.reactive.OverflowStrategy.Fail
-import monix.reactive.{BaseConcurrencySuite, Observer}
-import scala.concurrent.{Future, Promise}
+import monix.reactive.{ BaseConcurrencySuite, Observer }
+import scala.concurrent.{ Future, Promise }
 import scala.util.Random
 
 object OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
@@ -76,10 +76,10 @@ object OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Fail(100000))
 
     def loop(n: Int): Unit =
-      if (n > 0) s.execute(new Runnable {
-        def run() = { buffer.onNext(n); loop(n - 1) }
-      })
-      else buffer.onComplete()
+      if (n > 0)
+        s.execute(() => { buffer.onNext(n); loop(n - 1) })
+      else
+        buffer.onComplete()
 
     loop(10000)
     assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")

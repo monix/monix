@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,8 +17,8 @@
 
 package monix.catnap
 
-import cats.effect.concurrent.{Ref, MVar2 => CatsMVar}
-import cats.effect.{Async, Concurrent, ContextShift}
+import cats.effect.concurrent.{ MVar2 => CatsMVar, Ref }
+import cats.effect.{ Async, Concurrent, ContextShift }
 import monix.catnap.internal.AsyncUtils
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
@@ -200,15 +200,17 @@ object MVar {
     *
     * @see [[of]] and [[empty]]
     */
-  def apply[F[_]](implicit F: Concurrent[F] OrElse Async[F]): ApplyBuilders[F] =
+  def apply[F[_]](implicit F: OrElse[Concurrent[F], Async[F]]): ApplyBuilders[F] =
     new ApplyBuilders[F](F)
 
   /**
     * Builds an [[MVar]] instance with an `initial` value.
     */
   def of[F[_], A](initial: A, ps: PaddingStrategy = NoPadding)(
-    implicit F: Concurrent[F] OrElse Async[F],
-    cs: ContextShift[F]): F[MVar[F, A]] = {
+    implicit
+    F: OrElse[Concurrent[F], Async[F]],
+    cs: ContextShift[F]
+  ): F[MVar[F, A]] = {
 
     F.fold(
       implicit F => F.delay(new MVar(new ConcurrentImpl(Some(initial), ps))),
@@ -220,7 +222,8 @@ object MVar {
     * Builds an empty [[MVar]] instance.
     */
   def empty[F[_], A](
-    ps: PaddingStrategy = NoPadding)(implicit F: Concurrent[F] OrElse Async[F], cs: ContextShift[F]): F[MVar[F, A]] = {
+    ps: PaddingStrategy = NoPadding
+  )(implicit F: OrElse[Concurrent[F], Async[F]], cs: ContextShift[F]): F[MVar[F, A]] = {
 
     F.fold(
       implicit F => F.delay(new MVar(new ConcurrentImpl(None, ps))),
@@ -231,7 +234,7 @@ object MVar {
   /**
     * Returned by the [[apply]] builder.
     */
-  final class ApplyBuilders[F[_]](val F: Concurrent[F] OrElse Async[F]) extends AnyVal {
+  final class ApplyBuilders[F[_]](val F: OrElse[Concurrent[F], Async[F]]) extends AnyVal {
     /**
       * Builds an `MVar` with an initial value.
       *
@@ -305,21 +308,22 @@ object MVar {
         unsafeRead(cb)
       }
 
-    private[this] val bindFork: (Unit => F[Unit]) = {
+    private val bindFork: (Unit => F[Unit]) = {
       val shift = cs.shift
       _ => shift
     }
 
-    private[this] val bindForkA: (Any => F[Any]) = {
+    private val bindForkA: (Any => F[Any]) = {
       val shift = cs.shift
       x => F.map(shift)(_ => x)
     }
   }
 
   private final class AsyncImpl[F[_], A](initial: Option[A], ps: PaddingStrategy)(
-    implicit val F: Async[F],
-    val cs: ContextShift[F])
-    extends GenericVar[A, F[Unit]](initial, ps) with Impl[F, A] {
+    implicit
+    val F: Async[F],
+    val cs: ContextShift[F]
+  ) extends GenericVar[A, F[Unit]](initial, ps) with Impl[F, A] {
 
     protected def create[T](k: (Either[Throwable, T] => Unit) => F[Unit]): F[T] =
       AsyncUtils.cancelable(k)
@@ -330,9 +334,10 @@ object MVar {
   }
 
   private final class ConcurrentImpl[F[_], A](initial: Option[A], ps: PaddingStrategy)(
-    implicit val F: Concurrent[F],
-    val cs: ContextShift[F])
-    extends GenericVar[A, F[Unit]](initial, ps) with Impl[F, A] {
+    implicit
+    val F: Concurrent[F],
+    val cs: ContextShift[F]
+  ) extends GenericVar[A, F[Unit]](initial, ps) with Impl[F, A] {
 
     protected def create[T](k: (Either[Throwable, T] => Unit) => F[Unit]): F[T] =
       F.cancelable(k)
@@ -343,7 +348,7 @@ object MVar {
 
     override def swap(newValue: A): F[A] =
       F.continual(take) {
-        case Left(t)         => F.raiseError(t)
+        case Left(t) => F.raiseError(t)
         case Right(oldValue) => F.as(put(newValue), oldValue)
       }
 
@@ -353,18 +358,18 @@ object MVar {
     override def modify[B](f: A => F[(A, B)]): F[B] =
       F.bracket(Ref[F].of[Option[A]](None)) { signal =>
         F.flatMap(F.continual[A, A](take) {
-          case Left(t)  => F.raiseError(t)
+          case Left(t) => F.raiseError(t)
           case Right(a) => F.as(signal.set(Some(a)), a)
         }) { a =>
           F.continual[(A, B), B](f(a)) {
-            case Left(t)          => F.raiseError(t)
+            case Left(t) => F.raiseError(t)
             case Right((newA, b)) => F.as(signal.set(Some(newA)), b)
           }
         }
       } { signal =>
         F.flatMap(signal.get) {
           case Some(a) => put(a)
-          case None    => F.unit
+          case None => F.unit
         }
       }
 

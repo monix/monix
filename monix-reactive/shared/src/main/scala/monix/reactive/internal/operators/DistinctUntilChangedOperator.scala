@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,8 @@
 package monix.reactive.internal.operators
 
 import cats.Eq
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 
 import scala.util.control.NonFatal
 import monix.reactive.Observable.Operator
@@ -29,9 +30,9 @@ private[reactive] final class DistinctUntilChangedOperator[A](implicit A: Eq[A])
   /** Implementation for `Observable.distinctUntilChanged`. */
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
-      private[this] var isFirst = true
-      private[this] var lastElem: A = _
+      implicit val scheduler: Scheduler = out.scheduler
+      private var isFirst = true
+      private var lastElem: A = null.asInstanceOf[A]
 
       def onNext(elem: A) = {
         // Protects calls to user code from within the operator and

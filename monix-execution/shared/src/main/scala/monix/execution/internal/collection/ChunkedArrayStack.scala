@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,9 +27,9 @@ private[monix] final class ChunkedArrayStack[A] private (initialArray: Array[Any
 
   assert(chunkSize > 1, "chunkSize > 1")
 
-  private[this] val modulo = chunkSize - 1
-  private[this] var array = initialArray
-  private[this] var index = initialIndex
+  private val modulo = chunkSize - 1
+  private var array = initialArray
+  private var index = initialIndex
 
   /** Returns `true` if the stack is empty. */
   def isEmpty: Boolean =
@@ -86,8 +86,8 @@ private[monix] final class ChunkedArrayStack[A] private (initialArray: Array[Any
   /** Builds an iterator out of this stack. */
   def iteratorReversed: Iterator[A] =
     new Iterator[A] {
-      private[this] var array = self.array
-      private[this] var index = self.index
+      private var array = self.array
+      private var index = self.index
 
       def hasNext: Boolean = {
         index > 0 || (array(0) ne null)

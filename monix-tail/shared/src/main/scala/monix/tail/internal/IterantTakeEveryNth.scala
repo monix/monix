@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.tail.internal
 import cats.effect.Sync
 import cats.syntax.all._
 import monix.tail.Iterant
-import monix.tail.Iterant.{Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 import monix.tail.batches.BatchCursor
 import scala.collection.mutable.ArrayBuffer
 
@@ -38,7 +38,7 @@ private[tail] object IterantTakeEveryNth {
   }
 
   private final class Loop[F[_], A](n: Int)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] {
-    private[this] var index = n
+    private var index = n
 
     def visit(ref: Next[F, A]): Iterant[F, A] = {
       if (index == 1) {
@@ -94,7 +94,7 @@ private[tail] object IterantTakeEveryNth {
           buffer += cursor.next()
           idx = n
         } else {
-          cursor.next()
+          val _ = cursor.next()
           idx -= 1
         }
         toProcess -= 1

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,33 +17,36 @@
 
 package monix.reactive.internal.rstreams
 
-import monix.execution.{Ack, Cancelable, Scheduler}
+import scala.annotation.nowarn
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.observers.Subscriber
 import monix.execution.atomic.Atomic
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.reactive.internal.rstreams.ReactiveSubscriberAsMonixSubscriber.RequestsQueue
-import org.reactivestreams.{Subscriber => RSubscriber, Subscription}
+import org.reactivestreams.{ Subscriber => RSubscriber, Subscription }
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 /** Wraps a `org.reactivestreams.Subscriber` instance that respects the
   * [[http://www.reactive-streams.org/ Reactive Streams]] contract
   * into an [[monix.reactive.Observer Observer]] instance that
   * respect the `Observer` contract.
   */
+@nowarn("msg=unused value of type")
 private[reactive] final class ReactiveSubscriberAsMonixSubscriber[A] private (
   subscriber: RSubscriber[A],
-  subscription: Cancelable)(implicit val scheduler: Scheduler)
+  subscription: Cancelable
+)(implicit val scheduler: Scheduler)
   extends Subscriber[A] with Cancelable { self =>
 
   if (subscriber == null) throw null
 
-  private[this] var isComplete = false
-  private[this] val requests = new RequestsQueue
-  private[this] var leftToPush = 0L
-  private[this] var firstEvent = true
-  private[this] var ack: Future[Ack] = Continue
+  private var isComplete = false
+  private val requests = new RequestsQueue
+  private var leftToPush = 0L
+  private var firstEvent = true
+  private var ack: Future[Ack] = Continue
 
   def cancel(): Unit = {
     requests.cancel()
@@ -113,14 +116,15 @@ private[reactive] object ReactiveSubscriberAsMonixSubscriber {
     * instance compliant with the Monix Rx implementation.
     */
   def apply[A](subscriber: RSubscriber[A], subscription: Cancelable)(
-    implicit s: Scheduler): ReactiveSubscriberAsMonixSubscriber[A] =
+    implicit s: Scheduler
+  ): ReactiveSubscriberAsMonixSubscriber[A] =
     new ReactiveSubscriberAsMonixSubscriber[A](subscriber, subscription)
 
   /** An asynchronous queue implementation for dealing with
     * requests from a Subscriber.
     */
   private final class RequestsQueue {
-    private[this] val state = Atomic(ActiveState(Queue.empty, Queue.empty): State)
+    private val state = Atomic(ActiveState(Queue.empty, Queue.empty): State)
 
     @tailrec
     def await(): Future[Long] = {
@@ -154,7 +158,8 @@ private[reactive] object ReactiveSubscriberAsMonixSubscriber {
       require(
         n > 0,
         "n must be strictly positive, according to " +
-          "the Reactive Streams contract, rule 3.9")
+          "the Reactive Streams contract, rule 3.9"
+      )
 
       state.get() match {
         case CancelledState =>

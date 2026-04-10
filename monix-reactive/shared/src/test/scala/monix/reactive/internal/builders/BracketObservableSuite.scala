@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +22,9 @@ import cats.effect.ExitCase
 import cats.effect.concurrent.Deferred
 import monix.eval.Task
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.reactive.observers.Subscriber
-import monix.reactive.{BaseTestSuite, Observable}
+import monix.reactive.{ BaseTestSuite, Observable }
 
 import scala.concurrent.duration._
 import scala.util.Success
@@ -86,7 +87,7 @@ object BracketObservableSuite extends BaseTestSuite {
     val cancelable = obs
       .flatMap(_ => Observable.never)
       .unsafeSubscribeFn(new Subscriber[Handle] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
         def onNext(elem: Handle) =
           Continue
         def onComplete() =

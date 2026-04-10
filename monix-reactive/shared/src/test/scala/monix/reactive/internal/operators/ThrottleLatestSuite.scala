@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
 import monix.reactive.subjects.PublishSubject
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 import monix.execution.FutureUtils.extensions._
 
 import scala.collection.mutable.ArrayBuffer
@@ -27,8 +27,8 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 object ThrottleLatestSuite extends BaseOperatorSuite {
-  def count(sourceCount: Int):Int = {
-    sourceCount/2
+  def count(sourceCount: Int): Int = {
+    sourceCount / 2
   }
 
   def sum(sourceCount: Int): Int = {
@@ -37,7 +37,7 @@ object ThrottleLatestSuite extends BaseOperatorSuite {
 
   def createObservable(sourceCount: Int) = Some {
     val elemsToTake = sourceCount.toLong - 1
-    val o:Observable[Long] = {
+    val o: Observable[Long] = {
       Observable(1L).delayOnComplete(100.millisecond) ++
         Observable.intervalAtFixedRate(500.millisecond).take(elemsToTake)
     }
@@ -57,13 +57,15 @@ object ThrottleLatestSuite extends BaseOperatorSuite {
   }
 
   test("should emit last element onComplete if emitLast is set to true") { implicit s =>
-    val source: Observable[Long] = Observable.intervalAtFixedRate(110.millisecond).take(30).throttleLatest(1.second, true)
+    val source: Observable[Long] =
+      Observable.intervalAtFixedRate(110.millisecond).take(30).throttleLatest(1.second, true)
     var wasCompleted = false
     val elements = ArrayBuffer[Long]()
     source.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = {
         elements.append(elem)
-        Continue }
+        Continue
+      }
       def onError(ex: Throwable) = ()
       def onComplete() = { wasCompleted = true }
     })
@@ -74,13 +76,15 @@ object ThrottleLatestSuite extends BaseOperatorSuite {
   }
 
   test("should not emit last element onComplete if emitLast is set to false") { implicit s =>
-    val source: Observable[Long] = Observable.intervalAtFixedRate(110.millisecond).take(30).throttleLatest(1.second, false)
+    val source: Observable[Long] =
+      Observable.intervalAtFixedRate(110.millisecond).take(30).throttleLatest(1.second, false)
     var wasCompleted = false
     val elements = ArrayBuffer[Long]()
     source.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long) = {
         elements.append(elem)
-        Continue }
+        Continue
+      }
       def onError(ex: Throwable) = ()
       def onComplete() = { wasCompleted = true }
     })

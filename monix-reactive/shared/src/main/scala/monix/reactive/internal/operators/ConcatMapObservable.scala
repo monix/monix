@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,20 +17,22 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import cats.effect.ExitCase
 import monix.eval.Task
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 
 import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.execution.exceptions.CompositeException
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.util.Failure
 
 /** Implementation for `Observable.concatMap`.
@@ -64,12 +66,13 @@ import scala.util.Failure
   *    however it's OK-ish, since these CAS operations are not going
   *    to be contended
   */
+@nowarn("msg=unused value of type")
 private[reactive] final class ConcatMapObservable[A, B](
   source: Observable[A],
   f: A => Observable[B],
   release: (A, ExitCase[Throwable]) => Task[Unit],
-  delayErrors: Boolean)
-  extends Observable[B] {
+  delayErrors: Boolean
+) extends Observable[B] {
 
   def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
     val subscriber = new ConcatMapSubscriber(out)
@@ -86,21 +89,21 @@ private[reactive] final class ConcatMapObservable[A, B](
     import ConcatMapObservable.FlatMapState
     import ConcatMapObservable.FlatMapState._
 
-    implicit val scheduler = out.scheduler
+    implicit val scheduler: Scheduler = out.scheduler
 
     // For gathering errors
-    private[this] val errors =
+    private val errors =
       if (delayErrors) Atomic(List.empty[Throwable])
       else null
 
     // Boolean for keeping the `isActive` state, needed because we could miss
     // out on seeing a `Cancelled` state due to the `lazySet` instructions,
     // making the visibility of the `Cancelled` state thread-unsafe!
-    private[this] val isActive = Atomic(true)
+    private val isActive = Atomic(true)
 
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
-    private[this] val stateRef =
+    private val stateRef =
       Atomic.withPadding(WaitOnNextChild(Continue): FlatMapState, LeftRight128)
 
     /** For canceling the current active task, in case there is any. Here
@@ -333,17 +336,18 @@ private[reactive] final class ConcatMapObservable[A, B](
           s"State $state in the Monix ConcatMap.$method implementation is invalid, " +
             "due to either a broken Subscriber implementation, or a bug, " +
             "please open an issue, see: https://monix.io"
-        ))
+        )
+      )
       // $COVERAGE-ON$
     }
 
     private final class ChildSubscriber(out: Subscriber[B], asyncUpstreamAck: Promise[Ack]) extends Subscriber[B] {
 
-      implicit val scheduler = out.scheduler
-      private[this] var ack: Future[Ack] = Continue
+      implicit val scheduler: Scheduler = out.scheduler
+      private var ack: Future[Ack] = Continue
 
       // Reusable reference to stop creating function references for each `onNext`
-      private[this] val onStopOrFailureRef = (err: Option[Throwable]) => {
+      private val onStopOrFailureRef = (err: Option[Throwable]) => {
         if (err.isDefined) out.scheduler.reportFailure(err.get)
         signalChildOnComplete(Stop, isStop = true)
       }

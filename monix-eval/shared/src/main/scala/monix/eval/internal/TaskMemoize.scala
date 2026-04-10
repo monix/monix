@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,21 +17,21 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Context, Error, Now}
+import monix.eval.Task.{ Context, Error, Now }
 import monix.eval.internal.TaskRunLoop.startFull
 import monix.execution.Callback
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.internal.exceptions.matchError
 import scala.annotation.tailrec
-import scala.concurrent.{ExecutionContext, Promise}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ ExecutionContext, Promise }
+import scala.util.{ Failure, Success, Try }
 
 private[eval] object TaskMemoize {
   /**
-    * Implementation for `.memoize` and `.memoizeOnSuccess`.
-    */
+* Implementation for `.memoize` and `.memoizeOnSuccess`.
+*/
   def apply[A](source: Task[A], cacheErrors: Boolean): Task[A] =
     source match {
       case Now(_) | Error(_) =>
@@ -45,7 +45,8 @@ private[eval] object TaskMemoize {
           new Register(source, cacheErrors),
           trampolineBefore = false,
           trampolineAfter = true,
-          restoreLocals = true)
+          restoreLocals = true
+        )
     }
 
   /** Registration function, used in `Task.Async`. */
@@ -53,8 +54,8 @@ private[eval] object TaskMemoize {
     extends ((Task.Context, Callback[Throwable, A]) => Unit) { self =>
 
     // N.B. keeps state!
-    private[this] var thunk = source
-    private[this] val state = Atomic(null: AnyRef)
+    private var thunk = source
+    private val state = Atomic(null: AnyRef)
 
     def apply(ctx: Context, cb: Callback[Throwable, A]): Unit =
       state.get() match {
@@ -65,8 +66,8 @@ private[eval] object TaskMemoize {
       }
 
     /** Saves the final result on completion and triggers the registered
-      * listeners.
-      */
+* listeners.
+*/
     @tailrec def cacheValue(value: Try[A])(implicit s: Scheduler): Unit = {
       // Should we cache everything, error results as well,
       // or only successful results?
@@ -91,7 +92,7 @@ private[eval] object TaskMemoize {
             // Resetting the state to `null` will trigger the
             // execution again on next `runAsync`
             if (state.compareAndSet(p, null)) {
-              p.tryComplete(value)
+              val _ = p.tryComplete(value)
               ()
             } else {
               // Race condition, retry
@@ -117,10 +118,11 @@ private[eval] object TaskMemoize {
       }
 
     /** While the task is pending completion, registers a new listener
-      * that will receive the result once the task is complete.
-      */
+* that will receive the result once the task is complete.
+*/
     private def registerListener(p: Promise[A], context: Context, cb: Callback[Throwable, A])(
-      implicit ec: ExecutionContext): Unit = {
+      implicit ec: ExecutionContext
+    ): Unit = {
 
       p.future.onComplete { r =>
         // Listener is cancelable: we simply ensure that the result isn't streamed
@@ -132,8 +134,8 @@ private[eval] object TaskMemoize {
     }
 
     /**
-      * Starts execution, eventually caching the value on completion.
-      */
+* Starts execution, eventually caching the value on completion.
+*/
     @tailrec private def start(context: Context, cb: Callback[Throwable, A]): Unit = {
       implicit val sc: Scheduler = context.scheduler
       self.state.get() match {
@@ -164,12 +166,12 @@ private[eval] object TaskMemoize {
           // Race condition happened
           // $COVERAGE-OFF$
           cb(ref)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
 
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
-          // $COVERAGE-ON$
+        // $COVERAGE-ON$
       }
     }
   }

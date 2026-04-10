@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@ import scala.collection.mutable
 
 private[internal] final class QueueDrain[A](buffer: mutable.Buffer[A]) extends Consumer[A] {
 
-  private[this] var _count = 0
+  private var _count = 0
   def count: Int = _count
 
   def accept(e: A): Unit = {

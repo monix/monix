@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -68,14 +68,15 @@ object WhileBusyAggregateEventsOperatorSuite extends BaseOperatorSuite {
     require(sourceCount > 0, "sourceCount should be strictly positive")
 
     val o = Observable
-        .range(0, sourceCount.toLong)
-        .whileBusyAggregateEvents{ elem =>
-          if (sourceCount == 1) throw ex else elem
-        }{ case (acc, elem) =>
+      .range(0, sourceCount.toLong)
+      .whileBusyAggregateEvents { elem =>
+        if (sourceCount == 1) throw ex else elem
+      } {
+        case (acc, elem) =>
           if (elem == sourceCount - 1) throw ex
           else elem + acc
-        }
-        .throttle(waitNext, 1)
+      }
+      .throttle(waitNext, 1)
 
     Sample(o, 0, 0, waitNext, waitNext)
   }
@@ -119,7 +120,7 @@ object WhileBusyAggregateEventsOperatorSuite extends BaseOperatorSuite {
     s.tick(10.seconds) // 21,24,27 seconds - elements 6,7,8
     s.tick(10.seconds)
 
-    assertEquals(result.value, Some(Success(List(Chain(0), Chain(1, 2), Chain(3, 4 , 5), Chain(6, 7, 8)))))
+    assertEquals(result.value, Some(Success(List(Chain(0), Chain(1, 2), Chain(3, 4, 5), Chain(6, 7, 8)))))
   }
 
   test("performs conflation when upstream is unbounded and downstream is slow") { implicit s =>

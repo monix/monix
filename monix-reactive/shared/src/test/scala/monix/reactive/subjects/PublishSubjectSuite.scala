@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.reactive.subjects
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
-import monix.reactive.{Observable, Observer, OverflowStrategy}
+import monix.reactive.{ Observable, Observer, OverflowStrategy }
 
 import scala.concurrent.Future
 import scala.util.Success
@@ -94,7 +94,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
     var received = 0
     var wasCompleted = 0
 
-    for (i <- 0 until 10)
+    for (_ <- 0 until 10)
       subject.unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int): Future[Ack] = {
           received += elem
@@ -119,7 +119,7 @@ object PublishSubjectSuite extends BaseSubjectSuite {
     var received = 0
     var wasCompleted = 0
 
-    for (i <- 0 until 10)
+    for (_ <- 0 until 10)
       subject.unsafeSubscribeFn(new Observer[Int] {
         def onNext(elem: Int) = Future {
           received += elem

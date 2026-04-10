@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,10 +21,10 @@ import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.atomic.Atomic
 import monix.execution.internal.Platform
-import monix.execution.UncaughtExceptionReporter.{default => Logger}
+import monix.execution.UncaughtExceptionReporter.{ default => Logger }
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
+import monix.tail.batches.{ Batch, BatchCursor }
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
@@ -46,8 +46,8 @@ private[tail] object IterantAttempt {
 
     type Attempt = Either[Throwable, A]
 
-    private[this] var wasErrorHandled = false
-    private[this] val handleError = (e: Throwable) => {
+    private var wasErrorHandled = false
+    private val handleError = (e: Throwable) => {
       self.wasErrorHandled = true
       Left(e): Attempt
     }
@@ -75,12 +75,15 @@ private[tail] object IterantAttempt {
       Suspend(continueWith(ref.rest))
 
     def visit(ref: Concat[F, A]): Iterant[F, Either[Throwable, A]] =
-      Concat(ref.lh.map(this), F.defer {
-        if (self.wasErrorHandled)
-          F.pure(Iterant.empty[F, Attempt])
-        else
-          ref.rh.map(this)
-      })
+      Concat(
+        ref.lh.map(this),
+        F.defer {
+          if (self.wasErrorHandled)
+            F.pure(Iterant.empty[F, Attempt])
+          else
+            ref.rh.map(this)
+        }
+      )
 
     def visit[S](ref: Scope[F, S, A]): Iterant[F, Attempt] = {
       val Scope(acquire, use, release) = ref
@@ -114,8 +117,9 @@ private[tail] object IterantAttempt {
                 case Left(_) => F.unit
                 case Right(s) =>
                   try F.handleError(release(s, exit)) { e =>
-                    pushError(errors, e)
-                  } catch {
+                      pushError(errors, e)
+                    }
+                  catch {
                     case NonFatal(e) =>
                       F.delay(pushError(errors, e))
                   }
@@ -154,7 +158,7 @@ private[tail] object IterantAttempt {
     def fail(e: Throwable): Iterant[F, Either[Throwable, A]] =
       Iterant.raiseError(e)
 
-    private[this] val continueMapRef: Either[Throwable, Iterant[F, A]] => Iterant[F, Attempt] = {
+    private val continueMapRef: Either[Throwable, Iterant[F, A]] => Iterant[F, Attempt] = {
       case Left(e) =>
         Iterant.now(handleError(e))
       case Right(iter) =>
@@ -167,7 +171,8 @@ private[tail] object IterantAttempt {
     private def handleCursor(
       node: NextCursor[F, A],
       cursor: BatchCursor[A],
-      rest: F[Iterant[F, A]]): Iterant[F, Attempt] = {
+      rest: F[Iterant[F, A]]
+    ): Iterant[F, Attempt] = {
 
       try {
         val array = extractFromCursor(cursor)

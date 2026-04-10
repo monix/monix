@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,29 +24,21 @@ object TrampolineExecutionContextSuite extends SimpleTestSuite {
     val ctx = TrampolineExecutionContext.immediate
     var effect = 0
 
-    ctx.execute(new Runnable {
-      def run(): Unit = {
-        effect += 1
+    ctx.execute(() => {
+      effect += 1
 
-        ctx.execute(new Runnable {
-          def run(): Unit = {
-            effect += 1
-          }
-        })
-      }
+      ctx.execute(() => {
+        effect += 1
+      })
     })
 
     assertEquals(effect, 2)
 
-    intercept[NullPointerException] {
-      ctx.execute(new Runnable {
-        def run(): Unit = {
-          ctx.execute(new Runnable {
-            def run(): Unit = effect += 1
-          })
+    val _ = intercept[NullPointerException] {
+      ctx.execute(() => {
+        ctx.execute(() => effect += 1)
 
-          throw null
-        }
+        throw null
       })
     }
 

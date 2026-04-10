@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.reactive.internal.util
 
 import monix.execution.atomic.Atomic
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 /**
   * Represents a Promise that completes with `value` after
@@ -27,8 +27,8 @@ import scala.concurrent.{Future, Promise}
 private[monix] final class PromiseCounter[A] private (value: A, initial: Int) {
   require(initial > 0, "length must be strictly positive")
 
-  private[this] val promise = Promise[A]()
-  private[this] val counter = Atomic(initial)
+  private val promise = Promise[A]()
+  private val counter = Atomic(initial)
 
   def future: Future[A] =
     promise.future

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,40 +17,47 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.execution.cancelables.AssignableCancelable
 import monix.reactive.Observable
 import monix.reactive.observables.ChainedObservable
 import monix.reactive.observers.Subscriber
 import scala.collection.mutable
 
+@nowarn("msg=unused value of type")
 private[reactive] final class TakeLastObservable[A](source: Observable[A], n: Int)
   extends ChainedObservable[A] {
 
   override def unsafeSubscribeFn(conn: AssignableCancelable.Multi, out: Subscriber[A]): Unit = {
-    ChainedObservable.subscribe(source, conn, new Subscriber[A] {
-      implicit val scheduler = out.scheduler
-      private[this] val queue = mutable.Queue.empty[A]
-      private[this] var queued = 0
+    ChainedObservable.subscribe(
+      source,
+      conn,
+      new Subscriber[A] {
+        implicit val scheduler: Scheduler = out.scheduler
+        private val queue = mutable.Queue.empty[A]
+        private var queued = 0
 
-      def onNext(elem: A): Ack = {
-        queue.enqueue(elem)
-        if (queued < n)
-          queued += 1
-        else
-          queue.dequeue()
-        Continue
-      }
+        def onNext(elem: A): Ack = {
+          queue.enqueue(elem)
+          if (queued < n)
+            queued += 1
+          else
+            queue.dequeue()
+          Continue
+        }
 
-      def onComplete(): Unit = {
-        val other = Observable.fromIteratorUnsafe(queue.iterator)
-        ChainedObservable.subscribe(other, conn, out)
-      }
+        def onComplete(): Unit = {
+          val other = Observable.fromIteratorUnsafe(queue.iterator)
+          ChainedObservable.subscribe(other, conn, out)
+        }
 
-      def onError(ex: Throwable): Unit = {
-        out.onError(ex)
+        def onError(ex: Throwable): Unit = {
+          out.onError(ex)
+        }
       }
-    })
+    )
   }
 }

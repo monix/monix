@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,22 +18,21 @@
 package monix.eval.internal
 
 import monix.eval.Task
-import monix.eval.internal.TracingPlatform.{isCachedStackTracing, isFullStackTracing}
+import monix.eval.internal.TracingPlatform.{ isCachedStackTracing, isFullStackTracing }
 import monix.execution.Callback
 
 /**
   * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
   */
-private[eval] object TracedAsync {
-
-  // Convenience function for internal Async calls that intend
-  // to opt into tracing so the following code isn't repeated.
+private[eval] object TracedAsync { // Convenience function for internal Async calls that intend
+// to opt into tracing so the following code isn't repeated.
   def apply[A](
     k: (Task.Context, Callback[Throwable, A]) => Unit,
     trampolineBefore: Boolean = false,
     trampolineAfter: Boolean = false,
     restoreLocals: Boolean = true,
-    traceKey: AnyRef): Task[A] = {
+    traceKey: AnyRef
+  ): Task[A] = {
 
     val trace = if (isCachedStackTracing) {
       TaskTracing.cached(traceKey.getClass)
@@ -45,5 +44,4 @@ private[eval] object TracedAsync {
 
     Task.Async(k, trampolineBefore, trampolineAfter, restoreLocals, trace)
   }
-
 }

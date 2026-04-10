@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.eval
 package instances
 
-import cats.effect.{Fiber => _, _}
+import cats.effect.{ Fiber => _, _ }
 import monix.eval.internal.TaskEffect
 import monix.execution.Scheduler
 
@@ -44,7 +44,7 @@ class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options) extends CatsB
     * inherit directly from it, the implicits priorities don't
     * work, triggering conflicts.
     */
-  private[this] val F = CatsConcurrentForTask
+  private val F = CatsConcurrentForTask
 
   override def runAsync[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
     TaskEffect.runAsync(fa)(cb)
@@ -59,7 +59,8 @@ class CatsEffectForTask(implicit s: Scheduler, opts: Task.Options) extends CatsB
   override def bracket[A, B](acquire: Task[A])(use: A => Task[B])(release: A => Task[Unit]): Task[B] =
     F.bracket(acquire)(use)(release)
   override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(
-    release: (A, ExitCase[Throwable]) => Task[Unit]): Task[B] =
+    release: (A, ExitCase[Throwable]) => Task[Unit]
+  ): Task[B] =
     F.bracketCase(acquire)(use)(release)
 }
 
@@ -85,7 +86,7 @@ class CatsConcurrentEffectForTask(implicit s: Scheduler, opts: Task.Options)
     * inherit directly from it, the implicits priorities don't
     * work, triggering conflicts.
     */
-  private[this] val F = CatsConcurrentForTask
+  private val F = CatsConcurrentForTask
 
   override def runCancelable[A](fa: Task[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[Task]] =
     TaskEffect.runCancelable(fa)(cb)

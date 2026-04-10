@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,17 +17,17 @@
 
 package monix.reactive.observers
 
-import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.{ CountDownLatch, TimeUnit }
 
 import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.SchedulerService
-import monix.execution.{Ack, Scheduler}
+import monix.execution.{ Ack, Scheduler }
 import monix.reactive.OverflowStrategy.Unbounded
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 
 import scala.concurrent.duration._
-import scala.concurrent.{blocking, Await, Future, Promise}
+import scala.concurrent.{ blocking, Await, Future, Promise }
 import scala.util.Random
 
 object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerService] {
@@ -110,10 +110,10 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     val buffer = BufferedSubscriber[Int](Subscriber(underlying, s), Unbounded)
 
     def loop(n: Int): Unit =
-      if (n > 0) s.execute(new Runnable {
-        def run() = { buffer.onNext(n); loop(n - 1) }
-      })
-      else buffer.onComplete()
+      if (n > 0)
+        s.execute(() => { buffer.onNext(n); loop(n - 1) })
+      else
+        buffer.onComplete()
 
     loop(10000)
     blocking {

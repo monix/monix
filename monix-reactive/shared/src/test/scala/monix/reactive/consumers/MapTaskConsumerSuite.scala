@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Task
 import monix.execution.exceptions.DummyException
-import monix.reactive.{BaseTestSuite, Consumer, Observable}
+import monix.reactive.{ BaseTestSuite, Consumer, Observable }
 import scala.util.Failure
 
 object MapTaskConsumerSuite extends BaseTestSuite {
@@ -106,7 +106,9 @@ object MapTaskConsumerSuite extends BaseTestSuite {
               .never[Int]
               .doOnCancel(Task {
                 taskCancelled = true
-              })))
+              })
+          )
+      )
       .runToFuture
 
     s.tick()

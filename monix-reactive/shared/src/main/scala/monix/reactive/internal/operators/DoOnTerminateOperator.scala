@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,10 +17,12 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
 import monix.reactive.internal.util.Instances._
@@ -29,17 +31,18 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.util.Success
 
+@nowarn("msg=unused value of type")
 private[reactive] final class DoOnTerminateOperator[A](
   onTerminate: Option[Throwable] => Task[Unit],
-  happensBefore: Boolean)
-  extends Operator[A, A] {
+  happensBefore: Boolean
+) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] =
     new Subscriber[A] {
       // Wrapping in a cancelable in order to protect it from
       // being called multiple times
-      private[this] val active = Atomic(true)
-      implicit val scheduler = out.scheduler
+      private val active = Atomic(true)
+      implicit val scheduler: Scheduler = out.scheduler
 
       def onNext(elem: A): Future[Ack] = {
         val result =
@@ -81,18 +84,19 @@ private[reactive] final class DoOnTerminateOperator[A](
         if (active.getAndSet(false)) {
           var streamErrors = true
           try if (happensBefore) {
-            val task = onTerminate(ex).onErrorHandle { ex =>
-              scheduler.reportFailure(ex)
-            }
-            streamErrors = false
-            task.map { _ =>
+              val task = onTerminate(ex).onErrorHandle { ex =>
+                scheduler.reportFailure(ex)
+              }
+              streamErrors = false
+              task.map { _ =>
+                triggerSignal()
+              }
+            } else {
+              streamErrors = false
               triggerSignal()
+              onTerminate(ex)
             }
-          } else {
-            streamErrors = false
-            triggerSignal()
-            onTerminate(ex)
-          } catch {
+          catch {
             case err if NonFatal(err) =>
               if (streamErrors) {
                 out.onError(err)

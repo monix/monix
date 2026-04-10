@@ -17,12 +17,12 @@
 
 package monix
 
-import cats.effect.{ContextShift, IO}
+import cats.effect.{ ContextShift, IO }
 import monix.execution.ExecutionModel.SynchronousExecution
 import monix.execution.Scheduler
 import monix.execution.Scheduler.Implicits.global
 import zio.BootstrapRuntime
-import zio.internal.{Platform, Tracing}
+import zio.internal.{ Platform, Tracing }
 
 import scala.concurrent.ExecutionContext
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,8 +23,8 @@ import monix.execution.atomic.Atomic
 
 private[eval] object TaskRace {
   /**
-    * Implementation for `Task.race`.
-    */
+* Implementation for `Task.race`.
+*/
   def apply[A, B](fa: Task[A], fb: Task[B]): Task[Either[A, B]] =
     Task.Async(
       new Register(fa, fb),
@@ -32,11 +32,11 @@ private[eval] object TaskRace {
       trampolineAfter = true
     )
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is a task that forks on evaluation.
-  //
-  // N.B. the contract is that the injected callback gets called after
-  // a full async boundary!
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is a task that forks on evaluation.
+//
+// N.B. the contract is that the injected callback gets called after
+// a full async boundary!
   private final class Register[A, B](fa: Task[A], fb: Task[B]) extends ForkedRegister[Either[A, B]] {
 
     def apply(context: Task.Context, cb: Callback[Throwable, Either[A, B]]): Unit = {
@@ -59,7 +59,7 @@ private[eval] object TaskRace {
           def onSuccess(valueA: A): Unit =
             if (isActive.getAndSet(false)) {
               connB.cancel.map { _ =>
-                conn.pop()
+                val _ = conn.pop()
                 cb.onSuccess(Left(valueA))
               }.runAsyncAndForget
             }
@@ -67,7 +67,7 @@ private[eval] object TaskRace {
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
               connB.cancel.map { _ =>
-                conn.pop()
+                val _ = conn.pop()
                 cb.onError(ex)
               }.runAsyncAndForget
             } else {
@@ -84,7 +84,7 @@ private[eval] object TaskRace {
           def onSuccess(valueB: B): Unit =
             if (isActive.getAndSet(false)) {
               connA.cancel.map { _ =>
-                conn.pop()
+                val _ = conn.pop()
                 cb.onSuccess(Right(valueB))
               }.runAsyncAndForget
             }
@@ -92,7 +92,7 @@ private[eval] object TaskRace {
           def onError(ex: Throwable): Unit =
             if (isActive.getAndSet(false)) {
               connA.cancel.map { _ =>
-                conn.pop()
+                val _ = conn.pop()
                 cb.onError(ex)
               }.runAsyncAndForget
             } else {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,11 +16,13 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import minitest.TestSuite
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 
+@nowarn
 object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
   def setup(): TestScheduler = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {

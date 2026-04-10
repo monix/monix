@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +18,9 @@
 package monix.reactive.internal.rstreams
 
 import minitest.TestSuite
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 
 import scala.concurrent.Future
 
@@ -236,7 +236,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     var sum = 0L
 
     val observer = new Observer[Long] {
-      private[this] var received = 0
+      private var received = 0
 
       def onNext(elem: Long) = Future {
         received += 1
@@ -273,12 +273,12 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
   }
 
   test("should cancel precisely with requests of size 1") { implicit s =>
-    for (i <- 0 until 100) {
+    for (_ <- 0 until 100) {
       var completed = 0
       var sum = 0L
 
       val observer = new Observer[Long] {
-        private[this] var received = 0
+        private var received = 0
 
         def onNext(elem: Long) = Future {
           received += 1
@@ -320,7 +320,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     var sum = 0L
 
     val observer = new Observer[Long] {
-      private[this] var received = 0
+      private var received = 0
 
       def onNext(elem: Long) = Future {
         received += 1
@@ -353,7 +353,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     var sum = 0L
 
     val observer = new Observer[Long] {
-      private[this] var received = 0
+      private var received = 0
 
       def onNext(elem: Long) = Future {
         received += 1

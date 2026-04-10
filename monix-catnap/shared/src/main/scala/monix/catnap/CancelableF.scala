@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +18,7 @@
 package monix.catnap
 
 import cats.Applicative
-import cats.effect.{CancelToken, Sync}
-import cats.syntax.either._
+import cats.effect.{ CancelToken, Sync }
 import monix.catnap.cancelables.BooleanCancelableF
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.exceptions.CompositeException
@@ -42,10 +41,6 @@ trait CancelableF[F[_]] {
 }
 
 object CancelableF {
-
-  // ensure import cats.syntax.either._ is used
-  private val dummy = ().asRight
-
   /**
     * Given a token that does not guarantee idempotency, wraps it
     * in a [[CancelableF]] value that guarantees the given token
@@ -90,7 +85,11 @@ object CancelableF {
     * cancelling everything when `cancel` gets evaluated.
     */
   def collection[F[_]](refs: CancelableF[F]*)(implicit F: Sync[F]): CancelableF[F] =
-    wrap[F](cancelAll(refs: _*))
+    wrap[F](cancelAllSeq(refs))
+
+  private def cancelAllSeq[F[_]](seq: Seq[CancelableF[F]])(implicit F: Sync[F]): CancelToken[F] =
+    if (seq.isEmpty) F.unit
+    else F.defer(new CancelAllFrame[F](seq.iterator.map(_.cancel))(F).loop)
 
   /** Given a collection of cancelables, creates a token that
     * on evaluation will cancel them all.
@@ -138,7 +137,7 @@ object CancelableF {
   private final class CancelAllFrame[F[_]](cursor: Iterator[CancelToken[F]])(implicit F: Sync[F])
     extends (Either[Throwable, Unit] => F[Unit]) {
 
-    private[this] val errors = ListBuffer.empty[Throwable]
+    private val errors = ListBuffer.empty[Throwable]
 
     def loop: CancelToken[F] = {
       if (cursor.hasNext) {

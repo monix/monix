@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.reactive.internal.consumers
 
 import monix.execution.Callback
 import monix.execution.Ack.Stop
-import monix.execution.{Ack, Scheduler}
+import monix.execution.{ Ack, Scheduler }
 import monix.execution.cancelables.AssignableCancelable
 import scala.util.control.NonFatal
 import monix.reactive.Consumer
@@ -35,9 +35,9 @@ private[reactive] final class ContraMapConsumer[In2, -In, +R](source: Consumer[I
     val (out, c) = source.createSubscriber(cb, s)
 
     val out2 = new Subscriber[In2] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
       // For protecting the contract
-      private[this] var isDone = false
+      private var isDone = false
 
       def onError(ex: Throwable): Unit =
         if (!isDone) {

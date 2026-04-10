@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +18,8 @@
 package monix.reactive.internal.consumers
 
 import monix.execution.Callback
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.{Ack, Scheduler}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.{ Ack, Scheduler }
 import monix.execution.cancelables.AssignableCancelable
 import scala.util.control.NonFatal
 import monix.reactive.Consumer
@@ -30,9 +30,9 @@ private[reactive] final class FoldLeftConsumer[A, R](initial: () => R, f: (R, A)
 
   def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
     val out = new Subscriber.Sync[A] {
-      implicit val scheduler = s
-      private[this] var isDone = false
-      private[this] var state = initial()
+      implicit val scheduler: Scheduler = s
+      private var isDone = false
+      private var state = initial()
 
       def onNext(elem: A): Ack = {
         // Protects calls to user code from within the operator,

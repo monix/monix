@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,22 +17,23 @@
 
 package monix.reactive.internal.builders
 
-import java.io.{ByteArrayInputStream, InputStream}
+import java.io.{ ByteArrayInputStream, InputStream }
 
 import minitest.SimpleTestSuite
 import minitest.laws.Checkers
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
-import monix.execution.exceptions.{APIContractViolationException, DummyException}
+import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, BatchedExecution, SynchronousExecution }
+import monix.execution.Scheduler
+import monix.execution.exceptions.{ APIContractViolationException, DummyException }
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import org.scalacheck.{Gen, Prop}
+import org.scalacheck.{ Gen, Prop }
 
 import scala.collection.mutable.ListBuffer
-import scala.util.{Failure, Random, Success}
+import scala.util.{ Failure, Random, Success }
 
 object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
   test("fromInputStreamUnsafe yields a single subscriber observable") {
@@ -43,7 +44,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
     s.tick()
 
     obs.unsafeSubscribeFn(new Subscriber[Array[Byte]] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
 
       def onNext(elem: Array[Byte]): Ack =
         throw new IllegalStateException("onNext")
@@ -122,7 +123,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
       .foldLeft(Array.empty[Byte])(_ ++ _)
 
     obs.unsafeSubscribeFn(new Subscriber[Array[Byte]] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
 
       def onError(ex: Throwable): Unit =
         throw new IllegalStateException("onError")
@@ -248,7 +249,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
     implicit val s = TestScheduler()
 
     val gen = for {
-      byteSize <- Gen.choose(1, 4096)
+      byteSize  <- Gen.choose(1, 4096)
       chunkSize <- Gen.choose(Math.floorDiv(byteSize, 2).max(1), byteSize * 2)
     } yield {
       (byteSize, chunkSize)
@@ -290,7 +291,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
 
   def inputWithError(ex: Throwable, whenToThrow: Int, onFinish: () => Unit): InputStream =
     new InputStream {
-      private[this] var callIdx = 0
+      private var callIdx = 0
 
       def read(): Int = {
         callIdx += 1

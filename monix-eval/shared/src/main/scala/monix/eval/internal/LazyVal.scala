@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.eval.Coeval
-import monix.eval.Coeval.{Error, Now}
+import monix.eval.Coeval.{ Error, Now }
 import scala.util.control.NonFatal
 
 /** `LazyVal` boxes a function and memoizes its result on its first invocation,
@@ -37,8 +37,8 @@ import scala.util.control.NonFatal
   */
 private[eval] final class LazyVal[A] private (f: () => A, val cacheErrors: Boolean) extends (() => Coeval.Eager[A]) {
 
-  private[this] var thunk = f
-  private[this] var cache: Coeval.Eager[A] = _
+  private var thunk = f
+  private var cache: Coeval.Eager[A] = null.asInstanceOf[Coeval.Eager[A]]
 
   override def apply(): Coeval.Eager[A] =
     cache match {

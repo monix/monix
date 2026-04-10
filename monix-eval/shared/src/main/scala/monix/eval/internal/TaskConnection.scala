@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,8 +20,8 @@ package internal
 
 import cats.effect.CancelToken
 import monix.catnap.CancelableF
-import monix.execution.atomic.{Atomic, PaddingStrategy}
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.atomic.{ Atomic, PaddingStrategy }
+import monix.execution.{ Cancelable, Scheduler }
 
 import scala.annotation.tailrec
 import scala.concurrent.Promise
@@ -123,9 +123,9 @@ private[eval] object TaskConnection {
     new Impl
 
   /**
-    * Reusable [[TaskConnection]] reference that cannot
-    * be canceled.
-    */
+* Reusable [[TaskConnection]] reference that cannot
+* be canceled.
+*/
   val uncancelable: TaskConnection =
     new Uncancelable
 
@@ -143,11 +143,10 @@ private[eval] object TaskConnection {
   }
 
   private final class Impl extends TaskConnection { self =>
-    private[this] val state =
-      Atomic.withPadding(
-        (List.empty[AnyRef], Promise[Unit]()),
-        PaddingStrategy.LeftRight128
-      )
+    private val state = Atomic.withPadding(
+      (List.empty[AnyRef], Promise[Unit]()),
+      PaddingStrategy.LeftRight128
+    )
 
     val cancel = Task.suspend {
       state.transformAndExtract {

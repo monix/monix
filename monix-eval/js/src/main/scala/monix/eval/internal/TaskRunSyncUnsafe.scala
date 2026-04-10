@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,12 +20,18 @@ package monix.eval.internal
 import monix.eval.Task
 import monix.execution.Scheduler
 import scala.concurrent.duration.Duration
+import scala.annotation.unused
 
 private[eval] object TaskRunSyncUnsafe {
   /** Implementation of `Task.runSyncUnsafe`, meant to throw an
     * "unsupported exception", since JavaScript cannot support it.
     */
-  def apply[A](source: Task[A], timeout: Duration, scheduler: Scheduler, opts: Task.Options): A = {
+  def apply[A](
+    @unused source: Task[A],
+    @unused timeout: Duration,
+    @unused scheduler: Scheduler,
+    @unused opts: Task.Options
+  ): A = {
     // $COVERAGE-OFF$
     throw new UnsupportedOperationException("runSyncUnsafe isn't supported on top of JavaScript")
     // $COVERAGE-ON$

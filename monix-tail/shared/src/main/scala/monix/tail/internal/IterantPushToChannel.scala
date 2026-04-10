@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,7 +28,8 @@ private[tail] object IterantPushToChannel {
     * Implementation for [[Iterant.pushToChannel]].
     */
   def apply[F[_], A](source: Iterant[F, A], channel: ProducerF[F, Option[Throwable], A])(
-    implicit F: Sync[F]): F[Unit] = {
+    implicit F: Sync[F]
+  ): F[Unit] = {
 
     F.defer(new Loop(channel).apply(source))
   }
@@ -36,10 +37,10 @@ private[tail] object IterantPushToChannel {
   private final class Loop[F[_], A](channel: ProducerF[F, Option[Throwable], A])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, F[Unit]] { loop =>
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // For dealing with push results
-    private[this] val trueRef = F.pure(true)
-    private[this] var rest: F[Iterant[F, A]] = _
+    private val trueRef = F.pure(true)
+    private var rest: F[Iterant[F, A]] = null.asInstanceOf[F[Iterant[F, A]]]
     private val bindNext = (continue: Boolean) => {
       if (continue) F.flatMap(rest)(loop)
       else F.unit
@@ -50,9 +51,9 @@ private[tail] object IterantPushToChannel {
       F.flatMap(task)(bindNext)
     }
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
-    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
       if (stackRef == null) stackRef = ChunkedArrayStack()
@@ -67,13 +68,13 @@ private[tail] object IterantPushToChannel {
     private def isStackEmpty(): Boolean =
       stackRef == null || stackRef.isEmpty
 
-    private[this] val concatContinue: (Unit => F[Unit]) =
+    private val concatContinue: (Unit => F[Unit]) =
       _ =>
         stackPop() match {
           case null => F.unit
           case xs => F.flatMap(xs)(loop)
         }
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Iterant.Next[F, A]): F[Unit] =
       process(channel.push(ref.item), ref.rest)

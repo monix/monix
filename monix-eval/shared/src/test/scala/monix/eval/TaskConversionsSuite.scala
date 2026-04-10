@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,21 +16,23 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.effect._
 import cats.laws._
 import cats.laws.discipline._
 import cats.syntax.all._
-import cats.{effect, Eval}
+import cats.{ effect, Eval }
 import monix.catnap.SchedulerEffect
 import monix.execution.CancelablePromise
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import org.reactivestreams.{Publisher, Subscriber, Subscription}
+import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
+@nowarn
 object TaskConversionsSuite extends BaseTestSuite {
   test("Task.from(task.to[IO]) == task") { implicit s =>
     check1 { (task: Task[Int]) =>
@@ -384,7 +386,7 @@ object TaskConversionsSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
 
     val pub = new Publisher[Int] {
-      def subscribe(s: Subscriber[_ >: Int]): Unit = {
+      def subscribe(s: Subscriber[? >: Int]): Unit = {
         s.onSubscribe(new Subscription {
           def request(n: Long): Unit = throw dummy
           def cancel(): Unit = throw dummy
@@ -397,7 +399,7 @@ object TaskConversionsSuite extends BaseTestSuite {
 
   test("Task.fromReactivePublisher yields expected input") { implicit s =>
     val pub = new Publisher[Int] {
-      def subscribe(s: Subscriber[_ >: Int]): Unit = {
+      def subscribe(s: Subscriber[? >: Int]): Unit = {
         s.onSubscribe(new Subscription {
           var isActive = true
           def request(n: Long): Unit = {
@@ -447,7 +449,8 @@ object TaskConversionsSuite extends BaseTestSuite {
     override def liftIO[A](ioa: IO[A]): CIO[A] =
       CIO(ioa)
     override def bracketCase[A, B](acquire: CIO[A])(use: A => CIO[B])(
-      release: (A, ExitCase[Throwable]) => CIO[Unit]): CIO[B] =
+      release: (A, ExitCase[Throwable]) => CIO[Unit]
+    ): CIO[B] =
       CIO(acquire.io.bracketCase(a => use(a).io)((a, e) => release(a, e).io))
   }
 

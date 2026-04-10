@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,13 +18,13 @@
 package monix.tail
 
 import cats.implicits._
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.{ ContextShift, IO, Timer }
 import minitest.SimpleTestSuite
 import monix.catnap.ProducerF
-import monix.execution.BufferCapacity.{Bounded, Unbounded}
-import monix.execution.ChannelType.{MultiProducer, SingleProducer}
+import monix.execution.BufferCapacity.{ Bounded, Unbounded }
+import monix.execution.ChannelType.{ MultiProducer, SingleProducer }
 import monix.execution.internal.Platform
-import monix.execution.{BufferCapacity, Scheduler}
+import monix.execution.{ BufferCapacity, Scheduler }
 import monix.catnap.SchedulerEffect
 
 object IterantChannelSuite extends SimpleTestSuite {

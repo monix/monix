@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +17,7 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import monix.execution.Cancelable
 import scala.util.control.NonFatal
 import monix.reactive.Observable
@@ -25,6 +26,7 @@ import monix.reactive.observers.Subscriber
 /** An observable that evaluates the given by-name argument,
   * and emits it.
   */
+@nowarn("msg=unused value of type")
 private[reactive] final class EvalAlwaysObservable[+A](f: () => A) extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {

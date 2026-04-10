@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,23 +17,21 @@
 
 package monix.execution.schedulers
 
-import scala.concurrent.{ExecutionContext, Promise}
+import scala.concurrent.{ ExecutionContext, Promise }
 import scala.concurrent.duration._
 import minitest.TestSuite
-import monix.execution.{ExecutionModel, FutureUtils, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{ ExecutionModel, FutureUtils, Scheduler, UncaughtExceptionReporter }
 
 class UncaughtExceptionReporterBaseSuite extends TestSuite[Promise[Throwable]] {
   protected val immediateEC = TrampolineExecutionContext.immediate
 
   object Dummy extends Throwable
-  private[this] val throwRunnable: Runnable = new Runnable {
-    def run(): Unit = throw Dummy
-  }
+  private val throwRunnable: Runnable = () => throw Dummy
 
   def setup() = Promise[Throwable]()
 
   def tearDown(env: Promise[Throwable]): Unit = ()
-  private[this] def reporter(p: Promise[Throwable]) = UncaughtExceptionReporter { t =>
+  private def reporter(p: Promise[Throwable]) = UncaughtExceptionReporter { t =>
     p.success(t)
     ()
   }

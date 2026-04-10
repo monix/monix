@@ -4,16 +4,17 @@
 
 Asynchronous, Reactive Programming for Scala and [Scala.js](http://www.scala-js.org/).
 
-[![Build](https://github.com/monix/monix/workflows/build/badge.svg?branch=series/3.x)](https://github.com/monix/monix/actions?query=branch%3Aseries%2F3.x+workflow%3Abuild) [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/monix/monix)
+[![build](https://github.com/monix/monix/actions/workflows/build.yml/badge.svg)](https://github.com/monix/monix/actions/workflows/build.yml) [![monix Scala version support](https://index.scala-lang.org/monix/monix/monix/latest-by-scala-version.svg)](https://index.scala-lang.org/monix/monix/monix) 
 
-- [Overview](#overview)
-- [Usage](#usage)
-  - [Library dependency (sbt)](#library-dependency-sbt)
-  - [Sub-projects](#sub-projects)
-- [Documentation](#documentation)
-- [Contributing](#contributing)
-- [Adopters](#adopters)
-- [License](#license)
+- [Monix](#monix)
+  - [Overview](#overview)
+  - [Usage](#usage)
+    - [Library dependency (sbt)](#library-dependency-sbt)
+    - [Sub-projects](#sub-projects)
+  - [Documentation](#documentation)
+  - [Contributing](#contributing)
+  - [Adopters](#adopters)
+  - [License](#license)
 
 ## Overview
 
@@ -57,10 +58,15 @@ a project exemplifying Monix used both on the server and on the client.
 
 ### Library dependency (sbt)
 
+Compatibility baseline:
+
+- JDK `17` minimum (`21` validated)
+- Scala `2.13.18` and Scala `3.8.2`
+
 For the stable release (compatible with Cats, and Cats-Effect 2.x):
  
 ```scala
-libraryDependencies += "io.monix" %% "monix" % "3.4.1"
+libraryDependencies += "io.monix" %% "monix" % "x.y.z"
 ```
   
 ### Sub-projects
@@ -99,7 +105,7 @@ See:
 API Documentation:
 
 - [Current](https://monix.io/api/current/) 
-- [3.3](https://monix.io/api/3.3/)
+- [3.4](https://monix.io/api/3.4/)
 - [2.3](https://monix.io/api/2.3/)
 - [1.2](https://monix.io/api/1.2/)
 
@@ -132,16 +138,19 @@ If you'd like to donate in order to help with ongoing maintenance:
 
 Here's a (non-exhaustive) list of companies that use Monix in production. Don't see yours? 
 Submit a PR ❤️ 
-
+- [PITS Global Data Recovery Services](https://www.pitsdatarecovery.net/)
 - [Abacus](https://abacusfi.com)
 - [Agoda](https://www.agoda.com)
+- [AVSystem](https://www.avsystem.com)
 - [commercetools](https://commercetools.com)
 - [Coya](https://www.coya.com/)
+- [DigitalGenius](https://digitalgenius.com/)
 - [E.ON Connecting Energies](https://www.eon.com/)
 - [eBay Inc.](https://www.ebay.com)
 - [Eloquentix](http://eloquentix.com/)
 - [Hypefactors](https://www.hypefactors.com)
 - [Iterators](https://www.iteratorshq.com)
+- [Netflix](https://netflix.com)
 - [Sony Electronics](https://www.sony.com)
 - [Tinkoff](https://tinkoff.ru)
 - [Zalando](https://www.zalando.com)
@@ -150,4 +159,4 @@ Submit a PR ❤️
 ## License
 
 All code in this repository is licensed under the Apache License,
-Version 2.0.  See [LICENCE.txt](./LICENSE.txt).
+Version 2.0.  See [LICENSE](./LICENSE.txt).

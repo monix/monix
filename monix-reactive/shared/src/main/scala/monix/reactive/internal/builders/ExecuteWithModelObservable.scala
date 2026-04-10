@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,8 @@
 package monix.reactive.internal.builders
 
 import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable, ExecutionModel}
+import monix.execution.{ Ack, Cancelable, ExecutionModel }
+import monix.execution.Scheduler
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -34,7 +35,7 @@ private[reactive] final class ExecuteWithModelObservable[A](source: Observable[A
       streamErrors = false
 
       source.unsafeSubscribeFn(new Subscriber[A] {
-        implicit val scheduler = newS
+        implicit val scheduler: Scheduler = newS
         def onError(ex: Throwable): Unit = out.onError(ex)
         def onComplete(): Unit = out.onComplete()
         def onNext(elem: A): Future[Ack] = out.onNext(elem)

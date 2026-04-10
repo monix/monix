@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,10 +19,10 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.tail.batches.{ Batch, BatchCursor }
 
 import scala.util.Failure
 
@@ -43,10 +43,10 @@ object IterantLastOptionSuite extends BaseTestSuite {
 
   test("Iterant.lastOption suspends execution for NextCursor or NextBatch") { _ =>
     check1 { (list: List[Int]) =>
-      val iter1 = Iterant[Coeval].nextBatchS(Batch(list: _*), Coeval.now(Iterant[Coeval].empty[Int]))
+      val iter1 = Iterant[Coeval].nextBatchS(Batch(list*), Coeval.now(Iterant[Coeval].empty[Int]))
       iter1.lastOptionL <-> Coeval.suspend(Coeval.now(list.lastOption))
 
-      val iter2 = Iterant[Coeval].nextCursorS(BatchCursor(list: _*), Coeval.now(Iterant[Coeval].empty[Int]))
+      val iter2 = Iterant[Coeval].nextCursorS(BatchCursor(list*), Coeval.now(Iterant[Coeval].empty[Int]))
       iter2.lastOptionL <-> Coeval.suspend(Coeval.now(list.lastOption))
     }
   }
@@ -106,12 +106,15 @@ object IterantLastOptionSuite extends BaseTestSuite {
       (_, _) => Coeval(triggered.set(true))
     )
 
-    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
-      if (!triggered.getAndSet(true))
-        Iterant[Coeval].raiseError[Int](fail)
-      else
-        Iterant[Coeval].empty[Int]
-    })
+    val stream = Iterant[Coeval].concatS(
+      Coeval(lh),
+      Coeval {
+        if (!triggered.getAndSet(true))
+          Iterant[Coeval].raiseError[Int](fail)
+        else
+          Iterant[Coeval].empty[Int]
+      }
+    )
 
     assertEquals(stream.lastOptionL.value(), None)
   }

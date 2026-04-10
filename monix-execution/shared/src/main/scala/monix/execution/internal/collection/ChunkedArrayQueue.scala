@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,16 +23,16 @@ private[monix] final class ChunkedArrayQueue[A] private (
   initialTailIndex: Int,
   initialHeadArray: Array[AnyRef],
   initialHeadIndex: Int,
-  chunkSize: Int)
-  extends Serializable { self =>
+  chunkSize: Int
+) extends Serializable { self =>
 
   assert(chunkSize > 1, "chunkSize > 1")
 
-  private[this] val modulo = chunkSize - 1
-  private[this] var tailArray = initialTailArray
-  private[this] var tailIndex = initialTailIndex
-  private[this] var headArray = initialHeadArray
-  private[this] var headIndex = initialHeadIndex
+  private val modulo = chunkSize - 1
+  private var tailArray = initialTailArray
+  private var tailIndex = initialTailIndex
+  private var headArray = initialHeadArray
+  private var headIndex = initialHeadIndex
 
   /**
     * Returns `true` if the queue is empty, `false` otherwise.
@@ -92,10 +92,10 @@ private[monix] final class ChunkedArrayQueue[A] private (
   /** Builds an iterator out of this queue. */
   def iterator: Iterator[A] =
     new Iterator[A] {
-      private[this] var headArray = self.headArray
-      private[this] var headIndex = self.headIndex
-      private[this] val tailArray = self.tailArray
-      private[this] val tailIndex = self.tailIndex
+      private var headArray = self.headArray
+      private var headIndex = self.headIndex
+      private val tailArray = self.tailArray
+      private val tailIndex = self.tailIndex
 
       def hasNext: Boolean = {
         (headArray ne tailArray) || headIndex < tailIndex

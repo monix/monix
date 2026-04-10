@@ -22,7 +22,7 @@ import monix.execution.CancelableFuture
 import monix.execution.AsyncQueue
 import org.openjdk.jmh.annotations._
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ Await, Future }
 
 /** To do comparative benchmarks between versions:
   *
@@ -92,4 +92,3 @@ class AsyncQueueBenchmark {
     Await.result(r, Duration.Inf)
   }
 }
-

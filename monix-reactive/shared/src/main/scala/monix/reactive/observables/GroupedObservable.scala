@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +18,9 @@
 package monix.reactive.observables
 
 import monix.execution.exceptions.APIContractViolationException
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
-import monix.reactive.observers.{CacheUntilConnectSubscriber, Subscriber}
+import monix.reactive.observers.{ CacheUntilConnectSubscriber, Subscriber }
 
 import scala.concurrent.Future
 
@@ -41,7 +41,8 @@ abstract class GroupedObservable[K, +V] extends Observable[V] { self =>
 object GroupedObservable {
   /** Builder returning an input+output pair */
   private[monix] def broadcast[K, V](key: K, onCancel: Cancelable)(
-    implicit s: Scheduler): (Subscriber[V], GroupedObservable[K, V]) = {
+    implicit s: Scheduler
+  ): (Subscriber[V], GroupedObservable[K, V]) = {
 
     val ref = new Implementation[K, V](key, onCancel)
     (ref, ref)
@@ -52,11 +53,11 @@ object GroupedObservable {
     extends GroupedObservable[K, V] with Subscriber[V] { self =>
 
     // needs to be set upon subscription
-    private[this] var ref: Subscriber[V] = _
-    private[this] val underlying = {
+    private var ref: Subscriber[V] = null.asInstanceOf[Subscriber[V]]
+    private val underlying = {
       val o = new Subscriber[V] {
-        implicit val scheduler = self.scheduler
-        private[this] var isDone = false
+        implicit val scheduler: Scheduler = self.scheduler
+        private var isDone = false
 
         def onNext(elem: V) = {
           val cache = ref

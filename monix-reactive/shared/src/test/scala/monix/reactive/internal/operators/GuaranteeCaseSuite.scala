@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,14 +17,14 @@
 
 package monix.reactive.internal.operators
 
-import cats.effect.{ExitCase, IO}
+import cats.effect.{ ExitCase, IO }
 import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
-import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
 import monix.execution.internal.exceptions.matchError
 import monix.reactive.observers.Subscriber

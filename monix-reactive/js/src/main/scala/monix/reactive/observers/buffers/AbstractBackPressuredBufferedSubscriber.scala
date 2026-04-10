@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,14 +18,15 @@
 package monix.reactive.observers.buffers
 
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.internal.collection.JSArrayQueue
 import monix.execution.internal.math.nextPowerOf2
 import scala.util.control.NonFatal
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
 
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ Future, Promise }
+import scala.util.{ Failure, Success }
 
 /** Shared internals between [[BackPressuredBufferedSubscriber]] and
   * [[BatchedBufferedSubscriber]].
@@ -34,17 +35,17 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
   extends BufferedSubscriber[A] {
 
   require(_size > 0, "bufferSize must be a strictly positive number")
-  private[this] val bufferSize = nextPowerOf2(_size)
+  private val bufferSize = nextPowerOf2(_size)
 
-  private[this] val em = out.scheduler.executionModel
-  implicit final val scheduler = out.scheduler
+  private val em = out.scheduler.executionModel
+  implicit final val scheduler: Scheduler = out.scheduler
 
-  private[this] var upstreamIsComplete = false
-  private[this] var downstreamIsComplete = false
-  private[this] var errorThrown: Throwable = null
-  private[this] var isLoopActive = false
-  private[this] var backPressured: Promise[Ack] = null
-  private[this] var lastIterationAck: Future[Ack] = Continue
+  private var upstreamIsComplete = false
+  private var downstreamIsComplete = false
+  private var errorThrown: Throwable = null
+  private var isLoopActive = false
+  private var backPressured: Promise[Ack] = null
+  private var lastIterationAck: Future[Ack] = Continue
   protected val queue = JSArrayQueue.unbounded[A]
 
   final def onNext(elem: A): Future[Ack] = {
@@ -57,17 +58,17 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
       backPressured match {
         case null =>
           if (queue.length < bufferSize) {
-            queue.offer(elem)
+            val _ = queue.offer(elem)
             pushToConsumer()
             Continue
           } else {
             backPressured = Promise[Ack]()
-            queue.offer(elem)
+            val _ = queue.offer(elem)
             pushToConsumer()
             backPressured.future
           }
         case promise =>
-          queue.offer(elem)
+          val _ = queue.offer(elem)
           pushToConsumer()
           promise.future
       }
@@ -96,7 +97,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
 
   protected def fetchNext(): R
 
-  private[this] val consumerRunLoop = new Runnable {
+  private val consumerRunLoop = new Runnable {
     def run(): Unit = fastLoop(lastIterationAck, 0)
 
     private final def signalNext(next: R): Future[Ack] =
@@ -122,7 +123,7 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
           Stop
       }
 
-    private def downstreamSignalComplete(ex: Throwable = null): Unit = {
+    private def downstreamSignalComplete(ex: Throwable /* | Null*/ ): Unit = {
       downstreamIsComplete = true
       try {
         if (ex != null) out.onError(ex)
@@ -168,51 +169,52 @@ private[observers] abstract class AbstractBackPressuredBufferedSubscriber[A, R](
       var streamErrors = true
 
       try while (isLoopActive && !downstreamIsComplete) {
-        val next = fetchNext()
+          val next = fetchNext()
 
-        if (next != null) {
-          if (nextIndex > 0 || isFirstIteration) {
-            isFirstIteration = false
+          if (next != null) {
+            if (nextIndex > 0 || isFirstIteration) {
+              isFirstIteration = false
 
-            ack match {
-              case Continue =>
-                ack = signalNext(next)
-                if (ack == Stop) {
+              ack match {
+                case Continue =>
+                  ack = signalNext(next)
+                  if (ack == Stop) {
+                    stopStreaming()
+                    return
+                  } else {
+                    val isSync = ack == Continue
+                    nextIndex = if (isSync) em.nextFrameIndex(nextIndex) else 0
+                  }
+
+                case Stop =>
                   stopStreaming()
                   return
-                } else {
-                  val isSync = ack == Continue
-                  nextIndex = if (isSync) em.nextFrameIndex(nextIndex) else 0
-                }
 
-              case Stop =>
-                stopStreaming()
-                return
-
-              case _ =>
-                goAsync(next, ack)
-                return
+                case _ =>
+                  goAsync(next, ack)
+                  return
+              }
+            } else {
+              goAsync(next, ack)
+              return
             }
           } else {
-            goAsync(next, ack)
+            // Ending loop
+            if (backPressured != null) {
+              backPressured.success(if (upstreamIsComplete) Stop else Continue)
+              backPressured = null
+            }
+
+            streamErrors = false
+            if (upstreamIsComplete)
+              downstreamSignalComplete(errorThrown)
+
+            lastIterationAck = ack
+            isLoopActive = false
             return
           }
-        } else {
-          // Ending loop
-          if (backPressured != null) {
-            backPressured.success(if (upstreamIsComplete) Stop else Continue)
-            backPressured = null
-          }
-
-          streamErrors = false
-          if (upstreamIsComplete)
-            downstreamSignalComplete(errorThrown)
-
-          lastIterationAck = ack
-          isLoopActive = false
-          return
         }
-      } catch {
+      catch {
         case ex if NonFatal(ex) =>
           if (streamErrors) downstreamSignalComplete(ex)
           else scheduler.reportFailure(ex)

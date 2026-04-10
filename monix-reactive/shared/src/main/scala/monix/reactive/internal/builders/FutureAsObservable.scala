@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,19 +17,21 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import scala.util.control.NonFatal
-import monix.execution.{Cancelable, CancelableFuture}
+import monix.execution.{ Cancelable, CancelableFuture }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 /** Converts any `Future` into an observable */
+@nowarn("msg=unused value of type")
 private[reactive] final class FutureAsObservable[A](factory: => Future[A]) extends Observable[A] {
 
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
-    import subscriber.{scheduler => s}
+    import subscriber.{ scheduler => s }
     // Protects calls to user code
     var streamErrors = true
     try {
@@ -54,7 +56,7 @@ private[reactive] final class FutureAsObservable[A](factory: => Future[A]) exten
           }
 
           evaluated match {
-            case c: CancelableFuture[_] => c
+            case c: CancelableFuture[?] => c
             case _ => Cancelable.empty
           }
       }

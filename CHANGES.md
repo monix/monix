@@ -1,3 +1,19 @@
+## Future changes...
+
+This release updates Monix 3.x support baselines for modern JVM and Scala toolchains.
+
+Breaking changes:
+
+- JDK `17` is now the minimum supported runtime and build target.
+- JDK `21` is now part of the validated support matrix.
+- Scala `2.12` support is dropped.
+- Scala `3` is upgraded to `3.8.2`.
+- Legacy `sun.misc.Unsafe`-based internals were removed in favor of JDK `VarHandle`-based implementations.
+
+This release was made possible by the work and feedback of:
+
+- Alexandru Nedelcu (@alexandru)
+
 ## Version 3.4.1 (May 7, 2022)
 
 This is a minor bug-fixing release for the 3.x series.
@@ -1531,7 +1547,7 @@ Bug fixes:
 Build:
 
 - enabled the Scala
-  [Migration Manager](https://github.com/typesafehub/migration-manager)
+  [Migration Manager](https://github.com/lightbend/mima)
   (MiMa) in `build.sbt` to check for backwards compatibility problems
 - [Issue #322](https://github.com/monix/monix/issues/322):
   Switch projects which use `CrossVersion.full/"org.scala-lang"`

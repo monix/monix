@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import minitest.SimpleTestSuite
-import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
+import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, BatchedExecution, SynchronousExecution }
 
 object ExecutionModelSuite extends SimpleTestSuite {
   test("SynchronousExecution") {
@@ -59,7 +59,7 @@ object ExecutionModelSuite extends SimpleTestSuite {
       assert(em.recommendedBatchSize >= i)
 
       var index = 1
-      for (j <- 1 until em.recommendedBatchSize * 3) {
+      for (_ <- 1 until em.recommendedBatchSize * 3) {
         index = em.nextFrameIndex(index)
         assert(index >= 0 && index < em.recommendedBatchSize)
       }

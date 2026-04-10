@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,20 +19,21 @@ package monix.reactive.observers.buffers
 
 import monix.eval.Coeval
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.atomic.PaddingStrategy.{LeftRight128, LeftRight256}
-import monix.execution.atomic.{Atomic, AtomicAny, AtomicInt}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
+import monix.execution.atomic.PaddingStrategy.{ LeftRight128, LeftRight256 }
+import monix.execution.atomic.{ Atomic, AtomicAny, AtomicInt }
 import monix.execution.internal.math
-
 import scala.util.control.NonFatal
 import monix.reactive.OverflowStrategy._
 import monix.reactive.observers.buffers.AbstractEvictingBufferedSubscriber._
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
 
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
+import scala.annotation.unchecked.uncheckedVariance
 
 /** A [[BufferedSubscriber]] implementation for the
   * [[monix.reactive.OverflowStrategy.DropOld DropOld]]
@@ -43,8 +44,8 @@ import scala.util.{Failure, Success}
 private[observers] final class EvictingBufferedSubscriber[-A] private (
   out: Subscriber[A],
   strategy: Evicted[Nothing],
-  onOverflow: Long => Coeval[Option[A]])
-  extends AbstractEvictingBufferedSubscriber(out, strategy, onOverflow) {
+  onOverflow: Long => Coeval[Option[A]]
+) extends AbstractEvictingBufferedSubscriber(out, strategy, onOverflow) {
 
   @volatile protected var p50, p51, p52, p53, p54, p55, p56, p57 = 5
   @volatile protected var q50, q51, q52, q53, q54, q55, q56, q57 = 5
@@ -69,7 +70,8 @@ private[observers] object EvictingBufferedSubscriber {
   def dropOldAndSignal[A](
     underlying: Subscriber[A],
     bufferSize: Int,
-    onOverflow: Long => Coeval[Option[A]]): EvictingBufferedSubscriber[A] = {
+    onOverflow: Long => Coeval[Option[A]]
+  ): EvictingBufferedSubscriber[A] = {
 
     require(bufferSize > 1, "bufferSize must be a strictly positive number, bigger than 1")
     val maxCapacity = math.nextPowerOf2(bufferSize)
@@ -96,7 +98,8 @@ private[observers] object EvictingBufferedSubscriber {
   def clearBufferAndSignal[A](
     underlying: Subscriber[A],
     bufferSize: Int,
-    onOverflow: Long => Coeval[Option[A]]): EvictingBufferedSubscriber[A] = {
+    onOverflow: Long => Coeval[Option[A]]
+  ): EvictingBufferedSubscriber[A] = {
 
     require(bufferSize > 1, "bufferSize must be a strictly positive number, bigger than 1")
     val maxCapacity = math.nextPowerOf2(bufferSize)
@@ -107,22 +110,22 @@ private[observers] object EvictingBufferedSubscriber {
 private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
   out: Subscriber[A],
   strategy: Evicted[Nothing],
-  onOverflow: Long => Coeval[Option[A]])
-  extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
+  onOverflow: Long => Coeval[Option[A]]
+) extends CommonBufferMembers with BufferedSubscriber[A] with Subscriber.Sync[A] {
 
   require(strategy.bufferSize > 0, "bufferSize must be a strictly positive number")
 
-  implicit val scheduler = out.scheduler
-  private[this] val em = out.scheduler.executionModel
+  implicit val scheduler: Scheduler = out.scheduler
+  private val em = out.scheduler.executionModel
 
-  private[this] val droppedCount: AtomicInt =
+  private val droppedCount: AtomicInt =
     if (onOverflow != null) AtomicInt.withPadding(0, LeftRight128)
     else null
 
-  private[this] val itemsToPush =
+  private val itemsToPush =
     Atomic.withPadding(0, LeftRight256)
-  private[this] val queue =
-    new ConcurrentBuffer[A](strategy)
+  private val queue: ConcurrentBuffer[A @uncheckedVariance] =
+    new ConcurrentBuffer(strategy)
 
   def onNext(elem: A): Ack = {
     if (upstreamIsComplete || downstreamIsComplete) Stop
@@ -157,7 +160,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
     }
   }
 
-  private[this] def pushToConsumer(increment: Int): Unit = {
+  private def pushToConsumer(increment: Int): Unit = {
     val currentNr = {
       if (increment != 0)
         itemsToPush.getAndIncrement(increment)
@@ -173,7 +176,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
     }
   }
 
-  private[this] val consumerLoop = new Runnable {
+  private val consumerLoop = new Runnable {
     def run(): Unit = {
       // This lastIterationAck is also being set by the consumer-loop,
       // but it's important for the write to happen before `itemsToPush`,
@@ -354,7 +357,7 @@ private[observers] abstract class AbstractEvictingBufferedSubscriber[-A](
 
 private[observers] object AbstractEvictingBufferedSubscriber {
   private final class ConcurrentBuffer[A](strategy: Evicted[Nothing]) {
-    private[this] val bufferRef: AtomicAny[Buffer[A]] =
+    private val bufferRef: AtomicAny[Buffer[A]] =
       AtomicAny.withPadding(emptyBuffer, LeftRight256)
 
     def drain(): Queue[A] = {

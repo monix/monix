@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,8 +19,9 @@ package monix.reactive.internal.operators
 
 import monix.execution.Ack
 import monix.execution.Ack.Stop
+import monix.execution.Scheduler
 import monix.reactive.Notification
-import monix.reactive.Notification.{OnComplete, OnError, OnNext}
+import monix.reactive.Notification.{ OnComplete, OnError, OnNext }
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
@@ -29,8 +30,8 @@ private[reactive] final class DematerializeOperator[A] extends Operator[Notifica
 
   def apply(out: Subscriber[A]): Subscriber[Notification[A]] =
     new Subscriber[Notification[A]] {
-      implicit val scheduler = out.scheduler
-      private[this] var isDone = false
+      implicit val scheduler: Scheduler = out.scheduler
+      private var isDone = false
 
       def onNext(elem: Notification[A]): Future[Ack] = {
         if (isDone) Stop

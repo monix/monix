@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,13 +18,15 @@
 package monix.execution.internal.collection
 
 import minitest.SimpleTestSuite
+import scala.annotation.nowarn
 import scala.collection.mutable.ListBuffer
 
+@nowarn("msg=The syntax `x: _\\*` is no longer supported for vararg splices; use `x\\*` instead")
 object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
   test("should not accept null values") {
     val q = DropAllOnOverflowQueue[String](100)
-    intercept[NullPointerException] {
-      q.offer(null)
+    val _ = intercept[NullPointerException] {
+      val _ = q.offer(null)
       ()
     }
     ()
@@ -43,13 +45,13 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q4 = DropHeadOnOverflowQueue[Int](1025)
     assertEquals(q4.capacity, 2047)
 
-    intercept[IllegalArgumentException] {
-      DropHeadOnOverflowQueue[Int](0)
+    val _ = intercept[IllegalArgumentException] {
+      val _ = DropHeadOnOverflowQueue[Int](0)
       ()
     }
 
-    intercept[IllegalArgumentException] {
-      DropHeadOnOverflowQueue[Int](-100)
+    val _ = intercept[IllegalArgumentException] {
+      val _ = DropHeadOnOverflowQueue[Int](-100)
       ()
     }
     ()
@@ -86,12 +88,12 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropHeadOnOverflowQueue[Int](7)
 
     assertEquals(q.capacity, 7)
-    assertEquals(q.poll(), null)
+    assertEquals(q.poll(): Any, null)
 
     assertEquals(q.offer(0), 0)
     assertEquals(q.poll(), 0)
 
-    assertEquals(q.offerMany(1 to 7: _*), 0)
+    assertEquals(q.offerMany((1 to 7)*), 0)
 
     assertEquals(q.offer(8), 1)
     assertEquals(q.offer(9), 1)
@@ -108,7 +110,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     assertEquals(q.drainToArray(array), 4)
     assertEquals(array.toList.take(4), List(11, 12, 13, 14))
 
-    assertEquals(q.offerMany(15 until 29: _*), 7)
+    assertEquals(q.offerMany((15 until 29)*), 7)
     assertEquals(q.drainToArray(array), 7)
     assertEquals(array.toList, (22 until 29).toList)
 
@@ -155,21 +157,21 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     assert(q.isEmpty)
     assert(!q.nonEmpty)
 
-    intercept[NoSuchElementException] { q.head; () }
+    val _ = intercept[NoSuchElementException] { val _ = q.head; () }
     assertEquals(q.headOption, None)
 
-    q.offer(1)
+    val _ = q.offer(1)
     assert(!q.isEmpty)
     assert(q.nonEmpty)
 
     assertEquals(q.head, 1)
     assertEquals(q.headOption, Some(1))
 
-    q.poll()
+    val _ = q.poll()
     assert(q.isEmpty)
     assert(!q.nonEmpty)
 
-    intercept[NoSuchElementException] { q.head; () }
+    val _ = intercept[NoSuchElementException] { val _ = q.head; () }
     assertEquals(q.headOption, None)
   }
 
@@ -177,7 +179,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropHeadOnOverflowQueue[Int](127)
     assertEquals(q.capacity, 127)
 
-    q.offerMany(0 until 200: _*)
+    val _ = q.offerMany((0 until 200)*)
     assertEquals(q.toList, 73 until 200)
   }
 
@@ -185,15 +187,15 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
     val q = DropHeadOnOverflowQueue[Int](1)
     assert(q.isEmpty)
 
-    q.offerMany(0 until 10: _*)
+    val _ = q.offerMany((0 until 10)*)
     assertEquals(q.head, 9)
     assertEquals(q.length, 1)
 
-    q.offerMany(10 until 20: _*)
+    val _ = q.offerMany((10 until 20)*)
     assertEquals(q.head, 19)
     assertEquals(q.length, 1)
 
-    q.offerMany(20 until 30: _*)
+    val _ = q.offerMany((20 until 30)*)
     assertEquals(q.head, 29)
     assertEquals(q.length, 1)
     assertEquals(q.poll(), 29)
@@ -202,7 +204,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
 
   test("should iterate with fixed capacity") {
     val q = DropHeadOnOverflowQueue[Int](10)
-    q.offerMany(0 to 200: _*)
+    val _ = q.offerMany((0 to 200)*)
 
     val list1 = q.iterator(exactSize = false).toList
     assertEquals(list1.length, 15)
@@ -225,7 +227,7 @@ object DropHeadOnOverflowQueueSuite extends SimpleTestSuite {
 
   test("should box") {
     val q = DropHeadOnOverflowQueue.boxed[Int](10)
-    q.offerMany(0 until 15: _*)
+    val _ = q.offerMany((0 until 15)*)
     assertEquals(q.toList, (0 until 15).toList)
   }
 }

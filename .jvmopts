@@ -4,5 +4,4 @@
 -XX:ReservedCodeCacheSize=250M
 -XX:+TieredCompilation
 -XX:-UseGCOverheadLimit
--XX:+CMSClassUnloadingEnabled
 

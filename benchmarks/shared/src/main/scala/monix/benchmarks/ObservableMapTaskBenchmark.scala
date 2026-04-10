@@ -31,19 +31,19 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
 /** To do comparative benchmarks between versions:
-  *
-  *     benchmarks/run-benchmark ObservableMapTaskBenchmark
-  *
-  * This will generate results in `benchmarks/results`.
-  *
-  * Or to run the benchmark from within SBT:
-  *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.ObservableMapTaskBenchmark
-  *
-  * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
-  * Please note that benchmarks should be usually executed at least in
-  * 10 iterations (as a rule of thumb), but more is better.
-  */
+ *
+ *     benchmarks/run-benchmark ObservableMapTaskBenchmark
+ *
+ * This will generate results in `benchmarks/results`.
+ *
+ * Or to run the benchmark from within SBT:
+ *
+ *     jmh:run -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.ObservableMapTaskBenchmark
+ *
+ * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
+ * Please note that benchmarks should be usually executed at least in
+ * 10 iterations (as a rule of thumb), but more is better.
+ */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
@@ -63,7 +63,7 @@ class ObservableMapTaskBenchmark {
     val p = Promise[Long]()
     stream.unsafeSubscribeFn(new Subscriber.Sync[Long] {
       val scheduler = global
-      private[this] var sum: Long = 0
+      private var sum: Long = 0
 
       def onError(ex: Throwable): Unit =
         p.failure(ex)
@@ -77,4 +77,4 @@ class ObservableMapTaskBenchmark {
     Await.result(p.future, Duration.Inf)
   }
 }
-*/
+ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,9 +19,9 @@ package monix.tail.internal
 
 import cats.effect.Sync
 import cats.syntax.all._
-import monix.execution.internal.collection.{ChunkedArrayStack, DropHeadOnOverflowQueue}
+import monix.execution.internal.collection.{ ChunkedArrayStack, DropHeadOnOverflowQueue }
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 import monix.tail.batches.BatchCursor
 
 private[tail] object IterantTakeLast {
@@ -38,7 +38,7 @@ private[tail] object IterantTakeLast {
   private class Loop[F[_], A](n: Int)(implicit F: Sync[F]) extends Iterant.Visitor[F, A, Iterant[F, A]] { loop =>
 
     private val buffer = DropHeadOnOverflowQueue.boxed[A](n)
-    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
       if (stackRef == null) stackRef = ChunkedArrayStack()
@@ -51,19 +51,23 @@ private[tail] object IterantTakeLast {
     }
 
     def visit(ref: Next[F, A]): Iterant[F, A] = {
-      buffer.offer(ref.item)
+      val _ = buffer.offer(ref.item)
       Suspend(ref.rest.map(loop))
     }
 
     def visit(ref: NextBatch[F, A]): Iterant[F, A] = {
       val cursor = ref.batch.cursor()
-      while (cursor.hasNext()) buffer.offer(cursor.next())
+      while (cursor.hasNext()) {
+        val _ = buffer.offer(cursor.next())
+      }
       Suspend(ref.rest.map(loop))
     }
 
     def visit(ref: NextCursor[F, A]): Iterant[F, A] = {
       val cursor = ref.cursor
-      while (cursor.hasNext()) buffer.offer(cursor.next())
+      while (cursor.hasNext()) {
+        val _ = buffer.offer(cursor.next())
+      }
       Suspend(ref.rest.map(loop))
     }
 
@@ -81,7 +85,7 @@ private[tail] object IterantTakeLast {
     def visit(ref: Last[F, A]): Iterant[F, A] =
       stackPop() match {
         case null =>
-          buffer.offer(ref.item)
+          val _ = buffer.offer(ref.item)
           finalCursor()
         case some =>
           loop(Next(ref.item, some))

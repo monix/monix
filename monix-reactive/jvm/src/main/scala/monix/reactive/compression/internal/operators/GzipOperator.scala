@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +17,14 @@
 
 package monix.reactive.compression.internal.operators
 
+import scala.annotation.nowarn
 import java.nio.charset.StandardCharsets
 import java.time.Instant
-import java.util.zip.{CRC32, Deflater}
+import java.util.zip.{ CRC32, Deflater }
 
 import monix.execution.Ack
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.compression.internal.operators.Gzipper.gzipOperatingSystem
 import monix.reactive.compression.{
@@ -43,6 +45,7 @@ import scala.concurrent.Future
 import scala.util.Success
 import scala.util.control.NonFatal
 
+@nowarn("msg=unused value of type")
 private[compression] final class GzipOperator(
   fileName: Option[String],
   modificationTime: Option[Instant],
@@ -52,10 +55,10 @@ private[compression] final class GzipOperator(
 ) extends Operator[Array[Byte], Array[Byte]] {
   override def apply(out: Subscriber[Array[Byte]]): Subscriber[Array[Byte]] = {
     new Subscriber[Array[Byte]] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var ack: Future[Ack] = _
-      private[this] val gzipper =
+      private var ack: Future[Ack] = null.asInstanceOf[Future[Ack]]
+      private val gzipper =
         new Gzipper(
           bufferSize,
           params.level,

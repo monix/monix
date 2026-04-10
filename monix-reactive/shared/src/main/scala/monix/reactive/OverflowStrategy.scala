@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -196,6 +196,6 @@ object OverflowStrategy {
   final def Default[A]: OverflowStrategy[A] =
     defaultInstance
 
-  private[this] val defaultInstance: OverflowStrategy[Nothing] =
+  private val defaultInstance: OverflowStrategy[Nothing] =
     BackPressure(bufferSize = Platform.recommendedBatchSize * 2)
 }

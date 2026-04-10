@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,8 +20,8 @@ package monix.execution
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import scala.concurrent.duration.Duration
-import scala.concurrent.{CanAwait, ExecutionContext, Future, Promise}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ CanAwait, ExecutionContext, Future, Promise }
+import scala.util.{ Failure, Success, Try }
 
 /** Represents an acknowledgement of processing that a consumer
   * sends back upstream. Useful to implement back-pressure.
@@ -35,7 +35,9 @@ sealed abstract class Ack extends Future[Ack] with Serializable {
     onComplete(r =>
       p.complete(
         try f(r)
-        catch { case t if NonFatal(t) => Failure(t) }))
+        catch { case t if NonFatal(t) => Failure(t) }
+      )
+    )
     p.future
   }
 
@@ -45,13 +47,16 @@ sealed abstract class Ack extends Future[Ack] with Serializable {
     onComplete(r =>
       p.completeWith(
         try f(r)
-        catch { case t if NonFatal(t) => Future.failed(t) }))
+        catch { case t if NonFatal(t) => Future.failed(t) }
+      )
+    )
     p.future
   }
 
   final def onComplete[U](func: Try[Ack] => U)(implicit executor: ExecutionContext): Unit =
-    executor.execute(new Runnable {
-      def run(): Unit = { func(AsSuccess); () }
+    executor.execute(() => {
+      val _ = func(AsSuccess)
+      ()
     })
 }
 
@@ -145,10 +150,11 @@ object Ack {
       else if (source ne Continue)
         source.onComplete { ack =>
           try ack match {
-            case Success(Stop) => cb(None)
-            case Failure(e) => cb(Some(e))
-            case _ => ()
-          } catch {
+              case Success(Stop) => cb(None)
+              case Failure(e) => cb(Some(e))
+              case _ => ()
+            }
+          catch {
             case e if NonFatal(e) => r.reportFailure(e)
           }
         }(immediate)
@@ -212,12 +218,10 @@ object Ack {
       * promise with a value.
       */
     def syncOnContinueFollow[A](p: Promise[A], value: A): Self = {
-      if (source eq Continue)
-        p.trySuccess(value)
+      if (source eq Continue) { val _ = p.trySuccess(value); () }
       else if (source ne Stop)
         source.onComplete { r =>
-          if (r.isSuccess && (r.get eq Continue))
-            p.trySuccess(value)
+          if (r.isSuccess && (r.get eq Continue)) { val _ = p.trySuccess(value); () }
         }(immediate)
       source
     }
@@ -226,12 +230,10 @@ object Ack {
       * promise with a value.
       */
     def syncOnStopFollow[A](p: Promise[A], value: A): Self = {
-      if (source eq Stop)
-        p.trySuccess(value)
+      if (source eq Stop) { val _ = p.trySuccess(value); () }
       else if (source ne Continue)
         source.onComplete { r =>
-          if (r.isSuccess && (r.get eq Stop))
-            p.trySuccess(value)
+          if (r.isSuccess && (r.get eq Stop)) { val _ = p.trySuccess(value); () }
         }(immediate)
       source
     }

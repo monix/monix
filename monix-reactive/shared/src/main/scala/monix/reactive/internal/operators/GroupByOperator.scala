@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,32 +17,32 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.SingleProducer
 import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable, Scheduler}
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.observables.GroupedObservable
 import monix.reactive.Observable.Operator
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
-import monix.reactive.{Observer, OverflowStrategy}
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
+import monix.reactive.{ Observer, OverflowStrategy }
 import scala.annotation.tailrec
 import scala.concurrent.Future
 
 private[reactive] final class GroupByOperator[A, K](
   os: OverflowStrategy.Synchronous[GroupedObservable[K, A]],
-  keyFn: A => K)
-  extends Operator[A, GroupedObservable[K, A]] {
+  keyFn: A => K
+) extends Operator[A, GroupedObservable[K, A]] {
 
   def apply(subscriber: Subscriber[GroupedObservable[K, A]]): Subscriber[A] =
     new Subscriber[A] { self =>
       implicit val scheduler: Scheduler = subscriber.scheduler
-      private[this] var isDone = false
-      private[this] val downstream = BufferedSubscriber(subscriber, os, SingleProducer)
-      private[this] val cacheRef = Atomic(Map.empty[K, Observer[A]])
+      private var isDone = false
+      private val downstream = BufferedSubscriber(subscriber, os, SingleProducer)
+      private val cacheRef = Atomic(Map.empty[K, Observer[A]])
 
       @tailrec
-      private[this] def recycleKey(key: K): Unit = {
+      private def recycleKey(key: K): Unit = {
         val current = cacheRef.get()
         if (!cacheRef.compareAndSet(current, current - key))
           recycleKey(key)
@@ -106,7 +106,7 @@ private[reactive] final class GroupByOperator[A, K](
         }
       }
 
-      private[this] def foreachObserver(f: Observer[A] => Unit): Unit = {
+      private def foreachObserver(f: Observer[A] => Unit): Unit = {
         val cache = cacheRef.get()
         if (cacheRef.compareAndSet(cache, Map.empty)) {
           cache.values.foreach(f)

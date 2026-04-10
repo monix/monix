@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,9 +20,9 @@ package monix.reactive.internal.operators
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 import scala.concurrent.duration._
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 object BufferTimedOrCountedSuite extends BaseOperatorSuite {
   val waitNext = 1.second
@@ -57,7 +57,8 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
         Observable
           .intervalAtFixedRate(100.millis, 100.millis)
           .take(sourceCount.toLong),
-        ex)
+        ex
+      )
         .bufferTimedAndCounted(1.second, maxCount = 20)
         .map(_.sum)
 
@@ -142,7 +143,7 @@ object BufferTimedOrCountedSuite extends BaseOperatorSuite {
         assert(onNextReceived)
         p.success(Continue)
         s.tick(waitForNext)
-        
+
       case _ =>
         fail()
     }

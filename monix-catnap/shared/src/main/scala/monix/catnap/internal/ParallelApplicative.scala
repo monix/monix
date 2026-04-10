@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.catnap.internal
 
-import cats.{CommutativeApplicative, Parallel}
+import cats.{ CommutativeApplicative, Parallel }
 
 /** Given a `cats.Parallel` instance for a type `F[_]`, builds
   * a parallel `cats.CommutativeApplicative[F]` out of it.

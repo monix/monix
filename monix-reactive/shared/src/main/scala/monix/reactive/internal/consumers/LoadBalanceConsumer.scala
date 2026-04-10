@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,20 +18,20 @@
 package monix.reactive.internal.consumers
 
 import monix.execution.Callback
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.execution.atomic.{Atomic, PaddingStrategy}
-import monix.execution.cancelables.{AssignableCancelable, SingleAssignCancelable}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.{ Ack, Cancelable, Scheduler }
+import monix.execution.atomic.{ Atomic, PaddingStrategy }
+import monix.execution.cancelables.{ AssignableCancelable, SingleAssignCancelable }
 import scala.util.control.NonFatal
 import monix.reactive.Consumer
 import monix.reactive.internal.consumers.LoadBalanceConsumer.IndexedSubscriber
 import monix.reactive.observers.Subscriber
 
 import scala.annotation.tailrec
-import scala.collection.immutable.{BitSet, Queue}
+import scala.collection.immutable.{ BitSet, Queue }
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ Future, Promise }
+import scala.util.{ Failure, Success }
 
 /** Implementation for [[monix.reactive.Consumer.loadBalance]]. */
 private[reactive] final class LoadBalanceConsumer[-In, R](parallelism: Int, consumers: Array[Consumer[In, R]])
@@ -48,34 +48,34 @@ private[reactive] final class LoadBalanceConsumer[-In, R](parallelism: Int, cons
     val mainCancelable = SingleAssignCancelable()
 
     val balanced = new Subscriber[In] { self =>
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
 
       // Trying to prevent contract violations, once this turns
       // true, then no final events are allowed to happen.
       // MUST BE synchronized by `self`.
-      private[this] var isUpstreamComplete = false
+      private var isUpstreamComplete = false
 
       // Trying to prevent contract violations. Turns true in case
       // we already signaled a result upstream.
       // MUST BE synchronized by `self`.
-      private[this] var isDownstreamDone = false
+      private var isDownstreamDone = false
 
       // Stores the error that was reported upstream - basically
       // multiple subscribers can report multiple errors, but we
       // emit the first one, so in case multiple errors happen we
       // want to log them, but only if they aren't the same reference
       // MUST BE synchronized by `self`
-      private[this] var reportedError: Throwable = _
+      private var reportedError: Throwable = null.asInstanceOf[Throwable]
 
       // Results accumulator - when length == parallelism,
       // that's when we need to trigger `onFinish.onSuccess`.
       // MUST BE synchronized by `self`
-      private[this] val accumulator = ListBuffer.empty[R]
+      private val accumulator = ListBuffer.empty[R]
 
       /** Builds cancelables for subscribers. */
       private def newCancelableFor(out: IndexedSubscriber[In]): Cancelable =
         new Cancelable {
-          private[this] var isCanceled = false
+          private var isCanceled = false
           // Forcing an asynchronous boundary, to avoid any possible
           // initialization issues (in building subscribersQueue) or
           // stack overflows and other problems
@@ -98,7 +98,7 @@ private[reactive] final class LoadBalanceConsumer[-In, R](parallelism: Int, cons
       // Asynchronous queue that serves idle subscribers waiting
       // for something to process, or that puts the stream on wait
       // until there are subscribers available
-      private[this] val subscribersQueue = self.synchronized {
+      private val subscribersQueue = self.synchronized {
         var initial = Queue.empty[IndexedSubscriber[In]]
         // When the callback gets called by each subscriber, on success we
         // do nothing because for normal completion we are listing on
@@ -216,18 +216,19 @@ private[reactive] final class LoadBalanceConsumer[-In, R](parallelism: Int, cons
         // don't want to block the main thread!
         scheduler.execute { () =>
           try out.out.onNext(elem).syncOnComplete {
-            case Success(ack) =>
-              ack match {
-                case Continue =>
-                  // We have permission to continue from this subscriber
-                  // so returning it to the queue, to be reused
-                  subscribersQueue.offer(out)
-                case Stop =>
-                  interruptOne(out, null)
-              }
-            case Failure(ex) =>
-              interruptAll(ex)
-          } catch {
+              case Success(ack) =>
+                ack match {
+                  case Continue =>
+                    // We have permission to continue from this subscriber
+                    // so returning it to the queue, to be reused
+                    subscribersQueue.offer(out)
+                  case Stop =>
+                    interruptOne(out, null)
+                }
+              case Failure(ex) =>
+                interruptAll(ex)
+            }
+          catch {
             case ex if NonFatal(ex) =>
               interruptAll(ex)
           }
@@ -295,7 +296,7 @@ private[reactive] object LoadBalanceConsumer {
 
   private final class AsyncQueue[In](initialQueue: Queue[IndexedSubscriber[In]], parallelism: Int) {
 
-    private[this] val stateRef = {
+    private val stateRef = {
       val initial: State[In] = Available(initialQueue, BitSet.empty, parallelism)
       Atomic.withPadding(initial, PaddingStrategy.LeftRight256)
     }
@@ -414,12 +415,12 @@ private[reactive] object LoadBalanceConsumer {
   private[reactive] final case class Available[In](
     available: Queue[IndexedSubscriber[In]],
     canceledIDs: BitSet,
-    activeCount: Int)
-    extends State[In]
+    activeCount: Int
+  ) extends State[In]
 
   private[reactive] final case class Waiting[In](
     promise: Promise[IndexedSubscriber[In]],
     canceledIDs: BitSet,
-    activeCount: Int)
-    extends State[In]
+    activeCount: Int
+  ) extends State[In]
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 import monix.tail.batches.BatchCursor
 
 private[tail] object IterantCompleteL {
@@ -35,9 +35,9 @@ private[tail] object IterantCompleteL {
 
   private final class Loop[F[_], A](implicit F: Sync[F]) extends Iterant.Visitor[F, A, F[Unit]] {
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
-    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
       if (stackRef == null) stackRef = ChunkedArrayStack()
@@ -49,13 +49,13 @@ private[tail] object IterantCompleteL {
       else null.asInstanceOf[F[Iterant[F, A]]]
     }
 
-    private[this] val concatContinue: (Unit => F[Unit]) =
+    private val concatContinue: (Unit => F[Unit]) =
       _ =>
         stackPop() match {
           case null => F.unit
           case xs => xs.flatMap(this)
         }
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Next[F, A]): F[Unit] =
       ref.rest.flatMap(this)
@@ -90,7 +90,9 @@ private[tail] object IterantCompleteL {
       F.raiseError(e)
 
     private def processCursor(cursor: BatchCursor[A], rest: F[Iterant[F, A]]) = {
-      while (cursor.hasNext()) cursor.next()
+      while (cursor.hasNext()) {
+        val _ = cursor.next()
+      }
       rest.flatMap(this)
     }
   }

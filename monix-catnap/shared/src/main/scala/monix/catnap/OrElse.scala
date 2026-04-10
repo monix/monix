@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,12 +33,12 @@ sealed trait OrElse[+A, +B] {
 }
 
 object OrElse extends OrElse0 {
-  implicit def primary[A, B](implicit a: A): A OrElse B =
+  implicit def primary[A, B](implicit a: A): OrElse[A, B] =
     new Primary(a)
 }
 
 private[catnap] abstract class OrElse0 {
-  implicit def secondary[A, B](implicit b: B): A OrElse B =
+  implicit def secondary[A, B](implicit b: B): OrElse[A, B] =
     new Secondary(b)
 
   final class Primary[+A](value: A) extends OrElse[A, Nothing] {

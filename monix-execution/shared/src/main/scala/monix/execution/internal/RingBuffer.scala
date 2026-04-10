@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,11 +25,11 @@ package monix.execution.internal
 final private[monix] class RingBuffer[A <: AnyRef](logSize: Int) {
 
   // These two probably don't need to be allocated every single time, maybe in Java?
-  private[this] val length = 1 << logSize
-  private[this] val mask = length - 1
+  private val length = 1 << logSize
+  private val mask = length - 1
 
-  private[this] val array: Array[AnyRef] = new Array(length)
-  private[this] var index: Int = 0
+  private val array: Array[AnyRef] = new Array(length)
+  private var index: Int = 0
 
   def push(a: A): A = {
     val wi = index & mask

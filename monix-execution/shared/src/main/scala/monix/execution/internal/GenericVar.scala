@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.execution.internal
 
-import monix.execution.atomic.{AtomicAny, PaddingStrategy}
+import monix.execution.atomic.{ AtomicAny, PaddingStrategy }
 import monix.execution.internal.collection.LinkedMap
 import scala.annotation.tailrec
 
@@ -30,7 +30,7 @@ import scala.annotation.tailrec
 private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Option[A], ps: PaddingStrategy) {
 
   import GenericVar._
-  private[this] val stateRef: AtomicAny[State[A]] =
+  private val stateRef: AtomicAny[State[A]] =
     AtomicAny.withPadding(
       initial match { case None => State.empty[A]; case Some(a) => State(a) },
       ps
@@ -264,7 +264,7 @@ private[monix] object GenericVar {
 
   /** Private [[State]] builders.*/
   private object State {
-    private[this] val ref = WaitForPut[Any](LinkedMap.empty, LinkedMap.empty)
+    private val ref = WaitForPut[Any](LinkedMap.empty, LinkedMap.empty)
     def apply[A](a: A): State[A] = WaitForTake(a, LinkedMap.empty)
     /** `Empty` state, reusing the same instance. */
     def empty[A]: State[A] = ref.asInstanceOf[State[A]]
@@ -276,8 +276,8 @@ private[monix] object GenericVar {
     */
   private final case class WaitForPut[A](
     reads: LinkedMap[Id, Either[Nothing, A] => Unit],
-    takes: LinkedMap[Id, Either[Nothing, A] => Unit])
-    extends State[A]
+    takes: LinkedMap[Id, Either[Nothing, A] => Unit]
+  ) extends State[A]
 
   /** `AsyncVar` state signaling it has one or more values enqueued,
     * to be signaled on the next `take`.

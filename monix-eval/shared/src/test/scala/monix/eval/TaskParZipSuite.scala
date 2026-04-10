@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,11 +16,13 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.execution.exceptions.DummyException
 import concurrent.duration._
-import scala.util.{Failure, Random, Success}
+import scala.util.{ Failure, Random, Success }
 
+@nowarn
 object TaskParZipSuite extends BaseTestSuite {
   test("Task.parZip2 should work if source finishes first") { implicit s =>
     val f = Task.parZip2(Task(1), Task(2).delayExecution(1.second)).runToFuture

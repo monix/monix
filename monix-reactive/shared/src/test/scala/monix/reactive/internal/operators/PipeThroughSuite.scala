@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import monix.execution.exceptions.DummyException
-import monix.reactive.{Observable, Pipe}
+import monix.reactive.{ Observable, Pipe }
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 

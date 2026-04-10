@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,11 @@
 
 package monix.reactive.observables
 
-import monix.execution.annotations.{UnsafeBecauseImpure, UnsafeProtocol}
-import monix.execution.{Cancelable, Scheduler}
-import monix.reactive.observers.{CacheUntilConnectSubscriber, Subscriber}
+import monix.execution.annotations.{ UnsafeBecauseImpure, UnsafeProtocol }
+import monix.execution.{ Cancelable, Scheduler }
+import monix.reactive.observers.{ CacheUntilConnectSubscriber, Subscriber }
 import monix.reactive.subjects.Subject
-import monix.reactive.{Observable, Pipe}
+import monix.reactive.{ Observable, Pipe }
 
 /** Represents an [[monix.reactive.Observable Observable]] that waits for
   * the call to `connect()` before
@@ -51,10 +51,11 @@ object ConnectableObservable {
   @UnsafeProtocol
   @UnsafeBecauseImpure
   def unsafeMulticast[A, B](source: Observable[A], subject: Subject[A, B])(
-    implicit s: Scheduler): ConnectableObservable[B] = {
+    implicit s: Scheduler
+  ): ConnectableObservable[B] = {
 
     new ConnectableObservable[B] {
-      private[this] lazy val connection: Cancelable =
+      private lazy val connection: Cancelable =
         source.unsafeSubscribeFn(Subscriber(subject, s))
 
       def connect(): Cancelable =
@@ -72,8 +73,8 @@ object ConnectableObservable {
   def multicast[A, B](source: Observable[A], recipe: Pipe[A, B])(implicit s: Scheduler): ConnectableObservable[B] = {
 
     new ConnectableObservable[B] {
-      private[this] val (input, output) = recipe.multicast(s)
-      private[this] lazy val connection = {
+      private val (input, output) = recipe.multicast(s)
+      private lazy val connection = {
         source.subscribe(input)
       }
 
@@ -92,16 +93,17 @@ object ConnectableObservable {
     */
   @UnsafeBecauseImpure
   def cacheUntilConnect[A, B](source: Observable[A], subject: Subject[A, B])(
-    implicit s: Scheduler): ConnectableObservable[B] = {
+    implicit s: Scheduler
+  ): ConnectableObservable[B] = {
 
     new ConnectableObservable[B] {
-      private[this] val (connectable, cancelRef) = {
+      private val (connectable, cancelRef) = {
         val ref = CacheUntilConnectSubscriber(Subscriber(subject, s))
         val c = source.unsafeSubscribeFn(ref) // connects immediately
         (ref, c)
       }
 
-      private[this] lazy val connection = {
+      private lazy val connection = {
         val connecting = connectable.connect()
         Cancelable { () =>
           try cancelRef.cancel()

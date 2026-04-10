@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,10 +18,10 @@
 package monix.reactive.internal.operators
 
 import monix.eval.Task
-import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.{ Ack, Cancelable, Scheduler }
+import monix.execution.Ack.{ Continue, Stop }
 import monix.reactive.observers.Subscriber
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
@@ -31,7 +31,7 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) =
     Some {
       val sources = (1 to sourceCount).map(i => (i, Observable.fromIterable(Seq.fill(4)(i.toLong))))
-      val o = Observable.mergePrioritizedList(sources: _*)
+      val o = Observable.mergePrioritizedList(sources*)
       Sample(o, count(sourceCount), sum(sourceCount), Zero, Zero)
     }
 
@@ -51,7 +51,7 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val sources1 = (1 to 100).map(i => (i, Observable.range(0, 100).delayExecution(2.second)))
-    val sample1 = Observable.mergePrioritizedList(sources1: _*)
+    val sample1 = Observable.mergePrioritizedList(sources1*)
     Seq(
       Sample(sample1, 0, 0, 0.seconds, 0.seconds),
       Sample(sample1, 0, 0, 1.seconds, 0.seconds)
@@ -64,7 +64,7 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
 
   test("should pick items in priority order") { implicit s =>
     val sources = (1 to 10).map(i => (i, Observable.now(i * 1L)))
-    val source = Observable.mergePrioritizedList(sources: _*)
+    val source = Observable.mergePrioritizedList(sources*)
     var last = 0L
     source.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long): Future[Ack] = {
@@ -116,7 +116,7 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
 
   test("should complete all upstream onNext promises when downstream stops early") { implicit s =>
     val sources = (1 to 10).map(i => (i, new OnNextExposingObservable(i * 1L)))
-    val source = Observable.mergePrioritizedList(sources: _*)
+    val source = Observable.mergePrioritizedList(sources*)
 
     source.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long): Future[Ack] = {
@@ -137,7 +137,7 @@ object MergePrioritizedListSuite extends BaseOperatorSuite {
 
   test("should complete all upstream onNext promises when downstream errors early") { implicit s =>
     val sources = (1 to 10).map(i => (i, new OnNextExposingObservable(i * 1L)))
-    val source = Observable.mergePrioritizedList(sources: _*)
+    val source = Observable.mergePrioritizedList(sources*)
 
     source.unsafeSubscribeFn(new Observer[Long] {
       def onNext(elem: Long): Future[Ack] = {

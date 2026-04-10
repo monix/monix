@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,16 +17,16 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{CountDownLatch, TimeUnit, TimeoutException}
+import java.util.concurrent.{ CountDownLatch, TimeUnit, TimeoutException }
 
 import minitest.TestSuite
-import monix.execution.ExecutionModel.{AlwaysAsyncExecution, Default => DefaultExecutionModel}
+import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, Default => DefaultExecutionModel }
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.exceptions.DummyException
-import monix.execution.{Cancelable, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{ Cancelable, Scheduler, UncaughtExceptionReporter }
 
 import scala.concurrent.duration._
-import scala.concurrent.{blocking, Await, Promise}
+import scala.concurrent.{ blocking, Await, Promise }
 
 abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self =>
   var lastReportedFailure = null: Throwable
@@ -57,7 +57,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
   test("scheduleOnce with delay") { scheduler =>
     val p = Promise[Long]()
     val startedAt = System.nanoTime()
-    scheduleOnce(scheduler, 100.millis) {
+    val _ = scheduleOnce(scheduler, 100.millis) {
       p.success(System.nanoTime())
       ()
     }
@@ -67,7 +67,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
 
   test("scheduleOnce with delay lower than 1.milli") { scheduler =>
     val p = Promise[Int]()
-    scheduleOnce(scheduler, 20.nanos) { p.success(1); () }
+    val _ = scheduleOnce(scheduler, 20.nanos) { p.success(1); () }
     assert(Await.result(p.future, 3.seconds) == 1)
   }
 
@@ -76,8 +76,8 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
     val task = scheduleOnce(scheduler, 100.millis) { p.success(1); () }
     task.cancel()
 
-    intercept[TimeoutException] {
-      Await.result(p.future, 150.millis)
+    val _ = intercept[TimeoutException] {
+      val _ = Await.result(p.future, 150.millis)
       ()
     }
     ()
@@ -101,7 +101,8 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
         } else if (value < 4) {
           value += 1
         }
-      })
+      }
+    )
 
     assert(Await.result(p.future, 5.second) == 4)
   }
@@ -124,7 +125,8 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
         } else if (value < 4) {
           value += 1
         }
-      })
+      }
+    )
 
     assert(Await.result(p.future, 5.second) == 4)
   }
@@ -159,11 +161,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
 
     try {
       val ex = DummyException("dummy")
-
-      scheduler.execute(new Runnable {
-        override def run() =
-          throw ex
-      })
+      scheduler.execute(() => throw ex)
 
       assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
       self.synchronized(assertEquals(lastReportedFailure, ex))
@@ -185,13 +183,11 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
     try {
       val ex = DummyException("dummy")
 
-      scheduler.scheduleOnce(
+      val _ = scheduler.scheduleOnce(
         1,
         TimeUnit.MILLISECONDS,
-        new Runnable {
-          override def run() =
-            throw ex
-        })
+        () => throw ex
+      )
 
       assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
       self.synchronized(assertEquals(lastReportedFailure, ex))
@@ -204,7 +200,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
   }
 
   def runnableAction(f: => Unit): Runnable =
-    new Runnable { def run() = f }
+    () => f
 }
 
 object ComputationSchedulerSuite extends ExecutorSchedulerSuite {

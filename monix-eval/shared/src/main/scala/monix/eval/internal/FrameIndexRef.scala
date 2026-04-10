@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.eval
 package internal
 
 import monix.execution.ExecutionModel
-import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
+import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, BatchedExecution, SynchronousExecution }
 import monix.execution.misc.ThreadLocal
 
 /** Internal API — A reference that boxes a `FrameIndex` possibly
@@ -76,15 +76,15 @@ private[eval] object FrameIndexRef {
       case BatchedExecution(_) => new Local
     }
 
-  // Keeps our frame index in a thread-local
+// Keeps our frame index in a thread-local
   private final class Local extends FrameIndexRef {
-    private[this] val local = ThreadLocal(1)
+    private val local = ThreadLocal(1)
     def apply(): FrameIndex = local.get()
     def `:=`(update: FrameIndex): Unit = local.set(update)
     def reset(): Unit = local.reset()
   }
 
-  // Dummy implementation that doesn't do anything
+// Dummy implementation that doesn't do anything
   private object Dummy extends FrameIndexRef {
     def apply(): FrameIndex = 1
     def `:=`(update: FrameIndex): Unit = ()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +18,10 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.execution.cancelables.OrderedCancelable
 import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -33,8 +34,8 @@ private[reactive] final class OnErrorRecoverWithObservable[A](source: Observable
     val cancelable = OrderedCancelable()
 
     val main = source.unsafeSubscribeFn(new Subscriber[A] {
-      implicit val scheduler = out.scheduler
-      private[this] var ack: Future[Ack] = Continue
+      implicit val scheduler: Scheduler = out.scheduler
+      private var ack: Future[Ack] = Continue
 
       def onNext(elem: A) = {
         ack = out.onNext(elem)

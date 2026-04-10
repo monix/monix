@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,13 @@
 
 package monix.reactive.observers
 
+import scala.annotation.nowarn
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import scala.util.control.NonFatal
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.util.Try
 
 /** A safe subscriber safe guards subscriber implementations, such that:
@@ -34,11 +36,12 @@ import scala.util.Try
   *  - if downstream signals a `Stop`, the observer no longer accepts any events,
   *    ensuring that the grammar is respected
   */
+@nowarn("msg=unused value of type")
 final class SafeSubscriber[-A] private (subscriber: Subscriber[A]) extends Subscriber[A] {
 
-  implicit val scheduler = subscriber.scheduler
-  private[this] var isDone = false
-  private[this] var ack: Future[Ack] = Continue
+  implicit val scheduler: Scheduler = subscriber.scheduler
+  private var isDone = false
+  private var ack: Future[Ack] = Continue
 
   def onNext(elem: A): Future[Ack] = {
     if (!isDone) {
@@ -121,7 +124,7 @@ object SafeSubscriber {
     */
   def apply[A](subscriber: Subscriber[A]): SafeSubscriber[A] =
     subscriber match {
-      case ref: SafeSubscriber[_] => ref.asInstanceOf[SafeSubscriber[A]]
+      case ref: SafeSubscriber[?] => ref.asInstanceOf[SafeSubscriber[A]]
       case _ => new SafeSubscriber[A](subscriber)
     }
 }

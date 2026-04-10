@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,15 +19,15 @@ package monix.eval.internal
 
 import java.util.concurrent.RejectedExecutionException
 import monix.eval.Task
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.{ Async, Context }
 import monix.execution.schedulers.TracingScheduler
-import monix.execution.{Callback, Scheduler}
+import monix.execution.{ Callback, Scheduler }
 import scala.concurrent.ExecutionContext
 
 private[eval] object TaskShift {
   /**
-    * Implementation for `Task.shift`
-    */
+* Implementation for `Task.shift`
+*/
   def apply(ec: ExecutionContext): Task[Unit] = {
     Async(
       new Register(ec),
@@ -37,11 +37,11 @@ private[eval] object TaskShift {
     )
   }
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is a task that forks on evaluation.
-  //
-  // N.B. the contract is that the injected callback gets called after
-  // a full async boundary!
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is a task that forks on evaluation.
+//
+// N.B. the contract is that the injected callback gets called after
+// a full async boundary!
   private final class Register(ec: ExecutionContext) extends ForkedRegister[Unit] {
     def apply(context: Context, cb: Callback[Throwable, Unit]): Unit = {
       val ec2 =
@@ -59,11 +59,9 @@ private[eval] object TaskShift {
         }
 
       try {
-        ec2.execute(new Runnable {
-          def run(): Unit = {
-            context.frameRef.reset()
-            cb.onSuccess(())
-          }
+        ec2.execute(() => {
+          context.frameRef.reset()
+          cb.onSuccess(())
         })
       } catch {
         case e: RejectedExecutionException =>

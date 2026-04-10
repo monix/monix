@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,19 +19,19 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform.recommendedBatchSize
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.tail.batches.{ Batch, BatchCursor }
 import scala.util.Failure
 
 object IterantMapBatchSuite extends BaseTestSuite {
   test("Iterant[Task].mapBatch(f) equivalence with List.flatMap(f andThen (_.toList))") { implicit s =>
     check2 { (stream: Iterant[Task, Array[Int]], f: Array[Int] => Long) =>
-      val g = f andThen (Batch.apply(_))
+      val g = f.andThen(Batch.apply(_))
       stream.mapBatch(g).toListL <->
-        stream.toListL.map(_.flatMap(g andThen (_.toList)))
+        stream.toListL.map(_.flatMap(g.andThen(_.toList)))
     }
   }
 
@@ -41,7 +41,7 @@ object IterantMapBatchSuite extends BaseTestSuite {
         Iterant[Task].nextBatchS(Batch.fromSeq(list, recommendedBatchSize), Task.delay(Iterant[Task].lastS[Int](elem)))
       val f: Int => List[Int] = List.fill(recommendedBatchSize * 2)(_)
 
-      val received = stream.mapBatch(f andThen (Batch.fromSeq(_))).toListL
+      val received = stream.mapBatch(f.andThen(Batch.fromSeq(_))).toListL
       val expected = stream.toListL.map(_.flatMap(f))
 
       received <-> expected

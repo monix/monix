@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,13 +17,14 @@
 
 package monix.reactive.observers
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.{Ack, CancelableFuture, Scheduler}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.{ Ack, CancelableFuture, Scheduler }
 import monix.reactive.Observable
 
 import scala.collection.mutable
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ Future, Promise }
+import scala.util.{ Failure, Success }
+import scala.annotation.unchecked.uncheckedVariance
 
 /** Wraps a [[Subscriber]] into an implementation that abstains from emitting items until the call
   * to `connect()` happens. Prior to `connect()` you can enqueue
@@ -81,35 +82,33 @@ import scala.util.{Failure, Success}
   * }}}
   */
 final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extends Subscriber[A] { self =>
-
-  implicit val scheduler: Scheduler =
-    underlying.scheduler
+  implicit val scheduler: Scheduler = underlying.scheduler
 
   // MUST BE synchronized by `self`, only available if isConnected == false
-  private[this] var queue = mutable.ArrayBuffer.empty[A]
+  private var queue = mutable.ArrayBuffer.empty[A @uncheckedVariance]
   // MUST BE synchronized by `self`, only available if isConnected == false
-  private[this] var scheduledDone = false
+  private var scheduledDone = false
   // MUST BE synchronized by `self`, only available if isConnected == false
-  private[this] var scheduledError = null: Throwable
+  private var scheduledError = null: Throwable
   // MUST BE synchronized by `self`
-  private[this] var isConnectionStarted = false
+  private var isConnectionStarted = false
   // MUST BE synchronized by `self`, as long as isConnected == false
-  private[this] var wasCanceled = false
+  private var wasCanceled = false
 
   // Promise guaranteed to be fulfilled once isConnected is
   // seen as true and used for back-pressure.
   // MUST BE synchronized by `self`, only available if isConnected == false
-  private[this] var connectedPromise = Promise[Ack]()
-  private[this] var connectedFuture = connectedPromise.future
+  private var connectedPromise = Promise[Ack]()
+  private var connectedFuture = connectedPromise.future
 
   // Volatile that is set to true once the buffer is drained.
   // Once visible as true, it implies that the queue is empty
   // and has been drained and thus the onNext/onError/onComplete
   // can take the fast path
-  @volatile private[this] var isConnected = false
+  @volatile private var isConnected = false
 
   // Only accessible in `connect()`
-  private[this] var connectionRef: CancelableFuture[Ack] = _
+  private var connectionRef: CancelableFuture[Ack] = null.asInstanceOf[CancelableFuture[Ack]]
 
   /** Connects the underling observer to the upstream publisher.
     *
@@ -125,8 +124,8 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
         val cancelable = Observable
           .fromIterable(queue)
           .unsafeSubscribeFn(new Subscriber[A] {
-            implicit val scheduler = underlying.scheduler
-            private[this] var ack: Future[Ack] = Continue
+            implicit val scheduler: Scheduler = underlying.scheduler
+            private var ack: Future[Ack] = Continue
 
             bufferWasDrained.future.onComplete {
               case Success(Continue) =>
@@ -169,7 +168,9 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
 
             def onComplete(): Unit = {
               if (!scheduledDone) {
-                ack.syncOnContinue { bufferWasDrained.trySuccess(Continue); () }
+                val _ = ack.syncOnContinue {
+                  val _ = bufferWasDrained.trySuccess(Continue)
+                }
               } else if (scheduledError ne null) {
                 if (bufferWasDrained.trySuccess(Stop))
                   underlying.onError(scheduledError)
@@ -307,7 +308,8 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
     */
   def onComplete(): Unit = {
     // we cannot take a fast path here
-    connectedFuture.syncTryFlatten
+    val _ = connectedFuture
+      .syncTryFlatten
       .syncOnContinue(underlying.onComplete())
     ()
   }
@@ -320,7 +322,8 @@ final class ConnectableSubscriber[-A] private (underlying: Subscriber[A]) extend
     */
   def onError(ex: Throwable): Unit = {
     // we cannot take a fast path here
-    connectedFuture.syncTryFlatten
+    val _ = connectedFuture
+      .syncTryFlatten
       .syncOnContinue(underlying.onError(ex))
     ()
   }

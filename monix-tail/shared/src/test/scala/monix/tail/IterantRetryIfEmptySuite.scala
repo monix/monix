@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.tail
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 
 object IterantRetryIfEmptySuite extends BaseTestSuite {
   test("Iterant.pure(1).retryIfEmpty mirrors source") { _ =>
@@ -57,7 +57,8 @@ object IterantRetryIfEmptySuite extends BaseTestSuite {
         Coeval {
           assertEquals(acquired, 1)
           acquired -= 1
-        })
+        }
+      )
       .flatMap(_ => Iterant[Coeval].empty[Int])
 
     val r = (empty ++ resource).retryIfEmpty(Some(2)).toListL.value()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,12 +18,13 @@
 package monix.reactive.internal.builders
 
 import minitest.TestSuite
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.execution.FutureUtils.extensions._
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.observers.Subscriber
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -129,7 +130,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     val source = Observable.range(0L, Platform.recommendedBatchSize.toLong * 10)
 
     val cancelable = source.unsafeSubscribeFn(new Subscriber[Long] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
 
       def onNext(elem: Long) = {
         received += 1

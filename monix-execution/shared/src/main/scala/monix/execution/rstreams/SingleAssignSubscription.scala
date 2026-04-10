@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,7 +35,7 @@ final class SingleAssignSubscription private () extends Subscription {
   import SingleAssignSubscription.State
   import SingleAssignSubscription.State._
 
-  private[this] val state = AtomicAny(Empty: State)
+  private val state = AtomicAny(Empty: State)
 
   def :=(s: org.reactivestreams.Subscription): Unit = set(s)
 

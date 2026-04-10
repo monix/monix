@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import minitest.SimpleTestSuite
 import monix.execution.exceptions.DummyException
 
 import scala.concurrent.Promise
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object CancelablePromiseSuite extends SimpleTestSuite {
   test("completes in success") {
@@ -31,7 +31,7 @@ object CancelablePromiseSuite extends SimpleTestSuite {
     val f1 = p.future
     val f2 = p.future
     val p3 = Promise[Int]()
-    p.subscribe { v => p3.complete(v); () }
+    val _ = p.subscribe { v => p3.complete(v); () }
 
     assert(f1 ne f2, "f1 != f2")
 
@@ -44,7 +44,7 @@ object CancelablePromiseSuite extends SimpleTestSuite {
     assertEquals(p.future.value, Some(Success(99)))
 
     val p4 = Promise[Int]()
-    p.subscribe { v => p4.complete(v); () }
+    val _ = p.subscribe { v => p4.complete(v); () }
     assertEquals(p4.future.value, Some(Success(99)))
   }
 
@@ -55,7 +55,7 @@ object CancelablePromiseSuite extends SimpleTestSuite {
     val f1 = p.future
     val f2 = p.future
     val p3 = Promise[Int]()
-    p.subscribe { v => p3.complete(v); () }
+    val _ = p.subscribe { v => p3.complete(v); () }
 
     assert(f1 ne f2, "f1 != f2")
 
@@ -69,7 +69,7 @@ object CancelablePromiseSuite extends SimpleTestSuite {
     assertEquals(p.future.value, Some(Failure(dummy)))
 
     val p4 = Promise[Int]()
-    p.subscribe { v => p4.complete(v); () }
+    val _ = p.subscribe { v => p4.complete(v); () }
     assertEquals(p4.future.value, Some(Failure(dummy)))
   }
 
@@ -96,7 +96,7 @@ object CancelablePromiseSuite extends SimpleTestSuite {
     val c1 = p.subscribe { v => p1.complete(v); () }
 
     val p2 = Promise[Int]()
-    p.subscribe { v => p2.complete(v); () }
+    val _ = p.subscribe { v => p2.complete(v); () }
 
     val p3 = Promise[Int]()
     val c3 = p.subscribe { v => p3.complete(v); () }
@@ -116,7 +116,7 @@ object CancelablePromiseSuite extends SimpleTestSuite {
     assert(p.isCompleted)
 
     val p1 = Promise[Int]()
-    p.subscribe { v => p1.complete(v); () }
+    val _ = p.subscribe { v => p1.complete(v); () }
     assertEquals(p1.future.value, Some(Success(1)))
 
     val f = p.future
@@ -134,7 +134,7 @@ object CancelablePromiseSuite extends SimpleTestSuite {
     assert(p.isCompleted)
 
     val p1 = Promise[Int]()
-    p.subscribe { v => p1.complete(v); () }
+    val _ = p.subscribe { v => p1.complete(v); () }
     assertEquals(p1.future.value, Some(Failure(dummy)))
 
     val f = p.future

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,10 +41,7 @@ private[monix] final class AdaptedForkJoinPool(
   ) {
 
   override def execute(runnable: Runnable): Unit = {
-    val fjt: ForkJoinTask[_] = runnable match {
-      case t: ForkJoinTask[_] => t
-      case r => new AdaptedForkJoinTask(r)
-    }
+    val fjt = new AdaptedForkJoinTask(runnable)
     Thread.currentThread match {
       case fjw: ForkJoinWorkerThread if fjw.getPool eq this =>
         fjt.fork()

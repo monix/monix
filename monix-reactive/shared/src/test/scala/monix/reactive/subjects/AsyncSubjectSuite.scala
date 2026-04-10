@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.reactive.subjects
 
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
-import monix.reactive.{Consumer, Observable, Observer}
+import monix.reactive.{ Consumer, Observable, Observer }
 
 object AsyncSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {

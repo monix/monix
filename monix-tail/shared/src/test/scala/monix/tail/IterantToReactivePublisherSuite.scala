@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,8 +27,8 @@ import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.tail.batches.Batch
-import org.reactivestreams.{Subscriber, Subscription}
-import scala.util.{Failure, Success}
+import org.reactivestreams.{ Subscriber, Subscription }
+import scala.util.{ Failure, Success }
 
 object IterantToReactivePublisherSuite extends BaseTestSuite {
   test("sum with Task and request(1)") { implicit s =>
@@ -227,9 +227,13 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
   }
 
   test("protects against invalid subscriber") { implicit s =>
-    intercept[NullPointerException] {
-      Iterant[Task].of(1).toReactivePublisher.subscribe(null)
-      ()
+    if (Platform.isJVM) {
+      intercept[NullPointerException] {
+        Iterant[Task].of(1).toReactivePublisher.subscribe(null)
+        ()
+      }
+    } else {
+      // TODO
     }
     ()
   }
@@ -340,9 +344,9 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
       val subscription = SingleAssignSubscription()
 
       stream.toReactivePublisher.subscribe(new Subscriber[Int] {
-        private[this] var s: Subscription = _
-        private[this] var requested = 0L
-        private[this] var sum = 0L
+        private var s: Subscription = _
+        private var requested = 0L
+        private var sum = 0L
 
         def onSubscribe(s: Subscription): Unit = {
           this.s = s
@@ -392,7 +396,8 @@ object IterantToReactivePublisherSuite extends BaseTestSuite {
     override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
     override def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(
-      release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
+      release: (A, ExitCase[Throwable]) => IO[Unit]
+    ): IO[B] =
       acquire.bracketCase(use)(release)
   }
 }

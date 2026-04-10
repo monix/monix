@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -45,10 +45,10 @@ private[tail] object IterantSwitchIfEmpty {
   private final class Loop[F[_], A](backup: Iterant[F, A])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, A]] { self =>
 
-    private[this] var isEmpty = true
-    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var isEmpty = true
+    private var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
-    private[this] def isStackEmpty: Boolean =
+    private def isStackEmpty: Boolean =
       stackRef == null || stackRef.isEmpty
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {

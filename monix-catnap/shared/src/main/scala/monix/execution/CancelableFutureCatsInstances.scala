@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,11 +16,11 @@
  */
 
 package monix.execution
-import cats.{CoflatMap, Eval, Monad, MonadError, StackSafeMonad}
+import cats.{ CoflatMap, Eval, Monad, MonadError, StackSafeMonad }
 import monix.execution.CancelableFuture.Pure
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.{ Failure, Success, Try }
 
 /** Implementation of Cats type classes for the
   * [[CancelableFuture]] data type.
@@ -55,7 +55,8 @@ final class CancelableFutureCatsInstances(implicit ec: ExecutionContext)
   override def recover[A](fa: CancelableFuture[A])(pf: PartialFunction[Throwable, A]): CancelableFuture[A] =
     fa.recover(pf)
   override def recoverWith[A](fa: CancelableFuture[A])(
-    pf: PartialFunction[Throwable, CancelableFuture[A]]): CancelableFuture[A] =
+    pf: PartialFunction[Throwable, CancelableFuture[A]]
+  ): CancelableFuture[A] =
     fa.recoverWith(pf)
   override def catchNonFatal[A](a: => A)(implicit ev: Throwable <:< Throwable): CancelableFuture[A] =
     CancelableFuture(Future(a), Cancelable.empty)

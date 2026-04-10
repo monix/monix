@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -73,12 +73,12 @@ object MultiAssignCancelableSuite extends SimpleTestSuite {
     val sub = BooleanCancelable()
 
     mSub := sub
-    mSub.clear()
+    val _ = mSub.clear()
 
     mSub.cancel()
     assert(!sub.isCanceled, "!sub.isCanceled")
 
-    mSub.clear()
+    val _ = mSub.clear()
     mSub := sub
     assert(sub.isCanceled, "sub.isCanceled")
   }

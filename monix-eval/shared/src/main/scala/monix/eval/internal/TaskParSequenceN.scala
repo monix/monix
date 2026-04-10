@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,12 +21,12 @@ import cats.effect.ExitCase
 import cats.effect.concurrent.Deferred
 import monix.catnap.ConcurrentQueue
 import monix.eval.Task
-import monix.execution.{BufferCapacity, ChannelType}
+import monix.execution.{ BufferCapacity, ChannelType }
 
 private[eval] object TaskParSequenceN {
   /**
-    * Implementation for [[Task.parSequenceN]]
-    */
+* Implementation for [[Task.parSequenceN]]
+*/
   def apply[A](
     parallelism: Int,
     in: Iterable[Task[A]]

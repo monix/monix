@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,13 @@
 
 package monix.reactive.compression.internal.operators
 
-import java.util.zip.{DataFormatException, Inflater}
-import java.{util => ju}
+import scala.annotation.nowarn
+import java.util.zip.{ DataFormatException, Inflater }
+import java.{ util => ju }
 
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.compression.CompressionException
 import monix.reactive.observers.Subscriber
@@ -31,16 +33,17 @@ import scala.concurrent.Future
 import scala.util.Success
 import scala.util.control.NonFatal
 
+@nowarn("msg=unused value of type")
 private[compression] final class InflateOperator(bufferSize: Int, noWrap: Boolean)
   extends Operator[Array[Byte], Array[Byte]] {
 
   def apply(out: Subscriber[Array[Byte]]): Subscriber[Array[Byte]] =
     new Subscriber[Array[Byte]] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var isDone = false
-      private[this] var ack: Future[Ack] = _
-      private[this] val inflater = new InflateAdapter(bufferSize, noWrap)
+      private var isDone = false
+      private var ack: Future[Ack] = null.asInstanceOf[Future[Ack]]
+      private val inflater = new InflateAdapter(bufferSize, noWrap)
 
       def onNext(elem: Array[Byte]): Future[Ack] = {
         if (isDone) {

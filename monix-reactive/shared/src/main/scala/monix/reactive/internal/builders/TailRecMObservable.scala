@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,19 +17,21 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import monix.execution.Scheduler
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.AtomicBoolean
-import monix.execution.cancelables.{SingleAssignCancelable, StackedCancelable}
+import monix.execution.cancelables.{ SingleAssignCancelable, StackedCancelable }
 import scala.util.control.NonFatal
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ Future, Promise }
+import scala.util.{ Failure, Success }
 
 /** Implementation for `Observable.tailRecM`. */
+@nowarn("msg=unused value of type")
 private[monix] final class TailRecMObservable[A, B](seed: A, f: A => Observable[Either[A, B]]) extends Observable[B] {
 
   def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
@@ -69,7 +71,7 @@ private[monix] final class TailRecMObservable[A, B](seed: A, f: A => Observable[
 
       val loopSubscriber = new Subscriber[Either[A, B]] {
         override def scheduler = s
-        private[this] implicit val s: Scheduler = out.scheduler
+        private implicit val s: Scheduler = out.scheduler
 
         // We need to protect `conn.pop()` - unfortunately
         // there has to be an order for `push` and `pop` on
@@ -79,12 +81,12 @@ private[monix] final class TailRecMObservable[A, B](seed: A, f: A => Observable[
         // `onComplete`, unfortunately we need it. Hopefully
         // on Java 8 it is fast enough as we are doing a
         // `getAndSet` instead of `compareAndSet`.
-        private[this] val isActive = AtomicBoolean(true)
+        private val isActive = AtomicBoolean(true)
 
         // Stores the last acknowledgement we received from
         // `out.onNext` - to be used for applying back-pressure
         // where needed.
-        private[this] var lastAck: Future[Ack] = Continue
+        private var lastAck: Future[Ack] = Continue
 
         // Pushes a final result (for this iteration of `loop` at least),
         // but before that it pops the current cancelable from our

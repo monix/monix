@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,8 +27,8 @@ import monix.reactive.observers.Subscriber
 private[observers] final class BackPressuredBufferedSubscriber[A] private (
   out: Subscriber[A],
   _bufferSize: Int,
-  pt: ChannelType.ProducerSide)
-  extends AbstractBackPressuredBufferedSubscriber[A, A](out, _bufferSize, pt) {
+  pt: ChannelType.ProducerSide
+) extends AbstractBackPressuredBufferedSubscriber[A, A](out, _bufferSize, pt) {
 
   @volatile protected var p50, p51, p52, p53, p54, p55, p56, p57 = 5
   @volatile protected var q50, q51, q52, q53, q54, q55, q56, q57 = 5
@@ -44,7 +44,8 @@ private[observers] object BackPressuredBufferedSubscriber {
   def apply[A](
     underlying: Subscriber[A],
     bufferSize: Int,
-    producerType: ChannelType.ProducerSide): BackPressuredBufferedSubscriber[A] = {
+    producerType: ChannelType.ProducerSide
+  ): BackPressuredBufferedSubscriber[A] = {
 
     new BackPressuredBufferedSubscriber[A](underlying, bufferSize, producerType)
   }

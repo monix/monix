@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.eval.internal
 
 import monix.execution.Callback
-import monix.eval.Task.{Async, Context, ContextSwitch, FlatMap, Map}
+import monix.eval.Task.{ Async, Context, ContextSwitch, FlatMap, Map }
 import monix.eval.Task
 import scala.annotation.tailrec
 import scala.runtime.AbstractFunction2
@@ -39,12 +39,12 @@ private[eval] abstract class ForkedRegister[A] extends AbstractFunction2[Context
 
 private[eval] object ForkedRegister {
   /**
-    * Returns `true` if the given task is known to fork execution,
-    * or `false` otherwise.
-    */
-  @tailrec def detect(task: Task[_], limit: Int = 8): Boolean = {
+* Returns `true` if the given task is known to fork execution,
+* or `false` otherwise.
+*/
+  @tailrec def detect(task: Task[?], limit: Int = 8): Boolean = {
     if (limit > 0) task match {
-      case Async(_: ForkedRegister[_], _, _, _, _) => true
+      case Async(_: ForkedRegister[?], _, _, _, _) => true
       case FlatMap(other, _, _) => detect(other, limit - 1)
       case Map(other, _, _) => detect(other, limit - 1)
       case ContextSwitch(other, _, _) => detect(other, limit - 1)

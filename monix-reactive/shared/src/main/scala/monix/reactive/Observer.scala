@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,15 +19,15 @@ package monix.reactive
 
 import java.io.PrintStream
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution._
 import monix.execution.cancelables.BooleanCancelable
 import monix.reactive.internal.rstreams._
 import monix.reactive.observers.Subscriber
-import org.reactivestreams.{Subscriber => RSubscriber}
+import org.reactivestreams.{ Subscriber => RSubscriber }
 
 import scala.annotation.tailrec
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 import scala.util.control.NonFatal
 
@@ -100,7 +100,7 @@ object Observer {
   def stopped[A]: Observer.Sync[A] = stoppedRef
 
   // Reusable reference
-  private[this] val stoppedRef: Observer.Sync[Any] =
+  private val stoppedRef: Observer.Sync[Any] =
     new Observer.Sync[Any] {
       def onNext(elem: Any): Ack = Stop
       def onError(ex: Throwable): Unit = ()
@@ -123,7 +123,8 @@ object Observer {
     * Monix Rx implementation.
     */
   def fromReactiveSubscriber[A](subscriber: RSubscriber[A], subscription: Cancelable)(
-    implicit s: Scheduler): Observer[A] =
+    implicit s: Scheduler
+  ): Observer[A] =
     ReactiveSubscriberAsMonixSubscriber(subscriber, subscription)
 
   /** Transforms the source [[Observer]] into a `org.reactivestreams.Subscriber`
@@ -164,7 +165,8 @@ object Observer {
     * @param iterable is the collection of items to push downstream
     */
   def feed[A](target: Observer[A], subscription: BooleanCancelable, iterable: Iterable[A])(
-    implicit s: Scheduler): Future[Ack] = {
+    implicit s: Scheduler
+  ): Future[Ack] = {
 
     try feed(target, subscription, iterable.iterator)
     catch {
@@ -189,11 +191,12 @@ object Observer {
     * @param iterator is the collection of items to push downstream
     */
   def feed[A](target: Observer[A], subscription: BooleanCancelable, iterator: Iterator[A])(
-    implicit s: Scheduler): Future[Ack] = {
+    implicit s: Scheduler
+  ): Future[Ack] = {
 
     def scheduleFeedLoop(promise: Promise[Ack], iterator: Iterator[A]): Future[Ack] = {
       s.execute(new Runnable {
-        private[this] val em = s.executionModel
+        private val em = s.executionModel
 
         @tailrec
         def fastLoop(syncIndex: Int): Unit = {
@@ -334,7 +337,7 @@ object Observer {
 
   private[reactive] class DumpObserver[-A](prefix: String, out: PrintStream) extends Observer.Sync[A] {
 
-    private[this] var pos = 0
+    private var pos = 0
 
     def onNext(elem: A): Ack = {
       out.println(s"$pos: $prefix --> $elem")
@@ -353,9 +356,9 @@ object Observer {
     }
   }
 
-  private[this] final class ContravariantObserver[A, B](source: Observer[A])(f: B => A) extends Observer[B] {
+  private final class ContravariantObserver[A, B](source: Observer[A])(f: B => A) extends Observer[B] {
     // For protecting the contract
-    private[this] var isDone = false
+    private var isDone = false
 
     override def onNext(elem: B): Future[Ack] = {
       if (isDone) Stop

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,14 +16,16 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.effect.IO
 import monix.execution.Cancelable
 import monix.execution.exceptions.DummyException
 
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 import scala.concurrent.duration._
 
+@nowarn
 object TaskCreateSuite extends BaseTestSuite {
   test("can use Unit as return type") { implicit sc =>
     val task = Task.create[Int]((_, cb) => cb.onSuccess(1))

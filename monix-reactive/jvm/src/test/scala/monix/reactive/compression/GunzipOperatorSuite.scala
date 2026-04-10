@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -98,7 +98,7 @@ object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
         .repeatEval(jdkGzip(longText, syncFlush = false))
         .take(sourceCount.toLong)
         .transform(gunzip()) ++ Observable
-        .repeatEval(longText) //corrupted payload
+        .repeatEval(longText) // corrupted payload
         .transform(gunzip()))
         .map(_ => 1L)
         .onErrorFallbackTo(Observable.raiseError(ex))
@@ -113,7 +113,8 @@ object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
           .take(sourceCount.toLong - 1)
           .transform(gunzip(64))
           .map(_ => 1L),
-        ex)
+        ex
+      )
       Sample(o, sourceCount, sourceCount, Zero, Zero)
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,31 +18,31 @@
 package monix.execution
 
 import minitest.TestSuite
-import monix.execution.cancelables.{BooleanCancelable, ChainedCancelable}
+import monix.execution.cancelables.{ BooleanCancelable, ChainedCancelable }
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.{ Future, Promise }
+import scala.util.{ Failure, Success, Try }
 
 object CancelableFutureSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
 
-  test("CancelableFuture.fromTry(success)") { implicit s =>
+  test("CancelableFuture.fromTry(success)") { _ =>
     val f = CancelableFuture.fromTry(Success(1))
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("CancelableFuture.fromTry(failure)") { implicit s =>
+  test("CancelableFuture.fromTry(failure)") { _ =>
     val ex = new RuntimeException("dummy")
     val f = CancelableFuture.fromTry(Failure(ex))
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("CancelableFuture.successful is already completed") { implicit s =>
+  test("CancelableFuture.successful is already completed") { _ =>
     val f = CancelableFuture.successful(1)
     assertEquals(f.isCompleted, true)
     assertEquals(f.value, Some(Success(1)))
@@ -73,7 +73,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(result, Some(Success(1)))
   }
 
-  test("now.failed") { implicit s =>
+  test("now.failed") { _ =>
     val dummy = new RuntimeException("dummy")
     val f = CancelableFuture.failed(dummy).failed
     assertEquals(f.value, Some(Success(dummy)))
@@ -351,7 +351,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(4)))
   }
 
-  test("now.fallbackTo") { implicit s =>
+  test("now.fallbackTo") { _ =>
     val ex = new RuntimeException("dummy")
     val f = CancelableFuture
       .failed(ex)
@@ -382,12 +382,12 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("now.mapTo") { implicit s =>
+  test("now.mapTo") { _ =>
     val f = CancelableFuture.successful(1).mapTo[Int]
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("never.mapTo") { implicit s =>
+  test("never.mapTo") { _ =>
     val f = CancelableFuture.never[Int].mapTo[Int]
     assertEquals(f, CancelableFuture.never)
   }
@@ -531,7 +531,8 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
         CancelableFuture.never[Unit],
         Cancelable { () =>
           c.cancel()
-        })
+        }
+      )
     }
 
     assert(first.isCompleted, "!first.isCompleted")

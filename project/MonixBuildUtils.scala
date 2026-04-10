@@ -11,7 +11,11 @@ import scala.xml.Elem
 import scala.xml.transform.{ RewriteRule, RuleTransformer }
 
 final case class MonixScalaVersion(value: String) {
-  lazy val parts = value.split("[.]").filter(_.nonEmpty).toList
+  lazy val parts =
+    value.split("[.]").filter(_.nonEmpty).toList
+
+  def filterPrefix(prefix: String): Option[MonixScalaVersion] =
+    if (value.startsWith(prefix)) Some(this) else None
 }
 
 object MonixScalaVersion {
@@ -47,8 +51,8 @@ object MonixBuildUtils {
   /** Applies [[filterOutDependencyFromGeneratedPomXml]] to a list of multiple dependencies.
     */
   def filterOutMultipleDependenciesFromGeneratedPomXml(list: List[(String, Regex)]*) =
-    list.foldLeft(List.empty[Def.Setting[_]]) { (acc, elem) =>
-      acc ++ filterOutDependencyFromGeneratedPomXml(elem: _*)
+    list.foldLeft(List.empty[Def.Setting[?]]) { (acc, elem) =>
+      acc ++ filterOutDependencyFromGeneratedPomXml(elem*)
     }
 
   /** Filter out dependencies from the generated `pom.xml`.
@@ -117,7 +121,7 @@ object MonixBuildUtils {
         .toSeq
 
       assert(scalaVersions.nonEmpty, "build.yml is corrupt, suitable scala_version_* keys missing")
-      SortedSet(scalaVersions: _*)
+      SortedSet(scalaVersions*)
     }
   }
 }

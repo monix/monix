@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -62,7 +62,7 @@ object AssignableCancelableF {
   /**
     * Builds an [[AssignableCancelableF]] instance that's already canceled.
     */
-  def alreadyCanceled[F[_]](implicit F: Applicative[F]): Bool[F] with Empty[F] =
+  def alreadyCanceled[F[_]](implicit F: Applicative[F]): Bool[F] =
     new Bool[F] with Empty[F] {
       def set(ref: CancelableF[F]): F[Unit] = ref.cancel
       def isCanceled: F[Boolean] = F.pure(true)

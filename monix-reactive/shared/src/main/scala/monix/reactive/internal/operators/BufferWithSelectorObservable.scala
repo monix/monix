@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,20 +17,23 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
-import monix.execution.{Ack, Cancelable}
+import scala.annotation.nowarn
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
+import monix.execution.cancelables.{ CompositeCancelable, SingleAssignCancelable }
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
+@nowarn("msg=unused value of type")
 private[reactive] final class BufferWithSelectorObservable[+A, S](
   source: Observable[A],
   sampler: Observable[S],
   maxSize: Int,
-  sizeOf: A => Int)
-  extends Observable[Seq[A]] {
+  sizeOf: A => Int
+) extends Observable[Seq[A]] {
 
   def unsafeSubscribeFn(downstream: Subscriber[Seq[A]]): Cancelable = {
     val upstreamSubscription = SingleAssignCancelable()
@@ -38,21 +41,21 @@ private[reactive] final class BufferWithSelectorObservable[+A, S](
     val composite = CompositeCancelable(upstreamSubscription, samplerSubscription)
 
     upstreamSubscription := source.unsafeSubscribeFn(new Subscriber[A] { upstreamSubscriber =>
-      implicit val scheduler = downstream.scheduler
+      implicit val scheduler: Scheduler = downstream.scheduler
 
       // MUST BE synchronized by `self`
-      private[this] var buffer = ListBuffer.empty[A]
+      private var buffer = ListBuffer.empty[A]
       // Maintain internal buffer weight not to compute the weight
       // of the buffer each time an element is added.
       // So to keep complexity to O(1) for each added element.
       // MUST BE synchronized by `self`
-      private[this] var bufferWeight: Int = 0
+      private var bufferWeight: Int = 0
       // MUST BE synchronized by `self`
-      private[this] var promise = Promise[Ack]()
+      private var promise = Promise[Ack]()
       // To be written in onComplete/onError, to be read from tick
-      private[this] var upstreamIsDone = false
+      private var upstreamIsDone = false
       // MUST BE synchronized by `self`.
-      private[this] var downstreamIsDone = false
+      private var downstreamIsDone = false
 
       def onNext(elem: A): Future[Ack] =
         upstreamSubscriber.synchronized {
@@ -82,7 +85,7 @@ private[reactive] final class BufferWithSelectorObservable[+A, S](
         }
 
       samplerSubscription := sampler.unsafeSubscribeFn(new Subscriber[S] {
-        implicit val scheduler = downstream.scheduler
+        implicit val scheduler: Scheduler = downstream.scheduler
 
         def onNext(elem: S): Future[Ack] =
           upstreamSubscriber.synchronized(signalNext())

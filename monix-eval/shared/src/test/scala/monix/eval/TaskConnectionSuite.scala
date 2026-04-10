@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,20 +16,22 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.eval.internal.TaskConnection
 import monix.execution.Cancelable
 import monix.execution.cancelables.BooleanCancelable
-import monix.execution.exceptions.{CompositeException, DummyException}
+import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
 
+@nowarn
 object TaskConnectionSuite extends BaseTestSuite {
   test("initial push") { implicit s =>
     var effect = 0
     val initial = Task { effect += 1 }
 
     val c = TaskConnection()
-    c push initial
+    c.push(initial)
 
     assert(!c.isCanceled, "!c.isCanceled")
     c.cancel.runAsyncAndForget
@@ -47,7 +49,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     c.cancel.runAsyncAndForget; s.tick()
     assert(c.isCanceled, "c.isCanceled")
 
-    c push initial
+    c.push(initial)
     s.tick()
     assertEquals(effect, 1)
   }
@@ -62,7 +64,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     c.cancel.runAsyncAndForget; s.tick()
     assert(c.isCanceled, "c.isCanceled")
 
-    c push initial
+    c.push(initial)
     s.tick()
     assertEquals(effect, 1)
   }
@@ -74,7 +76,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     c.cancel.runAsyncAndForget; s.tick()
     assert(c.isCanceled, "c.isCanceled")
 
-    c push initial
+    c.push(initial)
     s.tick()
     assert(initial.isCanceled, "initial.isCanceled")
   }
@@ -186,7 +188,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assert(bc.isCanceled, "bc.isCanceled")
   }
 
-  test("pop when self is empty") { implicit s =>
+  test("pop when self is empty") { _ =>
     val sc = TaskConnection()
     assertEquals(sc.pop(), Task.unit)
   }
@@ -207,7 +209,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     val tasks = (0 until count).map(_ => Task { effect += 1 })
 
     val sc = TaskConnection()
-    sc.pushConnections(connections1: _*)
+    sc.pushConnections(connections1*)
     for (bc <- cancelables) sc.push(bc)
     for (tk <- tasks) sc.push(tk)
     for (cn <- connections2) sc.push(cn)
@@ -241,7 +243,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     for (r <- connections2) assert(!r.isCanceled, "r.isCanceled")
     assertEquals(effect, 0)
 
-    sc.pushConnections(connections1: _*)
+    sc.pushConnections(connections1*)
     for (bc <- cancelables) sc.push(bc)
     for (tk <- tasks) sc.push(tk)
     for (cn <- connections2) sc.push(cn)
@@ -289,7 +291,7 @@ object TaskConnectionSuite extends BaseTestSuite {
     assert(c1.isCanceled, "c1.isCanceled")
   }
 
-  test("uncancelable ref is shared") { implicit s =>
+  test("uncancelable ref is shared") { _ =>
     val t = TaskConnection.uncancelable
     assertEquals(t, TaskConnection.uncancelable)
   }

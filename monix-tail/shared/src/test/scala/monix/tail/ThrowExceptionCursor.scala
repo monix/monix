@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,11 +22,11 @@ import monix.tail.batches.BatchCursor
 
 /** BatchCursor that throws exception on access. */
 final class ThrowExceptionCursor[A](ex: Throwable) extends BatchCursor[A] { self =>
-  private[this] val triggered = Atomic(false)
+  private val triggered = Atomic(false)
   def isTriggered: Boolean = triggered.get()
 
   private def triggerError(): Nothing = {
-    triggered := true
+    triggered.set(true)
     throw ex
   }
 

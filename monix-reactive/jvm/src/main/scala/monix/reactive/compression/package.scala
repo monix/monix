@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.reactive
 import java.time.Instant
 import java.util.zip.Deflater
 
-import monix.reactive.compression.internal.operators.{DeflateOperator, GunzipOperator, GzipOperator, InflateOperator}
+import monix.reactive.compression.internal.operators.{ DeflateOperator, GunzipOperator, GzipOperator, InflateOperator }
 
 // From https://github.com/typelevel/fs2/blob/main/core/jvm/src/main/scala/fs2/compression.scala
 package object compression {

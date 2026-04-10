@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@ import minitest.SimpleTestSuite
 import cats.effect.IO
 import cats.implicits._
 import monix.execution.atomic.Atomic
-import scala.concurrent.{CancellationException, ExecutionContext}
+import scala.concurrent.{ CancellationException, ExecutionContext }
 import scala.concurrent.duration._
 
 object CatsEffectIssue380Suite extends SimpleTestSuite {
@@ -50,7 +50,7 @@ object CatsEffectIssue380Suite extends SimpleTestSuite {
           val dt = 10.seconds
           assert(task.unsafeRunTimed(dt).nonEmpty, s"timed-out after $dt")
         } finally {
-          cancelLoop := true
+          cancelLoop.set(true)
         }
       }
     } finally {
@@ -82,7 +82,7 @@ object CatsEffectIssue380Suite extends SimpleTestSuite {
           val dt = 10.seconds
           assert(task.unsafeRunTimed(dt).nonEmpty, s"timed-out after $dt")
         } finally {
-          cancelLoop := true
+          cancelLoop.set(true)
         }
       }
     } finally {

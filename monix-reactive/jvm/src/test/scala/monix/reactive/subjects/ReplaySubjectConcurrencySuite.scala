@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +17,12 @@
 
 package monix.reactive.subjects
 
-import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.{ CountDownLatch, TimeUnit }
 import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.Scheduler
 import monix.execution.internal.RunnableAction
-import monix.reactive.{Observable, Observer}
+import monix.reactive.{ Observable, Observer }
 
 object ReplaySubjectConcurrencySuite extends TestSuite[Scheduler] {
   def tearDown(env: Scheduler) = ()

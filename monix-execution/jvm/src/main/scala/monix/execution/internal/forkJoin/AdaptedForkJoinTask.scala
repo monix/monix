@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,13 +20,13 @@ package monix.execution.internal.forkJoin
 import java.util.concurrent.ForkJoinTask
 
 private[monix] final class AdaptedForkJoinTask(runnable: Runnable) extends ForkJoinTask[Unit] {
-
   def setRawResult(u: Unit): Unit = ()
   def getRawResult(): Unit = ()
 
   def exec(): Boolean =
     try {
-      runnable.run(); true
+      runnable.run()
+      true
     } catch {
       case anything: Throwable =>
         val t = Thread.currentThread

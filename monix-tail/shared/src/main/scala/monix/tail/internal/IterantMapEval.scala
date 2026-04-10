@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,8 +36,8 @@ private[tail] object IterantMapEval {
   private final class Loop[F[_], A, B](ff: A => F[B])(implicit F: Sync[F])
     extends Iterant.Visitor[F, A, Iterant[F, B]] { self =>
 
-    private[this] var restRef: F[Iterant[F, A]] = _
-    private[this] val continueRef = (b: B) => nextS(b, self.restRef.map(self))
+    private var restRef: F[Iterant[F, A]] = null.asInstanceOf[F[Iterant[F, A]]]
+    private val continueRef = (b: B) => nextS(b, self.restRef.map(self))
 
     private def continue(rest: F[Iterant[F, A]]) = {
       this.restRef = rest

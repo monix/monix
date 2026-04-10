@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,24 +20,24 @@ package monix.reactive.internal.operators
 import java.util.concurrent.ConcurrentLinkedQueue
 
 import monix.eval.Task
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.CompositeCancelable
 import monix.execution.AsyncSemaphore
 import monix.execution.ChannelType.MultiProducer
-import monix.execution.{Ack, Cancelable, CancelableFuture}
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
-import monix.reactive.{Observable, OverflowStrategy}
+import monix.execution.{ Ack, Cancelable, CancelableFuture, Scheduler }
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
+import monix.reactive.{ Observable, OverflowStrategy }
 
 import scala.concurrent.Future
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 private[reactive] final class MapParallelOrderedObservable[A, B](
   source: Observable[A],
   parallelism: Int,
   f: A => Task[B],
-  overflowStrategy: OverflowStrategy[B])
-  extends Observable[B] {
+  overflowStrategy: OverflowStrategy[B]
+) extends Observable[B] {
 
   override def unsafeSubscribeFn(out: Subscriber[B]): Cancelable = {
     if (parallelism <= 0) {
@@ -57,26 +57,26 @@ private[reactive] final class MapParallelOrderedObservable[A, B](
   private final class MapAsyncParallelSubscription(out: Subscriber[B], composite: CompositeCancelable)
     extends Subscriber[A] with Cancelable { self =>
 
-    implicit val scheduler = out.scheduler
+    implicit val scheduler: Scheduler = out.scheduler
     // Ensures we don't execute more than a maximum number of tasks in parallel
-    private[this] val semaphore = AsyncSemaphore(parallelism.toLong)
+    private val semaphore = AsyncSemaphore(parallelism.toLong)
     // Buffer with the supplied  overflow strategy.
-    private[this] val buffer = BufferedSubscriber[B](out, overflowStrategy, MultiProducer)
+    private val buffer = BufferedSubscriber[B](out, overflowStrategy, MultiProducer)
 
     // Flag indicating whether a final event was called, after which
     // nothing else can happen. It's a very light protection, as
     // access to it is concurrent and not synchronized
-    private[this] var isDone = false
+    private var isDone = false
     // Turns to `Stop` when a stop acknowledgement is observed
     // coming from the `buffer` - this indicates that the downstream
     // no longer wants any events, so we must cancel
-    private[this] var lastAck: Ack = Continue
+    private var lastAck: Ack = Continue
     // Buffer for signaling new elements downstream preserving original order
     // It needs to be thread safe Queue because we want to allow adding and removing
     // elements at the same time.
-    private[this] val queue = new ConcurrentLinkedQueue[CancelableFuture[B]]
+    private val queue = new ConcurrentLinkedQueue[CancelableFuture[B]]
     // This lock makes sure that only one thread at the time sends processed elements downstream
-    private[this] val sendDownstreamSemaphore = AsyncSemaphore(1)
+    private val sendDownstreamSemaphore = AsyncSemaphore(1)
 
     private def shouldStop: Boolean = isDone || lastAck == Stop
 

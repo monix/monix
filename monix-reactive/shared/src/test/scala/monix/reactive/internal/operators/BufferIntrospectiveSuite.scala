@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +21,7 @@ import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.PublishSubject
@@ -28,7 +29,7 @@ import monix.execution.atomic.Atomic
 import monix.reactive.Observable
 
 import scala.concurrent.duration._
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
 object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {
@@ -46,7 +47,7 @@ object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {
     subject
       .bufferIntrospective(maxSize = 10)
       .unsafeSubscribeFn(new Subscriber[List[Long]] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
 
         def onNext(elem: List[Long]): Future[Ack] = {
           sum += elem.sum
@@ -72,7 +73,7 @@ object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {
     s.tick()
     assertEquals(sum, 6)
 
-    for (i <- 0 until 10) subject.onNext(1)
+    for (_ <- 0 until 10) subject.onNext(1)
     s.tick()
     assertEquals(sum, 6)
 

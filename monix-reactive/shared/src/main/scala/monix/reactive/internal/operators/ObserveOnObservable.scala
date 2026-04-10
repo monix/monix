@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +18,9 @@
 package monix.reactive.internal.operators
 
 import monix.execution.ChannelType.SingleProducer
-import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.reactive.{Observable, OverflowStrategy}
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
+import monix.execution.{ Ack, Cancelable, Scheduler }
+import monix.reactive.{ Observable, OverflowStrategy }
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
 
 import scala.concurrent.Future
 
@@ -33,7 +33,7 @@ private[reactive] final class ObserveOnObservable[+A](source: Observable[A], alt
     // will be listened on that specified `Scheduler`
     val buffer = {
       val ref: Subscriber[A] = new Subscriber[A] {
-        implicit val scheduler = altS
+        implicit val scheduler: Scheduler = altS
         def onNext(a: A) = out.onNext(a)
         def onError(ex: Throwable) = out.onError(ex)
         def onComplete() = out.onComplete()
@@ -46,7 +46,7 @@ private[reactive] final class ObserveOnObservable[+A](source: Observable[A], alt
     // because we only want to listen to events on the specified Scheduler,
     // but we don't want to override the Observable's default Scheduler
     source.unsafeSubscribeFn(new Subscriber[A] {
-      implicit val scheduler =
+      implicit val scheduler: Scheduler =
         out.scheduler
       def onNext(elem: A): Future[Ack] =
         buffer.onNext(elem)

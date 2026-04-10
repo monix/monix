@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.tail.batches.{ Batch, BatchCursor }
 
 object IterantResourceSuite extends BaseTestSuite {
   class Resource(var acquired: Int = 0, var released: Int = 0) {
@@ -49,7 +49,8 @@ object IterantResourceSuite extends BaseTestSuite {
           .of(1, 2, 3)
           .guarantee(Coeval {
             earlyStopDone = true
-          }))
+          })
+      )
 
     bracketed.take(1).completedL.value()
     assert(earlyStopDone)

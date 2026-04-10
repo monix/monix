@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,12 @@
 
 package monix.execution
 
-import monix.execution.exceptions.{CallbackCalledMultipleTimesException, UncaughtErrorException}
-import monix.execution.schedulers.{TrampolineExecutionContext, TrampolinedRunnable}
-import scala.concurrent.{ExecutionContext, Promise}
+import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, UncaughtErrorException }
+import monix.execution.schedulers.{ TrampolineExecutionContext, TrampolinedRunnable }
+import monix.execution.compat.uninitialized
+import scala.concurrent.{ ExecutionContext, Promise }
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /** Represents a callback that should be called asynchronously
   * with the result of a computation.
@@ -189,7 +190,7 @@ object Callback {
     *
     * For example these are Equivalent:
     *
-    * `Callback[Throwable, Throwable].empty[String] <-> Callback.empty[Throwable, String]`
+    * `Callback[Throwable].empty[String] <-> Callback.empty[Throwable, String]`
     */
   def apply[E]: Builders[E] = new Builders[E]
 
@@ -281,7 +282,7 @@ object Callback {
       case ref: Callback[E, A] @unchecked => ref
       case _ =>
         new Callback[E, A] {
-          private[this] var isActive = true
+          private var isActive = true
           override def onSuccess(value: A): Unit = apply(Right(value))
           override def onError(e: E): Unit = apply(Left(e))
 
@@ -310,7 +311,7 @@ object Callback {
     */
   def fromTry[A](cb: Try[A] => Unit): Callback[Throwable, A] =
     new Callback[Throwable, A] {
-      private[this] var isActive = true
+      private var isActive = true
       override def onSuccess(value: A): Unit = apply(Success(value))
       override def onError(e: Throwable): Unit = apply(Failure(e))
 
@@ -386,9 +387,9 @@ object Callback {
 
   /** Base implementation for `trampolined` and `forked`. */
   private class Base[E, A](cb: Callback[E, A])(implicit ec: ExecutionContext) extends Callback[E, A] with Runnable {
-    private[this] val state = monix.execution.atomic.AtomicInt(0)
-    private[this] var value: A = _
-    private[this] var error: E = _
+    private val state = monix.execution.atomic.AtomicInt(0)
+    private var value: A = uninitialized[A]
+    private var error: E = uninitialized[E]
 
     override final def onSuccess(value: A): Unit =
       if (!tryOnSuccess(value)) {
@@ -452,7 +453,7 @@ object Callback {
   private final class Safe[-E, -A](underlying: Callback[E, A])(implicit r: UncaughtExceptionReporter)
     extends Callback[E, A] {
 
-    private[this] val isActive =
+    private val isActive =
       monix.execution.atomic.AtomicBoolean(true)
 
     override def onSuccess(value: A): Unit = {

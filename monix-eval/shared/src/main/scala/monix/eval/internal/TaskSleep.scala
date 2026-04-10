@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package monix.eval.internal
 
 import java.util.concurrent.RejectedExecutionException
 
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.{ Async, Context }
 import monix.execution.Callback
 import monix.eval.Task
 
@@ -34,11 +34,11 @@ private[eval] object TaskSleep {
       trampolineAfter = false
     )
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is a task that forks on evaluation.
-  //
-  // N.B. the contract is that the injected callback gets called after
-  // a full async boundary!
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is a task that forks on evaluation.
+//
+// N.B. the contract is that the injected callback gets called after
+// a full async boundary!
   private final class Register(timespan: Duration) extends ForkedRegister[Unit] {
     def apply(ctx: Context, cb: Callback[Throwable, Unit]): Unit = {
       implicit val s = ctx.scheduler
@@ -58,14 +58,14 @@ private[eval] object TaskSleep {
     }
   }
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is a task that forks on evaluation.
-  //
-  // N.B. the contract is that the injected callback gets called after
-  // a full async boundary!
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is a task that forks on evaluation.
+//
+// N.B. the contract is that the injected callback gets called after
+// a full async boundary!
   private final class SleepRunnable(ctx: Context, cb: Callback[Throwable, Unit]) extends Runnable {
     def run(): Unit = {
-      ctx.connection.pop()
+      val _ = ctx.connection.pop()
       // We had an async boundary, as we must reset the frame
       ctx.frameRef.reset()
       cb.onSuccess(())

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.execution.exceptions
 
 import scala.runtime.AbstractFunction1
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /** Generic exception thrown on API contract violations. */
 class APIContractViolationException(val message: String, cause: Throwable)
@@ -56,10 +56,10 @@ object CallbackCalledMultipleTimesException extends AbstractFunction1[String, Ca
   def unapply(arg: CallbackCalledMultipleTimesException): Option[(String, Throwable)] =
     Some((arg.message, arg.getCause))
 
-  def forResult[E](r: Try[_]): CallbackCalledMultipleTimesException =
+  def forResult[E](r: Try[Any]): CallbackCalledMultipleTimesException =
     forResult(r match { case Success(a) => Right(a); case Failure(e) => Left(e) })
 
-  def forResult[E](r: Either[E, _]): CallbackCalledMultipleTimesException = {
+  def forResult[E](r: Either[E, Any]): CallbackCalledMultipleTimesException = {
     val (msg, cause) = r match {
       case Left(e) => ("onError", UncaughtErrorException.wrap(e))
       case Right(_) => ("onSuccess", null)

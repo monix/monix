@@ -20,18 +20,18 @@ package monix.benchmarks
 import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Keep, Sink => AkkaSink, Source => AkkaSource}
-import fs2.{Stream => FS2Stream}
+import akka.stream.scaladsl.{ Keep, Sink => AkkaSink, Source => AkkaSource }
+import fs2.{ Stream => FS2Stream }
 import monix.benchmarks
 import monix.execution.Ack.Continue
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import org.openjdk.jmh.annotations._
-import zio.stream.{Stream => ZStream}
+import zio.stream.{ Stream => ZStream }
 
 import scala.collection.immutable.IndexedSeq
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Promise}
+import scala.concurrent.{ Await, Promise }
 
 /** To do comparative benchmarks between versions:
   *
@@ -121,7 +121,7 @@ class ChunkedMapFilterSumBenchmark {
 
   @Benchmark
   def fs2Stream(): Int = {
-    val stream = FS2Stream(fs2Chunks: _*)
+    val stream = FS2Stream(fs2Chunks*)
       .flatMap(FS2Stream.chunk)
       .map(_ + 1)
       .filter(_ % 2 == 0)
@@ -134,7 +134,7 @@ class ChunkedMapFilterSumBenchmark {
   @Benchmark
   def zioStream(): Int = {
     val stream = ZStream
-      .fromChunks(zioChunks: _*)
+      .fromChunks(zioChunks*)
       .map(_ + 1)
       .filter(_ % 2 == 0)
       .runSum
@@ -156,7 +156,7 @@ class ChunkedMapFilterSumBenchmark {
     val p = Promise[Int]()
     stream.unsafeSubscribeFn(new Subscriber.Sync[Int] {
       val scheduler = benchmarks.scheduler
-      private[this] var sum: Int = 0
+      private var sum: Int = 0
 
       def onError(ex: Throwable): Unit =
         p.failure(ex)

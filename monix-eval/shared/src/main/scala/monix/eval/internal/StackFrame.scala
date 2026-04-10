@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,8 +37,8 @@ private[eval] object StackFrame {
   }
 
   /** [[StackFrame]] reference that only handles errors,
-    * useful for quick filtering of `onErrorHandleWith` frames.
-    */
+* useful for quick filtering of `onErrorHandleWith` frames.
+*/
   final class ErrorHandler[-A, +R](fe: Throwable => R, fa: A => R) extends StackFrame[A, R] {
 
     def apply(a: A): R = fa(a)

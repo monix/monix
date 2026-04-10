@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +32,8 @@ import scala.concurrent.ExecutionContext
 @implicitNotFound(
   "No ExceptionReporter was found in context for " +
     "reporting uncaught errors, either build one yourself or use " +
-    "an implicit Scheduler (schedulers are ExceptionReporters)")
+    "an implicit Scheduler (schedulers are ExceptionReporters)"
+)
 trait UncaughtExceptionReporter extends Serializable {
   def reportFailure(ex: Throwable): Unit
 }

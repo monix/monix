@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package batches
 
 import monix.execution.compat.internal._
 import monix.execution.internal.Platform.recommendedBatchSize
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 import scala.reflect.ClassTag
 
 /** Similar to Java's and Scala's `Iterator`, the `BatchCursor` type can
@@ -319,7 +319,8 @@ object BatchCursor {
     */
   def fromArray[A](array: Array[A], offset: Int, length: Int): ArrayCursor[A] = {
     val tp = ClassTag[A](array.getClass.getComponentType)
-    new ArrayCursor[A](array, offset, length)(tp)
+    implicit val ct: ClassTag[A] = tp
+    new ArrayCursor[A](array, offset, length)
   }
 
   /** $fromAnyArrayDesc
@@ -328,14 +329,14 @@ object BatchCursor {
     * @param offset $paramArrayOffset
     * @param length $paramArrayLength
     */
-  def fromAnyArray[A](array: Array[_], offset: Int, length: Int): ArrayCursor[A] =
+  def fromAnyArray[A](array: Array[?], offset: Int, length: Int): ArrayCursor[A] =
     fromArray(array, offset, length).asInstanceOf[ArrayCursor[A]]
 
   /** $fromAnyArrayDesc
     *
     * @param array $paramArray
     */
-  def fromAnyArray[A](array: Array[_]): ArrayCursor[A] =
+  def fromAnyArray[A](array: Array[?]): ArrayCursor[A] =
     fromAnyArray(array, 0, array.length)
 
   /** Builds a [[BatchCursor]] from a Scala `Seq`, with lazy

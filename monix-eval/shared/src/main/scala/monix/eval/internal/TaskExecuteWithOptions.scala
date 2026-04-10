@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,22 +18,21 @@
 package monix.eval.internal
 
 import monix.eval.Task
-import monix.eval.Task.{Context, ContextSwitch, Options}
+import monix.eval.Task.{ Context, ContextSwitch, Options }
 
 private[eval] object TaskExecuteWithOptions {
   /**
-    * Implementation for `Task.executeWithOptions`
-    */
+* Implementation for `Task.executeWithOptions`
+*/
   def apply[A](self: Task[A], f: Options => Options): Task[A] =
     ContextSwitch(self, enable(f), disable)
 
-  private[this] def enable(f: Options => Options): Context => Context =
-    ctx => {
-      val opts2 = f(ctx.options)
-      if (opts2 != ctx.options) ctx.withOptions(opts2)
-      else ctx
-    }
+  private def enable(f: Options => Options): Context => Context = ctx => {
+    val opts2 = f(ctx.options)
+    if (opts2 != ctx.options) ctx.withOptions(opts2)
+    else ctx
+  }
 
-  private[this] val disable: (Any, Throwable, Context, Context) => Context =
+  private val disable: (Any, Throwable, Context, Context) => Context =
     (_, _, old, current) => current.withOptions(old.options)
 }

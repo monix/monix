@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,17 +17,20 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 
+@nowarn("msg=unused value of type")
 private[reactive] object CountOperator extends Operator[Any, Long] {
   def apply(out: Subscriber[Long]): Subscriber[Any] =
     new Subscriber[Any] {
-      implicit val scheduler = out.scheduler
-      private[this] var count = 0L
+      implicit val scheduler: Scheduler = out.scheduler
+      private var count = 0L
 
       def onNext(elem: Any): Future[Ack] = {
         count += 1

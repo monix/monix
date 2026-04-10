@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,11 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.internal.util.PromiseCounter
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.PublishSubject.State
@@ -43,7 +43,7 @@ final class PublishSubject[A] private () extends Subject[A, A] { self =>
    * NOTE: the stored vector value can be null and if it is, then
    * that means our subject has been terminated.
    */
-  private[this] val stateRef = Atomic.withPadding(State[A](), LeftRight128)
+  private val stateRef = Atomic.withPadding(State[A](), LeftRight128)
 
   private def onSubscribeCompleted(subscriber: Subscriber[A], ex: Throwable): Cancelable = {
     if (ex != null) subscriber.onError(ex)
@@ -78,7 +78,9 @@ final class PublishSubject[A] private () extends Subject[A, A] { self =>
       if (!stateRef.compareAndSet(state, update))
         unsafeSubscribeFn(subscriber) // repeat
       else
-        Cancelable { () => unsubscribe(subscriber); () }
+        Cancelable { () =>
+          val _ = unsubscribe(subscriber)
+        }
     }
   }
 
@@ -93,7 +95,7 @@ final class PublishSubject[A] private () extends Subject[A, A] { self =>
         val update = state.refresh
         // If CAS fails, it means we have new subscribers;
         // not bothering to recreate the cache for now
-        stateRef.compareAndSet(state, update)
+        val _ = stateRef.compareAndSet(state, update)
         sendOnNextToAll(update.cache, elem)
       }
     } else {
@@ -125,20 +127,21 @@ final class PublishSubject[A] private () extends Subject[A, A] { self =>
       // if execution is synchronous, takes the fast-path
       if (ack.isCompleted) {
         // subscriber canceled or triggered an error? Then remove!
-        if (ack != Continue && ack.value.get != Continue.AsSuccess)
-          unsubscribe(subscriber)
+        if (ack != Continue && ack.value.get != Continue.AsSuccess) {
+          val _ = unsubscribe(subscriber)
+        }
       } else {
         // going async, so we've got to count active futures for final Ack
         // the counter starts from 1 because zero implies isCompleted
         if (result == null) result = PromiseCounter(Continue, 1)
         result.acquire()
 
-        ack.onComplete {
+        val _ = ack.onComplete {
           case Continue.AsSuccess =>
             result.countdown()
           case _ =>
             // subscriber canceled or triggered an error? then remove
-            unsubscribe(subscriber)
+            val _ = unsubscribe(subscriber)
             result.countdown()
         }
       }
@@ -209,7 +212,8 @@ object PublishSubject {
   private[subjects] final case class State[A](
     subscribers: Set[Subscriber[A]] = Set.empty[Subscriber[A]],
     cache: Array[Subscriber[A]] = null,
-    errorThrown: Throwable = null) {
+    errorThrown: Throwable = null
+  ) {
 
     def refresh: State[A] =
       copy(cache = subscribers.toArray)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,7 +39,8 @@ object DebounceSuite extends BaseOperatorSuite {
       Observable
         .interval(2.seconds)
         .take(sourceCount.toLong),
-      ex)
+      ex
+    )
       .debounce(1.second)
 
     val count = sourceCount - 1

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 
 import scala.collection.mutable
 import scala.util.control.NonFatal
@@ -58,11 +58,11 @@ private[tail] object IterantFoldLeftL {
     extends Iterant.Visitor[F, A, F[S]] { loop =>
 
     /** Current calculated state. */
-    private[this] var state = seed
+    private var state = seed
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used in visit(Concat)
-    private[this] var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var stackRef: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
     private def stackPush(item: F[Iterant[F, A]]): Unit = {
       if (stackRef == null) stackRef = ChunkedArrayStack()
@@ -74,13 +74,13 @@ private[tail] object IterantFoldLeftL {
       else null.asInstanceOf[F[Iterant[F, A]]]
     }
 
-    private[this] val concatContinue: (S => F[S]) =
+    private val concatContinue: (S => F[S]) =
       state =>
         stackPop() match {
           case null => F.pure(state)
           case xs => xs.flatMap(loop)
         }
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     def visit(ref: Next[F, A]): F[S] = {
       state = op(state, ref.item)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,8 +32,8 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A](
   _array: Array[A],
   _offset: Int,
   _length: Int,
-  newBuilder: () => ArrayBuilder[A])
-  extends BatchCursor[A] { self =>
+  newBuilder: () => ArrayBuilder[A]
+) extends BatchCursor[A] { self =>
 
   require(_offset + _length <= _array.length, "offset + length <= array.length")
   require(0 <= _offset && _offset <= _array.length, "0 <= offset <= length")
@@ -46,8 +46,8 @@ final class ArrayCursor[@specialized(Boolean, Byte, Char, Int, Long, Double) A](
   // Int.MaxValue means that arrays can be processed whole
   override val recommendedBatchSize: Int = Int.MaxValue
 
-  private[this] val limit = _offset + _length
-  private[this] var index: Int = -1
+  private val limit = _offset + _length
+  private var index: Int = -1
 
   def array: Array[A] = _array
   def offset: Int = _offset

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -68,7 +68,7 @@ object InflateOperatorSuite extends BaseDecompressionSuite with DeflateTestUtils
         .repeatEval(jdkDeflate(longText, new Deflater(-1, true)))
         .take(sourceCount.toLong)
         .transform(inflate(noWrap = true)) ++ Observable
-        .repeatEval(longText) //corrupted payload
+        .repeatEval(longText) // corrupted payload
         .transform(inflate(noWrap = true)))
         .map(_ => 1L)
         .onErrorFallbackTo(Observable.raiseError(ex))

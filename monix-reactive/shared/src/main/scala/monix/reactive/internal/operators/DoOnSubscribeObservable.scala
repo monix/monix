@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,15 +20,16 @@ package monix.reactive.internal.operators
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack.Stop
+import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
-import monix.execution.cancelables.{OrderedCancelable, SingleAssignCancelable, StackedCancelable}
+import monix.execution.cancelables.{ OrderedCancelable, SingleAssignCancelable, StackedCancelable }
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import monix.execution.{Ack, Cancelable, FutureUtils}
+import monix.execution.{ Ack, Cancelable, FutureUtils }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ Future, Promise }
+import scala.util.{ Failure, Success }
 
 private[reactive] object DoOnSubscribeObservable {
   // Implementation for doBeforeSubscribe
@@ -61,9 +62,9 @@ private[reactive] object DoOnSubscribeObservable {
 
       val cancelable = source.unsafeSubscribeFn(
         new Subscriber[A] {
-          implicit val scheduler = out.scheduler
-          private[this] val completeGuard = Atomic(true)
-          private[this] var isActive = false
+          implicit val scheduler: Scheduler = out.scheduler
+          private val completeGuard = Atomic(true)
+          private var isActive = false
 
           def onNext(elem: A): Future[Ack] = {
             if (isActive) {
@@ -80,12 +81,15 @@ private[reactive] object DoOnSubscribeObservable {
                   out.onNext(elem)
               }
             } else {
-              FutureUtils.transformWith[Unit, Ack](p.future, {
-                case Success(_) => out.onNext(elem)
-                case Failure(e) =>
-                  finalSignal(e)
-                  Stop
-              })(immediate)
+              FutureUtils.transformWith[Unit, Ack](
+                p.future,
+                {
+                  case Success(_) => out.onNext(elem)
+                  case Failure(e) =>
+                    finalSignal(e)
+                    Stop
+                }
+              )(immediate)
             }
           }
 
@@ -108,12 +112,12 @@ private[reactive] object DoOnSubscribeObservable {
 
       ref := task.runAsync(new Callback[Throwable, Unit] {
         def onSuccess(value: Unit): Unit = {
-          conn.pop()
+          val _ = conn.pop()
           p.success(())
           ()
         }
         def onError(ex: Throwable): Unit = {
-          conn.pop()
+          val _ = conn.pop()
           p.failure(ex)
           ()
         }

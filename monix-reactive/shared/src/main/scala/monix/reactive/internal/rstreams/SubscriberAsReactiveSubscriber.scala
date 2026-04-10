@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,15 +17,15 @@
 
 package monix.reactive.internal.rstreams
 
-import monix.execution.{Ack, Scheduler}
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.SingleProducer
+import monix.execution.Scheduler
 import monix.execution.rstreams.SingleAssignSubscription
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.reactive.OverflowStrategy.Unbounded
-import monix.reactive.observers.{BufferedSubscriber, Subscriber}
-import org.reactivestreams.{Subscriber => RSubscriber, Subscription => RSubscription}
-
+import monix.reactive.observers.{ BufferedSubscriber, Subscriber }
+import org.reactivestreams.{ Subscriber => RSubscriber, Subscription => RSubscription }
 import scala.concurrent.Future
 
 private[reactive] object SubscriberAsReactiveSubscriber {
@@ -41,7 +41,7 @@ private[reactive] object SubscriberAsReactiveSubscriber {
     * {{{
     *   // uses the default requestCount of 128
     *   val subscriber = SubscriberAsReactiveSubscriber(new Observer[Int] {
-    *     private[this] var sum = 0
+    *     private var sum = 0
     *
     *     def onNext(elem: Int) = {
     *       sum += elem
@@ -65,7 +65,7 @@ private[reactive] object SubscriberAsReactiveSubscriber {
     */
   def apply[A](subscriber: Subscriber[A], requestCount: Int = 128): RSubscriber[A] =
     subscriber match {
-      case _: Subscriber.Sync[_] =>
+      case _: Subscriber.Sync[?] =>
         new SyncSubscriberAsReactiveSubscriber[A](subscriber.asInstanceOf[Subscriber.Sync[A]], requestCount)
       case _ =>
         new AsyncSubscriberAsReactiveSubscriber[A](subscriber, requestCount)
@@ -91,14 +91,14 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A](target: Sub
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
 
-  private[this] val subscription = SingleAssignSubscription()
-  private[this] val downstream: Subscriber[A] =
+  private val subscription = SingleAssignSubscription()
+  private val downstream: Subscriber[A] =
     new Subscriber[A] {
-      implicit val scheduler = target.scheduler
+      implicit val scheduler: Scheduler = target.scheduler
 
-      private[this] val isFinite = requestCount < Int.MaxValue
-      private[this] var isActive = true
-      private[this] var toReceive = requestCount
+      private val isFinite = requestCount < Int.MaxValue
+      private var isActive = true
+      private var toReceive = requestCount
 
       locally {
         // Requesting the first batch
@@ -132,9 +132,10 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A](target: Sub
                   case Stop => stop()
                 },
               err => {
-                stop()
+                val _ = stop()
                 err
-              })(immediate)
+              }
+            )(immediate)
         }
 
       def onNext(elem: A): Future[Ack] = {
@@ -154,7 +155,7 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A](target: Sub
         }
     }
 
-  private[this] val buffer: Subscriber.Sync[A] =
+  private val buffer: Subscriber.Sync[A] =
     BufferedSubscriber.synchronous(downstream, Unbounded, SingleProducer)
 
   def onSubscribe(s: RSubscription): Unit =
@@ -162,7 +163,7 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A](target: Sub
 
   def onNext(elem: A): Unit = {
     if (elem == null) throwNull("onNext")
-    buffer.onNext(elem)
+    val _ = buffer.onNext(elem)
     ()
   }
 
@@ -191,7 +192,7 @@ private[reactive] final class AsyncSubscriberAsReactiveSubscriber[A](target: Sub
   * To async an instance, [[SyncSubscriberAsReactiveSubscriber]] must be used: {{{
   *   // uses the default requestCount of 128
   *   val subscriber = SyncSubscriberAsReactiveSubscriber(new Observer[Int] {
-  *     private[this] var sum = 0
+  *     private var sum = 0
   *
   *     def onNext(elem: Int) = {
   *       sum += elem
@@ -213,11 +214,9 @@ private[reactive] final class SyncSubscriberAsReactiveSubscriber[A](target: Subs
 
   require(requestCount > 0, "requestCount must be strictly positive, according to the Reactive Streams contract")
 
-  private[this] implicit val s: Scheduler = target.scheduler
-
-  private[this] var subscription = null: RSubscription
-  private[this] var expectingCount = 0L
-  @volatile private[this] var isCanceled = false
+  private var subscription = null: RSubscription
+  private var expectingCount = 0L
+  @volatile private var isCanceled = false
 
   def onSubscribe(s: RSubscription): Unit = {
     if (subscription == null && !isCanceled) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,12 +19,12 @@ package monix.reactive.internal.builders
 
 import java.util.concurrent.TimeUnit
 import monix.execution.cancelables.MultiAssignCancelable
-import monix.execution.{Ack, Cancelable, Scheduler}
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.{ Ack, Cancelable, Scheduler }
+import monix.execution.Ack.{ Continue, Stop }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 private[reactive] final class RepeatedValueObservable[A](initialDelay: FiniteDuration, period: FiniteDuration, unit: A)
   extends Observable[A] {
@@ -43,11 +43,11 @@ private[reactive] final class RepeatedValueObservable[A](initialDelay: FiniteDur
     task
   }
 
-  private[this] def runnable(subscriber: Subscriber[A], task: MultiAssignCancelable): Runnable =
+  private def runnable(subscriber: Subscriber[A], task: MultiAssignCancelable): Runnable =
     new Runnable { self =>
-      private[this] implicit val s: Scheduler = subscriber.scheduler
-      private[this] val periodMs = period.toMillis
-      private[this] var startedAt = 0L
+      private implicit val s: Scheduler = subscriber.scheduler
+      private val periodMs = period.toMillis
+      private var startedAt = 0L
 
       def syncScheduleNext(): Unit = {
         val initialDelay = {

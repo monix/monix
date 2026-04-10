@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.tracing.{TaskEvent, TaskTrace}
+import monix.eval.tracing.{ TaskEvent, TaskTrace }
 import monix.eval.internal.TracingPlatform.traceBufferLogSize
 import monix.execution.internal.RingBuffer
 
@@ -25,9 +25,9 @@ import monix.execution.internal.RingBuffer
   * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
   */
 private[eval] final class StackTracedContext {
-  private[this] val events: RingBuffer[TaskEvent] = new RingBuffer(traceBufferLogSize)
-  private[this] var captured: Int = 0
-  private[this] var omitted: Int = 0
+  private val events: RingBuffer[TaskEvent] = new RingBuffer(traceBufferLogSize)
+  private var captured: Int = 0
+  private var omitted: Int = 0
 
   def pushEvent(fr: TaskEvent): Unit = {
     captured += 1

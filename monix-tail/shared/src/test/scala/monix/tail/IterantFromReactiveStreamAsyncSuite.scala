@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,9 +24,9 @@ import monix.execution.Scheduler.global
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
-import org.reactivestreams.{Publisher, Subscriber, Subscription}
+import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
   def setup(): Scheduler = global
@@ -181,8 +181,8 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
   }
 
   class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])(
-    implicit sc: Scheduler)
-    extends Publisher[Int] {
+    implicit sc: Scheduler
+  ) extends Publisher[Int] {
 
     def this(range: Range, finish: Option[Throwable])(implicit sc: Scheduler) =
       this(range.start, range.end, range.step, finish, null)
@@ -190,12 +190,12 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
     def this(range: Range, finish: Option[Throwable], onCancel: Promise[Unit])(implicit sc: Scheduler) =
       this(range.start, range.end, range.step, finish, onCancel)
 
-    def subscribe(s: Subscriber[_ >: Int]): Unit = {
+    def subscribe(s: Subscriber[? >: Int]): Unit = {
       s.onSubscribe(new Subscription { self =>
-        private[this] val finished = Atomic(false)
-        private[this] val cancelled = Atomic(false)
-        private[this] val requested = Atomic(0L)
-        private[this] var index = from
+        private val finished = Atomic(false)
+        private val cancelled = Atomic(false)
+        private val requested = Atomic(0L)
+        private var index = from
 
         def isInRange(x: Long, until: Long, step: Long): Boolean = {
           (step > 0 && x < until) || (step < 0 && x > until)
@@ -203,35 +203,34 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
 
         def request(n: Long): Unit = {
           if (requested.getAndAdd(n) == 0)
-            sc.execute(new Runnable {
-              def run(): Unit = {
-                var requested = self.requested.get()
-                var toSend = requested
-                var isCanceled = self.cancelled.get() && self.finished.get()
+            sc.execute(() => {
+              var requested = self.requested.get()
+              var toSend = requested
+              var isCanceled = self.cancelled.get() && self.finished.get()
 
-                while (toSend > 0 && isInRange(index.toLong, until.toLong, step.toLong) && !isCanceled) {
-                  s.onNext(index)
-                  index += step
-                  toSend -= 1
+              while (toSend > 0 && isInRange(index.toLong, until.toLong, step.toLong) && !isCanceled) {
+                s.onNext(index)
+                index += step
+                toSend -= 1
 
-                  if (toSend == 0) {
-                    requested = self.requested.subtractAndGet(requested)
-                    toSend = requested
-                  } else if (toSend % 100 == 0) {
-                    isCanceled = self.cancelled.get()
-                  }
+                if (toSend == 0) {
+                  requested = self.requested.subtractAndGet(requested)
+                  toSend = requested
+                } else if (toSend % 100 == 0) {
+                  isCanceled = self.cancelled.get()
                 }
+              }
 
-                if (!isInRange(index.toLong, until.toLong, step.toLong) &&
-                  !isCanceled &&
-                  finished.compareAndSet(expect = false, update = true)
-                ) {
-                  finish match {
-                    case None =>
-                      s.onComplete()
-                    case Some(e) =>
-                      s.onError(e)
-                  }
+              if (
+                !isInRange(index.toLong, until.toLong, step.toLong) &&
+                !isCanceled &&
+                finished.compareAndSet(expect = false, update = true)
+              ) {
+                finish match {
+                  case None =>
+                    s.onComplete()
+                  case Some(e) =>
+                    s.onError(e)
                 }
               }
             })

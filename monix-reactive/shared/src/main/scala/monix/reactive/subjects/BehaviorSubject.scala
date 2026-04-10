@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,11 +17,12 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.{Ack, Cancelable}
+import scala.annotation.nowarn
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.internal.util.PromiseCounter
-import monix.reactive.observers.{ConnectableSubscriber, Subscriber}
+import monix.reactive.observers.{ ConnectableSubscriber, Subscriber }
 import monix.execution.atomic.Atomic
 import scala.util.control.NonFatal
 
@@ -38,9 +39,10 @@ import scala.util.Success
   *
   * @see [[Subject]]
   */
+@nowarn("msg=unused value of type")
 final class BehaviorSubject[A] private (initialValue: A) extends Subject[A, A] { self =>
 
-  private[this] val stateRef =
+  private val stateRef =
     Atomic(BehaviorSubject.State[A](initialValue))
 
   def size: Int =
@@ -186,7 +188,8 @@ object BehaviorSubject {
     cached: A,
     subscribers: Set[ConnectableSubscriber[A]] = Set.empty[ConnectableSubscriber[A]],
     isDone: Boolean = false,
-    errorThrown: Throwable = null) {
+    errorThrown: Throwable = null
+  ) {
 
     def cacheElem(elem: A): State[A] = {
       copy(cached = elem)

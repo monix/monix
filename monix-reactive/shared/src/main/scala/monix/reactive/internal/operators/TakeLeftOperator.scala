@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,19 +17,22 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack.Stop
+import monix.execution.Scheduler
 import monix.reactive.Observable.Operator
 import monix.reactive.observers.Subscriber
 
+@nowarn("msg=unused value of type")
 private[reactive] final class TakeLeftOperator[A](n: Long) extends Operator[A, A] {
 
   def apply(out: Subscriber[A]): Subscriber[A] = {
     require(n > 0, "n should be strictly positive")
     new Subscriber[A] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] var counter = 0L
-      private[this] var isActive = true
+      private var counter = 0L
+      private var isActive = true
 
       def onNext(elem: A) = {
         if (isActive && counter < n) {

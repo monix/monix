@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,15 +23,15 @@ import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.schedulers.TrampolinedRunnable
-import org.reactivestreams.{Publisher, Subscriber}
+import org.reactivestreams.{ Publisher, Subscriber }
 import monix.execution.rstreams.SingleAssignSubscription
 
 import scala.util.control.NonFatal
 
 private[eval] object TaskConversions {
   /**
-    * Implementation for `Task#toIO`.
-    */
+* Implementation for `Task#toIO`.
+*/
   def toIO[A](source: Task[A])(implicit eff: ConcurrentEffect[Task]): IO[A] =
     source match {
       case Task.Now(value) => IO.pure(value)
@@ -44,8 +44,8 @@ private[eval] object TaskConversions {
     }
 
   /**
-    * Implementation for `Task#toConcurrent`.
-    */
+* Implementation for `Task#toConcurrent`.
+*/
   def toConcurrent[F[_], A](source: Task[A])(implicit F: Concurrent[F], eff: ConcurrentEffect[Task]): F[A] =
     source match {
       case Task.Now(value) => F.pure(value)
@@ -59,8 +59,8 @@ private[eval] object TaskConversions {
     }
 
   /**
-    * Implementation for `Task#toAsync`.
-    */
+* Implementation for `Task#toAsync`.
+*/
   def toAsync[F[_], A](source: Task[A])(implicit F: Async[F], eff: Effect[Task]): F[A] =
     source match {
       case Task.Now(value) => F.pure(value)
@@ -73,8 +73,8 @@ private[eval] object TaskConversions {
     }
 
   /**
-    * Implementation for `Task.from`.
-    */
+* Implementation for `Task.from`.
+*/
   def fromEffect[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] =
     fa.asInstanceOf[AnyRef] match {
       case ref: Task[A] @unchecked => ref
@@ -101,8 +101,8 @@ private[eval] object TaskConversions {
   }
 
   /**
-    * Implementation for `Task.fromConcurrent`.
-    */
+* Implementation for `Task.fromConcurrent`.
+*/
   def fromConcurrentEffect[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] =
     fa.asInstanceOf[AnyRef] match {
       case ref: Task[A] @unchecked => ref
@@ -111,14 +111,14 @@ private[eval] object TaskConversions {
     }
 
   /**
-    * Implementation for `Task.fromReactivePublisher`.
-    */
+* Implementation for `Task.fromReactivePublisher`.
+*/
   def fromReactivePublisher[A](source: Publisher[A]): Task[Option[A]] =
     Task.cancelable0 { (scheduler, cb) =>
       val sub = SingleAssignSubscription()
 
       source.subscribe(new Subscriber[A] {
-        private[this] var isActive = true
+        private var isActive = true
 
         def onSubscribe(s: org.reactivestreams.Subscription): Unit = {
           sub := s
@@ -159,7 +159,7 @@ private[eval] object TaskConversions {
         implicit val sc = ctx.scheduler
         val conn = ctx.connection
         val cancelable = TaskConnectionRef()
-        conn push cancelable.cancel
+        conn.push(cancelable.cancel)
 
         val syncIO = F.runCancelable(fa)(new CreateCallback[A](conn, cb))
         cancelable := fromEffect(syncIO.unsafeRunSync(): F[Unit])
@@ -178,13 +178,15 @@ private[eval] object TaskConversions {
   private final class CreateCallback[A](conn: TaskConnection, cb: Callback[Throwable, A])(implicit s: Scheduler)
     extends (Either[Throwable, A] => IO[Unit]) with TrampolinedRunnable {
 
-    private[this] var canCall = true
-    private[this] var value: Either[Throwable, A] = _
+    private var canCall = true
+    private var value: Either[Throwable, A] = null.asInstanceOf[Either[Throwable, A]]
 
     def run(): Unit = {
       if (canCall) {
         canCall = false
-        if (conn ne null) conn.pop()
+        if (conn ne null) {
+          val _ = conn.pop()
+        }
         cb(value)
         value = null
       }

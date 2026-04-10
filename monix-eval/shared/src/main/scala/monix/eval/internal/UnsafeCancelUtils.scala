@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ package monix.eval.internal
 import cats.effect.CancelToken
 import monix.catnap.CancelableF
 import monix.eval.Task
-import monix.execution.{Cancelable, Scheduler}
+import monix.execution.{ Cancelable, Scheduler }
 import monix.execution.internal.Platform
 
 import scala.collection.mutable.ListBuffer
@@ -28,18 +28,19 @@ import scala.util.control.NonFatal
 
 private[eval] object UnsafeCancelUtils {
   /**
-    * Internal API.
-    */
+* Internal API.
+*/
   def taskToCancelable(task: Task[Unit])(implicit s: Scheduler): Cancelable = {
     if (task == Task.unit) Cancelable.empty
     else Cancelable(() => task.runAsyncAndForget(s))
   }
 
   /**
-    * Internal API — very unsafe!
-    */
+* Internal API — very unsafe!
+*/
   private[internal] def cancelAllUnsafe(
-    cursor: Iterable[AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ]): CancelToken[Task] = {
+    cursor: Iterable[AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ]
+  ): CancelToken[Task] = {
 
     if (cursor.isEmpty)
       Task.unit
@@ -51,10 +52,11 @@ private[eval] object UnsafeCancelUtils {
   }
 
   /**
-    * Internal API — very unsafe!
-    */
+* Internal API — very unsafe!
+*/
   private[internal] def unsafeCancel(
-    task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ): CancelToken[Task] = {
+    task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */
+  ): CancelToken[Task] = {
 
     task match {
       case ref: Task[Unit] @unchecked =>
@@ -72,8 +74,8 @@ private[eval] object UnsafeCancelUtils {
   }
 
   /**
-    * Internal API — very unsafe!
-    */
+* Internal API — very unsafe!
+*/
   private[internal] def getToken(task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ): CancelToken[Task] =
     task match {
       case ref: Task[Unit] @unchecked =>
@@ -89,10 +91,11 @@ private[eval] object UnsafeCancelUtils {
     }
 
   /**
-    * Internal API — very unsafe!
-    */
+* Internal API — very unsafe!
+*/
   private[internal] def triggerCancel(task: AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ )(
-    implicit s: Scheduler): Unit = {
+    implicit s: Scheduler
+  ): Unit = {
 
     task match {
       case ref: Task[Unit] @unchecked =>
@@ -111,11 +114,11 @@ private[eval] object UnsafeCancelUtils {
     }
   }
 
-  // Optimization for `cancelAll`
+// Optimization for `cancelAll`
   private final class CancelAllFrame(cursor: Iterator[AnyRef /* Cancelable | Task[Unit] | CancelableF[Task] */ ])
     extends StackFrame[Unit, Task[Unit]] {
 
-    private[this] val errors = ListBuffer.empty[Throwable]
+    private val errors = ListBuffer.empty[Throwable]
 
     def loop(): CancelToken[Task] = {
       var task: Task[Unit] = null
@@ -147,7 +150,7 @@ private[eval] object UnsafeCancelUtils {
           case Nil =>
             Task.unit
           case first :: rest =>
-            Task.raiseError(Platform.composeErrors(first, rest: _*))
+            Task.raiseError(Platform.composeErrors(first, rest*))
         }
       }
     }

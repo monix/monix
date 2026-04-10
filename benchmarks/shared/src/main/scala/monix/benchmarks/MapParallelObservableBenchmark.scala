@@ -27,7 +27,7 @@ import monix.reactive.observers.Subscriber
 import org.openjdk.jmh.annotations._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Promise}
+import scala.concurrent.{ Await, Promise }
 
 /** To do comparative benchmarks between versions:
   *
@@ -65,13 +65,13 @@ class MapParallelObservableBenchmark {
 
   @Benchmark
   def mapOrdered(): Long = {
-    val stream = Observable.range(0, size.toLong).mapParallelOrdered(parallelism)(x =>  Task.eval(x + 1))
+    val stream = Observable.range(0, size.toLong).mapParallelOrdered(parallelism)(x => Task.eval(x + 1))
     sum(stream)
   }
 
   @Benchmark
   def mapUnordered(): Long = {
-    val stream = Observable.range(0, size.toLong).mapParallelUnordered(parallelism)(x =>  Task.eval(x + 1))
+    val stream = Observable.range(0, size.toLong).mapParallelUnordered(parallelism)(x => Task.eval(x + 1))
     sum(stream)
   }
 
@@ -79,7 +79,7 @@ class MapParallelObservableBenchmark {
     val p = Promise[Long]()
     stream.unsafeSubscribeFn(new Subscriber.Sync[Long] {
       val scheduler = global
-      private[this] var sum: Long = 0
+      private var sum: Long = 0
 
       def onError(ex: Throwable): Unit = {
         p.failure(ex)

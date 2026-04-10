@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,8 +17,9 @@
 
 package monix.reactive.subjects
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.{Ack, Cancelable}
+import scala.annotation.nowarn
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.observers.Subscriber
 import monix.reactive.subjects.PublishSubject.State
 import monix.execution.atomic.Atomic
@@ -31,15 +32,16 @@ import scala.annotation.tailrec
   * items to subsequent subscribers, but will simply pass along the error
   * notification from the source Observable.
   */
+@nowarn("msg=unused value of type")
 final class AsyncSubject[A] extends Subject[A, A] { self =>
   /*
    * NOTE: the stored vector value can be null and if it is, then
    * that means our subject has been terminated.
    */
-  private[this] val stateRef = Atomic(State[A]())
+  private val stateRef = Atomic(State[A]())
 
-  private[this] var onNextHappened = false
-  private[this] var cachedElem: A = _
+  private var onNextHappened = false
+  private var cachedElem: A = null.asInstanceOf[A]
 
   def size: Int =
     stateRef.get().subscribers.size

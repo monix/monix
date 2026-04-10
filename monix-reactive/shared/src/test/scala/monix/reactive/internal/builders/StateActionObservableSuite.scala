@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +19,7 @@ package monix.reactive.internal.builders
 
 import minitest.TestSuite
 import monix.execution.Ack.Continue
+import monix.execution.Scheduler
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
@@ -66,7 +67,7 @@ object StateActionObservableSuite extends TestSuite[TestScheduler] {
     val cancelable = Observable
       .fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
       .unsafeSubscribeFn(new Subscriber[Int] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
         def onNext(elem: Int) = {
           sum += 1
           Continue
@@ -85,7 +86,7 @@ object StateActionObservableSuite extends TestSuite[TestScheduler] {
 
   def int(seed: Long): (Int, Long) = {
     // `&` is bitwise AND. We use the current seed to generate a new seed.
-    val newSeed = (seed * 0X5DEECE66DL + 0XBL) & 0XFFFFFFFFFFFFL
+    val newSeed = (seed * 0x5deece66dL + 0xbL) & 0xffffffffffffL
     // The next state, which is an `RNG` instance created from the new seed.
     val nextRNG = newSeed
     // `>>>` is right binary shift with zero fill. The value `n` is our new pseudo-random integer.

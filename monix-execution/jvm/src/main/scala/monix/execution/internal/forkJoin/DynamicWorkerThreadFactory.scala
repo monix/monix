@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,22 +17,21 @@
 
 package monix.execution.internal.forkJoin
 
-import java.util.concurrent.ForkJoinPool.{ForkJoinWorkerThreadFactory, ManagedBlocker}
-import java.util.concurrent.{ForkJoinPool, ForkJoinWorkerThread, ThreadFactory}
-
+import java.util.concurrent.ForkJoinPool.{ ForkJoinWorkerThreadFactory, ManagedBlocker }
+import java.util.concurrent.{ ForkJoinPool, ForkJoinWorkerThread, ThreadFactory }
 import monix.execution.internal.forkJoin.DynamicWorkerThreadFactory.EmptyBlockContext
-
-import scala.concurrent.{BlockContext, CanAwait}
+import scala.concurrent.{ BlockContext, CanAwait }
 
 // Implement BlockContext on FJP threads
 private[monix] final class DynamicWorkerThreadFactory(
   prefix: String,
   uncaught: Thread.UncaughtExceptionHandler,
-  daemonic: Boolean)
-  extends ThreadFactory with ForkJoinWorkerThreadFactory {
+  daemonic: Boolean
+) extends ThreadFactory with ForkJoinWorkerThreadFactory {
 
   require(prefix ne null, "DefaultWorkerThreadFactory.prefix must be non null")
 
+  @nowarn("cat=deprecation")
   def wire[T <: Thread](thread: T): T = {
     thread.setDaemon(daemonic)
     thread.setUncaughtExceptionHandler(uncaught)

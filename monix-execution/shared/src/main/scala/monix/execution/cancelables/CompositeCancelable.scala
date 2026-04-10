@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.execution.cancelables
 
 import monix.execution.Cancelable
-import monix.execution.atomic.{AtomicAny, PaddingStrategy}
+import monix.execution.atomic.{ AtomicAny, PaddingStrategy }
 import scala.annotation.tailrec
 
 /** Represents a composite of multiple cancelables. In case it is canceled, all
@@ -74,7 +74,7 @@ import scala.annotation.tailrec
 final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable.State]) extends BooleanCancelable {
   self =>
 
-  import CompositeCancelable.{Active, Cancelled}
+  import CompositeCancelable.{ Active, Cancelled }
 
   override def isCanceled: Boolean =
     stateRef.get() eq Cancelled
@@ -223,7 +223,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
       }
 
     that match {
-      case ref: Set[_] =>
+      case ref: Set[?] =>
         loop(ref.asInstanceOf[Set[Cancelable]])
       case _ =>
         loop(that.toSet[Cancelable])
@@ -234,7 +234,7 @@ final class CompositeCancelable private (stateRef: AtomicAny[CompositeCancelable
 object CompositeCancelable {
   /** Builder for [[CompositeCancelable]]. */
   def apply(initial: Cancelable*): CompositeCancelable =
-    withPadding(Set(initial: _*), PaddingStrategy.LeftRight128)
+    withPadding(initial.toSet, PaddingStrategy.LeftRight128)
 
   /** Builder for [[CompositeCancelable]]. */
   def fromSet(initial: Set[Cancelable]): CompositeCancelable =

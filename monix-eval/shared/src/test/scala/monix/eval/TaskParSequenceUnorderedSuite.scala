@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +16,7 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import monix.execution.Callback
 import monix.execution.exceptions.DummyException
@@ -23,14 +24,16 @@ import monix.execution.internal.Platform
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
+@nowarn
 object TaskParSequenceUnorderedSuite extends BaseTestSuite {
   test("Task.parSequenceUnordered should execute in parallel") { implicit s =>
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),
       Task.evalAsync(2).delayExecution(1.second),
-      Task.evalAsync(3).delayExecution(3.seconds))
+      Task.evalAsync(3).delayExecution(3.seconds)
+    )
     val f = Task.parSequenceUnordered(seq).runToFuture
 
     s.tick()
@@ -62,7 +65,8 @@ object TaskParSequenceUnorderedSuite extends BaseTestSuite {
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),
       Task.evalAsync(2).delayExecution(1.second),
-      Task.evalAsync(3).delayExecution(3.seconds))
+      Task.evalAsync(3).delayExecution(3.seconds)
+    )
     val f = Task.parSequenceUnordered(seq).runToFuture
 
     s.tick()
@@ -98,7 +102,7 @@ object TaskParSequenceUnorderedSuite extends BaseTestSuite {
     def fold[A, B](ta: Task[ListBuffer[A]], tb: Task[A]): Task[ListBuffer[A]] =
       Task.parSequenceUnordered(List(ta, tb)).map {
         case a :: b :: Nil =>
-          val (accR, valueR) = if (a.isInstanceOf[ListBuffer[_]]) (a, b) else (b, a)
+          val (accR, valueR) = if (a.isInstanceOf[ListBuffer[?]]) (a, b) else (b, a)
           val acc = accR.asInstanceOf[ListBuffer[A]]
           val value = valueR.asInstanceOf[A]
           acc += value
@@ -165,7 +169,7 @@ object TaskParSequenceUnorderedSuite extends BaseTestSuite {
   test("Task.parSequenceUnordered runAsync multiple times") { implicit s =>
     var effect = 0
     val task1 = Task.evalAsync { effect += 1; 3 }.memoize
-    val task2 = task1 map { x =>
+    val task2 = task1.map { x =>
       effect += 1; x + 1
     }
     val task3 = Task.parSequenceUnordered(List(task2, task2, task2))

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,11 +18,11 @@
 package monix.eval.internal
 
 import cats.effect.CancelToken
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.{ Async, Context }
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Scheduler
-import monix.execution.atomic.{Atomic, AtomicAny}
+import monix.execution.atomic.{ Atomic, AtomicAny }
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.compat.internal.toIterator
 
@@ -32,8 +32,8 @@ import scala.collection.mutable.ListBuffer
 
 private[eval] object TaskParSequenceUnordered {
   /**
-    * Implementation for [[Task.parSequenceUnordered]]
-    */
+* Implementation for [[Task.parSequenceUnordered]]
+*/
   def apply[A](in: Iterable[Task[A]]): Task[List[A]] = {
     Async(
       new Register(in),
@@ -43,23 +43,24 @@ private[eval] object TaskParSequenceUnordered {
     )
   }
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is a task that forks on evaluation.
-  //
-  // N.B. the contract is that the injected callback gets called after
-  // a full async boundary!
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is a task that forks on evaluation.
+//
+// N.B. the contract is that the injected callback gets called after
+// a full async boundary!
   private final class Register[A](in: Iterable[Task[A]]) extends ForkedRegister[List[A]] {
 
     def maybeSignalFinal(
       ref: AtomicAny[State[A]],
       currentState: State[A],
       mainConn: TaskConnection,
-      finalCallback: Callback[Throwable, List[A]])(implicit s: Scheduler): Unit = {
+      finalCallback: Callback[Throwable, List[A]]
+    )(implicit s: Scheduler): Unit = {
 
       currentState match {
         case State.Active(list, 0) =>
           ref.lazySet(State.Complete)
-          mainConn.pop()
+          val _ = mainConn.pop()
           if (list ne Nil)
             finalCallback.onSuccess(list)
           else {
@@ -76,7 +77,8 @@ private[eval] object TaskParSequenceUnordered {
       stateRef: AtomicAny[State[A]],
       mainConn: TaskConnection,
       ex: Throwable,
-      finalCallback: Callback[Throwable, List[A]])(implicit s: Scheduler): Unit = {
+      finalCallback: Callback[Throwable, List[A]]
+    )(implicit s: Scheduler): Unit = {
 
       val currentState = stateRef.getAndSet(State.Complete)
       if (currentState != State.Complete) {
@@ -92,7 +94,8 @@ private[eval] object TaskParSequenceUnordered {
         stateRef: AtomicAny[State[A]],
         count: Int,
         conn: TaskConnection,
-        finalCallback: Callback[Throwable, List[A]])(implicit s: Scheduler): Unit = {
+        finalCallback: Callback[Throwable, List[A]]
+      )(implicit s: Scheduler): Unit = {
 
         stateRef.get() match {
           case current @ State.Initializing(_, _) =>

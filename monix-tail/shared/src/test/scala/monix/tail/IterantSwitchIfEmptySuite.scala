@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@ import cats.laws.discipline._
 import monix.eval.Coeval
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
-import monix.tail.batches.{EmptyBatch, EmptyCursor}
+import monix.tail.batches.{ EmptyBatch, EmptyCursor }
 
 object IterantSwitchIfEmptySuite extends BaseTestSuite {
   val backupStream: Iterant[Coeval, Int] = Iterant[Coeval].of(42)
@@ -80,7 +80,8 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
       Iterant[Coeval].nextCursorS(
         EmptyCursor,
         Coeval(emptyInts)
-      ))
+      )
+    )
   }
 
   test("Iterant.switchIfEmpty chooses fallback for empty batches") { implicit s =>
@@ -88,7 +89,8 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
       Iterant[Coeval].nextBatchS(
         EmptyBatch,
         Coeval(emptyInts)
-      ))
+      )
+    )
   }
 
   test("Iterant.switchIfEmpty consistent with toListL.isEmpty") { implicit s =>

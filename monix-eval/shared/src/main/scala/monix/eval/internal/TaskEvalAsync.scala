@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,8 +23,8 @@ import scala.util.control.NonFatal
 
 private[eval] object TaskEvalAsync {
   /**
-    * Implementation for `Task.evalAsync`.
-    */
+* Implementation for `Task.evalAsync`.
+*/
   def apply[A](a: () => A): Task[A] =
     Task.Async(
       new EvalAsyncRegister[A](a),
@@ -33,8 +33,8 @@ private[eval] object TaskEvalAsync {
       restoreLocals = false
     )
 
-  // Implementing Async's "start" via `ForkedStart` in order to signal
-  // that this is a task that forks on evaluation
+// Implementing Async's "start" via `ForkedStart` in order to signal
+// that this is a task that forks on evaluation
   private final class EvalAsyncRegister[A](a: () => A) extends ForkedRegister[A] {
 
     def apply(ctx: Task.Context, cb: Callback[Throwable, A]): Unit =

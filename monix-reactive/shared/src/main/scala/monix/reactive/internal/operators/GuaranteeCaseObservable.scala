@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,17 +20,17 @@ package monix.reactive.internal.operators
 import cats.effect.ExitCase
 import monix.execution.Callback
 import monix.eval.Task
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.atomic.{Atomic, AtomicBoolean}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.atomic.{ Atomic, AtomicBoolean }
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
 import monix.execution.schedulers.TrampolinedRunnable
-import monix.execution.{Ack, Cancelable, FutureUtils, Scheduler}
+import monix.execution.{ Ack, Cancelable, FutureUtils, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 private[reactive] class GuaranteeCaseObservable[A](source: Observable[A], f: ExitCase[Throwable] => Task[Unit])
   extends Observable[A] {
@@ -67,7 +67,7 @@ private[reactive] class GuaranteeCaseObservable[A](source: Observable[A], f: Exi
     extends Subscriber[A] with Cancelable {
 
     implicit val scheduler: Scheduler = out.scheduler
-    private[this] var ack: Future[Ack] = Continue
+    private var ack: Future[Ack] = Continue
 
     def onNext(elem: A): Future[Ack] = {
       var catchErrors = true
@@ -98,7 +98,7 @@ private[reactive] class GuaranteeCaseObservable[A](source: Observable[A], f: Exi
           FutureUtils.transformWith(async, asyncTransformRef)(immediate)
       }
 
-    private[this] val asyncTransformRef: Try[Ack] => Future[Ack] = {
+    private val asyncTransformRef: Try[Ack] => Future[Ack] = {
       case Success(value) =>
         detectStopOrFailure(value)
       case Failure(e) =>

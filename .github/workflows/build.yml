@@ -2,47 +2,48 @@ name: build
 
 on:
   pull_request:
-    branches: ['series/*']
+    branches: ['series/*', 'main']
   push:
-    branches: ['series/*']
+    branches: ['series/*', 'main']
     tags: ["v[0-9]+*"]
 
 jobs:
   jvm-tests:
     name: JVM / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
-        java: [ 8, 11 ]
+        java: [ 17, 21 ]
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
-        scala: [ 2.12.15, 2.13.8, 3.1.2 ]
+        scala: [ 2.13.18, 3.8.2 ]
 
     env:
       CI: true
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v10
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
         with:
-          java-version: "adopt@1.${{ matrix.java }}"
+          java-version: "${{ matrix.java }}"
+          distribution: temurin
 
       - name: Cache ivy2
-        uses: actions/cache@v1
+        uses: actions/cache@v5
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v1
+        uses: actions/cache@v5
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v1
+        uses: actions/cache@v5
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
@@ -54,51 +55,58 @@ jobs:
           PLATFORM: ${{ matrix.java }}
           SBT_COMMAND: ci-jvm
 
+      - name: sbt reactiveTests/test
+        run: ./.github/scripts/exec-sbt-command
+        env:
+          SCALA_VERSION: ${{ matrix.scala }}
+          PLATFORM: ${{ matrix.java }}
+          SBT_COMMAND: "reactiveTests/test"
+
   js-tests:
     name: JS / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
         include:
-          - { java: 8, scala: 2.12.15 }
-          - { java: 8, scala: 2.13.8 }
-          - { java: 8, scala: 3.1.2 }
+          - { java: 17, scala: 2.13.18 }
+          - { java: 17, scala: 3.8.2 }
 
     env:
       CI: true
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v10
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
         with:
-          java-version: "adopt@1.${{ matrix.java }}"
+          java-version: "${{ matrix.java }}"
+          distribution: temurin
 
       - name: Cache ivy2
-        uses: actions/cache@v1
+        uses: actions/cache@v5
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v1
+        uses: actions/cache@v5
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v1
+        uses: actions/cache@v5
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Setup NodeJS
-        uses: actions/setup-node@v2.1.2
+        uses: actions/setup-node@v4
         with:
-          node-version: 14
+          node-version: 20
 
       - name: sbt ci-js
         run: |
@@ -110,36 +118,40 @@ jobs:
 
   mima:
     name: Mima / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
+
+    env:
+      CI: true
+
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { java: 8, scala: 2.12.15 }
-          - { java: 8, scala: 2.13.8 }
-          - { java: 8, scala: 3.1.2 }
+          - { java: 17, scala: 2.13.18 }
+          - { java: 17, scala: 3.8.2 }
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v10
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
         with:
-          java-version: "adopt@1.${{ matrix.java }}"
+          java-version: "${{ matrix.java }}"
+          distribution: temurin
 
       - name: Cache ivy2
-        uses: actions/cache@v1
+        uses: actions/cache@v5
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v1
+        uses: actions/cache@v5
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v1
+        uses: actions/cache@v5
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
@@ -151,38 +163,89 @@ jobs:
           SCALA_VERSION: ${{ matrix.scala }}
           SBT_COMMAND: mimaReportBinaryIssues
 
-  unidoc:
-    name: Unidoc / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-20.04
+  scalafmt:
+    name: Scalafmt / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
+    runs-on: ubuntu-22.04
+
+    env:
+      CI: true
+
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { java: 8, scala: 2.13.8 }
-          # TODO: enable this after it works!
-          # - { java: 8, scala: 3.1.2 }
+          - { java: 17, scala: 2.13.18 }
+          - { java: 17, scala: 3.8.2 }
 
     steps:
-      - uses: actions/checkout@v2
-      - uses: olafurpg/setup-scala@v10
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
         with:
-          java-version: "adopt@1.${{ matrix.java }}"
+          java-version: "${{ matrix.java }}"
+          distribution: temurin
 
       - name: Cache ivy2
-        uses: actions/cache@v1
+        uses: actions/cache@v5
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v1
+        uses: actions/cache@v5
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v1
+        uses: actions/cache@v5
+        with:
+          path: ~/.sbt
+          key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: sbt scalafmtCheckAll
+        run: |
+          ./.github/scripts/exec-sbt-command
+        env:
+          SCALA_VERSION: ${{ matrix.scala }}
+          SBT_COMMAND: "scalafmtCheckAll scalafmtSbtCheck"
+
+  unidoc:
+    name: Unidoc / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
+    runs-on: ubuntu-22.04
+
+    env:
+      CI: true
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { java: 17, scala: 2.13.18 }
+          - { java: 17, scala: 3.8.2 }
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          java-version: "${{ matrix.java }}"
+          distribution: temurin
+
+      - name: Cache ivy2
+        uses: actions/cache@v5
+        with:
+          path: ~/.ivy2/cache
+          key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Cache coursier (linux)
+        if: contains(runner.os, 'linux')
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/coursier/v1
+          key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Cache sbt
+        uses: actions/cache@v5
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
@@ -196,38 +259,44 @@ jobs:
 
   all_tests:
     name: All Tests
-    needs: [ jvm-tests, js-tests, mima, unidoc ]
-    runs-on: ubuntu-20.04
+    if: always()
+    needs: [ jvm-tests, js-tests, mima, scalafmt, unidoc ]
+    runs-on: ubuntu-22.04
     steps:
-      - name: Ack
-        run: |
-          echo "All done."
+    - name: Validate required tests
+      uses: re-actors/alls-green@release/v1
+      with:
+        jobs: ${{ toJSON(needs) }}
 
-  publish:
-    name: Publish to Sonatype
-    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/series/3.x')
-    needs: [ all_tests ]
+  # publish:
+  #   name: Publish to Sonatype
+  #   if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
+  #   needs: [ all_tests ]
 
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 100
+  #   env:
+  #     CI: true
 
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: "adopt@1.8"
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #     - uses: actions/checkout@v6
+  #       with:
+  #         fetch-depth: 100
 
-      - name: Install GnuPG2
-        run: |
-          ./.github/scripts/setup-pgp
+  #     - uses: actions/setup-java@v5
+  #       with:
+  #         java-version: 17
+  #         distribution: temurin
 
-      - name: .github/scripts/release
-        run: |
-          .github/scripts/release
-        env:
-          PGP_KEY_HEX: ${{ secrets.PGP_KEY_HEX }}
-          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
-          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          PUBLISH_STABLE_VERSION: false
+  #     - name: Install GnuPG2
+  #       run: |
+  #         ./.github/scripts/setup-pgp
+
+  #     - name: .github/scripts/release
+  #       run: |
+  #         .github/scripts/release
+  #       env:
+  #         PGP_KEY_HEX: ${{ secrets.PGP_KEY_HEX }}
+  #         PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+  #         SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+  #         SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+  #         PUBLISH_STABLE_VERSION: false

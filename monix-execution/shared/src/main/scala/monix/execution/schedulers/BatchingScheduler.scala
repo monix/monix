@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,13 +36,12 @@ import scala.concurrent.ExecutionContext
 trait BatchingScheduler extends Scheduler { self =>
   protected def executeAsync(r: Runnable): Unit
 
-  private[this] val trampoline =
-    TrampolineExecutionContext(new ExecutionContext {
-      def execute(runnable: Runnable): Unit =
-        self.executeAsync(runnable)
-      def reportFailure(cause: Throwable): Unit =
-        self.reportFailure(cause)
-    })
+  private val trampoline = TrampolineExecutionContext(new ExecutionContext {
+    def execute(runnable: Runnable): Unit =
+      self.executeAsync(runnable)
+    def reportFailure(cause: Throwable): Unit =
+      self.reportFailure(cause)
+  })
 
   override final def execute(runnable: Runnable): Unit =
     runnable match {

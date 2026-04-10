@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,11 +24,11 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
-import org.reactivestreams.{Publisher, Subscriber, Subscription}
-import org.scalacheck.{Arbitrary, Gen}
+import org.reactivestreams.{ Publisher, Subscriber, Subscription }
+import org.scalacheck.{ Arbitrary, Gen }
 
 import scala.concurrent.Promise
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 import scala.concurrent.duration._
 
 object IterantFromReactivePublisherSuite extends BaseTestSuite {
@@ -112,7 +112,7 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
 
   test("fromReactivePublisher handles immediate completion") { implicit s =>
     val publisher = new Publisher[Unit] {
-      def subscribe(subscriber: Subscriber[_ >: Unit]): Unit = {
+      def subscribe(subscriber: Subscriber[? >: Unit]): Unit = {
         subscriber.onComplete()
       }
     }
@@ -123,8 +123,8 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
   }
 
   class RangePublisher(from: Int, until: Int, step: Int, finish: Option[Throwable], onCancel: Promise[Unit])(
-    implicit sc: Scheduler)
-    extends Publisher[Int] {
+    implicit sc: Scheduler
+  ) extends Publisher[Int] {
 
     def this(range: Range, finish: Option[Throwable])(implicit sc: Scheduler) =
       this(range.start, range.end, range.step, finish, null)
@@ -132,11 +132,11 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
     def this(range: Range, finish: Option[Throwable], onCancel: Promise[Unit])(implicit sc: Scheduler) =
       this(range.start, range.end, range.step, finish, onCancel)
 
-    def subscribe(s: Subscriber[_ >: Int]): Unit = {
+    def subscribe(s: Subscriber[? >: Int]): Unit = {
       s.onSubscribe(new Subscription { self =>
-        private[this] val cancelled = Atomic(false)
-        private[this] val requested = Atomic(0L)
-        private[this] var index = from
+        private val cancelled = Atomic(false)
+        private val requested = Atomic(0L)
+        private var index = from
 
         def isInRange(x: Long, until: Long, step: Long): Boolean = {
           (step > 0 && x < until) || (step < 0 && x > until)
@@ -144,30 +144,28 @@ object IterantFromReactivePublisherSuite extends BaseTestSuite {
 
         def request(n: Long): Unit = {
           if (requested.getAndAdd(n) == 0)
-            sc.execute(new Runnable {
-              def run(): Unit = {
-                var requested = self.requested.get()
-                var toSend = requested
+            sc.execute(() => {
+              var requested = self.requested.get()
+              var toSend = requested
 
-                while (toSend > 0 && isInRange(index.toLong, until.toLong, step.toLong) && !cancelled.get()) {
-                  s.onNext(index)
-                  index += step
-                  toSend -= 1
+              while (toSend > 0 && isInRange(index.toLong, until.toLong, step.toLong) && !cancelled.get()) {
+                s.onNext(index)
+                index += step
+                toSend -= 1
 
-                  if (toSend == 0) {
-                    requested = self.requested.subtractAndGet(requested)
-                    toSend = requested
-                  }
+                if (toSend == 0) {
+                  requested = self.requested.subtractAndGet(requested)
+                  toSend = requested
                 }
-
-                if (!isInRange(index.toLong, until.toLong, step.toLong))
-                  finish match {
-                    case None =>
-                      s.onComplete()
-                    case Some(e) =>
-                      s.onError(e)
-                  }
               }
+
+              if (!isInRange(index.toLong, until.toLong, step.toLong))
+                finish match {
+                  case None =>
+                    s.onComplete()
+                  case Some(e) =>
+                    s.onError(e)
+                }
             })
         }
 

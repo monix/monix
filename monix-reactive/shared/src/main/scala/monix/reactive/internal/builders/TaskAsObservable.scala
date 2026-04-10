@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +17,14 @@
 
 package monix.reactive.internal.builders
 
+import scala.annotation.nowarn
 import monix.execution.Cancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import monix.execution.Callback
 import monix.eval.Task
 
+@nowarn("msg=unused value of type")
 private[reactive] final class TaskAsObservable[+A](task: Task[A]) extends Observable[A] {
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler

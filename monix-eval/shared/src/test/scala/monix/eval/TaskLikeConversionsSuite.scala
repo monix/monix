@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,18 +16,20 @@
  */
 
 package monix.eval
+import scala.annotation.nowarn
 
 import cats.Eval
-import cats.effect.{ContextShift, IO, SyncIO}
+import cats.effect.{ ContextShift, IO, SyncIO }
 import monix.catnap.SchedulerEffect
 import monix.execution.CancelablePromise
 import monix.execution.exceptions.DummyException
 
 import scala.concurrent.Promise
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
+@nowarn
 object TaskLikeConversionsSuite extends BaseTestSuite {
-  import TaskConversionsSuite.{CIO, CustomConcurrentEffect, CustomEffect}
+  import TaskConversionsSuite.{ CIO, CustomConcurrentEffect, CustomEffect }
 
   test("Task.from(future)") { implicit s =>
     val p = Promise[Int]()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,20 +17,23 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.{Ack, Cancelable}
-import monix.execution.Ack.{Continue, Stop}
+import scala.annotation.nowarn
+import monix.execution.{ Ack, Cancelable, Scheduler }
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.CompositeCancelable
 import scala.util.control.NonFatal
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
+@nowarn("msg=unused value of type")
 private[reactive] final class Zip3Observable[A1, A2, A3, +R](
   obsA1: Observable[A1],
   obsA2: Observable[A2],
-  obsA3: Observable[A3])(f: (A1, A2, A3) => R)
+  obsA3: Observable[A3]
+)(f: (A1, A2, A3) => R)
   extends Observable[R] {
 
   def unsafeSubscribeFn(out: Subscriber[R]): Cancelable = {
@@ -144,7 +147,7 @@ private[reactive] final class Zip3Observable[A1, A2, A3, +R](
     val composite = CompositeCancelable()
 
     composite += obsA1.unsafeSubscribeFn(new Subscriber[A1] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       def onNext(elem: A1): Future[Ack] = lock.synchronized {
         if (isDone) Stop
@@ -167,7 +170,7 @@ private[reactive] final class Zip3Observable[A1, A2, A3, +R](
     })
 
     composite += obsA2.unsafeSubscribeFn(new Subscriber[A2] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       def onNext(elem: A2): Future[Ack] = lock.synchronized {
         if (isDone) Stop
@@ -190,7 +193,7 @@ private[reactive] final class Zip3Observable[A1, A2, A3, +R](
     })
 
     composite += obsA3.unsafeSubscribeFn(new Subscriber[A3] {
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
       def onNext(elem: A3): Future[Ack] = lock.synchronized {
         if (isDone) Stop

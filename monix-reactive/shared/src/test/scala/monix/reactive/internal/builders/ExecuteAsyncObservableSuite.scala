@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,8 +23,8 @@ import monix.execution.Ack.Stop
 import monix.execution.internal.Platform
 import monix.execution.ExecutionModel.SynchronousExecution
 import monix.execution.schedulers.TestScheduler
-import monix.reactive.{Observable, Observer}
-import scala.concurrent.{Future, Promise}
+import monix.reactive.{ Observable, Observer }
+import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
 object ExecuteAsyncObservableSuite extends TestSuite[TestScheduler] {

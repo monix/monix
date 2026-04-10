@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,14 +17,17 @@
 
 package monix.reactive.internal.operators
 
+import scala.annotation.nowarn
 import monix.execution.Ack.Continue
-import monix.execution.cancelables.{CompositeCancelable, SingleAssignCancelable}
-import monix.execution.{Ack, Cancelable}
+import monix.execution.Scheduler
+import monix.execution.cancelables.{ CompositeCancelable, SingleAssignCancelable }
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
+@nowarn("msg=unused value of type")
 private[reactive] final class DropByTimespanObservable[A](source: Observable[A], timespan: FiniteDuration)
   extends Observable[A] {
 
@@ -33,8 +36,8 @@ private[reactive] final class DropByTimespanObservable[A](source: Observable[A],
     val composite = CompositeCancelable(trigger)
 
     composite += source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>
-      implicit val scheduler = out.scheduler
-      @volatile private[this] var shouldDrop = true
+      implicit val scheduler: Scheduler = out.scheduler
+      @volatile private var shouldDrop = true
 
       locally {
         trigger := scheduler.scheduleOnce(timespan.length, timespan.unit, self)

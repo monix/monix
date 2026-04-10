@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@ import monix.reactive.observers.Subscriber
 
 /** Repeats the given elements */
 private[reactive] final class RepeatObservable[A](elems: A*) extends Observable[A] {
-  private[this] val source =
+  private val source =
     if (elems.isEmpty) Observable.empty
     else if (elems.length == 1)
       new RepeatOneObservable(elems.head)

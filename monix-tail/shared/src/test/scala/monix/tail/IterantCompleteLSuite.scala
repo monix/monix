@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -89,12 +89,15 @@ object IterantCompleteLSuite extends BaseTestSuite {
       (_, _) => Coeval(triggered.set(true))
     )
 
-    val stream = Iterant[Coeval].concatS(Coeval(lh), Coeval {
-      if (!triggered.getAndSet(true))
-        Iterant[Coeval].raiseError[Int](fail)
-      else
-        Iterant[Coeval].empty[Int]
-    })
+    val stream = Iterant[Coeval].concatS(
+      Coeval(lh),
+      Coeval {
+        if (!triggered.getAndSet(true))
+          Iterant[Coeval].raiseError[Int](fail)
+        else
+          Iterant[Coeval].empty[Int]
+      }
+    )
 
     assertEquals(stream.completedL.value(), ())
   }

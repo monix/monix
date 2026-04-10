@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,13 +18,14 @@
 package monix.reactive.internal.operators
 
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.FutureUtils.extensions._
+import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
-import monix.reactive.{BaseTestSuite, Observable, Observer}
+import monix.reactive.{ BaseTestSuite, Observable, Observer }
 import scala.concurrent.duration._
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.util.Random
 
 abstract class BaseOperatorSuite extends BaseTestSuite {
@@ -115,7 +116,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
       case None => ignore()
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         obs.unsafeSubscribeFn(new Observer[Long] {
-          private[this] var sum = 0L
+          private var sum = 0L
 
           def onNext(elem: Long): Ack = {
             received += 1
@@ -144,8 +145,8 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
       case None => ignore()
       case Some(Sample(obs, count, sum, waitForFirst, waitForNext)) =>
         obs.unsafeSubscribeFn(new Observer[Long] {
-          private[this] var sum = 0L
-          private[this] var ack: Future[Ack] = Continue
+          private var sum = 0L
+          private var ack: Future[Ack] = Continue
 
           def onNext(elem: Long): Future[Ack] = {
             assert(ack.isCompleted, s"Contact breach at elem $elem of $sourceCount, last ack is not completed")
@@ -361,7 +362,7 @@ abstract class BaseOperatorSuite extends BaseTestSuite {
       var received = 0L
 
       val cancelable = obs.unsafeSubscribeFn(new Subscriber[Long] {
-        implicit val scheduler = s
+        implicit val scheduler: Scheduler = s
 
         def onError(ex: Throwable) = wasCompleted += 1
         def onComplete() = wasCompleted += 1

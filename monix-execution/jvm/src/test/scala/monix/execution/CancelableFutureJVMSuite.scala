@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import minitest.SimpleTestSuite
 import monix.execution.Scheduler.Implicits.global
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, TimeoutException}
+import scala.concurrent.{ Await, Future, TimeoutException }
 import scala.util.Success
 
 object CancelableFutureJVMSuite extends SimpleTestSuite {
@@ -51,8 +51,8 @@ object CancelableFutureJVMSuite extends SimpleTestSuite {
 
   test("never") {
     val f = CancelableFuture.never[Int]
-    intercept[TimeoutException] { Await.result(f, 1.milli); () }
-    intercept[TimeoutException] { Await.ready(f, 1.milli); () }
+    val _ = intercept[TimeoutException] { val _ = Await.result(f, 1.milli); () }
+    val _ = intercept[TimeoutException] { Await.ready(f, 1.milli); () }
     ()
   }
 }

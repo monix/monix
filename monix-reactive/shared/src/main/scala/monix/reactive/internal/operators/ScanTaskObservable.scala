@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,11 +20,12 @@ package monix.reactive.internal.operators
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.Ack.Stop
+import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.cancelables.OrderedCancelable
 import scala.util.control.NonFatal
-import monix.execution.{Ack, Cancelable}
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import scala.annotation.tailrec
@@ -66,19 +67,19 @@ private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], se
     import MapTaskObservable.MapTaskState
     import MapTaskObservable.MapTaskState._
 
-    implicit val scheduler = out.scheduler
+    implicit val scheduler: Scheduler = out.scheduler
 
     // For synchronizing our internal state machine, padded
     // in order to avoid the false sharing problem
-    private[this] val stateRef = Atomic.withPadding(WaitOnNext: MapTaskState, LeftRight128)
+    private val stateRef = Atomic.withPadding(WaitOnNext: MapTaskState, LeftRight128)
 
     // Boolean for keeping the `isActive` state, needed because we could miss
     // out on seeing a `Cancelled` state due to the `lazySet` instructions,
     // making the visibility of the `Cancelled` state thread-unsafe!
-    private[this] val isActive = Atomic(true)
+    private val isActive = Atomic(true)
 
     // Current state, keeps getting updated by the task in `onNext`
-    private[this] var currentS = initial
+    private var currentS = initial
 
     /** For canceling the current active task, in case there is any. Here
       * we can afford a `compareAndSet`, not being a big deal since
@@ -212,7 +213,7 @@ private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], se
 
     // Reusable function reference, to prevent creating a new instance
     // on each `onNext` / `transformWith` call below
-    private[this] val childOnSuccess = (value: S) => {
+    private val childOnSuccess = (value: S) => {
       // Updating mutable shared state, no need for synchronization
       // because `onNext` operations are ordered
       currentS = value
@@ -248,7 +249,7 @@ private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], se
 
     // Reusable function reference, to prevent creating a new instance
     // on each `onNext` / `transformWith` call below
-    private[this] val childOnError = (error: Throwable) => {
+    private val childOnError = (error: Throwable) => {
       // The cancelable passed in WaitComplete here can be `null`
       // because it would only replace the child's own cancelable
       stateRef.getAndSet(WaitComplete(Some(error), null)) match {
@@ -343,7 +344,8 @@ private[reactive] final class ScanTaskObservable[A, S](source: Observable[A], se
           s"State $state in the Monix MapTask.$method implementation is invalid, " +
             "due to either a broken Subscriber implementation, or a bug, " +
             "please open an issue, see: https://monix.io"
-        ))
+        )
+      )
       // $COVERAGE-ON$
     }
   }

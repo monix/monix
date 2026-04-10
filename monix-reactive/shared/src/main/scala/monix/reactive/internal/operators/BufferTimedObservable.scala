@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,15 +19,15 @@ package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable}
-import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.cancelables.{ CompositeCancelable, MultiAssignCancelable }
+import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
-import scala.concurrent.duration.{Duration, FiniteDuration, MILLISECONDS}
+import scala.concurrent.duration.{ Duration, FiniteDuration, MILLISECONDS }
 
 private[reactive] final class BufferTimedObservable[+A](source: Observable[A], timespan: FiniteDuration, maxCount: Int)
   extends Observable[Seq[A]] {
@@ -39,19 +39,19 @@ private[reactive] final class BufferTimedObservable[+A](source: Observable[A], t
     val periodicTask = MultiAssignCancelable()
 
     val connection = source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>
-      implicit val scheduler = out.scheduler
+      implicit val scheduler: Scheduler = out.scheduler
 
-      private[this] val timespanMillis = timespan.toMillis
+      private val timespanMillis = timespan.toMillis
       // MUST BE synchronized by `self`
-      private[this] var ack: Future[Ack] = Continue
+      private var ack: Future[Ack] = Continue
       // MUST BE synchronized by `self`
-      private[this] var buffer = ListBuffer.empty[A]
+      private var buffer = ListBuffer.empty[A]
       // MUST BE synchronized by `self`
-      private[this] var expiresAt = scheduler.clockMonotonic(MILLISECONDS) + timespanMillis
+      private var expiresAt = scheduler.clockMonotonic(MILLISECONDS) + timespanMillis
 
       locally {
         // Scheduling the first tick, in the constructor
-        periodicTask := out.scheduler.scheduleOnce(timespanMillis, TimeUnit.MILLISECONDS, self)
+        val _ = periodicTask := out.scheduler.scheduleOnce(timespanMillis, TimeUnit.MILLISECONDS, self)
       }
 
       // Runs periodically, every `timespan`
@@ -63,16 +63,16 @@ private[reactive] final class BufferTimedObservable[+A](source: Observable[A], t
           // problem, or we rushed to signaling the bundle upon reaching
           // the maximum size in onNext. So we sleep some more.
           val remaining = expiresAt - now
-          periodicTask := scheduler.scheduleOnce(remaining, TimeUnit.MILLISECONDS, self)
+          val _ = periodicTask := scheduler.scheduleOnce(remaining, TimeUnit.MILLISECONDS, self)
         } else if (buffer != null) {
           // The timespan has passed since the last signal so we need
           // to send the current bundle
-          sendNextAndReset(now).syncOnContinue(
+          val _ = sendNextAndReset(now).syncOnContinue(
             // Schedule the next tick, but only after we are done
             // sending the bundle
-            run())
+            run()
+          )
         }
-        ()
       }
 
       // Must be synchronized by `self`
@@ -114,8 +114,8 @@ private[reactive] final class BufferTimedObservable[+A](source: Observable[A], t
           // In case the last onNext isn't finished, then
           // we need to apply back-pressure, otherwise this
           // onNext will break the contract.
-          ack.syncOnContinue {
-            out.onNext(bundleToSend)
+          val _ = ack.syncOnContinue {
+            val _ = out.onNext(bundleToSend)
             out.onComplete()
           }
         } else {

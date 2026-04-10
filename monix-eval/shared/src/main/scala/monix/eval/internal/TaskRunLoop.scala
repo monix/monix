@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,15 +19,15 @@ package monix.eval.internal
 
 import cats.effect.CancelToken
 import monix.eval.Task
-import monix.eval.Task.{Async, Context, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend, Trace}
+import monix.eval.Task.{ Async, Context, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend, Trace }
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.misc.Local
-import monix.execution.{Callback, CancelableFuture, ExecutionModel, Scheduler}
+import monix.execution.{ Callback, CancelableFuture, ExecutionModel, Scheduler }
 
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
-import monix.eval.internal.TracingPlatform.{enhancedExceptions, isStackTracing}
-import monix.eval.tracing.{TaskEvent, TaskTrace}
+import monix.eval.internal.TracingPlatform.{ enhancedExceptions, isStackTracing }
+import monix.eval.tracing.{ TaskEvent, TaskTrace }
 
 import scala.reflect.NameTransformer
 
@@ -37,11 +37,11 @@ private[eval] object TaskRunLoop {
   type CallStack = ChunkedArrayStack[Bind]
 
   /** Starts or resumes evaluation of the run-loop from where it left
-    * off. This is the complete run-loop.
-    *
-    * Used for continuing a run-loop after an async boundary
-    * happens from [[startFuture]] and [[startLight]].
-    */
+* off. This is the complete run-loop.
+*
+* Used for continuing a run-loop after an async boundary
+* happens from [[startFuture]] and [[startLight]].
+*/
   def startFull[A](
     source: Task[A],
     contextInit: Context,
@@ -49,7 +49,8 @@ private[eval] object TaskRunLoop {
     rcb: TaskRestartCallback,
     bFirst: Bind,
     bRest: CallStack,
-    frameIndex: FrameIndex): Unit = {
+    frameIndex: FrameIndex
+  ): Unit = {
 
     val cba = cb.asInstanceOf[Callback[Throwable, Any]]
     var current: Current = source
@@ -205,15 +206,16 @@ private[eval] object TaskRunLoop {
   }
 
   /** Internal utility, for forcing an asynchronous boundary in the
-    * trampoline loop.
-    */
+* trampoline loop.
+*/
   def restartAsync[A](
     source: Task[A],
     context: Context,
     cb: Callback[Throwable, A],
     rcb: TaskRestartCallback,
     bindCurrent: Bind,
-    bindRest: CallStack): Unit = {
+    bindRest: CallStack
+  ): Unit = {
 
     val savedLocals =
       if (context.options.localContextPropagation) Local.getContext()
@@ -248,17 +250,18 @@ private[eval] object TaskRunLoop {
   }
 
   /** A run-loop that attempts to evaluate a `Task` without
-    * initializing a `Task.Context`, falling back to
-    * [[startFull]] when the first `Async` boundary is hit.
-    *
-    * Function gets invoked by `Task.runAsync(cb: Callback)`.
-    */
+* initializing a `Task.Context`, falling back to
+* [[startFull]] when the first `Async` boundary is hit.
+*
+* Function gets invoked by `Task.runAsync(cb: Callback)`.
+*/
   def startLight[A](
     source: Task[A],
     scheduler: Scheduler,
     opts: Task.Options,
     cb: Callback[Throwable, A],
-    isCancelable: Boolean = true): CancelToken[Task] = {
+    isCancelable: Boolean = true
+  ): CancelToken[Task] = {
 
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
@@ -363,7 +366,8 @@ private[eval] object TaskRunLoop {
               frameIndex,
               forceFork = false,
               isCancelable = isCancelable,
-              tracingCtx = tracingCtx)
+              tracingCtx = tracingCtx
+            )
 
         }
 
@@ -399,7 +403,8 @@ private[eval] object TaskRunLoop {
           frameIndex,
           forceFork = true,
           isCancelable = true,
-          tracingCtx = tracingCtx)
+          tracingCtx = tracingCtx
+        )
       }
     }
     // $COVERAGE-OFF$
@@ -408,8 +413,8 @@ private[eval] object TaskRunLoop {
   }
 
   /** A run-loop version that evaluates the given task until the
-    * first async boundary or until completion.
-    */
+* first async boundary or until completion.
+*/
   def startStep[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): Either[Task[A], A] = {
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
@@ -502,7 +507,16 @@ private[eval] object TaskRunLoop {
           case async =>
             if (tracingCtx eq null) tracingCtx = new StackTracedContext
 
-            return goAsync4Step(async, scheduler, opts, bFirst, bRest, frameIndex, forceFork = false, tracingCtx = tracingCtx)
+            return goAsync4Step(
+              async,
+              scheduler,
+              opts,
+              bFirst,
+              bRest,
+              frameIndex,
+              forceFork = false,
+              tracingCtx = tracingCtx
+            )
         }
 
         if (hasUnboxed) {
@@ -526,7 +540,16 @@ private[eval] object TaskRunLoop {
         if (tracingCtx eq null) tracingCtx = new StackTracedContext
 
         // Force async boundary
-        return goAsync4Step(current, scheduler, opts, bFirst, bRest, frameIndex, forceFork = true, tracingCtx = tracingCtx)
+        return goAsync4Step(
+          current,
+          scheduler,
+          opts,
+          bFirst,
+          bRest,
+          frameIndex,
+          forceFork = true,
+          tracingCtx = tracingCtx
+        )
       }
     }
     // $COVERAGE-OFF$
@@ -535,11 +558,11 @@ private[eval] object TaskRunLoop {
   }
 
   /** A run-loop that attempts to complete a `CancelableFuture`
-    * synchronously falling back to [[startFull]] and actual
-    * asynchronous execution in case of an asynchronous boundary.
-    *
-    * Function gets invoked by `Task.runToFuture(implicit s: Scheduler)`.
-    */
+* synchronously falling back to [[startFull]] and actual
+* asynchronous execution in case of an asynchronous boundary.
+*
+* Function gets invoked by `Task.runToFuture(implicit s: Scheduler)`.
+*/
   def startFuture[A](source: Task[A], scheduler: Scheduler, opts: Task.Options): CancelableFuture[A] = {
     var current = source.asInstanceOf[Task[Any]]
     var bFirst: Bind = null
@@ -665,7 +688,16 @@ private[eval] object TaskRunLoop {
       } else {
         if (tracingCtx eq null) tracingCtx = new StackTracedContext
         // Force async boundary
-        return goAsync4Future(current, scheduler, opts, bFirst, bRest, frameIndex, forceFork = true, tracingCtx = tracingCtx)
+        return goAsync4Future(
+          current,
+          scheduler,
+          opts,
+          bFirst,
+          bRest,
+          frameIndex,
+          forceFork = true,
+          tracingCtx = tracingCtx
+        )
       }
     }
     // $COVERAGE-OFF$
@@ -680,7 +712,8 @@ private[eval] object TaskRunLoop {
     rcb: TaskRestartCallback,
     bFirst: Bind,
     bRest: CallStack,
-    nextFrame: FrameIndex): Unit = {
+    nextFrame: FrameIndex
+  ): Unit = {
 
     if (isStackTracing) {
       val trace = task.trace
@@ -704,8 +737,8 @@ private[eval] object TaskRunLoop {
   }
 
   /** Called when we hit the first async boundary in
-    * [[startLight]].
-    */
+* [[startLight]].
+*/
   private def goAsyncForLightCB(
     source: Current,
     scheduler: Scheduler,
@@ -716,7 +749,8 @@ private[eval] object TaskRunLoop {
     nextFrame: FrameIndex,
     isCancelable: Boolean,
     forceFork: Boolean,
-    tracingCtx: StackTracedContext): CancelToken[Task] = {
+    tracingCtx: StackTracedContext
+  ): CancelToken[Task] = {
 
     val context = Context(
       scheduler,
@@ -747,7 +781,8 @@ private[eval] object TaskRunLoop {
     bRest: CallStack,
     nextFrame: FrameIndex,
     forceFork: Boolean,
-    tracingCtx: StackTracedContext): CancelableFuture[A] = {
+    tracingCtx: StackTracedContext
+  ): CancelableFuture[A] = {
 
     val p = Promise[A]()
     val cb = Callback.fromPromise(p).asInstanceOf[Callback[Throwable, Any]]
@@ -775,7 +810,8 @@ private[eval] object TaskRunLoop {
     bRest: CallStack,
     nextFrame: FrameIndex,
     forceFork: Boolean,
-    tracingCtx: StackTracedContext): Either[Task[A], A] = {
+    tracingCtx: StackTracedContext
+  ): Either[Task[A], A] = {
 
     val ctx = Context(scheduler, opts, TaskConnection(), tracingCtx)
     val start: Start[Any] =
@@ -791,7 +827,8 @@ private[eval] object TaskRunLoop {
         start.asInstanceOf[Start[A]],
         trampolineBefore = false,
         trampolineAfter = false
-      ))
+      )
+    )
   }
 
   private[internal] def findErrorHandler(bFirst: Bind, bRest: CallStack): StackFrame[Any, Task[Any]] = {
@@ -804,7 +841,7 @@ private[eval] object TaskRunLoop {
             val ref = bRest.pop()
             if (ref eq null)
               return null
-            else if (ref.isInstanceOf[StackFrame[_, _]])
+            else if (ref.isInstanceOf[StackFrame[?, ?]])
               return ref.asInstanceOf[StackFrame[Any, Task[Any]]]
           }
           // $COVERAGE-OFF$
@@ -815,7 +852,7 @@ private[eval] object TaskRunLoop {
   }
 
   private[internal] def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
-    if ((bFirst ne null) && !bFirst.isInstanceOf[StackFrame.ErrorHandler[_, _]])
+    if ((bFirst ne null) && !bFirst.isInstanceOf[StackFrame.ErrorHandler[?, ?]])
       return bFirst
 
     if (bRest eq null) return null
@@ -823,7 +860,7 @@ private[eval] object TaskRunLoop {
       val next = bRest.pop()
       if (next eq null) {
         return null
-      } else if (!next.isInstanceOf[StackFrame.ErrorHandler[_, _]]) {
+      } else if (!next.isInstanceOf[StackFrame.ErrorHandler[?, ?]]) {
         return next
       }
     }
@@ -847,10 +884,10 @@ private[eval] object TaskRunLoop {
   }
 
   /**
-    * If stack tracing and contextual exceptions are enabled, this
-    * function will rewrite the stack trace of a captured exception
-    * to include the async stack trace.
-    */
+* If stack tracing and contextual exceptions are enabled, this
+* function will rewrite the stack trace of a captured exception
+* to include the async stack trace.
+*/
   private[internal] def augmentException(ex: Throwable, ctx: StackTracedContext): Unit = {
     val stackTrace = ex.getStackTrace
     if (stackTrace.nonEmpty) {
@@ -864,10 +901,12 @@ private[eval] object TaskRunLoop {
             case (methodSite, callSite) =>
               val op = NameTransformer.decode(methodSite.getMethodName)
 
-              new StackTraceElement(op + " @ " + callSite.getClassName,
+              new StackTraceElement(
+                op + " @ " + callSite.getClassName,
                 callSite.getMethodName,
                 callSite.getFileName,
-                callSite.getLineNumber)
+                callSite.getLineNumber
+              )
           }
           .toArray
         ex.setStackTrace(prefix ++ suffix)
@@ -878,9 +917,8 @@ private[eval] object TaskRunLoop {
   private def dropRunLoopFrames(frames: Array[StackTraceElement]): Array[StackTraceElement] =
     frames.takeWhile(ste => !runLoopFilter.exists(ste.getClassName.startsWith(_)))
 
-  private[this] val runLoopFilter = List(
+  private val runLoopFilter = List(
     "monix.eval.",
     "scala.runtime."
   )
-
 }

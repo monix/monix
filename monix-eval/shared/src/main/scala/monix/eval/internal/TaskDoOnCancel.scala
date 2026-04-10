@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.eval.Task.{Async, Context}
+import monix.eval.Task.{ Async, Context }
 import monix.execution.Callback
 import monix.eval.Task
 import monix.execution.exceptions.CallbackCalledMultipleTimesException
@@ -25,8 +25,8 @@ import monix.execution.schedulers.TrampolinedRunnable
 
 private[eval] object TaskDoOnCancel {
   /**
-    * Implementation for `Task.doOnCancel`
-    */
+* Implementation for `Task.doOnCancel`
+*/
   def apply[A](self: Task[A], callback: Task[Unit]): Task[A] = {
     if (callback eq Task.unit) {
       self
@@ -43,9 +43,9 @@ private[eval] object TaskDoOnCancel {
   private final class CallbackThatPops[A](ctx: Task.Context, cb: Callback[Throwable, A])
     extends Callback[Throwable, A] with TrampolinedRunnable {
 
-    private[this] var isActive = true
-    private[this] var value: A = _
-    private[this] var error: Throwable = _
+    private var isActive = true
+    private var value: A = null.asInstanceOf[A]
+    private var error: Throwable = null.asInstanceOf[Throwable]
 
     override def onSuccess(value: A): Unit =
       if (!tryOnSuccess(value)) {
@@ -60,7 +60,7 @@ private[eval] object TaskDoOnCancel {
     override def tryOnSuccess(value: A): Boolean = {
       if (isActive) {
         isActive = false
-        ctx.connection.pop()
+        val _ = ctx.connection.pop()
         this.value = value
         ctx.scheduler.execute(this)
         true
@@ -72,7 +72,7 @@ private[eval] object TaskDoOnCancel {
     override def tryOnError(e: Throwable): Boolean = {
       if (isActive) {
         isActive = false
-        ctx.connection.pop()
+        val _ = ctx.connection.pop()
         this.error = e
         ctx.scheduler.execute(this)
         true

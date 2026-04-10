@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,14 +19,15 @@ package monix.reactive.internal.operators
 
 import java.util.concurrent.TimeUnit
 
-import monix.execution.Ack.{Continue, Stop}
-import monix.execution.cancelables.{CompositeCancelable, MultiAssignCancelable}
-import monix.execution.{Ack, Cancelable}
+import monix.execution.Ack.{ Continue, Stop }
+import monix.execution.Scheduler
+import monix.execution.cancelables.{ CompositeCancelable, MultiAssignCancelable }
+import monix.execution.{ Ack, Cancelable }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import monix.execution.atomic.Atomic
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 private[reactive] final class DelayByTimespanObservable[A](source: Observable[A], delay: FiniteDuration)
   extends Observable[A] {
@@ -36,13 +37,13 @@ private[reactive] final class DelayByTimespanObservable[A](source: Observable[A]
     val composite = CompositeCancelable(task)
 
     composite += source.unsafeSubscribeFn(new Subscriber[A] with Runnable { self =>
-      implicit val scheduler = out.scheduler
-      private[this] var hasError = false
-      private[this] val isDone = Atomic(false)
-      private[this] var completeTriggered = false
-      private[this] val delayMs = delay.toMillis
-      private[this] var currentElem: A = _
-      private[this] var ack: Promise[Ack] = _
+      implicit val scheduler: Scheduler = out.scheduler
+      private var hasError = false
+      private val isDone = Atomic(false)
+      private var completeTriggered = false
+      private val delayMs = delay.toMillis
+      private var currentElem: A = null.asInstanceOf[A]
+      private var ack: Promise[Ack] = null.asInstanceOf[Promise[Ack]]
 
       def onNext(elem: A): Future[Ack] = {
         currentElem = elem
@@ -58,11 +59,9 @@ private[reactive] final class DelayByTimespanObservable[A](source: Observable[A]
       def onComplete(): Unit = {
         completeTriggered = true
         val lastAck = if (ack eq null) Continue else ack.future
-
-        lastAck.syncTryFlatten.syncOnContinue {
+        val _ = lastAck.syncTryFlatten.syncOnContinue {
           if (!isDone.getAndSet(true)) out.onComplete()
         }
-        ()
       }
 
       // Method `onError` is concurrent with run(), so we need to synchronize
@@ -73,7 +72,7 @@ private[reactive] final class DelayByTimespanObservable[A](source: Observable[A]
             hasError = true
             try out.onError(ex)
             finally {
-              if (ack != null) ack.trySuccess(Stop)
+              if (ack != null) { val _ = ack.trySuccess(Stop) }
               task.cancel()
             }
           }

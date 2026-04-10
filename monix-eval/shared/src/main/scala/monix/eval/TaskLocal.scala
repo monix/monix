@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -278,13 +278,13 @@ object TaskLocal {
   private def checkPropagation[A](fa: Task[A]): Task[A] =
     ContextSwitch(fa, checkPropagationRef, null)
 
-  private[this] val checkPropagationRef: Task.Context => Task.Context =
-    ctx => {
-      if (!ctx.options.localContextPropagation) {
-        throw new APIContractViolationException(
-          "Support for TaskLocal usage isn't active! " +
-            "See documentation at: https://monix.io/api/current/monix/eval/TaskLocal.html")
-      }
-      ctx
+  private val checkPropagationRef: Task.Context => Task.Context = ctx => {
+    if (!ctx.options.localContextPropagation) {
+      throw new APIContractViolationException(
+        "Support for TaskLocal usage isn't active! " +
+          "See documentation at: https://monix.io/api/current/monix/eval/TaskLocal.html"
+      )
     }
+    ctx
+  }
 }

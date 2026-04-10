@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,12 +19,12 @@ package monix.reactive.observers
 
 import minitest.TestSuite
 import monix.execution.Ack
-import monix.execution.Ack.{Continue, Stop}
+import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.MultiProducer
 import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
 object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler] {
@@ -136,7 +136,8 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
       if (n > 0)
         s.execute { () =>
           buffer.onNext(n); loop(n - 1)
-        } else
+        }
+      else
         buffer.onComplete()
 
     loop(10000)
@@ -174,7 +175,8 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
       if (n > 0)
         s.execute { () =>
           buffer.onNext(n); loop(n - 1)
-        } else
+        }
+      else
         buffer.onComplete()
 
     loop(10000)

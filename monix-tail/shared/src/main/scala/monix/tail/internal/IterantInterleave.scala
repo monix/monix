@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ import cats.effect.Sync
 import cats.syntax.all._
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.tail.Iterant
-import monix.tail.Iterant.{Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend}
+import monix.tail.Iterant.{ Concat, Halt, Last, Next, NextBatch, NextCursor, Scope, Suspend }
 
 private[tail] object IterantInterleave {
   /**
@@ -36,11 +36,11 @@ private[tail] object IterantInterleave {
     def apply(lh: Iterant[F, A], rh: Iterant[F, A]): Iterant[F, A] =
       lhLoop.visit(lh, rh)
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Used by Concat:
 
-    private[this] var _lhStack: ChunkedArrayStack[F[Iterant[F, A]]] = _
-    private[this] var _rhStack: ChunkedArrayStack[F[Iterant[F, A]]] = _
+    private var _lhStack: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
+    private var _rhStack: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
     private def lhStackPush(ref: F[Iterant[F, A]]): Unit = {
       if (_lhStack == null) _lhStack = ChunkedArrayStack()
@@ -60,15 +60,15 @@ private[tail] object IterantInterleave {
       if (_rhStack == null) null.asInstanceOf[F[Iterant[F, A]]]
       else _rhStack.pop()
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-    private[this] val lhLoop = new LHLoop
-    private[this] val rhLoop = new RHLoop
+    private val lhLoop = new LHLoop
+    private val rhLoop = new RHLoop
 
-    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     private final class LHLoop extends Iterant.Visitor[F, A, Iterant[F, A]] {
-      protected var rhRef: F[Iterant[F, A]] = _
+      protected var rhRef: F[Iterant[F, A]] = null.asInstanceOf[F[Iterant[F, A]]]
 
       def continue(lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): F[Iterant[F, A]] = {
         rhRef = rh
@@ -135,7 +135,7 @@ private[tail] object IterantInterleave {
     }
 
     private final class RHLoop extends Iterant.Visitor[F, A, Iterant[F, A]] {
-      protected var lhRef: F[Iterant[F, A]] = _
+      protected var lhRef: F[Iterant[F, A]] = null.asInstanceOf[F[Iterant[F, A]]]
 
       def continue(lh: F[Iterant[F, A]], rh: F[Iterant[F, A]]): F[Iterant[F, A]] = {
         lhRef = lh

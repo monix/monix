@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,17 +19,17 @@ package monix.tail.internal
 
 import cats.effect.Effect
 import cats.implicits._
-import monix.execution.UncaughtExceptionReporter.{default => Logger}
+import monix.execution.UncaughtExceptionReporter.{ default => Logger }
 import monix.execution.atomic.Atomic
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.cancelables.SingleAssignCancelable
-import monix.execution.internal.{AttemptCallback, Platform}
+import monix.execution.internal.{ AttemptCallback, Platform }
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.rstreams.Subscription
-import monix.execution.{Cancelable, UncaughtExceptionReporter}
+import monix.execution.{ Cancelable, UncaughtExceptionReporter }
 import monix.tail.Iterant
 import monix.tail.Iterant.Halt
-import org.reactivestreams.{Publisher, Subscriber}
+import org.reactivestreams.{ Publisher, Subscriber }
 
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
@@ -45,7 +45,7 @@ private[tail] object IterantToReactivePublisher {
 
   private final class IterantPublisher[F[_], A](source: Iterant[F, A])(implicit F: Effect[F]) extends Publisher[A] {
 
-    def subscribe(out: Subscriber[_ >: A]): Unit = {
+    def subscribe(out: Subscriber[? >: A]): Unit = {
       // Reactive Streams requirement
       if (out == null) throw null
 
@@ -65,13 +65,13 @@ private[tail] object IterantToReactivePublisher {
     }
   }
 
-  private final class IterantSubscription[F[_], A](source: Iterant[F, A], out: Subscriber[_ >: A])(
-    implicit F: Effect[F])
-    extends Subscription { parent =>
+  private final class IterantSubscription[F[_], A](source: Iterant[F, A], out: Subscriber[? >: A])(
+    implicit F: Effect[F]
+  ) extends Subscription { parent =>
 
-    private[this] val cancelable =
+    private val cancelable =
       SingleAssignCancelable()
-    private[this] val state =
+    private val state =
       Atomic.withPadding(null: RequestState, LeftRight128)
 
     def request(n: Long): Unit = {
@@ -107,7 +107,9 @@ private[tail] object IterantToReactivePublisher {
             new IllegalArgumentException(
               "n must be strictly positive, according to " +
                 "the Reactive Streams contract, rule 3.9"
-            )))
+            )
+          )
+        )
       } else {
         loop(n)
       }
@@ -152,18 +154,19 @@ private[tail] object IterantToReactivePublisher {
       cancelable := Cancelable(() =>
         token.unsafeRunAsync(
           AttemptCallback.empty(UncaughtExceptionReporter.default)
-        ))
+        )
+      )
       ()
     }
 
     private final class Loop extends Iterant.Visitor[F, A, F[Unit]] {
-      private[this] var requested = 0L
-      private[this] var haltSignal = Option.empty[Option[Throwable]]
-      private[this] var streamErrors = true
+      private var requested = 0L
+      private var haltSignal = Option.empty[Option[Throwable]]
+      private var streamErrors = true
 
-      //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
       // Used in visit(Concat)
-      private[this] var _stack: ChunkedArrayStack[F[Iterant[F, A]]] = _
+      private var _stack: ChunkedArrayStack[F[Iterant[F, A]]] = null.asInstanceOf[ChunkedArrayStack[F[Iterant[F, A]]]]
 
       private def stackPush(item: F[Iterant[F, A]]): Unit = {
         if (_stack == null) _stack = ChunkedArrayStack()
@@ -178,13 +181,13 @@ private[tail] object IterantToReactivePublisher {
       private def isStackEmpty(): Boolean =
         _stack == null || _stack.isEmpty
 
-      private[this] val concatContinue: (Unit => F[Unit]) =
+      private val concatContinue: (Unit => F[Unit]) =
         state =>
           stackPop() match {
             case null => F.pure(state)
             case xs => xs.flatMap(this)
           }
-      //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+      // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
       private def poll(cb: Either[Throwable, Unit] => Unit = null): F[Unit] = {
         val ref = parent.state
@@ -316,8 +319,8 @@ private[tail] object IterantToReactivePublisher {
         }
       }
 
-      private[this] var suspendedRef: Iterant[F, A] = _
-      private[this] val afterPoll: Unit => F[Unit] = _ => {
+      private var suspendedRef: Iterant[F, A] = null.asInstanceOf[Iterant[F, A]]
+      private val afterPoll: Unit => F[Unit] = _ => {
         haltSignal match {
           case None =>
             if (requested == 0)
@@ -341,5 +344,5 @@ private[tail] object IterantToReactivePublisher {
 
   private final case class Interrupt(err: Option[Throwable]) extends RequestState
 
-  private[this] val rightUnit = Right(())
+  private val rightUnit = Right(())
 }

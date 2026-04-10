@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,14 +17,14 @@
 
 package monix.tail
 
-import java.io.{OutputStream, PrintStream}
+import java.io.{ OutputStream, PrintStream }
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.eval.{Coeval, Task}
+import monix.eval.{ Coeval, Task }
 import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.DummyException
-import monix.tail.batches.{Batch, BatchCursor}
+import monix.tail.batches.{ Batch, BatchCursor }
 
 object IterantDumpSuite extends BaseTestSuite {
   def dummyOut(count: AtomicInt = null) = {

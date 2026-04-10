@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,20 +17,21 @@
 
 package monix.reactive.internal.builders
 
-import java.io.{BufferedReader, Reader, StringReader}
+import java.io.{ BufferedReader, Reader, StringReader }
 
 import minitest.SimpleTestSuite
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
-import monix.execution.ExecutionModel.{AlwaysAsyncExecution, BatchedExecution, SynchronousExecution}
+import monix.execution.Scheduler
+import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, BatchedExecution, SynchronousExecution }
 import monix.execution.exceptions.APIContractViolationException
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import monix.execution.exceptions.DummyException
 import monix.reactive.observers.Subscriber
 
-import scala.util.{Failure, Random, Success}
+import scala.util.{ Failure, Random, Success }
 
 object LinesReaderObservableSuite extends SimpleTestSuite {
   test("fromLinesReaderUnsafe yields a single subscriber observable") {
@@ -41,7 +42,7 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
     s.tick()
 
     obs.unsafeSubscribeFn(new Subscriber[String] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
 
       def onNext(elem: String): Ack =
         throw new IllegalStateException("onNext")
@@ -101,7 +102,7 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
       .map(_.trim)
 
     obs.unsafeSubscribeFn(new Subscriber[String] {
-      implicit val scheduler = s
+      implicit val scheduler: Scheduler = s
 
       def onError(ex: Throwable): Unit =
         throw new IllegalStateException("onError")
@@ -202,7 +203,7 @@ object LinesReaderObservableSuite extends SimpleTestSuite {
 
   def inputWithError(ex: Throwable, whenToThrow: Int, onFinish: () => Unit): BufferedReader = {
     val reader = new Reader {
-      private[this] var callIdx = 0
+      private var callIdx = 0
 
       def read(cbuf: Array[Char], off: Int, len: Int): Int = {
         callIdx += 1

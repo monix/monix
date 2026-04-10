@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 package monix.catnap.internal
 
 import cats.implicits._
-import cats.effect.{Async, ExitCase}
+import cats.effect.{ Async, ExitCase }
 import monix.catnap.FutureLift
 import monix.execution.Callback
 import scala.concurrent.Promise
