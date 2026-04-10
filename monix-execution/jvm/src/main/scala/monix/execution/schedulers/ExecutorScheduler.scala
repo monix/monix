@@ -17,15 +17,11 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{ ExecutorService, ScheduledExecutorService }
-import monix.execution.internal.forkJoin.{
-  AdaptedForkJoinPool,
-  DynamicWorkerThreadFactory,
-  StandardWorkerThreadFactory
-}
-import monix.execution.internal.{ InterceptRunnable, Platform, ScheduledExecutors }
-import monix.execution.{ Cancelable, UncaughtExceptionReporter }
-import monix.execution.{ Features, Scheduler }
+import java.util.concurrent.{ExecutorService, ForkJoinPool, ScheduledExecutorService}
+import monix.execution.internal.forkJoin.{AdaptedForkJoinPool, DynamicWorkerThreadFactory, StandardWorkerThreadFactory}
+import monix.execution.internal.{InterceptRunnable, Platform, ScheduledExecutors}
+import monix.execution.{Cancelable, UncaughtExceptionReporter}
+import monix.execution.{Features, Scheduler}
 // Prevents conflict with the deprecated symbol
 import monix.execution.{ ExecutionModel => ExecModel }
 import scala.concurrent.{ blocking, ExecutionContext, Future, Promise }
@@ -143,6 +139,7 @@ object ExecutorScheduler {
     val handler = reporter.asJava
     val pool = new AdaptedForkJoinPool(
       parallelism,
+      Int.MaxValue, // actually capped to 32k by ForkJoinPool
       new StandardWorkerThreadFactory(name, handler, daemonic),
       handler,
       asyncMode = true
@@ -166,7 +163,8 @@ object ExecutorScheduler {
     val exceptionHandler = reporter.asJava
     val pool = new AdaptedForkJoinPool(
       parallelism,
-      new DynamicWorkerThreadFactory(name, maxThreads, exceptionHandler, daemonic),
+      maxThreads,
+      new DynamicWorkerThreadFactory(name, exceptionHandler, daemonic),
       exceptionHandler,
       asyncMode = true
     )
