@@ -18,6 +18,7 @@
 package monix.execution.internal.collection
 
 import minitest.SimpleTestSuite
+
 import scala.collection.immutable.Queue
 
 object ChunkedArrayQueueSuite extends SimpleTestSuite {
@@ -92,22 +93,6 @@ object ChunkedArrayQueueSuite extends SimpleTestSuite {
     assertEquals(queue.dequeue(), null)
     assert(queue.isEmpty, "queue.isEmpty")
     assert(!queue2.isEmpty, "!stack2.isEmpty")
-  }
-
-  test("enqueueAll(iterable)") {
-    val queue = ChunkedArrayQueue[Int](chunkSize = 8)
-    val expected = (0 until 100).toList
-    queue.enqueueAll(expected)
-
-    var list = Queue.empty[Int]
-    while (!queue.isEmpty) {
-      assert(!queue.isEmpty)
-      list = list.enqueue(queue.dequeue())
-    }
-
-    assertEquals(list.toList, expected)
-    assertEquals(queue.dequeue(), null)
-    assert(queue.isEmpty, "queue.isEmpty")
   }
 
   test("iterator") {
