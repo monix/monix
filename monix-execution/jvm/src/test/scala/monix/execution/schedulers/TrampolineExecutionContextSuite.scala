@@ -18,9 +18,9 @@
 package monix.execution.schedulers
 
 import minitest.SimpleTestSuite
-import monix.execution.{ExecutionModel, Scheduler, UncaughtExceptionReporter}
+import monix.execution.{ ExecutionModel, Scheduler, UncaughtExceptionReporter }
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.{ AtomicBoolean, AtomicInteger }
 import scala.concurrent.blocking
 import scala.util.control.NoStackTrace
 

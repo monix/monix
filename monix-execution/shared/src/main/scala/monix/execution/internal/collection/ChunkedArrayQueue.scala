@@ -18,13 +18,13 @@
 package monix.execution.internal
 package collection
 
-private[monix] final class ChunkedArrayQueue[A] private(
+private[monix] final class ChunkedArrayQueue[A] private (
   initialTailArray: Array[AnyRef],
   initialTailIndex: Int,
   initialHeadArray: Array[AnyRef],
   initialHeadIndex: Int,
-  chunkSize: Int)
-  extends Serializable { self =>
+  chunkSize: Int
+) extends Serializable { self =>
 
   assert(chunkSize > 1, "chunkSize > 1")
 
@@ -87,10 +87,10 @@ private[monix] final class ChunkedArrayQueue[A] private(
   /** Builds an iterator out of this queue. */
   def iterator: Iterator[A] =
     new Iterator[A] {
-      private[this] var headArray = self.headArray
-      private[this] var headIndex = self.headIndex
-      private[this] val tailArray = self.tailArray
-      private[this] val tailIndex = self.tailIndex
+      private var headArray = self.headArray
+      private var headIndex = self.headIndex
+      private val tailArray = self.tailArray
+      private val tailIndex = self.tailIndex
 
       def hasNext: Boolean = {
         (headArray ne tailArray) || headIndex < tailIndex

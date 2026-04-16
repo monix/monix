@@ -17,7 +17,7 @@
 
 package monix.execution.internal
 
-import monix.execution.internal.Trampoline.{ForkingTrampolineEC, ImmediateTrampolineEC, ResumeRun, TrampolineEC}
+import monix.execution.internal.Trampoline.{ ForkingTrampolineEC, ImmediateTrampolineEC, ResumeRun, TrampolineEC }
 import monix.execution.internal.collection.ChunkedArrayQueue
 
 import scala.annotation.tailrec

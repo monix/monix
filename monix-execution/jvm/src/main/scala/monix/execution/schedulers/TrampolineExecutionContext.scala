@@ -18,7 +18,7 @@
 package monix.execution.schedulers
 
 import monix.execution.internal.Trampoline
-import monix.execution.internal.Trampoline.{ForkingTrampolineEC, ImmediateTrampolineEC, TrampolineEC}
+import monix.execution.internal.Trampoline.{ ForkingTrampolineEC, ImmediateTrampolineEC, TrampolineEC }
 
 import scala.concurrent.{ BlockContext, ExecutionContext, ExecutionContextExecutor }
 import scala.util.control.NonFatal
