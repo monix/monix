@@ -35,15 +35,15 @@ private[monix] final class ChunkedArrayQueue[A] private (
   private var headIndex = initialHeadIndex
 
   /**
-    * Returns `true` if the queue is empty, `false` otherwise.
-    */
+   * Returns `true` if the queue is empty, `false` otherwise.
+   */
   def isEmpty: Boolean = {
     (headArray eq tailArray) && headIndex == tailIndex
   }
 
   /**
-    * Enqueues an item on the queue.
-    */
+   * Enqueues an item on the queue.
+   */
   def enqueue(a: A): Unit = {
     tailArray(tailIndex) = a.asInstanceOf[AnyRef]
     tailIndex += 1
@@ -62,17 +62,12 @@ private[monix] final class ChunkedArrayQueue[A] private (
   }
 
   /** Pushes an entire sequence on the stack. */
-  def enqueueAll(seq: Iterable[A]): Unit = {
-    enqueueAll(seq.iterator)
-  }
-
-  /** Pushes an entire sequence on the stack. */
   def enqueueAll(stack: ChunkedArrayQueue[A]): Unit =
     enqueueAll(stack.iterator)
 
   /**
-    * Pops an item from the queue, FIFO order.
-    */
+   * Pops an item from the queue, FIFO order.
+   */
   def dequeue(): A = {
     if ((headArray ne tailArray) || headIndex < tailIndex) {
       val result = headArray(headIndex).asInstanceOf[A]
@@ -116,8 +111,8 @@ private[monix] final class ChunkedArrayQueue[A] private (
 
 private[monix] object ChunkedArrayQueue {
   /**
-    * Builds a new [[ChunkedArrayQueue]].
-    */
+   * Builds a new [[ChunkedArrayQueue]].
+   */
   def apply[A](chunkSize: Int = 8): ChunkedArrayQueue[A] = {
     val arr = new Array[AnyRef](chunkSize)
     new ChunkedArrayQueue[A](arr, 0, arr, 0, chunkSize)
