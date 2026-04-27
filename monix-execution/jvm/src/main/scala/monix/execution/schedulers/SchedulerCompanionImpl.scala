@@ -137,7 +137,12 @@ private[execution] class SchedulerCompanionImpl extends SchedulerCompanion {
     * @param executor $executorService
     */
   def apply(executor: ExecutorService): SchedulerService =
-    ExecutorScheduler.fromExecutorService(executor, UncaughtExceptionReporter.default, ExecModel.Default, Features.empty)
+    ExecutorScheduler.fromExecutorService(
+      executor,
+      UncaughtExceptionReporter.default,
+      ExecModel.Default,
+      Features.empty
+    )
 
   /** [[monix.execution.Scheduler Scheduler]] builder that converts a
     * Java `ExecutorService` into a scheduler.
