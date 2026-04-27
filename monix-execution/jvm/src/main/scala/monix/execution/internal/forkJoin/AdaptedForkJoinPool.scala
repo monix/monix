@@ -19,7 +19,9 @@ package monix.execution.internal.forkJoin
 
 import java.lang.Thread.UncaughtExceptionHandler
 import java.util.concurrent.ForkJoinPool.ForkJoinWorkerThreadFactory
-import java.util.concurrent.{ ForkJoinPool, ForkJoinTask, ForkJoinWorkerThread, TimeUnit }
+import java.util.concurrent.ForkJoinPool
+import java.util.concurrent.ForkJoinWorkerThread
+import java.util.concurrent.TimeUnit
 
 private[monix] final class AdaptedForkJoinPool(
   parallelism: Int,
