@@ -63,7 +63,7 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
           streamError = false
           val ack = out.onNext(c)
           if (completeWithNext) {
-            ack.onComplete(_ => signalOnComplete(false))
+            ack.onComplete(_ => lock.synchronized(signalOnComplete(false)))
           }
           ack
         } catch {
@@ -96,7 +96,8 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
       lastAck
     }
 
-    def signalOnError(ex: Throwable): Unit = lock.synchronized {
+    // MUST BE synchronized by `lock`
+    def signalOnError(ex: Throwable): Unit = {
       if (!isDone) {
         isDone = true
         out.onError(ex)
@@ -104,6 +105,7 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
       }
     }
 
+    // MUST BE synchronized by `lock`
     def signalOnComplete(hasElem: Boolean): Unit = {
       def rawOnComplete(): Unit =
         if (!isDone) {
@@ -111,27 +113,25 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
           out.onComplete()
         }
 
-      lock.synchronized {
-        // Other source could already set completeWithNext
-        // so it won't emit any elements
-        if (!hasElem || completeWithNext) {
-          lastAck match {
-            case Continue => rawOnComplete()
-            case Stop => () // do nothing
-            case async =>
-              async.onComplete {
-                case Success(Continue) =>
-                  lock.synchronized(rawOnComplete())
-                case _ =>
-                  () // do nothing
-              }
-          }
-
-          continueP.trySuccess(Stop)
-          lastAck = Stop
-        } else {
-          completeWithNext = true
+      // Other source could already set completeWithNext
+      // so it won't emit any elements
+      if (!hasElem || completeWithNext) {
+        lastAck match {
+          case Continue => rawOnComplete()
+          case Stop => () // do nothing
+          case async =>
+            async.onComplete {
+              case Success(Continue) =>
+                lock.synchronized(rawOnComplete())
+              case _ =>
+                () // do nothing
+            }
         }
+
+        continueP.trySuccess(Stop)
+        lastAck = Stop
+      } else {
+        completeWithNext = true
       }
     }
 
@@ -154,9 +154,9 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
       def onComplete(): Unit =
-        signalOnComplete(hasElemA1)
+        lock.synchronized(signalOnComplete(hasElemA1))
     })
 
     composite += obsA2.unsafeSubscribeFn(new Subscriber[A2] {
@@ -176,9 +176,9 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
       def onComplete(): Unit =
-        signalOnComplete(hasElemA2)
+        lock.synchronized(signalOnComplete(hasElemA2))
     })
 
     composite
