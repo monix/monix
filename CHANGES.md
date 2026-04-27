@@ -7,7 +7,7 @@ Breaking changes:
 - JDK `17` is now the minimum supported runtime and build target.
 - JDK `21` is now part of the validated support matrix.
 - Scala `2.12` support is dropped.
-- Scala `3` is upgraded to `3.8.2`.
+- Scala `3` is upgraded to `3.8.3`.
 - Legacy `sun.misc.Unsafe`-based internals were removed in favor of JDK `VarHandle`-based implementations.
 
 This release was made possible by the work and feedback of:

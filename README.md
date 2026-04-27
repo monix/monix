@@ -61,7 +61,7 @@ a project exemplifying Monix used both on the server and on the client.
 Compatibility baseline:
 
 - JDK `17` minimum (`21` validated)
-- Scala `2.13.18` and Scala `3.8.2`
+- Scala `2.13.18` and Scala `3.8.3`
 
 For the stable release (compatible with Cats, and Cats-Effect 2.x):
  
