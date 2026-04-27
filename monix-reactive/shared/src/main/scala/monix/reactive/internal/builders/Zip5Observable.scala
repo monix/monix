@@ -83,7 +83,7 @@ private[reactive] final class Zip5Observable[A1, A2, A3, A4, A5, +R](
           streamError = false
           val ack = out.onNext(c)
           if (completeWithNext) {
-            ack.onComplete(_ => signalOnComplete(false))
+            ack.onComplete(_ => lock.synchronized(signalOnComplete(false)))
           }
           ack
         } catch {
@@ -133,7 +133,7 @@ private[reactive] final class Zip5Observable[A1, A2, A3, A4, A5, +R](
         out.onComplete()
       }
 
-    def signalOnComplete(hasElem: Boolean): Unit = lock.synchronized {
+    def signalOnComplete(hasElem: Boolean): Unit = {
       // If all other sources have completed then
       // we won't receive the next batch of elements
       if (!hasElem || sourcesCompleted == 4) {
