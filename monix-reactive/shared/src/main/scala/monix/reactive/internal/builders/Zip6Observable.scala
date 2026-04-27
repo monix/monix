@@ -125,7 +125,8 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
       lastAck
     }
 
-    def signalOnError(ex: Throwable): Unit = lock.synchronized {
+    // MUST BE synchronized by `lock`
+    def signalOnError(ex: Throwable): Unit = {
       if (!isDone) {
         isDone = true
         out.onError(ex)
@@ -139,6 +140,7 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
         out.onComplete()
       }
 
+    // MUST BE synchronized by `lock`
     def signalOnComplete(hasElem: Boolean): Unit = {
       // If all other sources have completed then
       // we won't receive the next batch of elements
@@ -181,7 +183,7 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
 
       def onComplete(): Unit =
         lock.synchronized(signalOnComplete(hasElemA1))
@@ -204,7 +206,7 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
 
       def onComplete(): Unit =
         lock.synchronized(signalOnComplete(hasElemA2))
@@ -227,7 +229,7 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
 
       def onComplete(): Unit =
         lock.synchronized(signalOnComplete(hasElemA3))
@@ -250,7 +252,7 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
 
       def onComplete(): Unit =
         lock.synchronized(signalOnComplete(hasElemA4))
@@ -273,7 +275,7 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
 
       def onComplete(): Unit =
         lock.synchronized(signalOnComplete(hasElemA5))
@@ -296,7 +298,7 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
 
       def onComplete(): Unit =
         lock.synchronized(signalOnComplete(hasElemA6))

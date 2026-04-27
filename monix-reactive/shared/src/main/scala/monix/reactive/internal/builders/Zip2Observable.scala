@@ -96,7 +96,8 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
       lastAck
     }
 
-    def signalOnError(ex: Throwable): Unit = lock.synchronized {
+    // MUST BE synchronized by `lock`
+    def signalOnError(ex: Throwable): Unit = {
       if (!isDone) {
         isDone = true
         out.onError(ex)
@@ -153,7 +154,7 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
       def onComplete(): Unit =
         lock.synchronized(signalOnComplete(hasElemA1))
     })
@@ -175,7 +176,7 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
       def onComplete(): Unit =
         lock.synchronized(signalOnComplete(hasElemA2))
     })
