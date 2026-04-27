@@ -17,19 +17,25 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{ ExecutorService, ScheduledExecutorService }
-import monix.execution.internal.forkJoin.{
-  AdaptedForkJoinPool,
-  DynamicWorkerThreadFactory,
-  StandardWorkerThreadFactory
-}
-import monix.execution.internal.{ InterceptRunnable, Platform, ScheduledExecutors }
-import monix.execution.{ Cancelable, UncaughtExceptionReporter }
-import monix.execution.{ Features, Scheduler }
+import monix.execution.internal.forkJoin.AdaptedForkJoinPool
+import monix.execution.internal.forkJoin.DynamicWorkerThreadFactory
+import monix.execution.internal.forkJoin.StandardWorkerThreadFactory
+import monix.execution.internal.InterceptRunnable
+import monix.execution.internal.Platform
+import monix.execution.internal.ScheduledExecutors
+import monix.execution.Cancelable
+import monix.execution.UncaughtExceptionReporter
+import monix.execution.Features
+import monix.execution.Scheduler
 // Prevents conflict with the deprecated symbol
-import monix.execution.{ ExecutionModel => ExecModel }
-import scala.concurrent.{ blocking, ExecutionContext, Future, Promise }
+import monix.execution.ExecutionModel as ExecModel
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.ScheduledExecutorService
 import scala.concurrent.duration.TimeUnit
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.Promise
+import scala.concurrent.blocking
 import scala.util.control.NonFatal
 
 /** An [[ExecutorScheduler]] is a class for building a
@@ -143,6 +149,7 @@ object ExecutorScheduler {
     val handler = reporter.asJava
     val pool = new AdaptedForkJoinPool(
       parallelism,
+      Int.MaxValue, // actually capped to 32k by ForkJoinPool
       new StandardWorkerThreadFactory(name, handler, daemonic),
       handler,
       asyncMode = true
@@ -166,7 +173,8 @@ object ExecutorScheduler {
     val exceptionHandler = reporter.asJava
     val pool = new AdaptedForkJoinPool(
       parallelism,
-      new DynamicWorkerThreadFactory(name, maxThreads, exceptionHandler, daemonic),
+      maxThreads,
+      new DynamicWorkerThreadFactory(name, exceptionHandler, daemonic),
       exceptionHandler,
       asyncMode = true
     )
