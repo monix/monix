@@ -17,10 +17,15 @@
 
 package monix.execution.internal.forkJoin
 
-import java.util.concurrent.ForkJoinPool.{ ForkJoinWorkerThreadFactory, ManagedBlocker }
-import java.util.concurrent.{ ForkJoinPool, ForkJoinWorkerThread, ThreadFactory }
 import monix.execution.internal.forkJoin.DynamicWorkerThreadFactory.EmptyBlockContext
-import scala.concurrent.{ BlockContext, CanAwait }
+import java.util.concurrent.ForkJoinPool.ForkJoinWorkerThreadFactory
+import java.util.concurrent.ForkJoinPool.ManagedBlocker
+import java.util.concurrent.ForkJoinPool
+import java.util.concurrent.ForkJoinWorkerThread
+import java.util.concurrent.ThreadFactory
+import scala.annotation.nowarn
+import scala.concurrent.BlockContext
+import scala.concurrent.CanAwait
 
 // Implement BlockContext on FJP threads
 private[monix] final class DynamicWorkerThreadFactory(
