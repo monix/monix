@@ -53,7 +53,7 @@ private[monix] final class DynamicWorkerThreadFactory(
         var result: T = null.asInstanceOf[T]
         ForkJoinPool.managedBlock(new ManagedBlocker {
           @volatile
-          private[this] var isDone = false
+          private var isDone = false
           def isReleasable = isDone
 
           def block(): Boolean = {
