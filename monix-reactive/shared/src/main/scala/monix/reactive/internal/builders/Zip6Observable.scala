@@ -88,7 +88,7 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
           streamError = false
           val ack = out.onNext(c)
           if (completeWithNext) {
-            ack.onComplete(_ => signalOnComplete(false))
+            ack.onComplete(_ => lock.synchronized(signalOnComplete(false)))
           }
           ack
         } catch {
@@ -125,7 +125,8 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
       lastAck
     }
 
-    def signalOnError(ex: Throwable): Unit = lock.synchronized {
+    // MUST BE synchronized by `lock`
+    def signalOnError(ex: Throwable): Unit = {
       if (!isDone) {
         isDone = true
         out.onError(ex)
@@ -139,7 +140,8 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
         out.onComplete()
       }
 
-    def signalOnComplete(hasElem: Boolean): Unit = lock.synchronized {
+    // MUST BE synchronized by `lock`
+    def signalOnComplete(hasElem: Boolean): Unit = {
       // If all other sources have completed then
       // we won't receive the next batch of elements
       if (!hasElem || sourcesCompleted == 5) {
@@ -181,10 +183,10 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
 
       def onComplete(): Unit =
-        signalOnComplete(hasElemA1)
+        lock.synchronized(signalOnComplete(hasElemA1))
     })
 
     composite += obsA2.unsafeSubscribeFn(new Subscriber[A2] {
@@ -204,10 +206,10 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
 
       def onComplete(): Unit =
-        signalOnComplete(hasElemA2)
+        lock.synchronized(signalOnComplete(hasElemA2))
     })
 
     composite += obsA3.unsafeSubscribeFn(new Subscriber[A3] {
@@ -227,10 +229,10 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
 
       def onComplete(): Unit =
-        signalOnComplete(hasElemA3)
+        lock.synchronized(signalOnComplete(hasElemA3))
     })
 
     composite += obsA4.unsafeSubscribeFn(new Subscriber[A4] {
@@ -250,10 +252,10 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
 
       def onComplete(): Unit =
-        signalOnComplete(hasElemA4)
+        lock.synchronized(signalOnComplete(hasElemA4))
     })
 
     composite += obsA5.unsafeSubscribeFn(new Subscriber[A5] {
@@ -273,10 +275,10 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
 
       def onComplete(): Unit =
-        signalOnComplete(hasElemA5)
+        lock.synchronized(signalOnComplete(hasElemA5))
     })
 
     composite += obsA6.unsafeSubscribeFn(new Subscriber[A6] {
@@ -296,10 +298,10 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
       }
 
       def onError(ex: Throwable): Unit =
-        signalOnError(ex)
+        lock.synchronized(signalOnError(ex))
 
       def onComplete(): Unit =
-        signalOnComplete(hasElemA6)
+        lock.synchronized(signalOnComplete(hasElemA6))
     })
 
     composite
