@@ -17,8 +17,6 @@
 
 package monix.benchmarks
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{ Keep, Sink => AkkaSink, Source => AkkaSource }
 import fs2.{ Stream => FS2Stream }
@@ -29,7 +27,7 @@ import monix.reactive.observers.Subscriber
 import org.openjdk.jmh.annotations._
 import zio.stream.{ Stream => ZStream }
 
-import scala.collection.immutable.IndexedSeq
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, Promise }
 
@@ -68,8 +66,8 @@ class ChunkedMapFilterSumBenchmark {
   @Setup
   def setup(): Unit = {
     chunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
-    fs2Chunks = chunks.map(fs2.Chunk.array)
-    zioChunks = chunks.map(zio.Chunk.fromArray)
+    fs2Chunks = chunks.map(fs2.Chunk.array[Int])
+    zioChunks = chunks.map(zio.Chunk.fromArray[Int])
     allElements = chunks.flatten
     allElementsVector = allElements.toVector
   }

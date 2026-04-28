@@ -153,7 +153,15 @@ object MimaFilters {
       exclude[MissingClassProblem]("monix.execution.misc.test.TestInlineMacros$Macros"),
       exclude[DirectMissingMethodProblem]("monix.execution.AsyncQueue.<init>$default$3"),
       exclude[IncompatibleResultTypeProblem]("monix.execution.cancelables.AssignableCancelable.alreadyCanceled"),
-      exclude[IncompatibleResultTypeProblem]("monix.execution.cancelables.BooleanCancelable.alreadyCanceled")
+      exclude[IncompatibleResultTypeProblem]("monix.execution.cancelables.BooleanCancelable.alreadyCanceled"),
+      // TrampolineExecutionContext signature tweaks (internal API)
+      exclude[IncompatibleMethTypeProblem](
+        "monix.execution.schedulers.TrampolineExecutionContext#JVMNormalTrampoline.startLoop"
+      ),
+      exclude[IncompatibleMethTypeProblem](
+        "monix.execution.schedulers.TrampolineExecutionContext#JVMOptimalTrampoline.startLoop"
+      ),
+      exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TrampolineExecutionContext.this")
     )
 
     lazy val all: Seq[ProblemFilter] =

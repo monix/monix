@@ -17,25 +17,27 @@
 
 package monix.benchmarks
 
-import java.util.concurrent.TimeUnit
-import monix.execution.Scheduler.global
+import monix.execution.schedulers.TrampolineExecutionContext
 import org.openjdk.jmh.annotations._
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.blocking
 
 /** To do comparative benchmarks between versions:
   *
-  *     benchmarks/run-benchmark TrampolinedRunnableBenchmark
+  *     benchmarks/run-benchmark TrampolineExecutionContextBenchmark
   *
   * This will generate results in `benchmarks/results`.
   *
   * Or to run the benchmark from within SBT:
   *
-  *     jmh:run monix.benchmarks.TrampolinedRunnableBenchmark
+  *     jmh:run monix.benchmarks.TrampolineExecutionContextBenchmark
   *     The above test will take default values as "10 iterations", "10 warm-up iterations",
   *     "2 forks", "1 thread".
   *
   *     Or to specify custom values use below format:
   *
-  *     jmh:run -i 20 -wi 20 -f 4 -t 2 monix.benchmarks.TrampolinedRunnableBenchmark
+  *     jmh:run -i 20 -wi 20 -f 4 -t 2 monix.benchmarks.TrampolineExecutionContextBenchmark
   *
   * Which means "20 iterations", "20 warm-up iterations", "4 forks", "2 thread".
   * Please note that benchmarks should be usually executed at least in
@@ -48,33 +50,26 @@ import org.openjdk.jmh.annotations._
 @Warmup(iterations = 10)
 @Fork(2)
 @Threads(1)
-class TrampolinedRunnableBenchmark {
+class TrampolineExecutionContextBenchmark {
   @Param(Array("3000"))
   var size: Int = _
 
   @Benchmark
-  def shallow(): Long = {
+  def immediateBlocking(): Long = {
     var sum = 0L
+    val context = TrampolineExecutionContext.immediate
 
-    def loop(n: Int, acc: Long): Unit =
-      global.executeTrampolined { () =>
-        if (n > 0) loop(n - 1, acc + n)
-        else sum = acc
-      }
-
-    loop(size, 0)
-    sum
-  }
-
-  @Benchmark
-  def deep(): Long = {
-    var sum = 0L
-
-    global.executeTrampolined { () =>
+    context.execute { () =>
       var i = size
-      while (i > 0) {
-        global.executeTrampolined(() => sum += i)
+      while (i > size / 2) {
+        context.execute(() => sum += i)
         i -= 1
+      }
+      blocking {
+        while (i > 0) {
+          context.execute(() => sum += i)
+          i -= 1
+        }
       }
     }
     sum
