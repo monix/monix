@@ -173,7 +173,7 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
         if (isDone) Stop
         else {
           elemA1 = elem
-          if (!hasElemA1) hasElemA1 = true
+          hasElemA1 = true
 
           if (hasElemA2 && hasElemA3 && hasElemA4 && hasElemA5 && hasElemA6)
             signalOnNext(elemA1, elemA2, elemA3, elemA4, elemA5, elemA6)
@@ -196,7 +196,7 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
         if (isDone) Stop
         else {
           elemA2 = elem
-          if (!hasElemA2) hasElemA2 = true
+          hasElemA2 = true
 
           if (hasElemA1 && hasElemA3 && hasElemA4 && hasElemA5 && hasElemA6)
             signalOnNext(elemA1, elemA2, elemA3, elemA4, elemA5, elemA6)
@@ -219,7 +219,7 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
         if (isDone) Stop
         else {
           elemA3 = elem
-          if (!hasElemA3) hasElemA3 = true
+          hasElemA3 = true
 
           if (hasElemA1 && hasElemA2 && hasElemA4 && hasElemA5 && hasElemA6)
             signalOnNext(elemA1, elemA2, elemA3, elemA4, elemA5, elemA6)
@@ -242,7 +242,7 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
         if (isDone) Stop
         else {
           elemA4 = elem
-          if (!hasElemA4) hasElemA4 = true
+          hasElemA4 = true
 
           if (hasElemA1 && hasElemA2 && hasElemA3 && hasElemA5 && hasElemA6)
             signalOnNext(elemA1, elemA2, elemA3, elemA4, elemA5, elemA6)
@@ -265,7 +265,7 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
         if (isDone) Stop
         else {
           elemA5 = elem
-          if (!hasElemA5) hasElemA5 = true
+          hasElemA5 = true
 
           if (hasElemA1 && hasElemA2 && hasElemA3 && hasElemA4 && hasElemA6)
             signalOnNext(elemA1, elemA2, elemA3, elemA4, elemA5, elemA6)
@@ -288,7 +288,7 @@ private[reactive] final class Zip6Observable[A1, A2, A3, A4, A5, A6, +R](
         if (isDone) Stop
         else {
           elemA6 = elem
-          if (!hasElemA6) hasElemA6 = true
+          hasElemA6 = true
 
           if (hasElemA1 && hasElemA2 && hasElemA3 && hasElemA4 && hasElemA5)
             signalOnNext(elemA1, elemA2, elemA3, elemA4, elemA5, elemA6)

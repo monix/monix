@@ -144,7 +144,7 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
         if (isDone) Stop
         else {
           elemA1 = elem
-          if (!hasElemA1) hasElemA1 = true
+          hasElemA1 = true
 
           if (hasElemA2)
             signalOnNext(elemA1, elemA2)
@@ -166,7 +166,7 @@ private[reactive] final class Zip2Observable[A1, A2, +R](obsA1: Observable[A1], 
         if (isDone) Stop
         else {
           elemA2 = elem
-          if (!hasElemA2) hasElemA2 = true
+          hasElemA2 = true
 
           if (hasElemA1)
             signalOnNext(elemA1, elemA2)
