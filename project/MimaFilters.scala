@@ -153,18 +153,19 @@ object MimaFilters {
       exclude[MissingClassProblem]("monix.execution.misc.test.TestInlineMacros$Macros"),
       exclude[DirectMissingMethodProblem]("monix.execution.AsyncQueue.<init>$default$3"),
       exclude[IncompatibleResultTypeProblem]("monix.execution.cancelables.AssignableCancelable.alreadyCanceled"),
-      exclude[IncompatibleResultTypeProblem]("monix.execution.cancelables.BooleanCancelable.alreadyCanceled")
-    )
-
-    lazy val changesFor_3_6_0 = Seq(
+      exclude[IncompatibleResultTypeProblem]("monix.execution.cancelables.BooleanCancelable.alreadyCanceled"),
       // TrampolineExecutionContext signature tweaks (internal API)
-      exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TrampolineExecutionContext#JVMNormalTrampoline.startLoop"),
-      exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TrampolineExecutionContext#JVMOptimalTrampoline.startLoop"),
+      exclude[IncompatibleMethTypeProblem](
+        "monix.execution.schedulers.TrampolineExecutionContext#JVMNormalTrampoline.startLoop"
+      ),
+      exclude[IncompatibleMethTypeProblem](
+        "monix.execution.schedulers.TrampolineExecutionContext#JVMOptimalTrampoline.startLoop"
+      ),
       exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TrampolineExecutionContext.this")
     )
 
     lazy val all: Seq[ProblemFilter] =
-      Seq(changesFor_3_0_1, changesFor_3_3_0, changesFor_3_4_0, changesFor_3_5_0, changesFor_3_6_0).flatten
+      Seq(changesFor_3_0_1, changesFor_3_3_0, changesFor_3_4_0, changesFor_3_5_0).flatten
   }
 
   object MonixCatnap {
