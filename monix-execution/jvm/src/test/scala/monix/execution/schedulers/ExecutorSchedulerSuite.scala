@@ -17,12 +17,13 @@
 
 package monix.execution.schedulers
 
-import java.util.concurrent.{ CountDownLatch, TimeUnit, TimeoutException }
+import java.util.concurrent.{ CountDownLatch, Executors, TimeUnit, TimeoutException }
 
 import minitest.TestSuite
 import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, Default => DefaultExecutionModel }
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.exceptions.DummyException
+import monix.execution.schedulers.ExecutorSchedulerSuite.TestException
 import monix.execution.{ Cancelable, Scheduler, UncaughtExceptionReporter }
 
 import scala.concurrent.duration._
@@ -153,54 +154,75 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
   }
 
   test("reports errors on execute") { scheduler =>
-    val latch = new CountDownLatch(1)
-    self.synchronized {
-      lastReportedFailure = null
-      lastReportedFailureLatch = latch
-    }
+    val latch = setupReporterLatch()
 
     try {
-      val ex = DummyException("dummy")
-      scheduler.execute(() => throw ex)
+      scheduler.execute(() => throw TestException)
 
-      assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
-      self.synchronized(assertEquals(lastReportedFailure, ex))
+      assertTestExceptionCaught(latch)
     } finally {
-      self.synchronized {
-        lastReportedFailure = null
-        lastReportedFailureLatch = null
-      }
+      clearReporterLatch()
     }
   }
 
   test("reports errors on scheduleOnce") { scheduler =>
+    testScheduledErrorReporting(
+      scheduleFailure = () => scheduler.scheduleOnce(1.milli)(throw TestException)
+    )
+  }
+
+  test("reports errors on scheduleAtFixedRate") { scheduler =>
+    testScheduledErrorReporting(
+      scheduleFailure = () => scheduler.scheduleAtFixedRate(0.seconds, 1.second)(throw TestException)
+    )
+  }
+
+  test("reports errors on scheduleWithFixedDelay") { scheduler =>
+    testScheduledErrorReporting(
+      scheduleFailure = () => scheduler.scheduleWithFixedDelay(0.seconds, 1.second)(throw TestException),
+    )
+  }
+
+  private def testScheduledErrorReporting(scheduleFailure: () => Cancelable): Unit = {
+    val latch = setupReporterLatch()
+
+    val schedule = scheduleFailure()
+
+    try {
+      assertTestExceptionCaught(latch)
+    } finally {
+      schedule.cancel()
+      clearReporterLatch()
+    }
+  }
+
+  private def setupReporterLatch() = {
     val latch = new CountDownLatch(1)
     self.synchronized {
       lastReportedFailure = null
       lastReportedFailureLatch = latch
     }
+    latch
+  }
 
-    try {
-      val ex = DummyException("dummy")
+  private def assertTestExceptionCaught(latch: CountDownLatch): Unit = {
+    assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
+    self.synchronized(assertEquals(lastReportedFailure, TestException))
+  }
 
-      val _ = scheduler.scheduleOnce(
-        1,
-        TimeUnit.MILLISECONDS,
-        () => throw ex
-      )
-
-      assert(latch.await(15, TimeUnit.MINUTES), "lastReportedFailureLatch.await")
-      self.synchronized(assertEquals(lastReportedFailure, ex))
-    } finally {
-      self.synchronized {
-        lastReportedFailure = null
-        lastReportedFailureLatch = null
-      }
+  private def clearReporterLatch(): Unit = {
+    self.synchronized {
+      lastReportedFailure = null
+      lastReportedFailureLatch = null
     }
   }
 
   def runnableAction(f: => Unit): Runnable =
     () => f
+}
+
+object ExecutorSchedulerSuite {
+  private val TestException = DummyException("dummy")
 }
 
 object ComputationSchedulerSuite extends ExecutorSchedulerSuite {
@@ -251,4 +273,9 @@ object CachedSchedulerSuite extends ExecutorSchedulerSuite {
 object IOSchedulerSuite extends ExecutorSchedulerSuite {
   def setup(): SchedulerService =
     monix.execution.Scheduler.io("monix-tests-io", reporter = testsReporter)
+}
+
+object ScheduledExecutorSuite extends ExecutorSchedulerSuite {
+  def setup(): SchedulerService =
+    monix.execution.Scheduler(Executors.newSingleThreadScheduledExecutor(), reporter = testsReporter)
 }
