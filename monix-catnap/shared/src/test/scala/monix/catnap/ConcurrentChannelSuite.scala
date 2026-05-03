@@ -344,7 +344,8 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       c1      <- channel.consume.use(c => c.pull *> c.pull).start
       await   <- channel.awaitConsumers(3).start
       c2      <- channel.consume.use(c => c.pull).start
-      _       <- await.join.timeoutTo(3.millis, IO.unit)
+      // Synchronize: ensure both c1 and c2 are registered before proceeding
+      _       <- channel.awaitConsumers(2)
       _       <- channel.push(1)
       r2      <- c2.join
       c3      <- channel.consume.use(c => c.pull).start
