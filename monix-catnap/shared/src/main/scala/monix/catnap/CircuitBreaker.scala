@@ -757,7 +757,10 @@ object CircuitBreaker extends CircuitBreakerDocs {
         onClosed = onClosed,
         onHalfOpen = onHalfOpen,
         onOpen = onOpen
-      )(F, clock)
+      )(
+        F,
+        clock
+      )
     }
   }
 
