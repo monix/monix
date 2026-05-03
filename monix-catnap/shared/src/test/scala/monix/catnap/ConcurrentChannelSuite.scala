@@ -345,16 +345,16 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       await   <- channel.awaitConsumers(3).start
       c2      <- channel.consume.use(c => c.pull).start
       // Synchronize: ensure both c1 and c2 are registered before proceeding
-      _       <- channel.awaitConsumers(2)
-      _       <- channel.push(1)
-      r2      <- c2.join
-      c3      <- channel.consume.use(c => c.pull).start
-      c4      <- channel.consume.use(c => c.pull).start
-      _       <- await.join
-      _       <- channel.halt(0)
-      r1      <- c1.join
-      r3      <- c3.join
-      r4      <- c4.join
+      _  <- channel.awaitConsumers(2)
+      _  <- channel.push(1)
+      r2 <- c2.join
+      c3 <- channel.consume.use(c => c.pull).start
+      c4 <- channel.consume.use(c => c.pull).start
+      _  <- await.join
+      _  <- channel.halt(0)
+      r1 <- c1.join
+      r3 <- c3.join
+      r4 <- c4.join
     } yield {
       assertEquals(r1, Left(0))
       assertEquals(r2, Right(1))
