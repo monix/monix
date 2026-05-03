@@ -747,6 +747,8 @@ object ConcurrentChannel {
             helpers.continueF
           case Stop =>
             helpers.stopF
+          case _ =>
+            throw new IllegalStateException(s"Unexpected Ack value")
         }
       }
 
@@ -781,6 +783,7 @@ object ConcurrentChannel {
           offerWait.flatMap {
             case Continue => loop(cursor)
             case Stop => helpers.stopF
+            case _ => throw new IllegalStateException(s"Unexpected Ack value")
           }
         } else {
           helpers.continueF
