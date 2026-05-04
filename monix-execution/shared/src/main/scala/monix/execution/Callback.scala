@@ -434,6 +434,8 @@ object Callback {
           val e = error
           error = null.asInstanceOf[E]
           cb.onError(e)
+        case _ =>
+          throw new IllegalStateException(s"Unexpected callback state: ${state.get()}")
       }
     }
   }

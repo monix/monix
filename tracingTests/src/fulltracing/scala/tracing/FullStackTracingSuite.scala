@@ -1,7 +1,7 @@
 package tracing
 
-import monix.eval.tracing.{TaskEvent, TaskTrace}
-import monix.eval.{BaseTestSuite, Task}
+import monix.eval.tracing.{ TaskEvent, TaskTrace }
+import monix.eval.{ BaseTestSuite, Task }
 
 /**
   * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
@@ -19,7 +19,8 @@ object FullStackTracingSuite extends BaseTestSuite {
         assertEquals(r.captured, 5)
         assertEquals(
           r.events.collect { case e: TaskEvent.StackTrace => e }.count(_.stackTrace.exists(_.getMethodName == "map")),
-          3)
+          3
+        )
       }
 
     test.runToFuture
@@ -49,7 +50,8 @@ object FullStackTracingSuite extends BaseTestSuite {
         assertEquals(r.captured, 7)
         assertEquals(
           r.events.collect { case e: TaskEvent.StackTrace => e }.count(_.stackTrace.exists(_.getMethodName == "async")),
-          1)
+          1
+        )
       }
 
     test.runToFuture
@@ -63,7 +65,8 @@ object FullStackTracingSuite extends BaseTestSuite {
         assertEquals(r.captured, 5)
         assertEquals(
           r.events.collect { case e: TaskEvent.StackTrace => e }.count(_.stackTrace.exists(_.getMethodName == "pure")),
-          2)
+          2
+        )
       }
 
     test.runToFuture
@@ -77,7 +80,8 @@ object FullStackTracingSuite extends BaseTestSuite {
         assertEquals(r.captured, 5)
         assertEquals(
           r.events.collect { case e: TaskEvent.StackTrace => e }.count(_.stackTrace.exists(_.getMethodName == "eval")),
-          2)
+          2
+        )
       }
 
     test.runToFuture
@@ -92,7 +96,8 @@ object FullStackTracingSuite extends BaseTestSuite {
         assertEquals(
           r.events.collect { case e: TaskEvent.StackTrace => e }
             .count(_.stackTrace.exists(_.getMethodName == "suspend")),
-          2)
+          2
+        )
       }
 
     test.runToFuture
@@ -107,7 +112,8 @@ object FullStackTracingSuite extends BaseTestSuite {
         assertEquals(
           r.events.collect { case e: TaskEvent.StackTrace => e }
             .count(_.stackTrace.exists(_.getMethodName == "raiseError")),
-          1)
+          1
+        )
       }
 
     test.runToFuture
@@ -122,7 +128,8 @@ object FullStackTracingSuite extends BaseTestSuite {
         assertEquals(
           r.events.collect { case e: TaskEvent.StackTrace => e }
             .count(_.stackTrace.exists(_.getMethodName == "bracket")),
-          1)
+          1
+        )
       }
 
     test.runToFuture
@@ -138,7 +145,8 @@ object FullStackTracingSuite extends BaseTestSuite {
         assertEquals(
           r.events.collect { case e: TaskEvent.StackTrace => e }
             .count(_.stackTrace.exists(_.getMethodName == "bracketCase")),
-          1)
+          1
+        )
       }
 
     test.runToFuture
