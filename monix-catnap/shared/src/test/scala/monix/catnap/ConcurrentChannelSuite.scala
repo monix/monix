@@ -344,16 +344,18 @@ abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] w
       c1      <- channel.consume.use(c => c.pull *> c.pull).start
       await   <- channel.awaitConsumers(3).start
       c2      <- channel.consume.use(c => c.pull).start
-      _       <- await.join.timeoutTo(3.millis, IO.unit)
-      _       <- channel.push(1)
-      r2      <- c2.join
-      c3      <- channel.consume.use(c => c.pull).start
-      c4      <- channel.consume.use(c => c.pull).start
-      _       <- await.join
-      _       <- channel.halt(0)
-      r1      <- c1.join
-      r3      <- c3.join
-      r4      <- c4.join
+      _       <- channel.awaitConsumers(2)
+      // NOTE: this is supposed to fail, since we obviously don't have 3 consumers yet:
+      _  <- await.join.timeoutTo(5.millis, IO.unit)
+      _  <- channel.push(1)
+      r2 <- c2.join
+      c3 <- channel.consume.use(c => c.pull).start
+      c4 <- channel.consume.use(c => c.pull).start
+      _  <- await.join
+      _  <- channel.halt(0)
+      r1 <- c1.join
+      r3 <- c3.join
+      r4 <- c4.join
     } yield {
       assertEquals(r1, Left(0))
       assertEquals(r2, Right(1))
