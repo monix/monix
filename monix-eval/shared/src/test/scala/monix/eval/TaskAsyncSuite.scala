@@ -21,7 +21,7 @@ import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 import scala.concurrent.duration._
 
-object TaskAsyncSuite extends BaseTestSuite {
+class TaskAsyncSuite extends BaseTestSuite {
   test("Task.never should never complete") { implicit s =>
     val t = Task.never[Int]
     val f = t.runToFuture

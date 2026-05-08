@@ -25,7 +25,7 @@ import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 
 @nowarn
-object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
+class TaskOrCoevalTransformWithSuite extends BaseTestSuite {
   test("Task.materialize flatMap loop") { implicit s =>
     val count = if (Platform.isJVM) 10000 else 1000
 

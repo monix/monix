@@ -23,7 +23,7 @@ import cats.laws.discipline._
 import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 
-object CoevalEvalOnceSuite extends BaseTestSuite {
+class CoevalEvalOnceSuite extends BaseTestSuite {
   test("Coeval.evalOnce should work synchronously") { _ =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }

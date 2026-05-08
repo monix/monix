@@ -22,7 +22,7 @@ import monix.execution.exceptions.DummyException
 import concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskSequenceSuite extends BaseTestSuite {
+class TaskSequenceSuite extends BaseTestSuite {
   test("Task.sequence should not execute in parallel") { implicit s =>
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),

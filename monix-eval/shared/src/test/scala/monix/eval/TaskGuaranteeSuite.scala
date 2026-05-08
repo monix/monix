@@ -26,7 +26,7 @@ import scala.util.{ Failure, Success }
 import scala.concurrent.duration._
 
 @nowarn
-object TaskGuaranteeSuite extends BaseTestSuite {
+class TaskGuaranteeSuite extends BaseTestSuite {
 
   test("finalizer is evaluated on success") { implicit sc =>
     var input = Option.empty[Int]

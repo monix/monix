@@ -20,7 +20,7 @@ package monix.eval
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import scala.util.Success
 
-object TaskExecutionModelSuite extends BaseTestSuite {
+class TaskExecutionModelSuite extends BaseTestSuite {
   test("Task.now.executeWithModel(AlwaysAsyncExecution) should work") { implicit s =>
     val task = Task.now(1).executeWithModel(AlwaysAsyncExecution)
     val f = task.runToFuture

@@ -25,7 +25,7 @@ import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 
 @nowarn
-object CoevalCatsConversions extends BaseTestSuite {
+class CoevalCatsConversions extends BaseTestSuite {
   test("Coeval.now(value).to[Eval]") { _ =>
     assertEquals(Coeval.now(10).to[Eval].value, 10)
   }

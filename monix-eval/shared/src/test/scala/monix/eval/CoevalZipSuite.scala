@@ -19,7 +19,7 @@ package monix.eval
 
 import scala.util.Success
 
-object CoevalZipSuite extends BaseTestSuite {
+class CoevalZipSuite extends BaseTestSuite {
   test("Coeval#zip works") { _ =>
     def n(n: Int) = Coeval.now(n)
     val t = n(1).zip(n(2))

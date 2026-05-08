@@ -24,7 +24,7 @@ import monix.catnap.SchedulerEffect
 import scala.util.Success
 
 @nowarn
-object TaskConversionsKSuite extends BaseTestSuite {
+class TaskConversionsKSuite extends BaseTestSuite {
   test("Task.liftTo[IO]") { implicit s =>
     var effect = 0
     val task = Task { effect += 1; effect }

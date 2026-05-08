@@ -28,7 +28,7 @@ import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
 @nowarn
-object TaskBracketSuite extends BaseTestSuite {
+class TaskBracketSuite extends BaseTestSuite {
   test("equivalence with onErrorHandleWith") { implicit sc =>
     check2 { (task: Task[Int], f: Throwable => Task[Unit]) =>
       val expected = task.onErrorHandleWith(e => f(e) *> Task.raiseError(e))

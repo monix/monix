@@ -17,7 +17,7 @@
 
 package monix.eval
 
-object CoevalOptionSuite extends BaseTestSuite {
+class CoevalOptionSuite extends BaseTestSuite {
   test("Coeval.none should return a Now with a None") { _ =>
     val c = Coeval.none[Int]
 

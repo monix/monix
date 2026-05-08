@@ -23,7 +23,7 @@ import monix.eval.internal.StackTracedContext
 /**
   * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
   */
-object StackTracedContextSuite extends BaseTestSuite {
+class StackTracedContextSuite extends BaseTestSuite {
   val traceBufferSize: Int = 1 << monix.eval.internal.TracingPlatform.traceBufferLogSize
   val stackTrace = new Throwable().getStackTrace.toList
 

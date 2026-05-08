@@ -26,7 +26,7 @@ import monix.execution.internal.Platform
 import scala.util.{ Failure, Success }
 
 @nowarn
-object CoevalBracketSuite extends BaseTestSuite {
+class CoevalBracketSuite extends BaseTestSuite {
   test("equivalence with onErrorHandleWith") { _ =>
     check2 { (coeval: Coeval[Int], f: Throwable => Coeval[Unit]) =>
       val expected = coeval.onErrorHandleWith(e => f(e) *> Coeval.raiseError(e))

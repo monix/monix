@@ -23,7 +23,7 @@ import monix.execution.schedulers.TestScheduler
 
 import scala.util.{ Failure, Success }
 
-object TypeClassLawsForCancelableFutureSuite extends BaseLawsSuite {
+class TypeClassLawsForCancelableFutureSuite extends BaseLawsSuite {
   checkAllAsync("CoflatMap[CancelableFuture]") { implicit ec =>
     CoflatMapTests[CancelableFuture].coflatMap[Int, Int, Int]
   }

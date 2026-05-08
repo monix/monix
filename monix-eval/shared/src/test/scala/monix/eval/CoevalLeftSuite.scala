@@ -17,7 +17,7 @@
 
 package monix.eval
 
-object CoevalLeftSuite extends BaseTestSuite {
+class CoevalLeftSuite extends BaseTestSuite {
   test("Coeval.left should return a Now with a Left") { _ =>
     val t = Coeval.left[Int, String](1)
 

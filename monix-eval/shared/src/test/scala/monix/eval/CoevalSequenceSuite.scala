@@ -22,7 +22,7 @@ import cats.laws._
 import cats.laws.discipline._
 
 @nowarn
-object CoevalSequenceSuite extends BaseTestSuite {
+class CoevalSequenceSuite extends BaseTestSuite {
   test("Coeval.sequence") { _ =>
     check1 { (numbers: List[Int]) =>
       val coeval = Coeval.sequence(numbers.map(x => Coeval(x)))

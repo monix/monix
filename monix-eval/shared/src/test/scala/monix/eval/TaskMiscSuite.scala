@@ -26,7 +26,7 @@ import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 
 @nowarn
-object TaskMiscSuite extends BaseTestSuite {
+class TaskMiscSuite extends BaseTestSuite {
   test("Task.attempt should succeed") { implicit s =>
     val result = Task.now(1).attempt.runToFuture
     assertEquals(result.value, Some(Success(Right(1))))

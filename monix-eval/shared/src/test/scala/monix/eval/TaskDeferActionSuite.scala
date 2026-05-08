@@ -22,7 +22,7 @@ import monix.execution.exceptions.DummyException
 import concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskDeferActionSuite extends BaseTestSuite {
+class TaskDeferActionSuite extends BaseTestSuite {
   test("Task.deferAction works") { implicit s =>
     def measureLatency[A](source: Task[A]): Task[(A, Long)] =
       Task.deferAction { implicit s =>

@@ -22,7 +22,7 @@ import cats.laws.discipline._
 import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 
-object TaskEvalAsyncSuite extends BaseTestSuite {
+class TaskEvalAsyncSuite extends BaseTestSuite {
   test("Task.evalAsync should work, on different thread") { implicit s =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }

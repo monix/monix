@@ -24,7 +24,7 @@ import concurrent.duration._
 import scala.annotation.nowarn
 import scala.util.{ Failure, Success }
 
-object TaskParTraverseSuite extends BaseTestSuite {
+class TaskParTraverseSuite extends BaseTestSuite {
   test("Task.parTraverse should execute in parallel for async tasks") { implicit s =>
     val seq = Seq((1, 2), (2, 1), (3, 3))
     val f = Task

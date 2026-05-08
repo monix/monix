@@ -26,7 +26,7 @@ import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success, Try }
 
 @nowarn
-object TaskNowSuite extends BaseTestSuite {
+class TaskNowSuite extends BaseTestSuite {
   test("Task.now should work synchronously") { implicit s =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }

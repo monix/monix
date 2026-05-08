@@ -20,7 +20,7 @@ package monix.eval
 import monix.execution.schedulers.TestScheduler
 import scala.util.Success
 
-object TaskAsyncBoundarySuite extends BaseTestSuite {
+class TaskAsyncBoundarySuite extends BaseTestSuite {
   test("Task.asyncBoundary should work") { implicit s =>
     val io = TestScheduler()
     var effect = 0

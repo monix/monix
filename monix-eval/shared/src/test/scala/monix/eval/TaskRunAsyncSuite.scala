@@ -27,7 +27,7 @@ import scala.util.{ Failure, Success }
 import scala.concurrent.duration._
 
 @nowarn
-object TaskRunAsyncSuite extends BaseTestSuite {
+class TaskRunAsyncSuite extends BaseTestSuite {
   test("runAsync") { implicit s =>
     val task = Task(1).flatMap(x => Task(x + 2)).executeAsync.map(_ + 1)
     val f = task.runToFuture

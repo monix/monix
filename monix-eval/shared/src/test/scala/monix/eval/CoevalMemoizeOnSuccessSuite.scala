@@ -24,7 +24,7 @@ import monix.execution.internal.Platform
 import scala.util.{ Failure, Success }
 
 @nowarn
-object CoevalMemoizeOnSuccessSuite extends BaseTestSuite {
+class CoevalMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Coeval.eval.memoizeOnSuccess should work for first subscriber") { _ =>
     var effect = 0
     val coeval = Coeval.eval { effect += 1; effect }.memoizeOnSuccess

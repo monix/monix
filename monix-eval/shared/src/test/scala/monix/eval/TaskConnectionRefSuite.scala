@@ -25,7 +25,7 @@ import monix.eval.internal.TaskConnectionRef
 import monix.execution.ExecutionModel.SynchronousExecution
 
 @nowarn
-object TaskConnectionRefSuite extends BaseTestSuite {
+class TaskConnectionRefSuite extends BaseTestSuite {
   test("assign and cancel a Cancelable") { implicit s =>
     var effect = 0
     val cr = TaskConnectionRef()

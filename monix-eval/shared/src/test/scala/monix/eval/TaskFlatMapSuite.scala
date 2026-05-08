@@ -27,7 +27,7 @@ import monix.execution.internal.Platform
 import scala.util.{ Failure, Random, Success, Try }
 
 @nowarn
-object TaskFlatMapSuite extends BaseTestSuite {
+class TaskFlatMapSuite extends BaseTestSuite {
   test("runAsync flatMap loop is not cancelable if autoCancelableRunLoops=false") { implicit s =>
     implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
     val maxCount = Platform.recommendedBatchSize * 4

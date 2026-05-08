@@ -23,7 +23,7 @@ import monix.execution.exceptions.DummyException
 
 import scala.util.{ Random, Success }
 
-object CoevalFlatMapSuite extends BaseTestSuite {
+class CoevalFlatMapSuite extends BaseTestSuite {
   test("transformWith equivalence with flatMap") { _ =>
     check2 { (fa: Coeval[Int], f: Int => Coeval[Int]) =>
       fa.redeemWith(Coeval.raiseError, f) <-> fa.flatMap(f)

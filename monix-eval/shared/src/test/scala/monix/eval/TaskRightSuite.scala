@@ -19,7 +19,7 @@ package monix.eval
 
 import scala.util.Success
 
-object TaskRightSuite extends BaseTestSuite {
+class TaskRightSuite extends BaseTestSuite {
   test("Task.right should return a Right") { implicit s =>
     val t = Task.right[Int, String]("t")
     t.runToFuture.value match {

@@ -33,7 +33,7 @@ import scala.concurrent.Promise
   * use of Task's `runAsync(callback)`.
   */
 @nowarn
-object TypeClassLawsForTaskWithCallbackSuite
+class TypeClassLawsForTaskWithCallbackSuite
   extends BaseTypeClassLawsForTaskWithCallbackSuite()(
     Task.defaultOptions.disableAutoCancelableRunLoops
   )
@@ -43,12 +43,12 @@ object TypeClassLawsForTaskWithCallbackSuite
   * use of Task's `runAsync(callback)` and that evaluate the tasks
   * in auto-cancelable mode.
   */
-object TypeClassLawsForTaskAutoCancelableWithCallbackSuite
+class TypeClassLawsForTaskAutoCancelableWithCallbackSuite
   extends BaseTypeClassLawsForTaskWithCallbackSuite()(
     Task.defaultOptions.enableAutoCancelableRunLoops
   )
 
-class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options) extends BaseLawsSuite {
+abstract class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options) extends BaseLawsSuite {
   override implicit def equalityTask[A](
     implicit
     A: Eq[A],

@@ -25,7 +25,7 @@ import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
 
 @nowarn
-object TaskConnectionSuite extends BaseTestSuite {
+class TaskConnectionSuite extends BaseTestSuite {
   test("initial push") { implicit s =>
     var effect = 0
     val initial = Task { effect += 1 }

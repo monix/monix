@@ -26,7 +26,7 @@ import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
 @nowarn
-object TaskParSequenceNSuite extends BaseTestSuite {
+class TaskParSequenceNSuite extends BaseTestSuite {
 
   test("Task.parSequenceN should execute in parallel bounded by parallelism") { implicit s =>
     val num = AtomicInt(0)

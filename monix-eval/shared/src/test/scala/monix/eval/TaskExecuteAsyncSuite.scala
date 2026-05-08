@@ -21,7 +21,7 @@ import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import scala.util.Success
 
-object TaskExecuteAsyncSuite extends BaseTestSuite {
+class TaskExecuteAsyncSuite extends BaseTestSuite {
   test("Task.now.executeAsync should execute async") { implicit s =>
     val t = Task.now(10).executeAsync
     val f = t.runToFuture

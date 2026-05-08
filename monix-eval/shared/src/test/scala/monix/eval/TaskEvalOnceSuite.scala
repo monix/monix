@@ -22,7 +22,7 @@ import cats.laws.discipline._
 import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 
-object TaskEvalOnceSuite extends BaseTestSuite {
+class TaskEvalOnceSuite extends BaseTestSuite {
   test("Task.evalOnce should work synchronously") { implicit s =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }

@@ -24,7 +24,7 @@ import monix.execution.internal.Platform
 import scala.util.Success
 
 @nowarn
-object CoevalMemoizeSuite extends BaseTestSuite {
+class CoevalMemoizeSuite extends BaseTestSuite {
   test("Coeval.eval.memoize should work for first subscriber") { _ =>
     var effect = 0
     val coeval = Coeval.eval { effect += 1; effect }.memoize

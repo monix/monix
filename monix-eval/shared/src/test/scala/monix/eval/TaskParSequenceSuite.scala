@@ -22,7 +22,7 @@ import monix.execution.internal.Platform
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskParSequenceSuite extends BaseTestSuite {
+class TaskParSequenceSuite extends BaseTestSuite {
   test("Task.parSequence should execute in parallel for async tasks") { implicit s =>
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),

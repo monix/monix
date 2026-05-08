@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
 @nowarn
-object TaskErrorSuite extends BaseTestSuite {
+class TaskErrorSuite extends BaseTestSuite {
   test("Task.attempt should expose error") { implicit s =>
     val dummy = DummyException("dummy")
     val r = Task.raiseError[Int](dummy).attempt.runSyncStep

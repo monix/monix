@@ -25,7 +25,7 @@ import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 
 @nowarn
-object TaskLiftSuite extends BaseTestSuite {
+class TaskLiftSuite extends BaseTestSuite {
   import TaskConversionsSuite.{ CIO, CustomConcurrentEffect, CustomEffect }
 
   test("task.to[Task]") { _ =>

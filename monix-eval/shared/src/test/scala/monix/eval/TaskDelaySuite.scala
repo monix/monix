@@ -23,7 +23,7 @@ import monix.execution.internal.Platform
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskDelaySuite extends BaseTestSuite {
+class TaskDelaySuite extends BaseTestSuite {
   test("Task#delayExecution should work") { implicit s =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }

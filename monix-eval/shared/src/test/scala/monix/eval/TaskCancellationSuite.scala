@@ -29,7 +29,7 @@ import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
 @nowarn
-object TaskCancellationSuite extends BaseTestSuite {
+class TaskCancellationSuite extends BaseTestSuite {
   test("cancellation works for async actions") { implicit ec =>
     implicit val opts = Task.defaultOptions.disableAutoCancelableRunLoops
 

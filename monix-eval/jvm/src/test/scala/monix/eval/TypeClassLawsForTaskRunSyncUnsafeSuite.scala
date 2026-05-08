@@ -33,7 +33,7 @@ import scala.util.Try
   * Type class tests for Task that use an alternative `Eq`, making
   * use of Task's `runSyncUnsafe`.
   */
-object TypeClassLawsForTaskRunSyncUnsafeSuite
+class TypeClassLawsForTaskRunSyncUnsafeSuite
   extends BaseTypeClassLawsForTaskRunSyncUnsafeSuite()(
     Task.defaultOptions.disableAutoCancelableRunLoops
   )
@@ -43,12 +43,12 @@ object TypeClassLawsForTaskRunSyncUnsafeSuite
   * use of Task's `runSyncUnsafe`, with the tasks being evaluated
   * in auto-cancelable mode.
   */
-object TypeClassLawsForTaskAutoCancelableRunSyncUnsafeSuite
+class TypeClassLawsForTaskAutoCancelableRunSyncUnsafeSuite
   extends BaseTypeClassLawsForTaskRunSyncUnsafeSuite()(
     Task.defaultOptions.enableAutoCancelableRunLoops
   )
 
-class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
+abstract class BaseTypeClassLawsForTaskRunSyncUnsafeSuite(implicit opts: Task.Options)
   extends monix.execution.BaseLawsSuite with ArbitraryInstancesBase with TestUtils {
 
   implicit val sc: Scheduler = Scheduler(global, UncaughtExceptionReporter(_ => ()))

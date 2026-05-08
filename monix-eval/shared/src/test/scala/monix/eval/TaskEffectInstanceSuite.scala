@@ -22,7 +22,7 @@ import monix.execution.schedulers.TracingScheduler
 
 import scala.concurrent.duration._
 
-object TaskEffectInstanceSuite extends BaseTestSuite {
+class TaskEffectInstanceSuite extends BaseTestSuite {
   val readOptions: Task[Task.Options] =
     Task.Async { (ctx, cb) =>
       cb.onSuccess(ctx.options)

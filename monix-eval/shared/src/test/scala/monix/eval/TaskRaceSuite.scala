@@ -27,7 +27,7 @@ import scala.util.{ Failure, Success }
 import monix.execution.atomic.Atomic
 
 @nowarn
-object TaskRaceSuite extends BaseTestSuite {
+class TaskRaceSuite extends BaseTestSuite {
   test("Task.raceMany should switch to other") { implicit s =>
     val task =
       Task.raceMany(Seq(Task.evalAsync(1).delayExecution(10.seconds), Task.evalAsync(99).delayExecution(1.second)))

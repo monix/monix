@@ -26,7 +26,7 @@ import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success, Try }
 
 @nowarn
-object TaskCancelableSuite extends BaseTestSuite {
+class TaskCancelableSuite extends BaseTestSuite {
   test("Task.cancelable0 should be stack safe on repeated, right-associated binds") { implicit s =>
     def signal[A](a: A): Task[A] = Task.cancelable0[A] { (_, cb) =>
       cb.onSuccess(a)

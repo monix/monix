@@ -23,7 +23,7 @@ import monix.execution.internal.Platform
 import scala.concurrent.duration._
 import scala.util.Success
 
-object TaskStartAndForgetSuite extends BaseTestSuite {
+class TaskStartAndForgetSuite extends BaseTestSuite {
 
   test("Task.startAndForget triggers execution in background thread") { implicit sc =>
     var counter = 0

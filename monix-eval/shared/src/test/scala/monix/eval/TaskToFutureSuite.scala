@@ -23,7 +23,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskToFutureSuite extends BaseTestSuite {
+class TaskToFutureSuite extends BaseTestSuite {
   test("Task.fromFuture for already completed references") { implicit s =>
     def sum(list: List[Int]): Task[Int] =
       Task.fromFuture(Future.successful(list.sum))

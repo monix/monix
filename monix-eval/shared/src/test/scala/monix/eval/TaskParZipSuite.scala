@@ -23,7 +23,7 @@ import concurrent.duration._
 import scala.util.{ Failure, Random, Success }
 
 @nowarn
-object TaskParZipSuite extends BaseTestSuite {
+class TaskParZipSuite extends BaseTestSuite {
   test("Task.parZip2 should work if source finishes first") { implicit s =>
     val f = Task.parZip2(Task(1), Task(2).delayExecution(1.second)).runToFuture
 

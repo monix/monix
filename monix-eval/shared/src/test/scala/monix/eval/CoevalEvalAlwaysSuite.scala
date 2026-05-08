@@ -23,7 +23,7 @@ import cats.laws.discipline._
 import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 
-object CoevalEvalAlwaysSuite extends BaseTestSuite {
+class CoevalEvalAlwaysSuite extends BaseTestSuite {
   test("Coeval.eval should work synchronously") { _ =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }

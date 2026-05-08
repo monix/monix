@@ -27,7 +27,7 @@ import scala.concurrent.duration._
 import scala.util.{ Failure, Success, Try }
 
 @nowarn
-object TaskParSequenceUnorderedSuite extends BaseTestSuite {
+class TaskParSequenceUnorderedSuite extends BaseTestSuite {
   test("Task.parSequenceUnordered should execute in parallel") { implicit s =>
     val seq = Seq(
       Task.evalAsync(1).delayExecution(2.seconds),

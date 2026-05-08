@@ -27,7 +27,7 @@ import scala.concurrent.duration._
 import scala.util.{ Failure, Success, Try }
 
 @nowarn
-object TaskParTraverseUnorderedSuite extends BaseTestSuite {
+class TaskParTraverseUnorderedSuite extends BaseTestSuite {
   test("Task.parTraverseUnordered should execute in parallel") { implicit s =>
     val seq = Seq((1, 2), (2, 1), (3, 3))
     val f = Task

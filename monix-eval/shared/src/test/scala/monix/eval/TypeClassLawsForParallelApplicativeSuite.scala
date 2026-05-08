@@ -24,7 +24,7 @@ import monix.catnap.internal.ParallelApplicative
 import monix.eval.instances.CatsParallelForTask
 
 @nowarn
-object TypeClassLawsForParallelApplicativeSuite extends BaseLawsSuite {
+class TypeClassLawsForParallelApplicativeSuite extends BaseLawsSuite {
   implicit val ap: CommutativeApplicative[Task] =
     ParallelApplicative(new CatsParallelForTask)
 

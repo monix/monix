@@ -20,7 +20,7 @@ package monix.eval
 import monix.execution.schedulers.TestScheduler
 import scala.util.Success
 
-object TaskExecuteOnSuite extends BaseTestSuite {
+class TaskExecuteOnSuite extends BaseTestSuite {
 
   test("executeOn(forceAsync = false)") { implicit sc =>
     val sc2 = TestScheduler()

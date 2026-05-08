@@ -33,7 +33,9 @@ import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
 @nowarn
-object TaskConversionsSuite extends BaseTestSuite {
+class TaskConversionsSuite extends BaseTestSuite {
+  import TaskConversionsSuite._
+
   test("Task.from(task.to[IO]) == task") { implicit s =>
     check1 { (task: Task[Int]) =>
       Task.from(task.to[IO]) <-> task
@@ -425,6 +427,9 @@ object TaskConversionsSuite extends BaseTestSuite {
     }
   }
 
+}
+
+object TaskConversionsSuite {
   final case class CIO[+A](io: IO[A])
 
   class CustomEffect(implicit cs: ContextShift[IO]) extends Effect[CIO] {

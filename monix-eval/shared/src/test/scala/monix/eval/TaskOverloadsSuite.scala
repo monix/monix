@@ -25,7 +25,7 @@ import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 
 @nowarn
-object TaskOverloadsSuite extends BaseTestSuite {
+class TaskOverloadsSuite extends BaseTestSuite {
   test("Now.runAsync(scheduler)") { implicit s =>
     val task = Task.now(1)
     val f = task.runToFuture(s)

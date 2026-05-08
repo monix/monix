@@ -27,6 +27,7 @@ import munit.Compare
 import org.scalacheck.{ Arbitrary, Prop, Test }
 
 import scala.concurrent.Future
+import scala.util.{ Failure, Success }
 import scala.util.control.NonFatal
 
 /** Base trait for all MUnit-based Monix test suites. */
@@ -65,9 +66,14 @@ trait MUnitFixtureSuite[A] extends MUnitFunSuite {
   def testAsync(name: String)(body: A => Future[Any])(implicit loc: Location): Unit =
     super[MUnitFunSuite].test(name) {
       val env = setup()
-      try body(env).map { result =>
-        tearDown(env)
-        result
+      try body(env).transformWith {
+        case Success(result) =>
+          try Future.successful { tearDown(env); result }
+          catch { case NonFatal(e) => Future.failed(e) }
+        case Failure(e) =>
+          try tearDown(env)
+          catch { case NonFatal(teardownError) => e.addSuppressed(teardownError) }
+          Future.failed(e)
       }(munitExecutionContext)
       catch {
         case NonFatal(e) =>
@@ -146,7 +152,17 @@ trait SchedulerServiceSuite extends MUnitFunSuite {
   def testServiceAsync(name: String)(body: SchedulerService => Future[Any])(implicit loc: Location): Unit = {
     test(name) {
       val service = createSchedulerService()
-      try body(service).flatMap(_ => shutdownService(service))(munitExecutionContext)
+      try body(service).transformWith {
+        case Success(_) =>
+          shutdownService(service)
+        case Failure(e) =>
+          shutdownService(service).transformWith {
+            case Success(_) => Future.failed(e)
+            case Failure(shutdownError) =>
+              e.addSuppressed(shutdownError)
+              Future.failed(e)
+          }(munitExecutionContext)
+      }(munitExecutionContext)
       catch {
         case NonFatal(e) => shutdownService(service).flatMap(_ => Future.failed(e))(munitExecutionContext)
       }

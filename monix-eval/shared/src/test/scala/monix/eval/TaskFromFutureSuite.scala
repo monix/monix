@@ -26,7 +26,7 @@ import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
 @nowarn
-object TaskFromFutureSuite extends BaseTestSuite {
+class TaskFromFutureSuite extends BaseTestSuite {
   test("Task.fromFuture should be faster for completed futures, success") { implicit s =>
     val t = Task.fromFuture(Future.successful(10))
     val f = t.runToFuture

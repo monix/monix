@@ -25,7 +25,7 @@ import monix.execution.internal.Platform
 import scala.util.{ Failure, Success }
 
 @nowarn
-object TaskFromEitherSuite extends BaseTestSuite {
+class TaskFromEitherSuite extends BaseTestSuite {
   test("Task.fromEither (`E <: Throwable` version) should returns a Now with a Right") { _ =>
     val t = Task.fromEither(Right(10))
     assert(t.isInstanceOf[Now[?]])

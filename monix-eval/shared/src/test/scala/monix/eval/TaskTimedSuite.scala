@@ -22,7 +22,7 @@ import monix.execution.exceptions.DummyException
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskTimedSuite extends BaseTestSuite {
+class TaskTimedSuite extends BaseTestSuite {
 
   test("Task.timed works for successful tasks") { implicit s =>
     val task = Task.now("hello").delayExecution(2.second).timed

@@ -25,7 +25,7 @@ import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 
 @nowarn
-object CoevalMiscSuite extends BaseTestSuite {
+class CoevalMiscSuite extends BaseTestSuite {
   test("Coeval.now.attempt should succeed") { _ =>
     val result = Coeval.now(1).attempt.value()
     assertEquals(result, Right(1))

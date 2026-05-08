@@ -28,7 +28,7 @@ import scala.concurrent.Promise
 import scala.util.{ Failure, Success, Try }
 
 @nowarn
-object TaskLikeConversionsSuite extends BaseTestSuite {
+class TaskLikeConversionsSuite extends BaseTestSuite {
   import TaskConversionsSuite.{ CIO, CustomConcurrentEffect, CustomEffect }
 
   test("Task.from(future)") { implicit s =>

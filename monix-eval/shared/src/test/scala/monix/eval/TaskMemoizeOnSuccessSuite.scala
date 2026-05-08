@@ -27,7 +27,7 @@ import scala.util.{ Failure, Success }
 import concurrent.duration._
 
 @nowarn
-object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
+class TaskMemoizeOnSuccessSuite extends BaseTestSuite {
   test("Task.memoizeOnSuccess should work asynchronously for first subscriber") { implicit s =>
     var effect = 0
     val task = Task.evalAsync { effect += 1; effect }.memoizeOnSuccess

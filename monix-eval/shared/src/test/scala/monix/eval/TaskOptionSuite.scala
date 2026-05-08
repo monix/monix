@@ -19,7 +19,7 @@ package monix.eval
 
 import scala.util.Success
 
-object TaskOptionSuite extends BaseTestSuite {
+class TaskOptionSuite extends BaseTestSuite {
   test("Task.none should return a None") { implicit s =>
     val f = Task.none[Int].runToFuture
 

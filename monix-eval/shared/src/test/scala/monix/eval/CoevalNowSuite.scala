@@ -25,7 +25,7 @@ import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 
 @nowarn
-object CoevalNowSuite extends BaseTestSuite {
+class CoevalNowSuite extends BaseTestSuite {
   test("Coeval.now should work") { _ =>
     var wasTriggered = false
     def trigger(): String = { wasTriggered = true; "result" }

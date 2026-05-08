@@ -23,17 +23,17 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{ CoflatMapTests, CommutativeApplicativeTests, ParallelTests, SemigroupKTests }
 
 @nowarn
-object TypeClassLawsForTaskSuite
+class TypeClassLawsForTaskSuite
   extends BaseTypeClassLawsForTaskSuite()(
     Task.defaultOptions.disableAutoCancelableRunLoops
   )
 
-object TypeClassLawsForTaskAutoCancelableSuite
+class TypeClassLawsForTaskAutoCancelableSuite
   extends BaseTypeClassLawsForTaskSuite()(
     Task.defaultOptions.enableAutoCancelableRunLoops
   )
 
-class BaseTypeClassLawsForTaskSuite(implicit opts: Task.Options) extends BaseLawsSuite {
+abstract class BaseTypeClassLawsForTaskSuite(implicit opts: Task.Options) extends BaseLawsSuite {
 
   checkAllAsync("CoflatMap[Task]") { implicit ec =>
     CoflatMapTests[Task].coflatMap[Int, Int, Int]

@@ -24,7 +24,7 @@ import monix.execution.schedulers.TestScheduler
 import scala.util.{ Failure, Success }
 
 @nowarn
-object TaskCallbackSafetySuite extends BaseTestSuite {
+class TaskCallbackSafetySuite extends BaseTestSuite {
   test("Task.async's callback can be called multiple times") { implicit sc =>
     runTestCanCallMultipleTimes(Task.async)
   }

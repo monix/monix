@@ -21,7 +21,7 @@ import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.internal.Platform
 import scala.util.{ Failure, Success }
 
-object CoevalGuaranteeSuite extends BaseTestSuite {
+class CoevalGuaranteeSuite extends BaseTestSuite {
 
   test("finalizer is evaluated on success") { _ =>
     var input = Option.empty[Int]
