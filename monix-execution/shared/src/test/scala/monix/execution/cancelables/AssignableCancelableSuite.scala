@@ -17,9 +17,9 @@
 
 package monix.execution.cancelables
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 
-object AssignableCancelableSuite extends SimpleTestSuite {
+class AssignableCancelableSuite extends MUnitFunSuite {
   test("AssignableCancelable.multi() returns a MultiAssignmentCancelable") {
     val c = AssignableCancelable.multi()
     assert(c.isInstanceOf[MultiAssignCancelable], "isInstanceOf[MultiAssignCancelable]")

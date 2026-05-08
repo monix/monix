@@ -17,7 +17,6 @@
 
 package monix.execution
 
-import monix.execution.internal.Platform
 import java.io.{ ByteArrayOutputStream, PrintStream }
 import scala.util.control.NonFatal
 
@@ -25,10 +24,6 @@ import scala.util.control.NonFatal
   * INTERNAL API — test utilities.
   */
 trait TestUtils {
-  lazy val isCI = {
-    Platform.getEnv("CI").map(_.toLowerCase).contains("true")
-  }
-
   /**
     * Silences `System.err`, only printing the output in case exceptions are
     * thrown by the executed `thunk`.

@@ -17,10 +17,10 @@
 
 package monix.execution.cancelables
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 import monix.execution.Cancelable
 
-object SingleAssignCancelableSuite extends SimpleTestSuite {
+class SingleAssignCancelableSuite extends MUnitFunSuite {
   test("cancel()") {
     var effect = 0
     val s = SingleAssignCancelable()
@@ -34,10 +34,10 @@ object SingleAssignCancelableSuite extends SimpleTestSuite {
     s.cancel()
     assert(s.isCanceled, "s.isCanceled")
     assert(b.isCanceled)
-    assert(effect == 1)
+    assertEquals(effect, 1)
 
     s.cancel()
-    assert(effect == 1)
+    assertEquals(effect, 1)
   }
 
   test("cancel() (plus one)") {
@@ -56,10 +56,10 @@ object SingleAssignCancelableSuite extends SimpleTestSuite {
     assert(s.isCanceled)
     assert(b.isCanceled)
     assert(extra.isCanceled)
-    assert(effect == 3)
+    assertEquals(effect, 3)
 
     s.cancel()
-    assert(effect == 3)
+    assertEquals(effect, 3)
   }
 
   test("cancel on single assignment") {
@@ -74,10 +74,10 @@ object SingleAssignCancelableSuite extends SimpleTestSuite {
     s := b
 
     assert(b.isCanceled)
-    assert(effect == 1)
+    assertEquals(effect, 1)
 
     s.cancel()
-    assert(effect == 1)
+    assertEquals(effect, 1)
   }
 
   test("cancel on single assignment (plus one)") {
@@ -90,7 +90,7 @@ object SingleAssignCancelableSuite extends SimpleTestSuite {
     s.cancel()
     assert(s.isCanceled, "s.isCanceled")
     assert(extra.isCanceled, "extra.isCanceled")
-    assert(effect == 1)
+    assertEquals(effect, 1)
 
     val b = BooleanCancelable { () =>
       effect += 1
@@ -98,10 +98,10 @@ object SingleAssignCancelableSuite extends SimpleTestSuite {
     s := b
 
     assert(b.isCanceled)
-    assert(effect == 2)
+    assertEquals(effect, 2)
 
     s.cancel()
-    assert(effect == 2)
+    assertEquals(effect, 2)
   }
 
   test("throw exception on multi assignment") {

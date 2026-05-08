@@ -17,14 +17,12 @@
 
 package monix.catnap
 package cancelables
-import scala.annotation.nowarn
 
 import cats.effect.IO
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 import monix.execution.exceptions.{ CompositeException, DummyException }
 
-@nowarn
-object SingleAssignCancelableFSuite extends SimpleTestSuite {
+class SingleAssignCancelableFSuite extends MUnitFunSuite {
   test("cancel") {
     var effect = 0
     val s = SingleAssignCancelableF[IO].unsafeRunSync()
@@ -36,10 +34,10 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
     s.cancel.unsafeRunSync()
     assert(s.isCanceled.unsafeRunSync(), "s.isCanceled")
     assert(b.isCanceled.unsafeRunSync())
-    assert(effect == 1)
+    assertEquals(effect, 1)
 
     s.cancel.unsafeRunSync()
-    assert(effect == 1)
+    assertEquals(effect, 1)
   }
 
   test("cancel (plus one)") {
@@ -54,10 +52,10 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
     assert(s.isCanceled.unsafeRunSync())
     assert(b.isCanceled.unsafeRunSync())
     assert(extra.isCanceled.unsafeRunSync())
-    assert(effect == 3)
+    assertEquals(effect, 3)
 
     s.cancel.unsafeRunSync()
-    assert(effect == 3)
+    assertEquals(effect, 3)
   }
 
   test("cancel on single assignment") {
@@ -70,10 +68,10 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
     s.set(b).unsafeRunSync()
 
     assert(b.isCanceled.unsafeRunSync())
-    assert(effect == 1)
+    assertEquals(effect, 1)
 
     s.cancel.unsafeRunSync()
-    assert(effect == 1)
+    assertEquals(effect, 1)
   }
 
   test("cancel on single assignment (plus one)") {
@@ -84,16 +82,16 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
     s.cancel.unsafeRunSync()
     assert(s.isCanceled.unsafeRunSync(), "s.isCanceled")
     assert(extra.isCanceled.unsafeRunSync(), "extra.isCanceled")
-    assert(effect == 1)
+    assertEquals(effect, 1)
 
     val b = BooleanCancelableF.unsafeApply(IO { effect += 1 })
     s.set(b).unsafeRunSync()
 
     assert(b.isCanceled.unsafeRunSync())
-    assert(effect == 2)
+    assertEquals(effect, 2)
 
     s.cancel.unsafeRunSync()
-    assert(effect == 2)
+    assertEquals(effect, 2)
   }
 
   test("throw exception on multi assignment") {
@@ -131,15 +129,10 @@ object SingleAssignCancelableFSuite extends SimpleTestSuite {
     val b = CancelableF.unsafeApply[IO](IO { effect += 1; throw dummy2 })
     s.set(b).unsafeRunSync()
 
-    try {
+    val thrown = intercept[CompositeException] {
       s.cancel.unsafeRunSync()
-      fail("should have thrown")
-    } catch {
-      case CompositeException((_: DummyException) :: (_: DummyException) :: Nil) =>
-        ()
-      case other: Throwable =>
-        throw other
     }
+    assertMatches(thrown) { case CompositeException((_: DummyException) :: (_: DummyException) :: Nil) => true }
     assertEquals(effect, 2)
   }
 }

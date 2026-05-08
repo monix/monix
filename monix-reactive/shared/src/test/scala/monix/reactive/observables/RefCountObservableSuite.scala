@@ -17,7 +17,6 @@
 
 package monix.reactive.observables
 
-import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
@@ -28,13 +27,13 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object RefCountObservableSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
+class RefCountObservableSuite extends monix.reactive.BaseTestSuite {
+  override def setup(): TestScheduler = TestScheduler()
+  override def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("should work") { implicit s =>
+  testScheduler("should work") { implicit s =>
     var received = 0L
     var completed = 0
 
@@ -79,7 +78,7 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(completed, 0)
   }
 
-  test("onError should stop everything") { implicit s =>
+  testScheduler("onError should stop everything") { implicit s =>
     var received = 0L
     var completed = 0
 
@@ -113,7 +112,7 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 2)
   }
 
-  test("onComplete") { implicit s =>
+  testScheduler("onComplete") { implicit s =>
     var received = 0L
     var completed = 0
 
@@ -141,7 +140,7 @@ object RefCountObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(completed, 2)
   }
 
-  test("cancel and stop should be idempotent") { implicit s =>
+  testScheduler("cancel and stop should be idempotent") { implicit s =>
     val ch = ConcurrentSubject.publish[Long](Unbounded)
     var received = 0L
     var completed = 0

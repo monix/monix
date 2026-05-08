@@ -17,7 +17,6 @@
 
 package monix.reactive.subjects
 
-import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.exceptions.DummyException
 import monix.execution.Ack.Continue
@@ -27,11 +26,11 @@ import monix.reactive.{ Observable, Observer }
 
 import scala.util.Random
 
-trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
+trait BaseConcurrentSubjectSuite extends monix.reactive.BaseTestSuite {
   case class Sample(channel: ConcurrentSubject[Long, Long] with Observable[Long], expectedSum: Long)
 
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
@@ -46,7 +45,7 @@ trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
     */
   def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler): Option[Sample]
 
-  test("already completed and empty channel terminates observers") { implicit s =>
+  testScheduler("already completed and empty channel terminates observers") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -75,7 +74,7 @@ trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
     assertEquals(wereCompleted, 3)
   }
 
-  test("failed empty channel terminates observers with an error") { implicit s =>
+  testScheduler("failed empty channel terminates observers with an error") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -108,7 +107,7 @@ trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
     assertEquals(wereCompleted, 3)
   }
 
-  test("already completed but non-empty channel terminates new observers") { implicit s =>
+  testScheduler("already completed but non-empty channel terminates new observers") { implicit s =>
     val elems = (0 until 20).map(_ => Random.nextLong())
     var wereCompleted = 0
     var sum = 0L
@@ -139,7 +138,7 @@ trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
     assertEquals(wereCompleted, 3)
   }
 
-  test("already failed but non-empty channel terminates new observers") { implicit s =>
+  testScheduler("already failed but non-empty channel terminates new observers") { implicit s =>
     val elems = (0 until 20).map(_ => Random.nextLong())
     var wereCompleted = 0
 
@@ -168,7 +167,7 @@ trait BaseConcurrentSubjectSuite extends TestSuite[TestScheduler] {
     assertEquals(wereCompleted, 3)
   }
 
-  test("should remove subscribers that triggered errors") { implicit s =>
+  testScheduler("should remove subscribers that triggered errors") { implicit s =>
     val elems = (0 until Random.nextInt(300) + 100).map(_.toLong)
     var wereCompleted = 0
     var totalOnNext = 0L

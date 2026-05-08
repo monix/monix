@@ -21,7 +21,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object MiscIsEmptySuite extends BaseOperatorSuite {
+class MiscIsEmptySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val shouldBeEmpty = (sourceCount % 2) == 0
     val sum = if (shouldBeEmpty) 2L else 1L

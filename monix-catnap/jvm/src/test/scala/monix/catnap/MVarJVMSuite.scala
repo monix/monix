@@ -22,14 +22,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 import cats.implicits._
 import cats.effect._
 import cats.effect.concurrent.Deferred
-import minitest.TestSuite
-import monix.execution.{ Scheduler, TestUtils }
+import monix.execution.{ Scheduler, SchedulerServiceSuite, TestUtils }
 import monix.execution.schedulers.SchedulerService
 
 import scala.concurrent.CancellationException
 import scala.concurrent.duration._
 
-object MVarEmptyJVMParallelism1Suite extends BaseMVarJVMSuite(1) {
+class MVarEmptyJVMParallelism1Suite extends BaseMVarJVMSuite(1) {
   def allocateConcurrent(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
     MVar.empty[IO, Unit]()(OrElse.primary(implicitly[Concurrent[IO]]), cs)
   def allocateAsync(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
@@ -40,7 +39,7 @@ object MVarEmptyJVMParallelism1Suite extends BaseMVarJVMSuite(1) {
     ref.put(())
 }
 
-object MVarEmptyJVMParallelism2Suite extends BaseMVarJVMSuite(2) {
+class MVarEmptyJVMParallelism2Suite extends BaseMVarJVMSuite(2) {
   def allocateConcurrent(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
     MVar.empty[IO, Unit]()(OrElse.primary(implicitly[Concurrent[IO]]), cs)
   def allocateAsync(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
@@ -51,7 +50,7 @@ object MVarEmptyJVMParallelism2Suite extends BaseMVarJVMSuite(2) {
     ref.put(())
 }
 
-object MVarEmptyJVMParallelism4Suite extends BaseMVarJVMSuite(4) {
+class MVarEmptyJVMParallelism4Suite extends BaseMVarJVMSuite(4) {
   def allocateConcurrent(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
     MVar.empty[IO, Unit]()(OrElse.primary(implicitly[Concurrent[IO]]), cs)
   def allocateAsync(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
@@ -64,7 +63,7 @@ object MVarEmptyJVMParallelism4Suite extends BaseMVarJVMSuite(4) {
 
 // -----------------------------------------------------------------
 
-object MVarFullJVMParallelism1Suite extends BaseMVarJVMSuite(1) {
+class MVarFullJVMParallelism1Suite extends BaseMVarJVMSuite(1) {
   def allocateConcurrent(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
     MVar.of[IO, Unit](())(OrElse.primary(implicitly[Concurrent[IO]]), cs)
   def allocateAsync(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
@@ -75,7 +74,7 @@ object MVarFullJVMParallelism1Suite extends BaseMVarJVMSuite(1) {
     ref.take
 }
 
-object MVarFullJVMParallelism2Suite extends BaseMVarJVMSuite(2) {
+class MVarFullJVMParallelism2Suite extends BaseMVarJVMSuite(2) {
   def allocateConcurrent(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
     MVar.of[IO, Unit](())(OrElse.primary(implicitly[Concurrent[IO]]), cs)
   def allocateAsync(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
@@ -86,7 +85,7 @@ object MVarFullJVMParallelism2Suite extends BaseMVarJVMSuite(2) {
     ref.take
 }
 
-object MVarFullJVMParallelism4Suite extends BaseMVarJVMSuite(4) {
+class MVarFullJVMParallelism4Suite extends BaseMVarJVMSuite(4) {
   def allocateConcurrent(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
     MVar.of[IO, Unit](())(OrElse.primary(implicitly[Concurrent[IO]]), cs)
   def allocateAsync(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
@@ -99,17 +98,12 @@ object MVarFullJVMParallelism4Suite extends BaseMVarJVMSuite(4) {
 
 // -----------------------------------------------------------------
 
-abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerService] with TestUtils {
-  def setup(): SchedulerService =
+abstract class BaseMVarJVMSuite(parallelism: Int) extends SchedulerServiceSuite with TestUtils {
+  def createSchedulerService(): SchedulerService =
     Scheduler.computation(
       name = s"mvar-suite-par-$parallelism",
       parallelism = parallelism
     )
-
-  def tearDown(env: SchedulerService): Unit = {
-    env.shutdown()
-    assert(env.awaitTermination(30.seconds), "env.awaitTermination")
-  }
 
   implicit def contextShift(implicit ec: Scheduler): ContextShift[IO] =
     SchedulerEffect.contextShift[IO](ec)(IO.ioEffect)
@@ -128,15 +122,15 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
 
   // ----------------------------------------------------------------------------
 
-  test("MVar (concurrent) — issue #380: producer keeps its thread, consumer stays forked") { implicit ec =>
+  testService("MVar (concurrent) — issue #380: producer keeps its thread, consumer stays forked") { implicit ec =>
     for (_ <- 0 until iterations) {
       val name = Thread.currentThread().getName
 
       def get(df: MVar[IO, Unit]) =
         for {
-          _ <- IO(assert(Thread.currentThread().getName != name))
+          _ <- IO(assertNotEquals(Thread.currentThread().getName, name))
           _ <- acquire(df)
-          _ <- IO(assert(Thread.currentThread().getName != name))
+          _ <- IO(assertNotEquals(Thread.currentThread().getName, name))
         } yield ()
 
       val task = for {
@@ -152,7 +146,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
     }
   }
 
-  test("MVar (concurrent) — issue #380: with foreverM; with latch") { implicit ec =>
+  testService("MVar (concurrent) — issue #380: with foreverM; with latch") { implicit ec =>
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -175,7 +169,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
     }
   }
 
-  test("MVar (concurrent) — issue #380: with foreverM; without latch") { implicit ec =>
+  testService("MVar (concurrent) — issue #380: with foreverM; without latch") { implicit ec =>
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -196,7 +190,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
     }
   }
 
-  test("MVar (concurrent) — issue #380: with cooperative light async boundaries; with latch") { implicit ec =>
+  testService("MVar (concurrent) — issue #380: with cooperative light async boundaries; with latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -217,7 +211,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
     }
   }
 
-  test("MVar (concurrent) — issue #380: with cooperative light async boundaries; without latch") { implicit ec =>
+  testService("MVar (concurrent) — issue #380: with cooperative light async boundaries; without latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -236,7 +230,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
     }
   }
 
-  test("MVar (concurrent) — issue #380: with cooperative full async boundaries; with latch") { implicit ec =>
+  testService("MVar (concurrent) — issue #380: with cooperative full async boundaries; with latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
@@ -257,7 +251,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
     }
   }
 
-  test("MVar (concurrent) — issue #380: with cooperative full async boundaries; without latch") { implicit ec =>
+  testService("MVar (concurrent) — issue #380: with cooperative full async boundaries; without latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
@@ -276,15 +270,15 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
     }
   }
 
-  test("MVar (async) — issue #380: producer keeps its thread, consumer stays forked") { implicit ec =>
+  testService("MVar (async) — issue #380: producer keeps its thread, consumer stays forked") { implicit ec =>
     for (_ <- 0 until iterations) {
       val name = Thread.currentThread().getName
 
       def get(df: MVar[IO, Unit]) =
         for {
-          _ <- IO(assert(Thread.currentThread().getName != name))
+          _ <- IO(assertNotEquals(Thread.currentThread().getName, name))
           _ <- acquire(df)
-          _ <- IO(assert(Thread.currentThread().getName != name))
+          _ <- IO(assertNotEquals(Thread.currentThread().getName, name))
         } yield ()
 
       val task = for {
@@ -300,7 +294,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
     }
   }
 
-  test("MVar (async) — issue #380: with foreverM; with latch") { implicit ec =>
+  testService("MVar (async) — issue #380: with foreverM; with latch") { implicit ec =>
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -323,7 +317,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
     }
   }
 
-  test("MVar (async) — issue #380: with foreverM; without latch") { implicit ec =>
+  testService("MVar (async) — issue #380: with foreverM; without latch") { implicit ec =>
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -344,7 +338,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
     }
   }
 
-  test("MVar (async) — issue #380: with cooperative light async boundaries; with latch") { implicit ec =>
+  testService("MVar (async) — issue #380: with cooperative light async boundaries; with latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -365,7 +359,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
     }
   }
 
-  test("MVar (async) — issue #380: with cooperative light async boundaries; without latch") { implicit ec =>
+  testService("MVar (async) — issue #380: with cooperative light async boundaries; without latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -384,7 +378,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends TestSuite[SchedulerSer
     }
   }
 
-  test("MVar (async) — issue #380: with cooperative full async boundaries; with latch") { implicit ec =>
+  testService("MVar (async) — issue #380: with cooperative full async boundaries; with latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)

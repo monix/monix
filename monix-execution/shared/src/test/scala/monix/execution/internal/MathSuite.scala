@@ -17,9 +17,9 @@
 
 package monix.execution.internal
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 
-object MathSuite extends SimpleTestSuite {
+class MathSuite extends MUnitFunSuite {
   test("roundToPowerOf2(int)") {
     assertEquals(math.roundToPowerOf2(1), 1)
     assertEquals(math.roundToPowerOf2(2), 2)

@@ -23,7 +23,7 @@ import monix.reactive.subjects.PublishSubject
 import monix.reactive.{ Observable, Observer }
 import scala.concurrent.duration._
 
-object CombineLatest2Suite extends BaseOperatorSuite {
+class CombineLatest2Suite extends BaseOperatorSuite {
   def waitFirst = Duration.Zero
   def waitNext = Duration.Zero
 
@@ -76,7 +76,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     )
   }
 
-  test("self starts before other and finishes before other") { implicit s =>
+  testScheduler("self starts before other and finishes before other") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -111,7 +111,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("self starts after other and finishes after other") { implicit s =>
+  testScheduler("self starts after other and finishes after other") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -146,7 +146,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("self signals error and interrupts the stream before it starts") { implicit s =>
+  testScheduler("self signals error and interrupts the stream before it starts") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -173,7 +173,7 @@ object CombineLatest2Suite extends BaseOperatorSuite {
     assert(wasCanceled)
   }
 
-  test("other signals error and interrupts the stream before it starts") { implicit s =>
+  testScheduler("other signals error and interrupts the stream before it starts") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 

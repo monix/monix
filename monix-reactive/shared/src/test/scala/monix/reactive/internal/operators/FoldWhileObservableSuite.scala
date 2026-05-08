@@ -22,7 +22,7 @@ import monix.execution.exceptions.DummyException
 import scala.concurrent.duration._
 import scala.util.Failure
 
-object FoldWhileObservableSuite extends BaseOperatorSuite {
+class FoldWhileObservableSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val n = sourceCount / 2
     val obs =
@@ -60,7 +60,7 @@ object FoldWhileObservableSuite extends BaseOperatorSuite {
     Sample(obs, 0, 0, 0.seconds, 0.seconds)
   }
 
-  test("should trigger error if the initial state triggers errors") { implicit s =>
+  testScheduler("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable(1, 2, 3, 4)
       .foldWhileLeft((throw ex): Int)((acc, e) => Left(acc + e))

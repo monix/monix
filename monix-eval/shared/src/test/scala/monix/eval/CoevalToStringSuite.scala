@@ -17,13 +17,12 @@
 
 package monix.eval
 
-import minitest.SimpleTestSuite
 import monix.execution.exceptions.DummyException
 
-object CoevalToStringSuite extends SimpleTestSuite {
+class CoevalToStringSuite extends monix.execution.MUnitFunSuite {
   def assertContains[A](ref: Coeval[A], startStr: String): Unit = {
     val str = ref.toString
-    assert(str.startsWith(startStr), s""""$str".startsWith("$startStr")""")
+    assert(str.startsWith(startStr), clue(s""""$str".startsWith("$startStr")"""))
   }
 
   test("Coeval.Now") {

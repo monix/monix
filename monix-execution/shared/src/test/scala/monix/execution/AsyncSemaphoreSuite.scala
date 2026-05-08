@@ -17,13 +17,12 @@
 
 package monix.execution
 
-import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
 import monix.execution.internal.Platform
 import scala.concurrent.{ ExecutionContext, Future, Promise }
 import scala.util.{ Random, Success }
 
-object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
+class AsyncSemaphoreSuite extends MUnitFixtureSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")

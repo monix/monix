@@ -21,8 +21,7 @@ import cats.Eq
 import cats.laws._
 //import cats.kernel.laws._
 
-import minitest.SimpleTestSuite
-import minitest.laws.Checkers
+import munit.DisciplineSuite
 import monix.execution.exceptions.DummyException
 import org.scalacheck.Test.Parameters
 import monix.execution.internal.Platform
@@ -34,9 +33,12 @@ import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionException, Future }
 import scala.util.{ Failure, Success, Try }
 
-trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstances {
-  override lazy val checkConfig: Parameters =
-    Parameters.default
+trait BaseLawsSuite extends DisciplineSuite with ArbitraryInstances {
+  override lazy val isCI: Boolean =
+    Platform.getEnv("CI").map(_.toLowerCase).contains("true")
+
+  override def scalaCheckTestParameters: Parameters =
+    super.scalaCheckTestParameters
       .withMinSuccessfulTests(if (Platform.isJVM) 100 else 10)
       .withMaxDiscardRatio(if (Platform.isJVM) 5.0f else 50.0f)
 
@@ -46,21 +48,14 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
       .withMaxDiscardRatio(50.0f)
       .withMaxSize(6)
 
-  def checkAll(name: String, ruleSet: Laws#RuleSet): Unit = {
-    for ((id, prop: Prop) <- ruleSet.all.properties)
-      test(name + "." + id) {
-        check(prop)
-      }
-  }
-
   def checkAllAsync(name: String)(f: TestScheduler => Laws#RuleSet): Unit = {
     val s = TestScheduler()
     val ruleSet = f(s)
 
     for ((id, prop: Prop) <- ruleSet.all.properties)
-      test(name + "." + id) {
+      property(name + "." + id) {
         s.tick(1.day)
-        check(prop)
+        prop
       }
   }
 }

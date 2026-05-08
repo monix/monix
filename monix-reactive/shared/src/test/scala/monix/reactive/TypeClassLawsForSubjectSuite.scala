@@ -20,7 +20,7 @@ package monix.reactive
 import cats.laws.discipline.ProfunctorTests
 import monix.reactive.subjects.Subject
 
-object TypeClassLawsForSubjectSuite extends BaseLawsTestSuite {
+class TypeClassLawsForSubjectSuite extends BaseLawsTestSuite {
 
   checkAllAsync("Profunctor[Subject]") { implicit ec =>
     ProfunctorTests[Subject].profunctor[Int, Int, Int, Int, Int, Int]

@@ -17,7 +17,6 @@
 
 package monix.execution
 
-import minitest.TestSuite
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
@@ -26,7 +25,7 @@ import monix.execution.internal.Platform
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Failure, Success, Try }
 
-object AckSuite extends TestSuite[TestScheduler] {
+class AckSuite extends MUnitFixtureSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")

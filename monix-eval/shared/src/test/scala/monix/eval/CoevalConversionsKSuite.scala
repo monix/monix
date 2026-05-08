@@ -18,9 +18,8 @@
 package monix.eval
 
 import cats.effect.{ Resource, SyncIO }
-import minitest.SimpleTestSuite
 
-object CoevalConversionsKSuite extends SimpleTestSuite {
+class CoevalConversionsKSuite extends monix.execution.MUnitFunSuite {
   test("Coeval.liftFrom[F]") {
     val res = Coeval.liftFrom[SyncIO].apply(SyncIO(1 + 1))
     assertEquals(res.value(), 2)

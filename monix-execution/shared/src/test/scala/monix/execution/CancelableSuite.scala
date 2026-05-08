@@ -17,7 +17,6 @@
 
 package monix.execution
 
-import minitest.SimpleTestSuite
 import monix.execution.exceptions.{ CompositeException, DummyException }
 import monix.execution.schedulers.TestScheduler
 import monix.execution.internal.Platform
@@ -27,7 +26,7 @@ import scala.util.Failure
 import scala.util.control.NonFatal
 
 @nowarn("msg=The syntax `x: _\\*` is no longer supported for vararg splices; use `x\\*` instead")
-object CancelableSuite extends SimpleTestSuite {
+class CancelableSuite extends MUnitFunSuite {
   test("Cancelable.empty") {
     val c = Cancelable()
     assertEquals(c, Cancelable.empty)

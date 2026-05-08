@@ -28,7 +28,7 @@ import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 import scala.concurrent.{ Future, Promise }
 
-object ConcatMapIterableSuite extends BaseOperatorSuite {
+class ConcatMapIterableSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int): Long = (1 to sourceCount).flatMap(i => List(i, i * 10)).sum.toLong
   def count(sourceCount: Int) = 2 * sourceCount
 
@@ -84,7 +84,7 @@ object ConcatMapIterableSuite extends BaseOperatorSuite {
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("should delay onComplete, for last element") { implicit s =>
+  testScheduler("should delay onComplete, for last element") { implicit s =>
     val p = List(Promise[Ack](), Promise[Ack]())
     var wasCompleted = false
 
@@ -100,10 +100,10 @@ object ConcatMapIterableSuite extends BaseOperatorSuite {
 
         assert(!wasCompleted)
         s.tick(waitForFirst)
-        assert(onNextReceived == 1)
+        assertEquals(onNextReceived, 1)
         p(0).success(Continue)
         s.tick(waitForNext)
-        assert(onNextReceived == 2)
+        assertEquals(onNextReceived, 2)
         p(1).success(Continue)
         s.tick(waitForNext)
         assert(wasCompleted)
@@ -113,13 +113,14 @@ object ConcatMapIterableSuite extends BaseOperatorSuite {
     }
   }
 
-  test("Observable.concatMapIterable is equivalent with Observable.flatMap + Observable.fromIterable") { implicit s =>
-    check1 { (list: List[List[Int]]) =>
-      val obs = Observable.fromIterable(list)
-      val resultViaMapConcat = obs.concatMapIterable(identity).reduce(_ + _).lastL
-      val resultViaFlatMap = obs.flatMap(Observable.fromIterable).reduce(_ + _).lastL
+  testScheduler("Observable.concatMapIterable is equivalent with Observable.flatMap + Observable.fromIterable") {
+    implicit s =>
+      check1 { (list: List[List[Int]]) =>
+        val obs = Observable.fromIterable(list)
+        val resultViaMapConcat = obs.concatMapIterable(identity).reduce(_ + _).lastL
+        val resultViaFlatMap = obs.flatMap(Observable.fromIterable).reduce(_ + _).lastL
 
-      resultViaMapConcat <-> resultViaFlatMap
-    }
+        resultViaMapConcat <-> resultViaFlatMap
+      }
   }
 }

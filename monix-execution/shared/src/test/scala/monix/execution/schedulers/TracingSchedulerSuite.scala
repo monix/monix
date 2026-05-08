@@ -17,9 +17,9 @@
 
 package monix.execution.schedulers
 
+import monix.execution.MUnitFunSuite
 import java.util.concurrent.TimeUnit
 
-import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.misc.Local
 import monix.execution.FutureUtils.extensions._
@@ -31,7 +31,7 @@ import scala.concurrent.{ Future, Promise }
 import scala.concurrent.duration._
 import scala.util.Success
 
-object TracingSchedulerSuite extends SimpleTestSuite {
+class TracingSchedulerSuite extends MUnitFunSuite {
   test("does not capture snapshot if not a tracing scheduler") {
     implicit val ec = TestScheduler()
 

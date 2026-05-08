@@ -28,7 +28,7 @@ import scala.util.{ Failure, Success }
 import concurrent.duration._
 
 @nowarn
-object TaskMemoizeSuite extends BaseTestSuite {
+class TaskMemoizeSuite extends BaseTestSuite {
   test("Task.memoize should work asynchronously for first subscriber") { implicit s =>
     var effect = 0
     val task = Task.evalAsync { effect += 1; effect }.memoize
@@ -649,7 +649,7 @@ object TaskMemoizeSuite extends BaseTestSuite {
 
   test("Task.eval.memoizeOnSuccess.memoize !== Task.eval.memoizeOnSuccess") { _ =>
     val task = Task.eval(1).memoizeOnSuccess
-    assert(task != task.memoize, "task != task.memoize")
+    assertNotEquals(task, task.memoize, clue("task != task.memoize"))
   }
 
   testAsync("local.write.memoize works") { _ =>

@@ -17,25 +17,25 @@
 
 package monix.execution.cancelables
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 
-object SerialCancelableSuite extends SimpleTestSuite {
+class SerialCancelableSuite extends MUnitFunSuite {
   test("cancel()") {
     var effect = 0
     val sub = BooleanCancelable(() => effect += 1)
     val mSub = SerialCancelable(sub)
 
-    assert(effect == 0)
+    assertEquals(effect, 0)
     assert(!sub.isCanceled)
     assert(!mSub.isCanceled)
 
     mSub.cancel()
     assert(sub.isCanceled && mSub.isCanceled)
-    assert(effect == 1)
+    assertEquals(effect, 1)
 
     mSub.cancel()
     assert(sub.isCanceled && mSub.isCanceled)
-    assert(effect == 1)
+    assertEquals(effect, 1)
   }
 
   test("cancel() after second assignment") {
@@ -45,7 +45,7 @@ object SerialCancelableSuite extends SimpleTestSuite {
     val sub2 = BooleanCancelable(() => effect += 10)
     mSub := sub2
 
-    assert(effect == 1)
+    assertEquals(effect, 1)
     assert(sub.isCanceled && !sub2.isCanceled && !mSub.isCanceled)
 
     mSub.cancel()
@@ -60,11 +60,11 @@ object SerialCancelableSuite extends SimpleTestSuite {
     var effect = 0
     val sub = BooleanCancelable(() => effect += 1)
 
-    assert(effect == 0)
+    assertEquals(effect, 0)
     assert(!sub.isCanceled && mSub.isCanceled)
 
     mSub := sub
-    assert(effect == 1)
+    assertEquals(effect, 1)
     assert(sub.isCanceled)
   }
 }

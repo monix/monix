@@ -17,11 +17,11 @@
 
 package monix.execution.atomic.internal
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 import scala.util.control.NonFatal
 import scala.annotation.unused
 
-object InlineMacrosTest extends SimpleTestSuite {
+class InlineMacrosTest extends MUnitFunSuite {
   class DummyException(msg: String) extends RuntimeException(msg)
 
   test("inline a function code gen") {

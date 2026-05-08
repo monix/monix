@@ -23,8 +23,8 @@ import monix.tail.batches.BatchCursor
 
 import scala.util.{ Failure, Success }
 
-object IterantStatesSuite extends BaseTestSuite {
-  test("Iterant[Task].suspend(Task.evalAsync(list))") { implicit s =>
+final class IterantStatesSuite extends BaseTestSuite {
+  testScheduler("Iterant[Task].suspend(Task.evalAsync(list))") { implicit s =>
     val list = List(1, 2, 3)
     val deferred = Task.eval(Iterant[Task].fromSeq[Int](list))
     val result = Iterant[Task].suspend(deferred).toListL.runToFuture
@@ -32,14 +32,14 @@ object IterantStatesSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Success(list)))
   }
 
-  test("Iterant[Coeval].suspend(Coeval(list))") { implicit s =>
+  testScheduler("Iterant[Coeval].suspend(Coeval(list))") { implicit s =>
     val list = List(1, 2, 3)
     val deferred = Coeval.eval(Iterant[Coeval].fromSeq[Int](list))
     val result = Iterant[Coeval].suspend(deferred).toListL.runTry()
     assertEquals(result, Success(list))
   }
 
-  test("Iterant[Task].suspend(AsyncStream)") { implicit s =>
+  testScheduler("Iterant[Task].suspend(AsyncStream)") { implicit s =>
     val list = List(1, 2, 3)
     val deferred = Iterant[Task].fromSeq[Int](list)
     val result = Iterant[Task].suspend(deferred).toListL.runToFuture
@@ -47,14 +47,14 @@ object IterantStatesSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Success(list)))
   }
 
-  test("Iterant[Coeval].suspend(LazyStream)") { implicit s =>
+  testScheduler("Iterant[Coeval].suspend(LazyStream)") { implicit s =>
     val list = List(1, 2, 3)
     val deferred = Iterant[Coeval].fromSeq[Int](list)
     val result = Iterant[Coeval].suspend(deferred).toListL.runTry()
     assertEquals(result, Success(list))
   }
 
-  test("Iterant[Task].next") { implicit s =>
+  testScheduler("Iterant[Task].next") { implicit s =>
     val list = List(1, 2, 3)
     val deferred = Task.eval(Iterant[Task].fromSeq[Int](list))
     val result = Iterant[Task].nextS(0, deferred).toListL.runToFuture
@@ -62,14 +62,14 @@ object IterantStatesSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Success(0 :: list)))
   }
 
-  test("Iterant[Coeval].next") { implicit s =>
+  testScheduler("Iterant[Coeval].next") { implicit s =>
     val list = List(1, 2, 3)
     val deferred = Coeval.eval(Iterant[Coeval].fromSeq[Int](list))
     val result = Iterant[Coeval].nextS(0, deferred).toListL.runTry()
     assertEquals(result, Success(0 :: list))
   }
 
-  test("Iterant[Task].nextCursor") { implicit s =>
+  testScheduler("Iterant[Task].nextCursor") { implicit s =>
     val list = List(1, 2, 3)
     val deferred = Task.eval(Iterant[Task].fromSeq[Int](list))
     val result = Iterant[Task].nextCursorS(BatchCursor(0), deferred).toListL.runToFuture
@@ -77,32 +77,32 @@ object IterantStatesSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Success(0 :: list)))
   }
 
-  test("Iterant[Coeval].nextCursor") { implicit s =>
+  testScheduler("Iterant[Coeval].nextCursor") { implicit s =>
     val list = List(1, 2, 3)
     val deferred = Coeval.eval(Iterant[Coeval].fromSeq[Int](list))
     val result = Iterant[Coeval].nextCursorS(BatchCursor(0), deferred).toListL.runTry()
     assertEquals(result, Success(0 :: list))
   }
 
-  test("Iterant[Task].halt(None)") { implicit s =>
+  testScheduler("Iterant[Task].halt(None)") { implicit s =>
     val result = Iterant[Task].haltS(None).toListL.runToFuture
     s.tick()
     assertEquals(result.value, Some(Success(Nil)))
   }
 
-  test("Iterant[Coeval].halt(None)") { implicit s =>
+  testScheduler("Iterant[Coeval].halt(None)") { implicit s =>
     val result = Iterant[Coeval].haltS(None).toListL.runTry()
     assertEquals(result, Success(Nil))
   }
 
-  test("Iterant[Task].halt(Some(ex))") { implicit s =>
+  testScheduler("Iterant[Task].halt(Some(ex))") { implicit s =>
     val ex = DummyException("dummy")
     val result = Iterant[Task].haltS(Some(ex)).toListL.runToFuture
     s.tick()
     assertEquals(result.value, Some(Failure(ex)))
   }
 
-  test("Iterant[Coeval].halt(Some(ex))") { implicit s =>
+  testScheduler("Iterant[Coeval].halt(Some(ex))") { implicit s =>
     val ex = DummyException("dummy")
     val result = Iterant[Coeval].haltS(Some(ex)).toListL.runTry()
     assertEquals(result, Failure(ex))

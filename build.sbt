@@ -50,7 +50,8 @@ val fs2_Version               = "2.5.11"
 val jcTools_Version           = "4.0.6"
 val reactiveStreams_Version   = "1.0.4"
 val macrotaskExecutor_Version = "1.1.1"
-val minitest_Version          = "2.9.6"
+val munit_Version             = "1.3.0"
+val disciplineMUnit_Version   = "2.0.0"
 val implicitBox_Version       = "0.3.4"
 val kindProjector_Version     = "0.13.4"
 val betterMonadicFor_Version  = "0.3.1"
@@ -105,9 +106,17 @@ lazy val macrotaskExecutorLib =
 lazy val kindProjectorCompilerPlugin =
   "org.typelevel" % "kind-projector" % kindProjector_Version cross CrossVersion.full
 
-/** [[https://github.com/monix/minitest/]] */
-lazy val minitestLib =
-  Def.setting { "io.monix" %%% "minitest-laws" % minitest_Version }
+/** [[https://scalameta.org/munit/]] */
+lazy val munitLib =
+  Def.setting { "org.scalameta" %%% "munit" % munit_Version }
+
+/** [[https://scalameta.org/munit/docs/integrations/scalacheck.html]] */
+lazy val munitScalaCheckLib =
+  Def.setting { "org.scalameta" %%% "munit-scalacheck" % munit_Version }
+
+/** [[https://github.com/typelevel/discipline-munit]] */
+lazy val disciplineMUnitLib =
+  Def.setting { "org.typelevel" %%% "discipline-munit" % disciplineMUnit_Version }
 
 /** [[https://github.com/scala/scala-collection-compat]] */
 lazy val scalaCollectionCompatLib =
@@ -130,11 +139,13 @@ lazy val macroDependencies =
   )
 
 lazy val testDependencies = Seq(
-  testFrameworks := Seq(new TestFramework("minitest.runner.Framework")),
+  testFrameworks := Seq(new TestFramework("munit.Framework")),
   libraryDependencies ++= Seq(
-    minitestLib.value       % Test,
-    catsLawsLib.value       % Test,
-    catsEffectLawsLib.value % Test
+    munitLib.value           % Test,
+    munitScalaCheckLib.value % Test,
+    disciplineMUnitLib.value % Test,
+    catsLawsLib.value        % Test,
+    catsEffectLawsLib.value  % Test
   )
 )
 
@@ -797,7 +808,7 @@ lazy val tracingTests = project
   )
   .dependsOn(evalJVM % "compile->compile; test->test")
   .configs(FullTracingTest)
-  .settings(testFrameworks := Seq(new TestFramework("minitest.runner.Framework")))
+  .settings(testFrameworks := Seq(new TestFramework("munit.Framework")))
   .settings(inConfig(FullTracingTest)(Defaults.testSettings): _*)
   .settings(
     FullTracingTest / unmanagedSourceDirectories += {

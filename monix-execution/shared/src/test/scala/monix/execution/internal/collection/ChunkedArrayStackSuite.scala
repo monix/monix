@@ -17,9 +17,9 @@
 
 package monix.execution.internal.collection
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 
-object ChunkedArrayStackSuite extends SimpleTestSuite {
+class ChunkedArrayStackSuite extends MUnitFunSuite {
   test("push and pop 8 items") {
     val stack = ChunkedArrayStack[Int](chunkSize = 8)
     var times = 0

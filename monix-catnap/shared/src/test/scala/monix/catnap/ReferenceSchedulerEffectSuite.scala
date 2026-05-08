@@ -17,13 +17,26 @@
 
 package monix.catnap
 import cats.effect.IO
-import minitest.SimpleTestSuite
-import monix.execution.schedulers.ReferenceSchedulerSuite.DummyScheduler
+import monix.execution.Cancelable
+import monix.execution.MUnitFunSuite
+import monix.execution.schedulers.{ ReferenceScheduler, TestScheduler }
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 import scala.util.Success
 
-class ReferenceSchedulerEffectSuite extends SimpleTestSuite {
+class ReferenceSchedulerEffectSuite extends MUnitFunSuite {
+  class DummyScheduler(val underlying: TestScheduler = TestScheduler()) extends ReferenceScheduler {
+    def executionModel = monix.execution.ExecutionModel.Default
+    def tick(time: FiniteDuration = Duration.Zero) = underlying.tick(time)
+    def execute(runnable: Runnable): Unit = underlying.execute(runnable)
+    def reportFailure(t: Throwable): Unit = underlying.reportFailure(t)
+    def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
+      underlying.scheduleOnce(initialDelay, unit, r)
+    override def features: monix.execution.Features =
+      underlying.features
+  }
+
   test("clock.monotonic") {
     val s = new DummyScheduler
     val clock = SchedulerEffect.clock[IO](s)

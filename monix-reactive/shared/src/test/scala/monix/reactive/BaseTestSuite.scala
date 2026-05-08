@@ -19,8 +19,9 @@ package monix.reactive
 
 import cats.Eq
 import cats.Monoid
-import minitest.{ SimpleTestSuite, TestSuite }
-import minitest.laws.Checkers
+import monix.execution.TestSchedulerSuite
+import munit.Location
+import munit.DisciplineSuite
 import monix.eval.Task
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
@@ -33,34 +34,63 @@ import org.typelevel.discipline.Laws
 
 import scala.concurrent.duration._
 
-trait BaseTestSuite extends TestSuite[TestScheduler] with Checkers with ArbitraryInstances {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
+trait BaseTestSuite extends TestSchedulerSuite with ArbitraryInstances {
+  def check(prop: Prop): Unit = {
+    val result = org.scalacheck.Test.check(scalaCheckTestParameters, prop)
+    assert(result.passed, clue(result.toString))
   }
+
+  def check1[A: Arbitrary](f: A => Prop): Unit =
+    check(Prop.forAll(f))
+
+  def check[A](isEq: cats.kernel.laws.IsEq[A])(implicit A: Eq[A]): Unit =
+    assert(A.eqv(isEq.lhs, isEq.rhs), clue(isEq.toString))
+
+  def isEqToProp[A](isEq: cats.kernel.laws.IsEq[A])(implicit A: Eq[A]): Prop =
+    Prop(A.eqv(isEq.lhs, isEq.rhs))
+
+  def check3[A: Arbitrary, B: Arbitrary, C: Arbitrary](f: (A, B, C) => Prop): Unit =
+    check(Prop.forAll(f))
+
+  def ignore(): Unit = ()
+
+  def fail()(implicit loc: Location): Nothing =
+    fail("failed")
 }
 
-trait BaseLawsTestSuite extends SimpleTestSuite with Checkers with ArbitraryInstances {
-  override lazy val checkConfig: Parameters =
-    Parameters.default
+trait BaseLawsTestSuite extends DisciplineSuite with ArbitraryInstances {
+  override lazy val isCI: Boolean =
+    Platform.getEnv("CI").map(_.toLowerCase).contains("true")
+
+  override def scalaCheckTestParameters: Parameters =
+    super.scalaCheckTestParameters
       .withMinSuccessfulTests(if (Platform.isJVM) 100 else 10)
       .withMaxDiscardRatio(if (Platform.isJVM) 5.0f else 50.0f)
       .withMaxSize(10)
 
-  def checkAllAsync(name: String, config: Parameters = checkConfig)(f: TestScheduler => Laws#RuleSet): Unit = {
+  def checkAllAsync(
+    name: String,
+    config: Parameters = scalaCheckTestParameters
+  )(f: TestScheduler => Laws#RuleSet): Unit = {
 
     val s = TestScheduler()
     val ruleSet = f(s)
 
     for ((id, prop: Prop) <- ruleSet.all.properties)
-      test(name + "." + id) {
+      property(name + "." + id) {
         s.tick(1.day)
-        check(prop)
+        prop
       }
   }
 }
 
 trait ArbitraryInstances extends ArbitraryInstancesBase with monix.eval.ArbitraryInstances {
+  implicit def equalityTask[A](implicit A: Eq[A], ec: TestScheduler): Eq[Task[A]] =
+    new Eq[Task[A]] {
+      override def eqv(lh: Task[A], rh: Task[A]): Boolean =
+        equalityFuture(A, ec).eqv(lh.runToFuture, rh.runToFuture)
+    }
+
   implicit def equalityNotification[A](implicit A: Eq[A]): Eq[Notification[A]] =
     new Eq[Notification[A]] {
       def eqv(x: Notification[A], y: Notification[A]): Boolean = {

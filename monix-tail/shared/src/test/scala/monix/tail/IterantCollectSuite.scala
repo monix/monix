@@ -25,8 +25,8 @@ import monix.tail.Iterant.Suspend
 import monix.tail.batches.BatchCursor
 import scala.util.Failure
 
-object IterantCollectSuite extends BaseTestSuite {
-  test("Iterant.collect <=> List.collect") { implicit s =>
+final class IterantCollectSuite extends BaseTestSuite {
+  testScheduler("Iterant.collect <=> List.collect") { implicit s =>
     check3 { (stream: Iterant[Task, Int], p: Int => Boolean, f: Int => Int) =>
       val pf: PartialFunction[Int, Int] = { case x if p(x) => f(x) }
       val received = stream.collect(pf).toListL
@@ -35,7 +35,7 @@ object IterantCollectSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.collect protects against user error") { implicit s =>
+  testScheduler("Iterant.collect protects against user error") { implicit s =>
     check1 { (stream: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val received = (stream.onErrorIgnore ++ Iterant[Task].now(1)).collect[Int] { case _ => throw dummy }
@@ -43,7 +43,7 @@ object IterantCollectSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.collect flatMap equivalence") { implicit s =>
+  testScheduler("Iterant.collect flatMap equivalence") { implicit s =>
     check3 { (stream: Iterant[Task, Int], p: Int => Boolean, f: Int => Int) =>
       val pf: PartialFunction[Int, Int] = { case x if p(x) => f(x) }
       val received = stream.collect(pf)
@@ -52,7 +52,7 @@ object IterantCollectSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.collect suspends the evaluation for NextBatch") { _ =>
+  testScheduler("Iterant.collect suspends the evaluation for NextBatch") { _ =>
     val dummy = DummyException("dummy")
     val items = new ThrowExceptionBatch(dummy)
     val iter = Iterant[Coeval].nextBatchS(items, Coeval.now(Iterant.empty[Coeval, Int]))
@@ -63,7 +63,7 @@ object IterantCollectSuite extends BaseTestSuite {
     assertEquals(state.toListL.runTry(), Failure(dummy))
   }
 
-  test("Iterant.collect suspends the evaluation for NextCursor") { _ =>
+  testScheduler("Iterant.collect suspends the evaluation for NextCursor") { _ =>
     val dummy = DummyException("dummy")
     val items = new ThrowExceptionCursor(dummy)
     val iter = Iterant[Coeval].nextCursorS(items, Coeval.now(Iterant.empty[Coeval, Int]))
@@ -74,7 +74,7 @@ object IterantCollectSuite extends BaseTestSuite {
     assertEquals(state.toListL.runTry(), Failure(dummy))
   }
 
-  test("Iterant.collect suspends the evaluation for Next") { _ =>
+  testScheduler("Iterant.collect suspends the evaluation for Next") { _ =>
     var effect: Int = 0
     val iter = Iterant[Coeval].nextS(1, Coeval.now(Iterant.empty[Coeval, Int]))
     val state = iter.collect { case _ => effect += 1; 1 }
@@ -84,7 +84,7 @@ object IterantCollectSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Iterant.collect suspends the evaluation for Last") { _ =>
+  testScheduler("Iterant.collect suspends the evaluation for Last") { _ =>
     var effect = 0
     val iter = Iterant[Coeval].lastS(1)
     val state = iter.collect { case _ => effect += 1; 1 }
@@ -94,7 +94,7 @@ object IterantCollectSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  test("Iterant.collect doesn't touch Halt") { _ =>
+  testScheduler("Iterant.collect doesn't touch Halt") { _ =>
     val dummy = DummyException("dummy")
     val iter1: Iterant[Coeval, Int] = Iterant[Coeval].haltS(Some(dummy))
     val state1 = iter1.collect { case x => x }
@@ -105,7 +105,7 @@ object IterantCollectSuite extends BaseTestSuite {
     assertEquals(state2, iter2)
   }
 
-  test("Iterant.collect preserves the source resource release logic") { implicit s =>
+  testScheduler("Iterant.collect preserves the source resource release logic") { implicit s =>
     var effect = 0
     val source = Iterant[Coeval]
       .nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))

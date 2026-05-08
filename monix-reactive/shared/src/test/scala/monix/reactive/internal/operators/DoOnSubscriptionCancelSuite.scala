@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
@@ -26,13 +25,13 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.duration._
 
-object DoOnSubscriptionCancelSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
+class DoOnSubscriptionCancelSuite extends monix.reactive.BaseTestSuite {
+  override def setup(): TestScheduler = TestScheduler()
+  override def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("should work") { implicit s =>
+  testScheduler("should work") { implicit s =>
     var wasCanceled = 0
     var wasCompleted = 0
 
@@ -55,7 +54,7 @@ object DoOnSubscriptionCancelSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should protect against user code") { implicit s =>
+  testScheduler("should protect against user code") { implicit s =>
     var wasCanceled = 0
     var wasCompleted = 0
 
@@ -78,7 +77,7 @@ object DoOnSubscriptionCancelSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("Issue #1177: should work with doAfterSubscribe") { implicit s =>
+  testScheduler("Issue #1177: should work with doAfterSubscribe") { implicit s =>
     var wasCanceled = false
     var wasSubscribed = false
 

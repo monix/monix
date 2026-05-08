@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.{ Ack, Scheduler }
 import monix.execution.schedulers.TestScheduler
@@ -26,9 +25,9 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object DelayOnCompleteSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
+class DelayOnCompleteSuite extends monix.reactive.BaseTestSuite {
+  override def setup(): TestScheduler = TestScheduler()
+  override def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 

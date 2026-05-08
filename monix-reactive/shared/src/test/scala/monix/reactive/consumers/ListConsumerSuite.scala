@@ -17,7 +17,6 @@
 
 package monix.reactive.consumers
 
-import minitest.TestSuite
 import monix.execution.CancelableFuture
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
@@ -25,13 +24,13 @@ import monix.reactive.{ Consumer, Observable }
 
 import scala.util.{ Failure, Success }
 
-object ListConsumerSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
+class ListConsumerSuite extends monix.reactive.BaseTestSuite {
+  override def setup(): TestScheduler = TestScheduler()
+  override def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("should return the same all consumed elements as a list") { implicit s =>
+  testScheduler("should return the same all consumed elements as a list") { implicit s =>
     val l = List("a", "b", "c", "d")
     val ob: Observable[String] = Observable.fromIterable(l)
     val f: CancelableFuture[List[String]] = ob.consumeWith(Consumer.toList).runToFuture
@@ -40,7 +39,7 @@ object ListConsumerSuite extends TestSuite[TestScheduler] {
     assertEquals(Some(Success(l)), f.value)
   }
 
-  test("should interrupt with error") { implicit s =>
+  testScheduler("should interrupt with error") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 100).endWithError(ex)
     val f = obs.consumeWith(Consumer.toList).runToFuture

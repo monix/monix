@@ -21,8 +21,8 @@ import cats.laws._
 import cats.laws.discipline._
 import monix.eval.{ Coeval, Task }
 
-object IterantConcatSuite extends BaseTestSuite {
-  test("Iterant.prepend") { implicit s =>
+final class IterantConcatSuite extends BaseTestSuite {
+  testScheduler("Iterant.prepend") { implicit s =>
     check2 { (list: List[Int], a: Int) =>
       val source = Iterant[Task].fromList(list)
       val received = a +: source
@@ -31,7 +31,7 @@ object IterantConcatSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant ++ Iterant") { implicit s =>
+  testScheduler("Iterant ++ Iterant") { implicit s =>
     check2 { (list1: List[Int], list2: List[Int]) =>
       val i1 = Iterant[Task].fromList(list1)
       val i2 = Iterant[Task].fromList(list2)
@@ -41,7 +41,7 @@ object IterantConcatSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant ++ F(Iterant)") { implicit s =>
+  testScheduler("Iterant ++ F(Iterant)") { implicit s =>
     check2 { (list1: List[Int], list2: List[Int]) =>
       val i1 = Iterant[Task].fromList(list1)
       val i2 = Iterant[Task].fromList(list2)
@@ -51,18 +51,18 @@ object IterantConcatSuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant :+ is consistent with ++") { implicit s =>
+  testScheduler("Iterant :+ is consistent with ++") { implicit s =>
     check2 { (i: Iterant[Coeval, Int], e: Int) =>
       (i :+ e) <-> (i ++ Iterant[Coeval].pure(e))
     }
   }
 
-  test("Iterant ++ Iterant is stack safe") { implicit s =>
+  testScheduler("Iterant ++ Iterant is stack safe") { implicit s =>
     lazy val nats: Iterant[Coeval, Long] = (Iterant[Coeval].of(1L) ++ nats.map(_ + 1L)).take(4)
     assertEquals(nats.toListL.value(), List(1, 2, 3, 4))
   }
 
-  test("Iterant.concat(Iterant*)") { implicit s =>
+  testScheduler("Iterant.concat(Iterant*)") { implicit s =>
     check1 { (ll: List[List[Int]]) =>
       val li = ll.map(Iterant[Coeval].fromList)
       val concat = Iterant.concat(li*)

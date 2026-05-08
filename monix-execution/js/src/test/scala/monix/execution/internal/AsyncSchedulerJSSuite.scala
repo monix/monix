@@ -17,7 +17,7 @@
 
 package monix.execution.internal
 
-import minitest.TestSuite
+import monix.execution.MUnitFixtureSuite
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.schedulers.AsyncScheduler
 import monix.execution.{ ExecutionModel, Scheduler, TestUtils }
@@ -25,7 +25,7 @@ import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 
-object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
+class AsyncSchedulerJSSuite extends MUnitFixtureSuite[Scheduler] with TestUtils {
   def setup() = AsyncScheduler(MacrotaskExecutor, ExecutionModel.Default)
   def tearDown(env: Scheduler): Unit = ()
 
@@ -68,7 +68,7 @@ object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
 
   testAsync("schedule for execution with delay") { implicit s =>
     if (isCI) {
-      ignore("Test is slow and flaky on top of underpowered machines, skipping")
+      assume(false, "Test is slow and flaky on top of underpowered machines, skipping")
     }
 
     import concurrent.duration._
@@ -84,7 +84,7 @@ object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
 
   testAsync("scheduleWithFixedRate should compensate for scheduling inaccuracy") { implicit s =>
     if (isCI) {
-      ignore("Test is slow and flaky on top of underpowered machines, skipping")
+      assume(false, "Test is slow and flaky on top of underpowered machines, skipping")
     }
 
     import concurrent.duration._

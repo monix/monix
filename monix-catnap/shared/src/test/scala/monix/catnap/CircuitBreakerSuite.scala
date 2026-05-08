@@ -16,24 +16,18 @@
  */
 
 package monix.catnap
-import scala.annotation.nowarn
 
 import cats.effect._
 import cats.implicits._
-import minitest.TestSuite
 import monix.catnap.CircuitBreaker.{ Closed, Open }
+import monix.execution.TestSchedulerSuite
 import monix.execution.exceptions.{ DummyException, ExecutionRejectedException }
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-@nowarn
-object CircuitBreakerSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(env: TestScheduler): Unit =
-    assert(env.state.tasks.isEmpty, "There should be no tasks left!")
-
+class CircuitBreakerSuite extends TestSchedulerSuite {
   implicit def timer(implicit ec: TestScheduler): Timer[IO] =
     SchedulerEffect.timerLiftIO[IO](ec)
 

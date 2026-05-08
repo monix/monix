@@ -21,73 +21,73 @@ import monix.eval.Task
 import monix.reactive.Observable
 import org.scalacheck.Prop
 
-object DeflateIntegrationSuite extends CompressionIntegrationSuite with DeflateTestUtils {
-  private implicit def a[A]: Task[Boolean] => Prop =
-    _.runSyncUnsafe()
+class DeflateIntegrationSuite extends CompressionIntegrationSuite with DeflateTestUtils {
+  private def taskProp(task: Task[Boolean]): Prop =
+    Prop(task.runSyncUnsafe())
 
   test("inflate(deflate(_)) <-> identity") {
     check1 { (input: String) =>
-      Observable
+      taskProp(Observable
         .now(input.getBytes())
         .transform(deflate())
         .transform(inflate())
         .toListL
-        .map(l => new String(l.flatten.toArray) == input)
+        .map(l => new String(l.flatten.toArray) == input))
     }
   }
 
   test("inflate(deflate(_)) <-> identity - nowrap") {
     check1 { (input: String) =>
-      Observable
+      taskProp(Observable
         .now(input.getBytes())
         .transform(deflate(noWrap = true))
         .transform(inflate(noWrap = true))
         .toListL
-        .map(l => new String(l.flatten.toArray) == input)
+        .map(l => new String(l.flatten.toArray) == input))
     }
   }
 
   test("inflate(jDeflate(_)) <-> identity") {
     check1 { (input: String) =>
-      deflatedStream(input.getBytes)
+      taskProp(deflatedStream(input.getBytes)
         .transform(inflate())
         .toListL
-        .map(compressed => new String(compressed.flatten.toArray) == input)
+        .map(compressed => new String(compressed.flatten.toArray) == input))
     }
   }
 
   test("inflate(jDeflate(_)) <-> identity - nowrap") {
     check1 { (input: String) =>
-      noWrapDeflatedStream(input.getBytes)
+      taskProp(noWrapDeflatedStream(input.getBytes)
         .transform(inflate(noWrap = true))
         .toListL
-        .map(compressed => new String(compressed.flatten.toArray) == input)
+        .map(compressed => new String(compressed.flatten.toArray) == input))
     }
   }
 
   test("jInflate(deflate(_) <-> identity") {
     check1 { (input: String) =>
-      Observable
+      taskProp(Observable
         .now(input.getBytes())
         .transform(deflate())
         .toListL
         .map { compressed =>
           val decompressed = jdkInflate(compressed.flatten.toArray, noWrap = false)
           new String(decompressed) == input
-        }
+        })
     }
   }
 
   test("jInflate(deflate(_) <-> identity - nowrap") {
     check1 { (input: String) =>
-      Observable
+      taskProp(Observable
         .now(input.getBytes())
         .transform(deflate(noWrap = true))
         .toListL
         .map { compressed =>
           val decompressed = jdkInflate(compressed.flatten.toArray, noWrap = true)
           new String(decompressed) == input
-        }
+        })
     }
   }
 }

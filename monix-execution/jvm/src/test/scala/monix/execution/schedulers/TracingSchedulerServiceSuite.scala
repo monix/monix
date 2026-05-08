@@ -17,9 +17,9 @@
 
 package monix.execution.schedulers
 
+import monix.execution.MUnitFunSuite
 import java.util.concurrent.TimeUnit
 
-import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.Scheduler
 import monix.execution.misc.Local
@@ -27,7 +27,7 @@ import monix.execution.misc.Local
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 
-object TracingSchedulerServiceSuite extends SimpleTestSuite {
+class TracingSchedulerServiceSuite extends MUnitFunSuite {
   testAsync("captures locals in actual async execution") {
     val service = TracingSchedulerService(Scheduler.singleThread("test"))
     val f1 = {

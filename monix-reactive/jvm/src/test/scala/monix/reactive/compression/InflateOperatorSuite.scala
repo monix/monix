@@ -23,8 +23,8 @@ import monix.reactive.Observable
 
 import scala.concurrent.duration.Duration.Zero
 
-object InflateOperatorSuite extends BaseDecompressionSuite with DeflateTestUtils {
-  testAsync("long input, not wrapped in ZLIB header and trailer") { _ =>
+class InflateOperatorSuite extends BaseDecompressionSuite with DeflateTestUtils {
+  testSchedulerAsync("long input, not wrapped in ZLIB header and trailer") { _ =>
     noWrapDeflatedStream(longText)
       .transform(inflate(1024, noWrap = true))
       .toListL
@@ -32,7 +32,7 @@ object InflateOperatorSuite extends BaseDecompressionSuite with DeflateTestUtils
       .runToFuture
   }
 
-  testAsync("inflate nowrap: remaining = 0 but not all was pulled") { _ =>
+  testSchedulerAsync("inflate nowrap: remaining = 0 but not all was pulled") { _ =>
     // This case shown error when not all data was pulled out of inflater
     noWrapDeflatedStream(inflateRandomExampleThatFailed, chunkSize = 40)
       .transform(inflate(bufferSize = 11, noWrap = true))
@@ -52,7 +52,7 @@ object InflateOperatorSuite extends BaseDecompressionSuite with DeflateTestUtils
     * the resulting observable, being just a way to randomly vary
     * the events being emitted.
     */
-  override def createObservable(sourceCount: Int): Option[InflateOperatorSuite.Sample] =
+  override def createObservable(sourceCount: Int): Option[Sample] =
     Some {
       val o = Observable
         .repeatEval(jdkDeflate(longText, new Deflater(-1, true)))
@@ -62,7 +62,7 @@ object InflateOperatorSuite extends BaseDecompressionSuite with DeflateTestUtils
       Sample(o, sourceCount, sourceCount, Zero, Zero)
     }
 
-  override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[InflateOperatorSuite.Sample] =
+  override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[Sample] =
     Some {
       val o = (Observable
         .repeatEval(jdkDeflate(longText, new Deflater(-1, true)))
@@ -75,7 +75,7 @@ object InflateOperatorSuite extends BaseDecompressionSuite with DeflateTestUtils
       Sample(o, sourceCount + 1, sourceCount + 1, Zero, Zero)
     }
 
-  override def observableInError(sourceCount: Int, ex: Throwable): Option[InflateOperatorSuite.Sample] =
+  override def observableInError(sourceCount: Int, ex: Throwable): Option[Sample] =
     Some {
       val o = createObservableEndingInError(
         Observable
@@ -88,5 +88,5 @@ object InflateOperatorSuite extends BaseDecompressionSuite with DeflateTestUtils
       Sample(o, sourceCount, sourceCount, Zero, Zero)
     }
 
-  override def cancelableObservables(): Seq[InflateOperatorSuite.Sample] = Seq.empty
+  override def cancelableObservables(): Seq[Sample] = Seq.empty
 }

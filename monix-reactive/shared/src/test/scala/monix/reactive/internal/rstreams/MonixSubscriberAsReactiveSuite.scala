@@ -17,16 +17,15 @@
 
 package monix.reactive.internal.rstreams
 
-import minitest.TestSuite
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{ Observable, Observer }
 
 import scala.concurrent.Future
 
-object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+class MonixSubscriberAsReactiveSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler) = {
     s.state.lastReportedError match {
       case null =>
         assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
@@ -35,7 +34,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("should work with synchronous batched requests") { implicit scheduler =>
+  testScheduler("should work with synchronous batched requests") { implicit scheduler =>
     var sum = 0L
     var completed = false
 
@@ -63,7 +62,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, 5000L * 9999)
   }
 
-  test("should work with Observer.Sync") { implicit scheduler =>
+  testScheduler("should work with Observer.Sync") { implicit scheduler =>
     var sum = 0L
 
     val observer = new Observer.Sync[Long] {
@@ -88,7 +87,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, 5000L * 9999)
   }
 
-  test("should throw NullPointerException for null elements with Async Subscriber") { implicit s =>
+  testScheduler("should throw NullPointerException for null elements with Async Subscriber") { implicit s =>
     val observer = new Observer[Any] {
       def onNext(elem: Any) = Continue
 
@@ -116,7 +115,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     ()
   }
 
-  test("should throw NullPointerException for null elements with Sync Subscriber") { implicit s =>
+  testScheduler("should throw NullPointerException for null elements with Sync Subscriber") { implicit s =>
     val observer = new Observer.Sync[Any] {
       def onNext(elem: Any) = Continue
 
@@ -144,7 +143,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     ()
   }
 
-  test("should work synchronously and with requests of size 1") { implicit s =>
+  testScheduler("should work synchronously and with requests of size 1") { implicit s =>
     var completed = false
     var sum = 0L
 
@@ -173,7 +172,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, requested.toLong * (requested - 1) / 2)
   }
 
-  test("should work with asynchronous boundaries and batched requests") { implicit s =>
+  testScheduler("should work with asynchronous boundaries and batched requests") { implicit s =>
     var completed = false
     var sum = 0L
 
@@ -202,7 +201,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, 5000L * 9999)
   }
 
-  test("should work with asynchronous boundaries and requests of size 1") { implicit scheduler =>
+  testScheduler("should work with asynchronous boundaries and requests of size 1") { implicit scheduler =>
     var completed = false
     var sum = 0L
 
@@ -231,7 +230,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, 5000L * 9999)
   }
 
-  test("should cancel precisely with batched requests") { implicit s =>
+  testScheduler("should cancel precisely with batched requests") { implicit s =>
     var completed = 1
     var sum = 0L
 
@@ -272,7 +271,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     assertEquals(completed, 0)
   }
 
-  test("should cancel precisely with requests of size 1") { implicit s =>
+  testScheduler("should cancel precisely with requests of size 1") { implicit s =>
     for (_ <- 0 until 100) {
       var completed = 0
       var sum = 0L
@@ -315,7 +314,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("should cancel precisely for one element and batched requests") { implicit s =>
+  testScheduler("should cancel precisely for one element and batched requests") { implicit s =>
     var completed = 0
     var sum = 0L
 
@@ -348,7 +347,7 @@ object MonixSubscriberAsReactiveSuite extends TestSuite[TestScheduler] {
     assert(completed >= 1, "completed >= 1")
   }
 
-  test("should cancel precisely for one element and requests of size one") { implicit s =>
+  testScheduler("should cancel precisely for one element and requests of size one") { implicit s =>
     var completed = 0
     var sum = 0L
 

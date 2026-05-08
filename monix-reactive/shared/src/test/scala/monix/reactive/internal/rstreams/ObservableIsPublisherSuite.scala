@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.rstreams
 
-import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.rstreams.SingleAssignSubscription
@@ -28,9 +27,9 @@ import org.reactivestreams.{ Subscriber, Subscription }
 
 import scala.util.Success
 
-object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+class ObservableIsPublisherSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler) = {
     s.state.lastReportedError match {
       case null =>
         assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
@@ -39,7 +38,7 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("should work with stop-and-wait back-pressure, test 1") { implicit scheduler =>
+  testScheduler("should work with stop-and-wait back-pressure, test 1") { implicit scheduler =>
     var wasCompleted = false
     var sum = 0L
 
@@ -72,7 +71,7 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, 5000 * 9999L)
   }
 
-  test("should work with stop-and-wait back-pressure, test 2") { implicit s =>
+  testScheduler("should work with stop-and-wait back-pressure, test 2") { implicit s =>
     val out = PublishSubject[Long]()
 
     val subscription = SingleAssignSubscription()
@@ -139,7 +138,7 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted, "wasCompleted")
   }
 
-  test("should work in batches of 1000, test 1") { implicit scheduler =>
+  testScheduler("should work in batches of 1000, test 1") { implicit scheduler =>
     val range = 10000L
     val chunkSize = 1000
 
@@ -182,7 +181,7 @@ object ObservableIsPublisherSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("should work in batches of 1000, test 2") { implicit scheduler =>
+  testScheduler("should work in batches of 1000, test 2") { implicit scheduler =>
     val range = 10000L
     val chunkSize = 1000
 

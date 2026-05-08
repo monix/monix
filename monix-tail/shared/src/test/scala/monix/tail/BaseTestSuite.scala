@@ -18,15 +18,24 @@
 package monix.tail
 
 import monix.execution.internal.Platform
+import org.scalacheck.{ Arbitrary, Prop }
 import org.scalacheck.Test.Parameters
 
 /** Just a marker for what we need to extend in the tests
   * of `monix-tail`.
   */
 trait BaseTestSuite extends monix.eval.BaseTestSuite with ArbitraryInstances {
-  override lazy val checkConfig: Parameters =
-    Parameters.default
+  override def scalaCheckTestParameters: Parameters =
+    super.scalaCheckTestParameters
       .withMinSuccessfulTests(if (Platform.isJVM) 200 else 20)
       .withMaxDiscardRatio(if (Platform.isJVM) 5.0f else 50.0f)
       .withMaxSize(24)
+
+  def check4[A: Arbitrary, B: Arbitrary, C: Arbitrary, D: Arbitrary](f: (A, B, C, D) => Prop): Unit =
+    check(Prop.forAll(f))
+
+  def check5[A: Arbitrary, B: Arbitrary, C: Arbitrary, D: Arbitrary, E: Arbitrary](
+    f: (A, B, C, D, E) => Prop
+  ): Unit =
+    check(Prop.forAll(f))
 }

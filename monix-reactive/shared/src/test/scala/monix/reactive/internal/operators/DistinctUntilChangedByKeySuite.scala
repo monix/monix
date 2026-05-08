@@ -21,7 +21,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object DistinctUntilChangedByKeySuite extends BaseOperatorSuite {
+class DistinctUntilChangedByKeySuite extends BaseOperatorSuite {
   case class Val(x: Long)
   def createObservable(sourceCount: Int) = Some {
     val o = Observable

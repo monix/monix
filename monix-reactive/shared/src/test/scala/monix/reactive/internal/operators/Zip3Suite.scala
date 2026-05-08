@@ -21,7 +21,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object Zip3Suite extends BaseOperatorSuite {
+class Zip3Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o1 = Observable.range(0L, sourceCount.toLong).executeAsync
     val o2 = Observable.range(0, sourceCount.toLong + 1).executeAsync

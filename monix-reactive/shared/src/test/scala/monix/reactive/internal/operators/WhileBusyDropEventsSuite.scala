@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
@@ -26,20 +25,20 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Promise
 import scala.util.Success
 
-object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+class WhileBusyDropEventsSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("should not drop events for synchronous observers") { implicit s =>
+  testScheduler("should not drop events for synchronous observers") { implicit s =>
     val f = Observable.range(0, 1000).whileBusyDropEvents.sum.runAsyncGetFirst
     s.tick()
 
     assertEquals(f.value, Some(Success(Some(999 * 500))))
   }
 
-  test("should drop events for busy observers") { implicit s =>
+  testScheduler("should drop events for busy observers") { implicit s =>
     val source = PublishSubject[Long]()
     val p = Promise[Continue.type]()
     var received = 0L
@@ -72,7 +71,7 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
     assertEquals(received, (100 until 200).sum.toLong + 1)
   }
 
-  test("onComplete should not apply back-pressure") { implicit s =>
+  testScheduler("onComplete should not apply back-pressure") { implicit s =>
     val source = PublishSubject[Long]()
     val p = Promise[Continue.type]()
     var received = 0L
@@ -104,7 +103,7 @@ object WhileBusyDropEventsSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 1)
   }
 
-  test("onError should not apply back-pressure") { implicit s =>
+  testScheduler("onError should not apply back-pressure") { implicit s =>
     val source = PublishSubject[Long]()
     val p = Promise[Continue.type]()
     var received = 0L

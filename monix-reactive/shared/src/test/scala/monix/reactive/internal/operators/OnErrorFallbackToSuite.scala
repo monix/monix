@@ -22,7 +22,7 @@ import monix.execution.exceptions.DummyException
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object OnErrorFallbackToSuite extends BaseOperatorSuite {
+class OnErrorFallbackToSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val obs = Observable
       .range(0L, sourceCount.toLong)

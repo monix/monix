@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.Stop
 import monix.execution.schedulers.TestScheduler
@@ -25,13 +24,13 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
-object ExecuteOnObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+class ExecuteOnObservableSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
-  test("executeOn must execute async if forceAsync=true") { implicit s =>
+  testScheduler("executeOn must execute async if forceAsync=true") { implicit s =>
     val s2 = TestScheduler()
     val obs = Observable.now(10).executeOn(s2)
     val p = Promise[Int]()
@@ -50,7 +49,7 @@ object ExecuteOnObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("executeOn should not force async if forceAsync=false") { implicit s =>
+  testScheduler("executeOn should not force async if forceAsync=false") { implicit s =>
     val s2 = TestScheduler()
     val obs = Observable.now(10).executeOn(s2, forceAsync = false)
     val p = Promise[Int]()
@@ -65,7 +64,7 @@ object ExecuteOnObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("executeOn should inject scheduler") { implicit s =>
+  testScheduler("executeOn should inject scheduler") { implicit s =>
     val s2 = TestScheduler()
     val obs = Observable.now(10).executeAsync.executeOn(s2, forceAsync = false)
     val p = Promise[Int]()

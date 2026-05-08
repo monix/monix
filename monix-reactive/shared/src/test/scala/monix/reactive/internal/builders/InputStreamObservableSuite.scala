@@ -19,8 +19,6 @@ package monix.reactive.internal.builders
 
 import java.io.{ ByteArrayInputStream, InputStream }
 
-import minitest.SimpleTestSuite
-import minitest.laws.Checkers
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
@@ -35,7 +33,7 @@ import org.scalacheck.{ Gen, Prop }
 import scala.collection.mutable.ListBuffer
 import scala.util.{ Failure, Random, Success }
 
-object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
+class InputStreamObservableSuite extends monix.execution.MUnitFunSuite {
   test("fromInputStreamUnsafe yields a single subscriber observable") {
     implicit val s = TestScheduler()
     var errorThrown: Throwable = null
@@ -255,28 +253,30 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
       (byteSize, chunkSize)
     }
 
-    check {
-      Prop.forAllNoShrink(gen) { // do not shrink to avoid a zero for the chunkSize
-        case (byteSize, chunkSize) =>
-          val byteArray = randomByteArray(byteSize, 10)
-          val forcedReadSize = Math.floorDiv(byteSize, 10).max(1) // avoid zero-byte reads
-          val in = inputWithStaggeredBytes(forcedReadSize, new ByteArrayInputStream(byteArray))
-          val f = Observable
-            .fromInputStreamF(Task(in), chunkSize)
-            .foldLeftL(Vector.empty[Int]) {
-              case (acc, byteArray) => acc :+ byteArray.length
-            }
-            .runToFuture
+    assert(org.scalacheck.Test.check(
+      scalaCheckTestParameters, {
+        Prop.forAllNoShrink(gen) { // do not shrink to avoid a zero for the chunkSize
+          case (byteSize, chunkSize) =>
+            val byteArray = randomByteArray(byteSize, 10)
+            val forcedReadSize = Math.floorDiv(byteSize, 10).max(1) // avoid zero-byte reads
+            val in = inputWithStaggeredBytes(forcedReadSize, new ByteArrayInputStream(byteArray))
+            val f = Observable
+              .fromInputStreamF(Task(in), chunkSize)
+              .foldLeftL(Vector.empty[Int]) {
+                case (acc, byteArray) => acc :+ byteArray.length
+              }
+              .runToFuture
 
-          s.tick()
+            s.tick()
 
-          val resultChunkSizes = f.value.get.get
-          if (byteArray.length > chunkSize) // all values except the last should be equal to the chunkSize
-            resultChunkSizes.init.forall(_ == chunkSize) && resultChunkSizes.last <= chunkSize
-          else
-            resultChunkSizes.head <= chunkSize
+            val resultChunkSizes = f.value.get.get
+            if (byteArray.length > chunkSize) // all values except the last should be equal to the chunkSize
+              resultChunkSizes.init.forall(_ == chunkSize) && resultChunkSizes.last <= chunkSize
+            else
+              resultChunkSizes.head <= chunkSize
+        }
       }
-    }
+    ).passed)
   }
 
   def inputWithStaggeredBytes(forcedReadSize: Int, underlying: ByteArrayInputStream): InputStream = {

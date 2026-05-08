@@ -17,22 +17,22 @@
 
 package monix.execution.cancelables
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 
-object BooleanCancelableSuite extends SimpleTestSuite {
+class BooleanCancelableSuite extends MUnitFunSuite {
   test("BooleanCancelable.cancel()") {
     var effect = 0
     val sub = BooleanCancelable(() => effect += 1)
-    assert(effect == 0)
+    assertEquals(effect, 0)
     assert(!sub.isCanceled)
 
     sub.cancel()
     assert(sub.isCanceled)
-    assert(effect == 1)
+    assertEquals(effect, 1)
 
     sub.cancel()
     assert(sub.isCanceled)
-    assert(effect == 1)
+    assertEquals(effect, 1)
   }
 
   test("BooleanCancelable.alreadyCanceled") {

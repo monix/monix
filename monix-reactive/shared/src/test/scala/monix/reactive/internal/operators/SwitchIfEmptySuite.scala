@@ -21,7 +21,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration.Duration._
 import scala.concurrent.duration._
 
-object SwitchIfEmptySuite extends BaseOperatorSuite {
+class SwitchIfEmptySuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = {
     require(sourceCount > 0, "sourceCount should be strictly positive")
     Some {

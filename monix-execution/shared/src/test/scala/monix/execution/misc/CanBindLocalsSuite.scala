@@ -17,12 +17,12 @@
 
 package monix.execution.misc
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 import monix.execution.CancelableFuture
 
 import scala.concurrent.Future
 
-object CanBindLocalsSuite extends SimpleTestSuite {
+class CanBindLocalsSuite extends MUnitFunSuite {
   class MySimpleType
   class MyType[A]
 
@@ -31,12 +31,12 @@ object CanBindLocalsSuite extends SimpleTestSuite {
     val ev2 = implicitly[CanBindLocals[Future[Int]]]
     val ev3 = implicitly[CanBindLocals[Unit]]
 
-    assert(ev1 != ev2, "ev1 != ev2")
-    assert(ev1.asInstanceOf[Any] != ev3.asInstanceOf[Any], "ev1 != ev3")
+    assertNotEquals(ev1, ev2, clue("ev1 != ev2"))
+    assertNotEquals[Any, Any](ev1, ev3, clue("ev1 != ev3"))
 
-    assertDoesNotCompile("implicitly[CanBindLocals[MySimpleType]]")
-    assertDoesNotCompile("implicitly[CanBindLocals[MyType[String]]]")
-    assertDoesNotCompile("implicitly[CanBindLocals[Int]]")
+    assert(clue(compileErrors("implicitly[CanBindLocals[MySimpleType]]").nonEmpty))
+    assert(clue(compileErrors("implicitly[CanBindLocals[MyType[String]]]").nonEmpty))
+    assert(clue(compileErrors("implicitly[CanBindLocals[Int]]").nonEmpty))
   }
 
   test("import CanBindLocals.Implicits.synchronousAsDefault") {
@@ -53,7 +53,7 @@ object CanBindLocalsSuite extends SimpleTestSuite {
     assertEquals(ev1, ev5)
     assertEquals(ev1, ev6)
 
-    assert(ev1.asInstanceOf[Any] != ev3.asInstanceOf[Any], "ev1 != ev3")
-    assert(ev1.asInstanceOf[Any] != ev4.asInstanceOf[Any], "ev1 != ev3")
+    assertNotEquals[Any, Any](ev1, ev3, clue("ev1 != ev3"))
+    assertNotEquals[Any, Any](ev1, ev4, clue("ev1 != ev3"))
   }
 }

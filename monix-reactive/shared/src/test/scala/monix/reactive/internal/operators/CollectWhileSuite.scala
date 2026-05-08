@@ -28,7 +28,7 @@ import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.{ Future, Promise }
 
-object CollectWhileSuite extends BaseOperatorSuite {
+class CollectWhileSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int): Long =
     sourceCount.toLong * (sourceCount + 1) / 2
 
@@ -80,7 +80,7 @@ object CollectWhileSuite extends BaseOperatorSuite {
     Seq(Sample(s, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("should not call onComplete multiple times for 1 element") { implicit s =>
+  testScheduler("should not call onComplete multiple times for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = 0
 
@@ -105,7 +105,7 @@ object CollectWhileSuite extends BaseOperatorSuite {
     }
   }
 
-  test("should only invoke the partial function once per element") { implicit s =>
+  testScheduler("should only invoke the partial function once per element") { implicit s =>
     var invocationCount = 0
     var result: Int = 0
     var wasCompleted = false
@@ -128,7 +128,7 @@ object CollectWhileSuite extends BaseOperatorSuite {
     assertEquals(invocationCount, 1)
   }
 
-  test("Observable.collectWhile <=> Observable.takeWhile.collect ") { implicit s =>
+  testScheduler("Observable.collectWhile <=> Observable.takeWhile.collect ") { implicit s =>
     check2 { (stream: Observable[Option[Int]], f: Int => Int) =>
       val result = stream.collectWhile { case Some(x) => f(x) }.toListL
       val expected = stream.takeWhile(_.isDefined).collect { case Some(x) => f(x) }.toListL

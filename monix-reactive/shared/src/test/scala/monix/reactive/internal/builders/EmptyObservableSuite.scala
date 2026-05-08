@@ -17,18 +17,17 @@
 
 package monix.reactive.internal.builders
 
-import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{ Observable, Observer }
 
-object EmptyObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
+class EmptyObservableSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
 
-  def tearDown(s: TestScheduler): Unit = {
+  override def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
   }
 
-  test("should complete immediately") { implicit s =>
+  testScheduler("should complete immediately") { implicit s =>
     var wasCompleted = false
     Observable.empty.unsafeSubscribeFn(new Observer[Any] {
       def onNext(elem: Any) = throw new IllegalStateException()

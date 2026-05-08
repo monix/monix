@@ -20,7 +20,6 @@ package monix.eval
 import cats.effect.IO
 import cats.implicits.catsStdInstancesForList
 import cats.syntax.foldable._
-import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
 import monix.execution.{ ExecutionModel, Scheduler }
@@ -31,7 +30,7 @@ import monix.execution.cancelableFutureCatsInstances
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 import scala.concurrent.duration._
 
-object TaskLocalJVMSuite extends SimpleTestSuite {
+class TaskLocalJVMSuite extends monix.execution.MUnitFunSuite {
   def createShift(ec: ExecutionContext): Task[Unit] =
     Task.cancelable0 { (_, cb) =>
       ec.execute(() => cb.onSuccess(()))
@@ -202,7 +201,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("local state is encapsulated by Task run loop on single thread") {
+  test("local state is encapsulated by Task run loop on single thread") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
       .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
@@ -219,7 +218,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       val f = Local.isolate(p.future)
 
       f.map(_ => {
-        assert(local() == 0, s"received ${local()} != expected 0 in $method")
+        assertEquals(local(), 0, clue(s"received ${local()} != expected 0 in $method"))
       })
     }
 
@@ -234,7 +233,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
 
   }
 
-  testAsync("TaskLocal.isolate should properly isolate during async boundaries") {
+  test("TaskLocal.isolate should properly isolate during async boundaries") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
       .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
 
@@ -251,7 +250,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     test.runToFuture
   }
 
-  testAsync("TaskLocal.isolate should properly isolate during async boundaries on error") {
+  test("TaskLocal.isolate should properly isolate during async boundaries on error") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
       .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
 
@@ -268,7 +267,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     test.runToFuture
   }
 
-  testAsync("TaskLocal.isolate should properly isolate during async boundaries on cancelation") {
+  test("TaskLocal.isolate should properly isolate during async boundaries on cancelation") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
       .withExecutionModel(ExecutionModel.AlwaysAsyncExecution)
 
@@ -285,7 +284,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     test.runToFuture
   }
 
-  testAsync("TaskLocal.isolate should isolate contexts from Future") {
+  test("TaskLocal.isolate should isolate contexts from Future") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
 
     val local = Local(0)
@@ -302,7 +301,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     test.runToFuture
   }
 
-  testAsync("Task.evalAsync.runToFuture isolates but preserves context for Future continuation") {
+  test("Task.evalAsync.runToFuture isolates but preserves context for Future continuation") {
     implicit val s: Scheduler = Scheduler.Implicits.traced
     val local = Local(0)
     val n = 100
@@ -338,7 +337,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       })
   }
 
-  testAsync("Task.eval.runToFuture isolates but preserves context for Future continuation") {
+  test("Task.eval.runToFuture isolates but preserves context for Future continuation") {
     implicit val s: Scheduler = Scheduler.Implicits.traced
     val local = Local(0)
     val n = 100
@@ -374,7 +373,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       })
   }
 
-  testAsync("Task.evalAsync.runToFuture isolates but preserves context for Future continuation on a single thread") {
+  test("Task.evalAsync.runToFuture isolates but preserves context for Future continuation on a single thread") {
     implicit val s: Scheduler = TracingScheduler(Scheduler.singleThread("local-test"))
     val local = Local(0)
     val n = 100
@@ -409,7 +408,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
       })
   }
 
-  testAsync("Task.eval.runToFuture continuations keep isolated context in longer continuations") {
+  test("Task.eval.runToFuture continuations keep isolated context in longer continuations") {
     implicit val s: Scheduler = Scheduler.Implicits.traced
 
     val local = Local(0)
@@ -449,7 +448,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     f1.flatMap(_ => f2)
   }
 
-  testAsync("Task.eval.runToFuture can isolate future continuations") {
+  test("Task.eval.runToFuture can isolate future continuations") {
     implicit val s: Scheduler = Scheduler.Implicits.traced
 
     val local = Local(0)
@@ -470,7 +469,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("Task.eval.runToFuture can isolate future continuations on failure") {
+  test("Task.eval.runToFuture can isolate future continuations on failure") {
     implicit val s: Scheduler = Scheduler.Implicits.traced
 
     val local = Local(0)
@@ -492,7 +491,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("Task.runToFuture resulting future can be reused") {
+  test("Task.runToFuture resulting future can be reused") {
     implicit val s: Scheduler = Scheduler.Implicits.traced
 
     val local = Local(0)
@@ -539,7 +538,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     List(f12, f21, f13, f23).sequence_
   }
 
-  testAsync("Task.eval.runToFuture is isolated from outside changes") {
+  test("Task.eval.runToFuture is isolated from outside changes") {
     implicit val s: Scheduler = Scheduler.Implicits.traced
 
     val local = Local(0)

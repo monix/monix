@@ -17,10 +17,10 @@
 
 package monix.execution.rstreams
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 import org.reactivestreams.{ Subscription => RSubscription }
 
-object SubscriptionSuite extends SimpleTestSuite {
+class SubscriptionSuite extends MUnitFunSuite {
   test("wraps any subscription reference") {
     var cancelCalled: Int = 0
     var requestCalled: Long = 0

@@ -18,34 +18,29 @@
 package monix.catnap
 
 import cats.effect.IO
-import monix.execution.Scheduler
+import monix.execution.{ Scheduler, SchedulerServiceSuite }
 import monix.execution.schedulers.SchedulerService
 import scala.concurrent.duration._
 
-abstract class ConcurrentQueueJVMSuite(parallelism: Int) extends BaseConcurrentQueueSuite[SchedulerService] {
+abstract class ConcurrentQueueJVMSuite(parallelism: Int) extends SchedulerServiceSuite with BaseConcurrentQueueSuite {
 
-  def setup(): SchedulerService =
+  def createSchedulerService(): SchedulerService =
     Scheduler.computation(
       name = s"concurrent-queue-par-$parallelism",
       parallelism = parallelism
     )
-
-  def tearDown(env: SchedulerService): Unit = {
-    env.shutdown()
-    assert(env.awaitTermination(30.seconds), "env.awaitTermination")
-  }
 
   def testIO(name: String, times: Int = 1)(f: Scheduler => IO[Unit]): Unit = {
     def repeatTest(test: IO[Unit], n: Int): IO[Unit] =
       if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
       else IO.unit
 
-    testAsync(name) { implicit ec =>
+    testServiceAsync(name) { implicit ec =>
       repeatTest(f(ec).timeout(60.second), times).unsafeToFuture()
     }
   }
 }
 
-object ConcurrentQueueJVMParallelism8Suite extends ConcurrentQueueJVMSuite(8)
-object ConcurrentQueueJVMParallelism4Suite extends ConcurrentQueueJVMSuite(4)
-object ConcurrentQueueJVMParallelism1Suite extends ConcurrentQueueJVMSuite(1)
+class ConcurrentQueueJVMParallelism8Suite extends ConcurrentQueueJVMSuite(8)
+class ConcurrentQueueJVMParallelism4Suite extends ConcurrentQueueJVMSuite(4)
+class ConcurrentQueueJVMParallelism1Suite extends ConcurrentQueueJVMSuite(1)

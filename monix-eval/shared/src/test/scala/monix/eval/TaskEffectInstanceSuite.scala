@@ -41,8 +41,7 @@ object TaskEffectInstanceSuite extends BaseTestSuite {
         received = opts
         IO.unit
       case _ =>
-        fail()
-        IO.unit
+        IO.raiseError(new AssertionError("Expected successful Task options"))
     }
 
     io.unsafeRunSync()
@@ -57,8 +56,7 @@ object TaskEffectInstanceSuite extends BaseTestSuite {
         received = opts
         IO.unit
       case _ =>
-        fail()
-        IO.unit
+        IO.raiseError(new AssertionError("Expected successful Task options"))
     }
 
     io.unsafeRunSync()
@@ -76,8 +74,7 @@ object TaskEffectInstanceSuite extends BaseTestSuite {
         received = opts
         IO.unit
       case _ =>
-        fail()
-        IO.unit
+        IO.raiseError(new AssertionError("Expected successful Task options"))
     }
 
     io.unsafeRunSync()

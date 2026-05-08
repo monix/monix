@@ -20,8 +20,6 @@ package monix.reactive.internal.builders
 import java.io.{ Reader, StringReader }
 
 import cats.effect.ExitCase
-import minitest.SimpleTestSuite
-import minitest.laws.Checkers
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
@@ -37,7 +35,7 @@ import org.scalacheck.{ Gen, Prop }
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{ Failure, Random, Success }
 
-object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
+class CharsReaderObservableSuite extends monix.execution.MUnitFunSuite {
   test("fromCharsReaderUnsafe yields a single subscriber observable") {
     implicit val s = TestScheduler()
     var errorThrown: Throwable = null
@@ -315,7 +313,7 @@ object CharsReaderObservableSuite extends SimpleTestSuite with Checkers {
             resultChunkSizes.init.forall(_ == chunkSize) && resultChunkSizes.last <= chunkSize
           else resultChunkSizes.head <= chunkSize
       }
-    check(prop)
+    assert(org.scalacheck.Test.check(scalaCheckTestParameters, prop).passed)
   }
 
   def inputWithStaggeredChars(forcedReadSize: Int, underlying: StringReader): Reader = {

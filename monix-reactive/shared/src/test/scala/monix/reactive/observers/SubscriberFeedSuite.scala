@@ -24,7 +24,7 @@ import monix.execution.compat.internal.toIterator
 import monix.reactive.BaseTestSuite
 import scala.concurrent.Future
 
-object SubscriberFeedSuite extends BaseTestSuite {
+class SubscriberFeedSuite extends monix.reactive.BaseTestSuite {
   test("feed synchronous iterable") { s =>
     check1 { (xs: List[Int]) =>
       var sum = 0

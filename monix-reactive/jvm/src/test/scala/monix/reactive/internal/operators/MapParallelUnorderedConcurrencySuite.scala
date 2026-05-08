@@ -23,8 +23,8 @@ import cats.laws.discipline._
 import monix.eval.Task
 import monix.reactive.{ BaseConcurrencySuite, Observable }
 
-object MapParallelUnorderedConcurrencySuite extends BaseConcurrencySuite {
-  test("mapParallelUnordered works concurrently") { implicit s =>
+class MapParallelUnorderedConcurrencySuite extends BaseConcurrencySuite {
+  testService("mapParallelUnordered works concurrently") { implicit s =>
     check2 { (list: List[Int], rnd: Int) =>
       val parallelism = {
         val abs = math.abs(rnd)

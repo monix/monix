@@ -22,7 +22,7 @@ import java.util.concurrent.Executors
 
 import monix.execution.exceptions.DummyException
 
-object JVMUncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSuite {
+class JVMUncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSuite {
   testReports("Scheduler(ExecutorService, _)")(Scheduler(Executors.newSingleThreadExecutor(), _))
   testReports("Scheduler.io")(r => Scheduler.io(reporter = r))
   testReports("Scheduler.singleThread")(r => Scheduler.singleThread("test-single-thread", reporter = r))

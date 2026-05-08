@@ -22,22 +22,22 @@ import cats.laws.discipline._
 import monix.eval.Task
 import scala.collection.mutable.ListBuffer
 
-object IterantFromSeqSuite extends BaseTestSuite {
-  test("Iterant[Task].fromSeq(vector)") { implicit s =>
+final class IterantFromSeqSuite extends BaseTestSuite {
+  testScheduler("Iterant[Task].fromSeq(vector)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromSeq(list.toVector).toListL
       result <-> Task.now(list)
     }
   }
 
-  test("Iterant[Task].fromSeq(list)") { implicit s =>
+  testScheduler("Iterant[Task].fromSeq(list)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromSeq(list).toListL
       result <-> Task.now(list)
     }
   }
 
-  test("Iterant[Task].fromSeq(iterable)") { implicit s =>
+  testScheduler("Iterant[Task].fromSeq(iterable)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromSeq(ListBuffer(list*).toSeq).toListL
       result <-> Task.now(list)

@@ -25,7 +25,7 @@ import monix.execution.atomic.AtomicInt
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 
-object DumpSuite extends BaseOperatorSuite {
+class DumpSuite extends BaseOperatorSuite {
   def dummyOut(count: AtomicInt = null) = {
     val out = new OutputStream { def write(b: Int) = () }
     new PrintStream(out) {
@@ -60,7 +60,7 @@ object DumpSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int) =
     sourceCount * (sourceCount - 1) / 2
 
-  override def cancelableObservables(): Seq[DumpSuite.Sample] = {
+  override def cancelableObservables(): Seq[Sample] = {
     val sample = Observable
       .range(0, 10)
       .delayOnNext(1.second)

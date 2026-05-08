@@ -16,38 +16,36 @@
  */
 
 package monix.catnap
-import scala.annotation.nowarn
 
 import cats.effect.{ ContextShift, IO, Timer }
 import cats.implicits._
-import minitest.TestSuite
 import monix.execution.BufferCapacity.{ Bounded, Unbounded }
 import monix.execution.ChannelType.{ MPMC, MPSC, SPMC, SPSC }
 import monix.execution.exceptions.APIContractViolationException
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
-import monix.execution.{ BufferCapacity, Scheduler, TestUtils }
+import monix.execution.{ BufferCapacity, MUnitFunSuite, Scheduler, TestUtils }
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
-@nowarn
-object ConcurrentChannelFakeSuite extends BaseConcurrentChannelSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(env: TestScheduler): Unit =
-    assert(env.state.tasks.isEmpty, "There should be no tasks left!")
-
+class ConcurrentChannelFakeSuite extends BaseConcurrentChannelSuite {
   def testIO(name: String, times: Int)(f: Scheduler => IO[Unit]): Unit = {
     def repeatTest(test: IO[Unit], n: Int): IO[Unit] =
       if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
       else IO.unit
 
-    test(name) { ec =>
+    test(name) {
+      val ec = TestScheduler()
       val result = repeatTest(f(ec), times).unsafeToFuture()
       ec.tick(1.day)
-      result.value match {
-        case None => throw new TimeoutException("1 day")
-        case Some(value) => value.get
+      try {
+        result.value match {
+          case None => throw new TimeoutException("1 day")
+          case Some(value) => value.get
+        }
+      } finally {
+        assertEquals(ec.state.tasks.isEmpty, true, "There should be no tasks left!")
       }
     }
   }
@@ -56,7 +54,7 @@ object ConcurrentChannelFakeSuite extends BaseConcurrentChannelSuite[TestSchedul
     Bounded(256)
 }
 
-abstract class BaseConcurrentChannelSuite[S <: Scheduler] extends TestSuite[S] with TestUtils {
+trait BaseConcurrentChannelSuite extends MUnitFunSuite with TestUtils {
   val boundedConfigForConcurrentSum: Bounded
 
   val iterationsCount = {

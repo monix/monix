@@ -18,7 +18,6 @@
 package monix.reactive.internal.operators
 
 import cats.effect.IO
-import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
@@ -30,15 +29,15 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object DoOnErrorSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
+class DoOnErrorSuite extends monix.reactive.BaseTestSuite {
+  override def setup(): TestScheduler = TestScheduler()
+  override def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
   val dummy = DummyException("ex")
 
-  test("should work for cats.effect.IO") { implicit s =>
+  testScheduler("should work for cats.effect.IO") { implicit s =>
     var wasTriggered: Throwable = null
     var wasCompleted = 0
 
@@ -57,7 +56,7 @@ object DoOnErrorSuite extends TestSuite[TestScheduler] {
     assertEquals(wasTriggered, dummy)
   }
 
-  test("should work for synchronous subscribers") { implicit s =>
+  testScheduler("should work for synchronous subscribers") { implicit s =>
     var wasTriggered: Throwable = null
     var wasCompleted = 0
 
@@ -76,7 +75,7 @@ object DoOnErrorSuite extends TestSuite[TestScheduler] {
     assertEquals(wasTriggered, dummy)
   }
 
-  test("should work for asynchronous subscribers") { implicit s =>
+  testScheduler("should work for asynchronous subscribers") { implicit s =>
     var wasTriggered: Throwable = null
     var wasCompleted = 0
 
@@ -96,7 +95,7 @@ object DoOnErrorSuite extends TestSuite[TestScheduler] {
     assertEquals(wasTriggered, dummy)
   }
 
-  test("should stream onComplete") { implicit s =>
+  testScheduler("should stream onComplete") { implicit s =>
     var wasTriggered = 0
     var wasCompleted = 0
 
@@ -118,7 +117,7 @@ object DoOnErrorSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 1)
   }
 
-  test("should be cancelable") { implicit s =>
+  testScheduler("should be cancelable") { implicit s =>
     var wasTriggered = 0
     val cancelable = Observable
       .now(1)
@@ -134,7 +133,7 @@ object DoOnErrorSuite extends TestSuite[TestScheduler] {
     assertEquals(wasTriggered, 0)
   }
 
-  test("should protect against user code") { implicit s =>
+  testScheduler("should protect against user code") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
     var errorThrown: Throwable = null

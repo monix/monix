@@ -27,7 +27,7 @@ import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
-object FilterSuite extends BaseOperatorSuite {
+class FilterSuite extends BaseOperatorSuite {
   def count(sourceCount: Int) = {
     sourceCount
   }
@@ -90,7 +90,7 @@ object FilterSuite extends BaseOperatorSuite {
     Seq(Sample(sample, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  testScheduler("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 
@@ -115,7 +115,7 @@ object FilterSuite extends BaseOperatorSuite {
     }
   }
 
-  test("withFilter syntax works") { implicit s =>
+  testScheduler("withFilter syntax works") { implicit s =>
     val source = Observable.range(1, 1000)
 
     val filtered = for {

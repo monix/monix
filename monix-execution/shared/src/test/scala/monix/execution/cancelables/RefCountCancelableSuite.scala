@@ -17,9 +17,9 @@
 
 package monix.execution.cancelables
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 
-object RefCountCancelableSuite extends SimpleTestSuite {
+class RefCountCancelableSuite extends MUnitFunSuite {
   test("cancel without dependent references") {
     var isCanceled = false
     val sub = RefCountCancelable { () =>

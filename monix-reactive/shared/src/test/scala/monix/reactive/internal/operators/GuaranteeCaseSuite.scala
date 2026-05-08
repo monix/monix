@@ -18,7 +18,6 @@
 package monix.reactive.internal.operators
 
 import cats.effect.{ ExitCase, IO }
-import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
@@ -31,13 +30,13 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
+class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
+  override def setup(): TestScheduler = TestScheduler()
+  override def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("should work for cats.effect.IO") { implicit s =>
+  testScheduler("should work for cats.effect.IO") { implicit s =>
     var wasCalled = 0
     var wasCompleted = 0
 
@@ -56,7 +55,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should execute callback onComplete") { implicit s =>
+  testScheduler("should execute callback onComplete") { implicit s =>
     var wasCalled = 0
     var wasCompleted = 0
 
@@ -75,7 +74,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should protect against user code onComplete (direct)") { implicit s =>
+  testScheduler("should protect against user code onComplete (direct)") { implicit s =>
     val ex = DummyException("dummy")
     var wasThrown: Throwable = null
 
@@ -94,7 +93,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should protect against user code onComplete (indirect)") { implicit s =>
+  testScheduler("should protect against user code onComplete (indirect)") { implicit s =>
     val ex = DummyException("dummy")
     var wasThrown: Throwable = null
 
@@ -113,7 +112,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should execute callback onError") { implicit s =>
+  testScheduler("should execute callback onError") { implicit s =>
     val ex = DummyException("dummy")
     var wasCalled = 0
     var wasThrown: Throwable = null
@@ -135,7 +134,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should protect against user-code onError (direct)") { implicit s =>
+  testScheduler("should protect against user-code onError (direct)") { implicit s =>
     val ex1 = DummyException("dummy1")
     val ex2 = DummyException("dummy2")
     var wasThrown: Throwable = null
@@ -168,7 +167,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should protect against user-code onError (indirect)") { implicit s =>
+  testScheduler("should protect against user-code onError (indirect)") { implicit s =>
     val ex1 = DummyException("dummy1")
     val ex2 = DummyException("dummy2")
     var wasThrown: Throwable = null
@@ -199,7 +198,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should call on synchronous downstream Stop") { implicit s =>
+  testScheduler("should call on synchronous downstream Stop") { implicit s =>
     var wasCalled = 0
     var wasCompleted = 0
 
@@ -219,7 +218,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should call on asynchronous downstream Stop") { implicit s =>
+  testScheduler("should call on asynchronous downstream Stop") { implicit s =>
     var wasCalled = 0
     var wasCompleted = 0
 
@@ -239,7 +238,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should protect against user code on synchronous downstream Stop (direct)") { implicit s =>
+  testScheduler("should protect against user code on synchronous downstream Stop (direct)") { implicit s =>
     val ex = DummyException("dummy")
 
     Observable
@@ -258,7 +257,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("should protect against user code on synchronous downstream Stop (indirect)") { implicit s =>
+  testScheduler("should protect against user code on synchronous downstream Stop (indirect)") { implicit s =>
     val ex = DummyException("dummy")
 
     Observable
@@ -277,7 +276,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("should protect against user code on asynchronous downstream Stop (direct)") { implicit s =>
+  testScheduler("should protect against user code on asynchronous downstream Stop (direct)") { implicit s =>
     val ex = DummyException("dummy")
 
     Observable
@@ -296,7 +295,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("should protect against user code on asynchronous downstream Stop (indirect)") { implicit s =>
+  testScheduler("should protect against user code on asynchronous downstream Stop (indirect)") { implicit s =>
     val ex = DummyException("dummy")
 
     Observable
@@ -315,7 +314,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("should receive error if onNext generates error asynchronously") { implicit s =>
+  testScheduler("should receive error if onNext generates error asynchronously") { implicit s =>
     val ex = DummyException("dummy")
     var errorThrown = Option.empty[ExitCase[Throwable]]
 
@@ -338,7 +337,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, Some(ExitCase.Error(ex)))
   }
 
-  test("should receive error if onNext returns error synchronously") { implicit s =>
+  testScheduler("should receive error if onNext returns error synchronously") { implicit s =>
     val ex = DummyException("dummy")
     var errorThrown = Option.empty[ExitCase[Throwable]]
 
@@ -363,7 +362,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
 
   // Tests converted and imported from the old DoOnTerminateSuite
 
-  test("should protect against user code onComplete") { implicit s =>
+  testScheduler("should protect against user code onComplete") { implicit s =>
     val ex = DummyException("dummy")
     var wasThrown: Throwable = null
 
@@ -382,7 +381,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should execute callback onError") { implicit s =>
+  testScheduler("should execute callback onError") { implicit s =>
     val ex = DummyException("dummy")
     var wasCalled = 0
     var wasThrown: Throwable = null
@@ -404,7 +403,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should protect against user-code onError") { implicit s =>
+  testScheduler("should protect against user-code onError") { implicit s =>
     val ex1 = DummyException("dummy1")
     val ex2 = DummyException("dummy2")
     var wasThrown: Throwable = null
@@ -436,7 +435,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should call on synchronous downstream Stop (IO)") { implicit s =>
+  testScheduler("should call on synchronous downstream Stop (IO)") { implicit s =>
     var wasCalled = 0
     var wasCompleted = 0
 
@@ -456,7 +455,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should call on asynchronous downstream Stop") { implicit s =>
+  testScheduler("should call on asynchronous downstream Stop") { implicit s =>
     var wasCalled = 0
     var wasCompleted = 0
 
@@ -476,7 +475,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should protect against user code on synchronous downstream Stop") { implicit s =>
+  testScheduler("should protect against user code on synchronous downstream Stop") { implicit s =>
     val ex = DummyException("dummy")
 
     Observable
@@ -495,7 +494,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("should protect against user code on asynchronous downstream Stop") { implicit s =>
+  testScheduler("should protect against user code on asynchronous downstream Stop") { implicit s =>
     val ex = DummyException("dummy")
 
     Observable
@@ -514,7 +513,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  test("should receive error if onNext generates error asynchronously") { implicit s =>
+  testScheduler("should receive error if onNext generates error asynchronously") { implicit s =>
     val ex = DummyException("dummy")
     var errorThrown = Option.empty[Throwable]
 
@@ -540,7 +539,7 @@ object GuaranteeCaseSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, Some(ex))
   }
 
-  test("should receive error if onNext returns error synchronously") { implicit s =>
+  testScheduler("should receive error if onNext returns error synchronously") { implicit s =>
     val ex = DummyException("dummy")
     var errorThrown = Option.empty[Throwable]
 

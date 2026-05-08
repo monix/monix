@@ -24,18 +24,18 @@ import monix.eval.Task
 import monix.reactive.Observable
 import org.scalacheck.Prop
 
-object GzipIntegrationTest extends CompressionIntegrationSuite {
-  private implicit def a[A]: Task[Boolean] => Prop =
-    _.runSyncUnsafe()
+class GzipIntegrationTest extends CompressionIntegrationSuite {
+  private def taskProp(task: Task[Boolean]): Prop =
+    Prop(task.runSyncUnsafe())
 
   test("gunzip(gzip(_)) <-> identity") {
     check1 { (input: String) =>
-      Observable
+      taskProp(Observable
         .now(input.getBytes())
         .transform(gzip())
         .transform(gunzip())
         .toListL
-        .map(l => new String(l.flatten.toArray) == input)
+        .map(l => new String(l.flatten.toArray) == input))
     }
   }
 
@@ -48,17 +48,17 @@ object GzipIntegrationTest extends CompressionIntegrationSuite {
 
       val compressed = outputStream.toByteArray
       gzos.close()
-      Observable
+      taskProp(Observable
         .now(compressed)
         .transform(gunzip())
         .toListL
-        .map(l => new String(l.flatten.toArray) == input)
+        .map(l => new String(l.flatten.toArray) == input))
     }
   }
 
   test("jgunzip(gzip(_) <-> identity") {
     check1 { (input: String) =>
-      Observable
+      taskProp(Observable
         .now(input.getBytes())
         .transform(gzip())
         .toListL
@@ -68,7 +68,7 @@ object GzipIntegrationTest extends CompressionIntegrationSuite {
           val decompressed = readAll(gzos)
           gzos.close()
           new String(decompressed) == input
-        }
+        })
     }
   }
 

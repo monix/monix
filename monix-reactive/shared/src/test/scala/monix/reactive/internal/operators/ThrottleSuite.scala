@@ -23,7 +23,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
 import scala.util.Success
 
-object ThrottleSuite extends BaseOperatorSuite {
+class ThrottleSuite extends BaseOperatorSuite {
   def sum(sourceCount: Int) = {
     sourceCount * (sourceCount - 1) / 2
   }
@@ -49,7 +49,7 @@ object ThrottleSuite extends BaseOperatorSuite {
     )
   }
 
-  test("should emit elements at given rate without dropping them") { implicit s =>
+  testScheduler("should emit elements at given rate without dropping them") { implicit s =>
     val lastElements = ListBuffer[Long]()
 
     val f = Observable

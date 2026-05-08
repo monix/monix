@@ -17,9 +17,9 @@
 
 package monix.execution.schedulers
 
+import monix.execution.MUnitFixtureSuite
 import java.util.concurrent._
 
-import minitest.TestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.SingleAssignCancelable
@@ -28,7 +28,7 @@ import monix.execution.{ ExecutionModel => ExecModel, Features, UncaughtExceptio
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Promise }
 
-object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
+class ScheduledExecutorToSchedulerSuite extends MUnitFixtureSuite[ExecutorScheduler] {
   val lastError = Atomic(null: Throwable)
 
   def setup(): ExecutorScheduler = {
@@ -79,7 +79,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
   test("scheduleOnce with delay lower than 1.milli") { implicit s =>
     val p = Promise[Int]()
     val _ = s.scheduleOnce(20.nanos) { p.success(1); () }
-    assert(Await.result(p.future, 3.seconds) == 1)
+    assertEquals(Await.result(p.future, 3.seconds), 1)
   }
 
   test("scheduleOnce with delay and cancel") { implicit s =>
@@ -110,7 +110,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
       }
     }
 
-    assert(Await.result(p.future, 5.second) == 4)
+    assertEquals(Await.result(p.future, 5.second), 4)
   }
 
   test("schedule at fixed rate") { implicit s =>
@@ -129,7 +129,7 @@ object ScheduledExecutorToSchedulerSuite extends TestSuite[ExecutorScheduler] {
       }
     }
 
-    assert(Await.result(p.future, 5.second) == 4)
+    assertEquals(Await.result(p.future, 5.second), 4)
   }
 
   test("execute local") { implicit s =>

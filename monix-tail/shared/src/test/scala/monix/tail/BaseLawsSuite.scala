@@ -18,9 +18,7 @@
 package monix.tail
 
 import cats.effect.laws.discipline.{ Parameters => EffectParameters }
-import minitest.SimpleTestSuite
-import minitest.api.IgnoredException
-import minitest.laws.Checkers
+import munit.DisciplineSuite
 import monix.execution.TestUtils
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
@@ -33,10 +31,12 @@ import scala.concurrent.duration._
 /** Just a marker for what we need to extend in the tests
   * of `monix-tail`.
   */
-trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstances with TestUtils {
+trait BaseLawsSuite extends DisciplineSuite with ArbitraryInstances with TestUtils {
+  override lazy val isCI: Boolean =
+    Platform.getEnv("CI").map(_.toLowerCase).contains("true")
 
-  override lazy val checkConfig: Parameters =
-    Parameters.default
+  override def scalaCheckTestParameters: Parameters =
+    super.scalaCheckTestParameters
       .withMinSuccessfulTests(if (Platform.isJVM) 100 else 10)
       .withMaxDiscardRatio(if (Platform.isJVM) 5.0f else 50.0f)
       .withMaxSize(24)
@@ -56,23 +56,18 @@ trait BaseLawsSuite extends SimpleTestSuite with Checkers with ArbitraryInstance
         1000
     })
 
-  def checkAllAsync(name: String, config: Parameters = checkConfig)(f: TestScheduler => Laws#RuleSet): Unit = {
+  def checkAllAsync(name: String, config: Parameters = super.scalaCheckTestParameters)(
+    f: TestScheduler => Laws#RuleSet
+  ): Unit = {
 
     val s = TestScheduler()
-    var catchErrors = true
-    try {
-      val ruleSet = f(s)
-      catchErrors = false
+    val ruleSet = f(s)
 
-      for ((id, prop: Prop) <- ruleSet.all.properties)
-        test(s"$name.$id") {
-          s.tick(1.day)
-          silenceSystemErr(check(prop, config))
-        }
-    } catch {
-      case e: IgnoredException if catchErrors =>
-        test(name) { throw e }
-    }
+    for ((id, prop: Prop) <- ruleSet.all.properties)
+      property(s"$name.$id") {
+        s.tick(1.day)
+        silenceSystemErr(prop)
+      }
   }
 
 //  val emptyRuleSet: Laws#RuleSet =

@@ -18,17 +18,10 @@
 package monix.eval
 import scala.annotation.nowarn
 
-import minitest.TestSuite
 import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.TestScheduler
 
 @nowarn
-object TaskCoevalForeachSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
-  }
-
+class TaskCoevalForeachSuite extends BaseTestSuite {
   test("Task.foreachL") { implicit s =>
     var effect = 0
     val task = Task.evalAsync(1).foreachL(x => effect += x)

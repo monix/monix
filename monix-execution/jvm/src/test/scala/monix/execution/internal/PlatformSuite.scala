@@ -17,9 +17,9 @@
 
 package monix.execution.internal
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 
-object PlatformSuite extends SimpleTestSuite {
+class PlatformSuite extends MUnitFunSuite {
   test("isJVM") {
     assert(Platform.isJVM, "isJVM")
     assert(!Platform.isJS, "!isJS")

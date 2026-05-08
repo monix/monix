@@ -19,17 +19,11 @@ package monix.eval
 
 import java.util.concurrent.CompletableFuture
 
-import minitest.TestSuite
 import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.TestScheduler
 
 import scala.util.{ Failure, Success }
 
-object TaskLikeConversionsJava8Suite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(env: TestScheduler): Unit =
-    assert(env.state.tasks.isEmpty, "There should be no tasks left!")
-
+class TaskLikeConversionsJava8Suite extends monix.execution.TestSchedulerSuite {
   test("convert from async CompletableFuture; on success") { implicit s =>
     val future = new CompletableFuture[Int]()
     val f = Task.from(future).runToFuture

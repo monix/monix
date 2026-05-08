@@ -25,7 +25,7 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object EchoRepeatedSuite extends BaseOperatorSuite {
+class EchoRepeatedSuite extends BaseOperatorSuite {
   def waitFirst = 1.second
   def waitNext = 1.second
 
@@ -61,7 +61,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     }
   }
 
-  test("should timeout on inactivity and start emitting") { implicit s =>
+  testScheduler("should timeout on inactivity and start emitting") { implicit s =>
     val channel = PublishSubject[Int]()
     var received = 0
     var wasCompleted = false
@@ -94,7 +94,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     assertEquals(wasCompleted, true)
   }
 
-  test("time for processing upstream messages should be ignored") { implicit s =>
+  testScheduler("time for processing upstream messages should be ignored") { implicit s =>
     val channel = PublishSubject[Int]()
     var received = 0
     var wasCompleted = false
@@ -115,7 +115,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
       })
 
     val ack = channel.onNext(1)
-    assert(ack != Continue)
+    assertNotEquals(ack, Continue)
     assertEquals(received, 1)
 
     // waiting the delayedResult
@@ -135,7 +135,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     assertEquals(wasCompleted, true)
   }
 
-  test("interval should be at fixed rate") { implicit s =>
+  testScheduler("interval should be at fixed rate") { implicit s =>
     val channel = PublishSubject[Int]()
     var received = 0
     var wasCompleted = false
@@ -169,7 +169,7 @@ object EchoRepeatedSuite extends BaseOperatorSuite {
     assertEquals(wasCompleted, true)
   }
 
-  test("new item should interrupt the streaming") { implicit s =>
+  testScheduler("new item should interrupt the streaming") { implicit s =>
     val channel = PublishSubject[Int]()
     var received = 0
     var wasCompleted = false

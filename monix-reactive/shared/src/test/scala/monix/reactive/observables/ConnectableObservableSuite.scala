@@ -17,7 +17,6 @@
 
 package monix.reactive.observables
 
-import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.subjects.ConcurrentSubject
@@ -25,13 +24,13 @@ import monix.reactive.{ Consumer, Observable }
 
 import scala.util.Success
 
-object ConnectableObservableSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
+class ConnectableObservableSuite extends monix.reactive.BaseTestSuite {
+  override def setup(): TestScheduler = TestScheduler()
+  override def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("should be consumed synchronously with foreach, consumeWith and subscribe") { implicit s =>
+  testScheduler("should be consumed synchronously with foreach, consumeWith and subscribe") { implicit s =>
     var foreachSum = 0
     var consumerSum = 0
     var subscribeSum = 0
@@ -52,7 +51,7 @@ object ConnectableObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(subscribeSum, 21)
   }
 
-  test("cacheUntilConnect") { implicit s =>
+  testScheduler("cacheUntilConnect") { implicit s =>
     val source = Observable(1, 2, 3, 4, 5, 6)
     val subject = ConcurrentSubject.replay[Int]
     val observable = ConnectableObservable.cacheUntilConnect(source, subject)

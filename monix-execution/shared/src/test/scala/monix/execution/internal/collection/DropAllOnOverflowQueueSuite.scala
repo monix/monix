@@ -17,12 +17,12 @@
 
 package monix.execution.internal.collection
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 import scala.annotation.nowarn
 import scala.collection.mutable.ListBuffer
 
 @nowarn("msg=The syntax `x: _\\*` is no longer supported for vararg splices; use `x\\*` instead")
-object DropAllOnOverflowQueueSuite extends SimpleTestSuite {
+class DropAllOnOverflowQueueSuite extends MUnitFunSuite {
   test("should not accept null values") {
     val q = DropAllOnOverflowQueue[String](100)
     val _ = intercept[NullPointerException] {

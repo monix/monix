@@ -19,7 +19,6 @@ package monix.reactive.observers
 
 import java.util.concurrent.{ CountDownLatch, TimeUnit }
 
-import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.SchedulerService
 import monix.execution.{ Ack, Scheduler }
@@ -30,19 +29,12 @@ import scala.concurrent.duration._
 import scala.concurrent.{ blocking, Await, Future, Promise }
 import scala.util.Random
 
-object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerService] {
-  def setup() = {
+class OverflowStrategyUnboundedConcurrencySuite extends monix.execution.SchedulerServiceSuite {
+  def createSchedulerService() = {
     Scheduler.computation(parallelism = 4, name = "for-testing")
   }
 
-  def tearDown(env: SchedulerService) = {
-    env.shutdown()
-    blocking {
-      assert(env.awaitTermination(10.seconds), "env.awaitTermination")
-    }
-  }
-
-  test("merge test should work") { implicit s =>
+  testService("merge test should work") { implicit s =>
     val num = 200000L
     val source = Observable.repeat(1L).take(num)
     val o1 = source.map(_ + 2)
@@ -59,7 +51,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     assertEquals(result, Some(num * 3 + num * 4 + num * 5))
   }
 
-  test("should not lose events with sync subscriber, test 1") { implicit s =>
+  testService("should not lose events with sync subscriber, test 1") { implicit s =>
     var number = 0
     val completed = new CountDownLatch(1)
 
@@ -88,7 +80,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should not lose events with sync subscriber, test 2") { implicit s =>
+  testService("should not lose events with sync subscriber, test 2") { implicit s =>
     var number = 0
     val completed = new CountDownLatch(1)
 
@@ -122,7 +114,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should not lose events with async subscriber from one publisher") { implicit s =>
+  testService("should not lose events with async subscriber from one publisher") { implicit s =>
     // Repeating because of possible problems
     for (_ <- 0 until 100) {
       val completed = new CountDownLatch(1)
@@ -170,7 +162,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should not lose events with async subscriber from multiple publishers") { implicit s =>
+  testService("should not lose events with async subscriber from multiple publishers") { implicit s =>
     val completed = new CountDownLatch(1)
     val total = 1000000L
     var sum = 0L
@@ -218,7 +210,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should send onError when empty") { implicit s =>
+  testService("should send onError when empty") { implicit s =>
     val latch = new CountDownLatch(1)
     val underlying = new Observer[Int] {
       def onError(ex: Throwable) = {
@@ -237,7 +229,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should send onError when in flight") { implicit s =>
+  testService("should send onError when in flight") { implicit s =>
     val latch = new CountDownLatch(1)
     val underlying = new Observer[Int] {
       def onError(ex: Throwable) = {
@@ -257,7 +249,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should send onComplete when empty") { implicit s =>
+  testService("should send onComplete when empty") { implicit s =>
     val latch = new CountDownLatch(1)
     val underlying = new Observer[Int] {
       def onError(ex: Throwable) = throw new IllegalStateException()
@@ -273,7 +265,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should not back-pressure onComplete") { implicit s =>
+  testService("should not back-pressure onComplete") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
     val underlying = new Observer[Int] {
@@ -291,7 +283,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should do onComplete only after all the queue was drained") { implicit s =>
+  testService("should do onComplete only after all the queue was drained") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue.type]()
@@ -312,11 +304,11 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
 
     blocking {
       assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
-      assert(sum == (0 until 9999).sum)
+      assertEquals(sum, (0 until 9999).sum)
     }
   }
 
-  test("should do onComplete only after all the queue was drained, test2") { implicit s =>
+  testService("should do onComplete only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
     val underlying = new Observer[Long] {
@@ -335,11 +327,11 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
 
     blocking {
       assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
-      assert(sum == (0 until 9999).sum)
+      assertEquals(sum, (0 until 9999).sum)
     }
   }
 
-  test("should do onError only after the queue was drained") { implicit s =>
+  testService("should do onError only after the queue was drained") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue.type]()
@@ -365,7 +357,7 @@ object OverflowStrategyUnboundedConcurrencySuite extends TestSuite[SchedulerServ
     }
   }
 
-  test("should do onError only after all the queue was drained, test2") { implicit s =>
+  testService("should do onError only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
 

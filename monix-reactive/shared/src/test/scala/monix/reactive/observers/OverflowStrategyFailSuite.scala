@@ -17,7 +17,6 @@
 
 package monix.reactive.observers
 
-import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.exceptions.BufferOverflowException
@@ -29,13 +28,13 @@ import monix.execution.exceptions.DummyException
 
 import scala.concurrent.{ Future, Promise }
 
-object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+class OverflowStrategyFailSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("should not lose events, test 1") { implicit s =>
+  testScheduler("should not lose events, test 1") { implicit s =>
     var number = 0
     var wasCompleted = false
 
@@ -60,11 +59,11 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
 
     assert(!wasCompleted)
     s.tick()
-    assert(number == 1000)
+    assertEquals(number, 1000)
     assert(wasCompleted)
   }
 
-  test("should not lose events, test 2") { implicit s =>
+  testScheduler("should not lose events, test 2") { implicit s =>
     var number = 0
     var completed = false
 
@@ -102,7 +101,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(number, 10000)
   }
 
-  test("should trigger overflow when over capacity") { implicit s =>
+  testScheduler("should trigger overflow when over capacity") { implicit s =>
     var errorCaught: Throwable = null
     var received = 0
     val promise = Promise[Ack]()
@@ -128,17 +127,17 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assertEquals(received, 1)
-    assert(errorCaught == null, "errorCaught == null")
+    assertEquals(errorCaught, null, clue("errorCaught == null"))
 
     buffer.onNext(8)
     promise.success(Continue)
     s.tick()
 
     assertEquals(received, 8)
-    assert(errorCaught != null && errorCaught.isInstanceOf[BufferOverflowException])
+    assertMatches(errorCaught) { case _: BufferOverflowException => true }
   }
 
-  test("should send onError when empty") { implicit s =>
+  testScheduler("should send onError when empty") { implicit s =>
     var errorThrown: Throwable = null
     val buffer = BufferedSubscriber[Int](
       new Subscriber[Int] {
@@ -161,7 +160,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(r, Stop)
   }
 
-  test("should send onError when in flight") { implicit s =>
+  testScheduler("should send onError when in flight") { implicit s =>
     var errorThrown: Throwable = null
     val buffer = BufferedSubscriber[Int](
       new Subscriber[Int] {
@@ -182,7 +181,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  test("should send onError when at capacity") { implicit s =>
+  testScheduler("should send onError when at capacity") { implicit s =>
     var errorThrown: Throwable = null
     val promise = Promise[Ack]()
 
@@ -211,7 +210,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  test("should send onComplete when empty") { implicit s =>
+  testScheduler("should send onComplete when empty") { implicit s =>
     var wasCompleted = false
     val buffer = BufferedSubscriber[Int](
       new Subscriber[Int] {
@@ -228,7 +227,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("should not back-pressure onComplete") { implicit s =>
+  testScheduler("should not back-pressure onComplete") { implicit s =>
     var wasCompleted = 0
     val promise = Promise[Ack]()
     val buffer = BufferedSubscriber[Int](
@@ -251,7 +250,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 1)
   }
 
-  test("should send onComplete when at capacity") { implicit s =>
+  testScheduler("should send onComplete when at capacity") { implicit s =>
     var wasCompleted = false
     val promise = Promise[Ack]()
     val buffer = BufferedSubscriber[Int](
@@ -278,7 +277,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("should do onComplete only after all the queue was drained") { implicit s =>
+  testScheduler("should do onComplete only after all the queue was drained") { implicit s =>
     var sum = 0L
     var wasCompleted = false
     val startConsuming = Promise[Continue.type]()
@@ -302,10 +301,10 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assert(wasCompleted)
-    assert(sum == (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum)
   }
 
-  test("should do onComplete only after all the queue was drained, test2") { implicit s =>
+  testScheduler("should do onComplete only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     var wasCompleted = false
 
@@ -327,10 +326,10 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     s.tick()
 
     assert(wasCompleted)
-    assert(sum == (0 until 9999).sum)
+    assertEquals(sum, (0 until 9999).sum)
   }
 
-  test("should do onError only after the queue was drained") { implicit s =>
+  testScheduler("should do onError only after the queue was drained") { implicit s =>
     var sum = 0L
     var errorThrown: Throwable = null
     val startConsuming = Promise[Continue.type]()
@@ -358,7 +357,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
-  test("should do onError only after all the queue was drained, test2") { implicit s =>
+  testScheduler("should do onError only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     var errorThrown: Throwable = null
 
@@ -383,7 +382,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
-  test("should do synchronous execution in batches") { implicit s =>
+  testScheduler("should do synchronous execution in batches") { implicit s =>
     var received = 0L
     var wasCompleted = false
 
@@ -412,7 +411,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, true)
   }
 
-  test("underlying subscriber should be able to stop precisely, sync, test #1") { implicit s =>
+  testScheduler("underlying subscriber should be able to stop precisely, sync, test #1") { implicit s =>
     var wasCompleted = false
     var sum = 0L
 
@@ -439,7 +438,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, 55)
   }
 
-  test("underlying subscriber should be able to stop precisely, sync, test #2") { implicit s =>
+  testScheduler("underlying subscriber should be able to stop precisely, sync, test #2") { implicit s =>
     var wasCompleted = false
     var sum = 0L
 
@@ -465,7 +464,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, 55)
   }
 
-  test("underlying subscriber should be able to stop precisely, async, test #1") { implicit s =>
+  testScheduler("underlying subscriber should be able to stop precisely, async, test #1") { implicit s =>
     var wasCompleted = false
     var sum = 0L
 
@@ -492,7 +491,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, 55)
   }
 
-  test("underlying subscriber should be able to stop precisely, async, test #2") { implicit s =>
+  testScheduler("underlying subscriber should be able to stop precisely, async, test #2") { implicit s =>
     var wasCompleted = false
     var sum = 0L
 
@@ -518,7 +517,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, 55)
   }
 
-  test("subscriber STOP after a synchronous onNext") { implicit s =>
+  testScheduler("subscriber STOP after a synchronous onNext") { implicit s =>
     var received = 0
     var wasCompleted = false
     val underlying = new Subscriber[Int] {
@@ -546,7 +545,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 1)
   }
 
-  test("subscriber STOP after an asynchronous onNext") { implicit s =>
+  testScheduler("subscriber STOP after an asynchronous onNext") { implicit s =>
     var received = 0
     var wasCompleted = false
     val underlying = new Subscriber[Int] {
@@ -577,7 +576,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 1)
   }
 
-  test("stop after a synchronous Failure(ex)") { implicit s =>
+  testScheduler("stop after a synchronous Failure(ex)") { implicit s =>
     var received = 0
     var wasCompleted = false
     var errorThrown: Throwable = null
@@ -609,7 +608,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, dummy)
   }
 
-  test("stop after an asynchronous Failure(ex)") { implicit s =>
+  testScheduler("stop after an asynchronous Failure(ex)") { implicit s =>
     var received = 0
     var wasCompleted = false
     var errorThrown: Throwable = null
@@ -642,7 +641,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, dummy)
   }
 
-  test("should protect against user-code in onNext") { implicit s =>
+  testScheduler("should protect against user-code in onNext") { implicit s =>
     var received = 0
     var wasCompleted = false
     var errorThrown: Throwable = null
@@ -674,7 +673,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, dummy)
   }
 
-  test("should protect against user-code in onComplete") { implicit s =>
+  testScheduler("should protect against user-code in onComplete") { implicit s =>
     var received = 0
     var errorThrown: Throwable = null
     val dummy = new RuntimeException("dummy")
@@ -704,7 +703,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("should protect against user-code in onError") { implicit s =>
+  testScheduler("should protect against user-code in onError") { implicit s =>
     var received = 0
     var errorThrown: Throwable = null
 
@@ -737,7 +736,7 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     assertEquals(s.state.lastReportedError, dummy2)
   }
 
-  test("streaming null is not allowed") { implicit s =>
+  testScheduler("streaming null is not allowed") { implicit s =>
     var errorThrown: Throwable = null
 
     val underlying = new Subscriber[String] {
@@ -754,11 +753,11 @@ object OverflowStrategyFailSuite extends TestSuite[TestScheduler] {
     buffer.onNext(null)
 
     s.tick()
-    assert(errorThrown != null, "errorThrown != null")
+    assertNotEquals(errorThrown, null, clue("errorThrown != null"))
     assert(errorThrown.isInstanceOf[NullPointerException], "errorThrown.isInstanceOf[NullPointerException]")
   }
 
-  test("buffer size is required to be greater than 1") { implicit s =>
+  testScheduler("buffer size is required to be greater than 1") { implicit s =>
     intercept[IllegalArgumentException] {
       BufferedSubscriber[Int](Subscriber.empty[Int], Fail(1))
       ()

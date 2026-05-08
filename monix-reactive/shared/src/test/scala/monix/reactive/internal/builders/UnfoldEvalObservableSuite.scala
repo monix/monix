@@ -30,9 +30,9 @@ import monix.reactive.{ BaseTestSuite, Observable }
 
 import scala.concurrent.duration.MILLISECONDS
 
-object UnfoldEvalObservableSuite extends BaseTestSuite {
+class UnfoldEvalObservableSuite extends monix.reactive.BaseTestSuite {
 
-  test("unfoldEval should be exception-proof") { implicit s =>
+  testScheduler("unfoldEval should be exception-proof") { implicit s =>
     val dummy = DummyException("dummy")
     var received = 0
 
@@ -45,19 +45,21 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("unfoldEval and fromAsyncStateAction results should be equal given generated inputs") { implicit s =>
-    check2 { (s: Int, i: Int) =>
-      val seed = s % (recommendedBatchSize * 2)
+  testScheduler("unfoldEval and fromAsyncStateAction results should be equal given generated inputs") { implicit s =>
+    check2 { (start: Int, i: Int) =>
+      val seed = start % (recommendedBatchSize * 2)
       val n = i % (recommendedBatchSize * 2)
 
       val f: Int => Task[Option[(Int, Int)]] = i => if (i < n) Task.delay(Some((i, i + 1))) else Task.now(None)
       val f2: Int => Task[(Int, Int)] = i => Task.delay((i, i + 1))
 
-      Observable.unfoldEval(seed)(f).toListL <-> Observable.fromAsyncStateAction(f2)(seed).takeWhile(_ < n).toListL
+      isEqToProp(
+        Observable.unfoldEval(seed)(f).toListL <-> Observable.fromAsyncStateAction(f2)(seed).takeWhile(_ < n).toListL
+      )
     }
   }
 
-  test("unfoldEval should be cancelable") { implicit s =>
+  testScheduler("unfoldEval should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -84,7 +86,7 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     assert(!wasCompleted)
   }
 
-  test("unfoldEvalF should be exception-proof") { implicit s =>
+  testScheduler("unfoldEvalF should be exception-proof") { implicit s =>
     val dummy = DummyException("dummy")
     var received = 0
 
@@ -97,19 +99,21 @@ object UnfoldEvalObservableSuite extends BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  test("unfoldEvalF and fromAsyncStateActionF results should be equal given generated inputs") { implicit s =>
-    check2 { (s: Int, i: Int) =>
-      val seed = s % (recommendedBatchSize * 2)
+  testScheduler("unfoldEvalF and fromAsyncStateActionF results should be equal given generated inputs") { implicit s =>
+    check2 { (start: Int, i: Int) =>
+      val seed = start % (recommendedBatchSize * 2)
       val n = i % (recommendedBatchSize * 2)
 
       val f: Int => IO[Option[(Int, Int)]] = i => if (i < n) IO.delay(Some((i, i + 1))) else IO.pure(None)
       val f2: Int => IO[(Int, Int)] = i => IO.delay((i, i + 1))
 
-      Observable.unfoldEvalF(seed)(f).toListL <-> Observable.fromAsyncStateActionF(f2)(seed).takeWhile(_ < n).toListL
+      isEqToProp(
+        Observable.unfoldEvalF(seed)(f).toListL <-> Observable.fromAsyncStateActionF(f2)(seed).takeWhile(_ < n).toListL
+      )
     }
   }
 
-  test("unfoldEvalF should be cancelable") { implicit s =>
+  testScheduler("unfoldEvalF should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 

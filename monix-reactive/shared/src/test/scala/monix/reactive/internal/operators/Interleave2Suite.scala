@@ -26,7 +26,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 
-object Interleave2Suite extends BaseOperatorSuite {
+class Interleave2Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Option {
     val source = Observable.range(0L, sourceCount.toLong)
     val o = source.interleave(source)
@@ -49,7 +49,7 @@ object Interleave2Suite extends BaseOperatorSuite {
     Seq(Sample(sample1, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("self starts before other and finishes before other") { implicit s =>
+  testScheduler("self starts before other and finishes before other") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -76,7 +76,7 @@ object Interleave2Suite extends BaseOperatorSuite {
     obs2.onNext(4); s.tick()
     assertEquals(received, Vector(1, 2))
     obs1.onNext(3); s.tick()
-    assert(received == Vector(1, 2, 3) || received == Vector(1, 2, 3, 4))
+    assertMatches(received) { case Vector(1, 2, 3) | Vector(1, 2, 3, 4) => true }
 
     obs1.onComplete()
     s.tick()
@@ -86,7 +86,7 @@ object Interleave2Suite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("self signals error and interrupts the stream before it starts") { implicit s =>
+  testScheduler("self signals error and interrupts the stream before it starts") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -112,7 +112,7 @@ object Interleave2Suite extends BaseOperatorSuite {
     assert(wasCanceled)
   }
 
-  test("other signals error and interrupts the stream before it starts") { implicit s =>
+  testScheduler("other signals error and interrupts the stream before it starts") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -137,7 +137,7 @@ object Interleave2Suite extends BaseOperatorSuite {
     assert(wasCanceled)
   }
 
-  test("should not back-pressure self.onError") { implicit s =>
+  testScheduler("should not back-pressure self.onError") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -162,7 +162,7 @@ object Interleave2Suite extends BaseOperatorSuite {
     s.tick(2.second)
   }
 
-  test("should not back-pressure other.onError") { implicit s =>
+  testScheduler("should not back-pressure other.onError") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 

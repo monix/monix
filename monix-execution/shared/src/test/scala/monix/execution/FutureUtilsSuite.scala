@@ -17,7 +17,6 @@
 
 package monix.execution
 
-import minitest.TestSuite
 import monix.execution.FutureUtils.extensions._
 import monix.execution.schedulers.TestScheduler
 
@@ -25,7 +24,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ Future, TimeoutException }
 import scala.util.{ Failure, Success, Try }
 
-object FutureUtilsSuite extends TestSuite[TestScheduler] {
+class FutureUtilsSuite extends MUnitFixtureSuite[TestScheduler] {
   def setup() = TestScheduler()
 
   def tearDown(env: TestScheduler): Unit = {
@@ -39,7 +38,7 @@ object FutureUtilsSuite extends TestSuite[TestScheduler] {
     assert(!f.isCompleted)
 
     s.tick(100.millis)
-    assert(f.value.get.get == "TICK")
+    assertEquals(f.value.get.get, "TICK")
   }
 
   test("timeout should succeed") { implicit s =>

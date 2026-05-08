@@ -18,7 +18,6 @@
 package monix.reactive
 package issues
 
-import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.{ Scheduler, UncaughtExceptionReporter }
 import monix.execution.schedulers.SchedulerService
@@ -28,11 +27,11 @@ import scala.concurrent.{ Await, TimeoutException }
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object Issue908Suite extends TestSuite[SchedulerService] {
+class Issue908Suite extends monix.execution.SchedulerServiceSuite {
   val CONCURRENT_TASKS = 1000
   val CYCLES = 100
 
-  def setup(): SchedulerService = {
+  def createSchedulerService(): SchedulerService = {
     Scheduler.computation(
       parallelism = math.max(Runtime.getRuntime.availableProcessors(), 2),
       name = "issue908-suite",
@@ -41,12 +40,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
     )
   }
 
-  def tearDown(env: SchedulerService): Unit = {
-    env.shutdown()
-    assert(env.awaitTermination(1.minute), "scheduler.awaitTermination")
-  }
-
-  test("broken tasks test (1)") { implicit sc =>
+  testService("broken tasks test (1)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val task = Task.async[String] { cb =>
         sc.execute(() => cb.onSuccess("1"))
@@ -56,14 +50,14 @@ object Issue908Suite extends TestSuite[SchedulerService] {
       val f = Task.race(task, task).runToFuture
       val r = Await.result(f, 30.seconds)
 
-      assert(r != null, "r != null")
+      assertNotEquals(r, null, clue("r != null"))
       assert(r.isInstanceOf[Either[_, _]], "r.isInstanceOf[Either[_, _]]")
       val i = r.fold(x => x, x => x)
-      assert(i == "1" || i == "2", s"$i == 1 || $i == 2")
+      assertMatches(i) { case "1" | "2" => true }
     }
   }
 
-  test("broken tasks test (2)") { implicit sc =>
+  testService("broken tasks test (2)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val task = Task.async[String] { cb =>
         sc.execute(() => cb.onSuccess("1"))
@@ -73,11 +67,11 @@ object Issue908Suite extends TestSuite[SchedulerService] {
       val f = Task.raceMany((0 until CONCURRENT_TASKS).map(_ => task)).runToFuture
       val r = Await.result(f, 30.seconds)
 
-      assert(r == "1" || r == "2", s"$r == 1 || $r == 2")
+      assertMatches(r) { case "1" | "2" => true }
     }
   }
 
-  test("broken tasks test (3)") { implicit sc =>
+  testService("broken tasks test (3)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val task = Task.async[String] { cb =>
         sc.execute(() => cb.onSuccess("1"))
@@ -94,7 +88,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
     }
   }
 
-  test("concurrent test (1)") { implicit sc =>
+  testService("concurrent test (1)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val subject = AsyncSubject.apply[Int]()
 
@@ -109,7 +103,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
     }
   }
 
-  test("concurrent test (2)") { implicit sc =>
+  testService("concurrent test (2)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val subject = AsyncSubject.apply[Int]()
 

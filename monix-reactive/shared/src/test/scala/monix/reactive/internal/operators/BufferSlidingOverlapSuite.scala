@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import monix.reactive.Observable
 import scala.concurrent.duration._
 
-object BufferSlidingOverlapSuite extends BaseOperatorSuite {
+class BufferSlidingOverlapSuite extends BaseOperatorSuite {
   val waitNext = Duration.Zero
   val waitFirst = Duration.Zero
 

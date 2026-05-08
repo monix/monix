@@ -26,7 +26,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration.Zero
 import scala.concurrent.duration._
 
-object Zip2Suite extends BaseOperatorSuite {
+class Zip2Suite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o1 = Observable.range(0L, sourceCount.toLong)
     val o2 = Observable.range(0, sourceCount.toLong + 2)
@@ -71,7 +71,7 @@ object Zip2Suite extends BaseOperatorSuite {
     Seq(Sample(sample1, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("self starts before other and finishes before other") { implicit s =>
+  testScheduler("self starts before other and finishes before other") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -105,7 +105,7 @@ object Zip2Suite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("self signals error and interrupts the stream before it starts") { implicit s =>
+  testScheduler("self signals error and interrupts the stream before it starts") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -131,7 +131,7 @@ object Zip2Suite extends BaseOperatorSuite {
     assert(wasCanceled)
   }
 
-  test("other signals error and interrupts the stream before it starts") { implicit s =>
+  testScheduler("other signals error and interrupts the stream before it starts") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -156,7 +156,7 @@ object Zip2Suite extends BaseOperatorSuite {
     assert(wasCanceled)
   }
 
-  test("should not back-pressure self.onError") { implicit s =>
+  testScheduler("should not back-pressure self.onError") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -181,7 +181,7 @@ object Zip2Suite extends BaseOperatorSuite {
     s.tick(1.second)
   }
 
-  test("should not back-pressure other.onError") { implicit s =>
+  testScheduler("should not back-pressure other.onError") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 

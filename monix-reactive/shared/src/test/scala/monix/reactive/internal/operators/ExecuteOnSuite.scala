@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.{ Ack, Scheduler }
@@ -28,13 +27,13 @@ import monix.reactive.observers.Subscriber
 
 import scala.concurrent.Future
 
-object ExecuteOnSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+class ExecuteOnSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
-  test("it works") { implicit s =>
+  testScheduler("it works") { implicit s =>
     val other = TestScheduler()
     val nr = s.executionModel.recommendedBatchSize * 2
     val expectedSum = nr.toLong * (nr - 1) / 2

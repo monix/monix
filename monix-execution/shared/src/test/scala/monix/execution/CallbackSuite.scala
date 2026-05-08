@@ -17,14 +17,13 @@
 
 package monix.execution
 
-import minitest.TestSuite
 import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, DummyException }
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.Promise
 import scala.util.{ Failure, Success, Try }
 
-object CallbackSuite extends TestSuite[TestScheduler] {
+class CallbackSuite extends MUnitFixtureSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")

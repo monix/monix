@@ -17,19 +17,7 @@
 
 package monix.execution
 
-import monix.execution.Ack.{ Continue, Stop }
+import munit.FunSuite
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
-
-class AckJVMSuite extends MUnitFunSuite {
-  test("blocks on Continue") {
-    Await.ready(Continue, Duration.Inf)
-    assertEquals(Await.result(Continue, Duration.Inf), Continue)
-  }
-
-  test("blocks on Stop") {
-    Await.ready(Stop, Duration.Inf)
-    assertEquals(Await.result(Stop, Duration.Inf), Stop)
-  }
-}
+/** Base trait for MUnit-based atomic test suites. */
+trait MUnitFunSuite extends FunSuite

@@ -18,14 +18,14 @@
 package monix.catnap
 
 import java.util.concurrent.Executors
-import minitest.SimpleTestSuite
 import cats.effect.IO
 import cats.implicits._
+import monix.execution.MUnitFunSuite
 import monix.execution.atomic.Atomic
 import scala.concurrent.{ CancellationException, ExecutionContext }
 import scala.concurrent.duration._
 
-object CatsEffectIssue380Suite extends SimpleTestSuite {
+class CatsEffectIssue380Suite extends MUnitFunSuite {
   test("MVar does not block on put — typelevel/cats-effect#380") {
     val service = Executors.newSingleThreadScheduledExecutor()
     implicit val ec = ExecutionContext.global

@@ -17,17 +17,21 @@
 
 package monix.execution.schedulers
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 import monix.execution.{ ExecutionModel, Scheduler, UncaughtExceptionReporter }
 
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicInteger }
 import scala.concurrent.blocking
 import scala.util.control.NoStackTrace
 
-object TrampolineExecutionContextSuite extends SimpleTestSuite {
-  private val DoNothing = () => ()
-
+object TrampolineExecutionContextSuite {
   final class TestException extends NoStackTrace
+}
+
+class TrampolineExecutionContextSuite extends MUnitFunSuite {
+  import TrampolineExecutionContextSuite.TestException
+
+  private val DoNothing = () => ()
 
   test("TrampolineExecutionContext.immediate works") {
     val ctx = TrampolineExecutionContext.immediate

@@ -38,10 +38,10 @@ object TaskConnectionRefSuite extends BaseTestSuite {
 
     cr.cancel.runAsyncAndForget; s.tick()
     assert(b.isCanceled, "b.isCanceled")
-    assert(effect == 1)
+    assertEquals(effect, 1)
 
     cr.cancel.runAsyncAndForget; s.tick()
-    assert(effect == 1)
+    assertEquals(effect, 1)
   }
 
   test("assign and cancel a CancelableF") { implicit s =>
@@ -53,7 +53,7 @@ object TaskConnectionRefSuite extends BaseTestSuite {
     assertEquals(effect, 0)
 
     cr.cancel.runAsyncAndForget; s.tick()
-    assert(effect == 1)
+    assertEquals(effect, 1)
   }
 
   test("assign and cancel a CancelToken[Task]") { implicit s =>

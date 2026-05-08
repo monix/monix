@@ -18,7 +18,6 @@
 package monix.reactive.internal.builders
 
 import cats.effect.Resource
-import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.APIContractViolationException
@@ -30,13 +29,13 @@ import monix.reactive.observers.Subscriber
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+class IteratorAsObservableSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
-  test("yields a single subscriber observable") { implicit s =>
+  testScheduler("yields a single subscriber observable") { implicit s =>
     var errorThrown: Throwable = null
     val obs = Observable.fromIteratorUnsafe(Seq(1, 2, 3).iterator)
     obs.unsafeSubscribeFn(Subscriber.empty(s))
@@ -55,7 +54,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assert(errorThrown.isInstanceOf[APIContractViolationException])
   }
 
-  test("fromIterator(resource) should call finalizer") { implicit s =>
+  testScheduler("fromIterator(resource) should call finalizer") { implicit s =>
     var onFinishCalled = 0
     var onCompleteCalled = 0
     var sum = 0
@@ -85,7 +84,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, n * (n - 1) / 2)
   }
 
-  test("fromIterator(resource) should back-pressure onNext before calling finalizer") { implicit s =>
+  testScheduler("fromIterator(resource) should back-pressure onNext before calling finalizer") { implicit s =>
     var onFinishCalled = 0
     var onCompleteCalled = 0
     var sum = 0
@@ -111,7 +110,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(onFinishCalled, 1)
   }
 
-  test("onFinish should be called upon onError") { implicit s =>
+  testScheduler("onFinish should be called upon onError") { implicit s =>
     val ex = DummyException("dummy")
     var onFinishCalled = 0
     var onErrorCalled: Throwable = null
@@ -139,7 +138,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(onFinishCalled, 1)
   }
 
-  test("onFinish should be called upon Stop") { implicit s =>
+  testScheduler("onFinish should be called upon Stop") { implicit s =>
     var onFinishCalled = 0
     var onCompleteCalled = 0
     var sum = 0
@@ -165,7 +164,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(onFinishCalled, 1)
   }
 
-  test("onFinish should be called upon subscription cancel") { implicit s =>
+  testScheduler("onFinish should be called upon subscription cancel") { implicit s =>
     var onFinishCalled = 0
     var onCompleteCalled = 0
     var received = 0
@@ -191,7 +190,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(onFinishCalled, 1)
   }
 
-  test("onFinish should be called if onNext triggers error before boundary") { implicit s =>
+  testScheduler("onFinish should be called if onNext triggers error before boundary") { implicit s =>
     val ex = DummyException("dummy")
     var onFinishCalled = 0
     var received = 0
@@ -222,7 +221,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(wasThrown, ex)
   }
 
-  test("onFinish should be called if onNext triggers error after boundary") { implicit s =>
+  testScheduler("onFinish should be called if onNext triggers error after boundary") { implicit s =>
     val ex = DummyException("dummy")
     var onFinishCalled = 0
     var received = 0
@@ -253,7 +252,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(wasThrown, ex)
   }
 
-  test("onFinish should be called if onNext triggers error asynchronously") { implicit s =>
+  testScheduler("onFinish should be called if onNext triggers error asynchronously") { implicit s =>
     val ex = DummyException("dummy")
     var onFinishCalled = 0
     var received = 0
@@ -286,7 +285,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(wasThrown, ex)
   }
 
-  test("onFinish throwing just before onComplete") { implicit s =>
+  testScheduler("onFinish throwing just before onComplete") { implicit s =>
     val ex = DummyException("ex")
     var wasThrown: Throwable = null
     var sum = 0
@@ -318,7 +317,7 @@ object IteratorAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(sum, n * (n - 1) / 2)
   }
 
-  test("onFinish throwing after Stop") { implicit s =>
+  testScheduler("onFinish throwing after Stop") { implicit s =>
     val ex = DummyException("ex")
     var onCompleteCalled = 0
     var received = 0

@@ -19,14 +19,13 @@ package monix.execution
 
 import java.util.concurrent.{ CompletableFuture, CompletionException }
 
-import minitest.TestSuite
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Failure, Success }
 
-object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
+class CompletableFutureConversionsSuite extends MUnitFixtureSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
@@ -62,13 +61,10 @@ object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
     val ef = Future.failed[Int](dummy)
     val ecf = FutureUtils.toJavaCompletable(ef)
     val _ = s.tickOne()
-    try {
+    val ex = intercept[CompletionException] {
       ecf.getNow(-1)
-      fail("Should throw an error")
-    } catch {
-      case ex: CompletionException =>
-        assertEquals(ex.getCause, dummy)
     }
+    assertEquals(ex.getCause, dummy)
   }
 
   test("CancelableFuture.fromJavaCompletable should work for success") { implicit s =>
@@ -113,13 +109,10 @@ object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
     p.failure(dummy)
 
     s.tick()
-    try {
+    val ex = intercept[CompletionException] {
       f.getNow(-1)
-      fail("should throw")
-    } catch {
-      case ex: CompletionException =>
-        assertEquals(ex.getCause, dummy)
     }
+    assertEquals(ex.getCause, dummy)
   }
 
   test("CancelableFuture.toJavaCompletable should be cancelable") { implicit s =>

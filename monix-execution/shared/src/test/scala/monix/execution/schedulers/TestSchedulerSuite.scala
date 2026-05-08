@@ -17,9 +17,9 @@
 
 package monix.execution.schedulers
 
+import monix.execution.MUnitFixtureSuite
 import java.util.concurrent.{ TimeUnit, TimeoutException }
 
-import minitest.TestSuite
 import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
@@ -28,7 +28,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Success, Try }
 
-object TestSchedulerSuite extends TestSuite[TestScheduler] {
+class TestSchedulerSuite extends MUnitFixtureSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit = {
     assert(env.state.tasks.isEmpty)
@@ -56,7 +56,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
         }
       }
 
-      assert(iterations == 0)
+      assertEquals(iterations, 0)
       iterations += 1
 
       s.execute { () =>
@@ -67,9 +67,9 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
       }
     }
 
-    assert(iterations == 0)
+    assertEquals(iterations, 0)
     s.tick()
-    assert(iterations == 5)
+    assertEquals(iterations, 5)
   }
 
   test("should schedule stuff in the future") { s =>
@@ -111,19 +111,24 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     )
 
     s.tick()
-    assert(firstBatch == 0 && secondBatch == 0)
+    assertEquals(firstBatch, 0)
+    assertEquals(secondBatch, 0)
 
     s.tick(9.seconds)
-    assert(firstBatch == 0 && secondBatch == 0)
+    assertEquals(firstBatch, 0)
+    assertEquals(secondBatch, 0)
 
     s.tick(1.second)
-    assert(firstBatch == 2 && secondBatch == 0)
+    assertEquals(firstBatch, 2)
+    assertEquals(secondBatch, 0)
 
     s.tick(10.seconds)
-    assert(firstBatch == 3 && secondBatch == 2)
+    assertEquals(firstBatch, 3)
+    assertEquals(secondBatch, 2)
 
     s.tick(10.seconds)
-    assert(firstBatch == 3 && secondBatch == 3)
+    assertEquals(firstBatch, 3)
+    assertEquals(secondBatch, 3)
   }
 
   test("should work correctly for ticks spanning several tasks, test 1") { implicit s =>
@@ -189,7 +194,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
 
     s.tick(250.millis)
 
-    assert(counter == 5)
+    assertEquals(counter, 5)
     assert(s.state.tasks.isEmpty)
   }
 
@@ -217,7 +222,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     }
 
     for (_ <- 0 until 250) s.tick(1.milli)
-    assert(counter == 5)
+    assertEquals(counter, 5)
     assert(s.state.tasks.isEmpty)
   }
 
@@ -227,7 +232,7 @@ object TestSchedulerSuite extends TestSuite[TestScheduler] {
     s.tick()
 
     val expected = 0 until 1000
-    assert(seq != expected)
+    assertNotEquals(seq, expected)
     assertEquals(seq.sum, expected.sum)
   }
 

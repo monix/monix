@@ -17,11 +17,11 @@
 
 package monix.execution.internal.collection
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 
 import scala.collection.immutable.Queue
 
-object ChunkedArrayQueueSuite extends SimpleTestSuite {
+class ChunkedArrayQueueSuite extends MUnitFunSuite {
   test("enqueue and dequeue 8 items") {
     val queue = ChunkedArrayQueue[Int](chunkSize = 8)
     var times = 0

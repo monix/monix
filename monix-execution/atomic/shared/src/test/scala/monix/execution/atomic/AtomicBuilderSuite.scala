@@ -17,9 +17,9 @@
 
 package monix.execution.atomic
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 
-object AtomicBuilderSuite extends SimpleTestSuite {
+class AtomicBuilderSuite extends MUnitFunSuite {
   test("initialize AtomicChar") {
     val ref = Atomic('a')
     assertEquals(ref.get(), 'a')

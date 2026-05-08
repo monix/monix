@@ -19,18 +19,14 @@ package monix.catnap
 
 import java.util.concurrent.CompletableFuture
 import cats.effect.{ Async, Concurrent, ContextShift, IO }
-import minitest.TestSuite
 import monix.catnap.syntax._
+import monix.execution.TestSchedulerSuite
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 
-object FutureLiftJava8Suite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(env: TestScheduler): Unit =
-    assert(env.state.tasks.isEmpty, "There should be no tasks left!")
-
+class FutureLiftJava8Suite extends TestSchedulerSuite {
   test("convert from async CompletableFuture; on success; with Async[IO]") { implicit s =>
     val future = new CompletableFuture[Int]()
     val f = IO(future).futureLift.unsafeToFuture()

@@ -17,7 +17,6 @@
 
 package monix.execution
 
-import minitest.TestSuite
 import monix.execution.cancelables.{ BooleanCancelable, ChainedCancelable }
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
@@ -26,7 +25,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Failure, Success, Try }
 
-object CancelableFutureSuite extends TestSuite[TestScheduler] {
+class CancelableFutureSuite extends MUnitFixtureSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
@@ -615,7 +614,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     }
 
     assertEquals(fa.value, Some(Success(1)))
-    assert(s.state.lastReportedError != null)
+    assertNotEquals(s.state.lastReportedError, null)
     assert(s.state.lastReportedError.isInstanceOf[IllegalStateException])
   }
 

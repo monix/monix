@@ -30,8 +30,8 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
 
-object TransformInputConsumerSuite extends BaseTestSuite {
-  test("Consumer#transformInput works for sync transformations") { implicit s =>
+class TransformInputConsumerSuite extends monix.reactive.BaseTestSuite {
+  testScheduler("Consumer#transformInput works for sync transformations") { implicit s =>
     check1 { (random: Observable[Int]) =>
       val source = random.map(Math.floorMod(_, 10))
       val consumer = Consumer.foldLeft[Long, Long](0L)(_ + _)
@@ -40,7 +40,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
     }
   }
 
-  test("Consumer#transformInput works for async transformations") { implicit s =>
+  testScheduler("Consumer#transformInput works for async transformations") { implicit s =>
     check1 { (random: Observable[Int]) =>
       val source = random.map(Math.floorMod(_, 10))
       val consumer = Consumer.foldLeft[Long, Long](0L)(_ + _)
@@ -49,7 +49,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
     }
   }
 
-  test("Consumer#transformInput protects against user code") { implicit s =>
+  testScheduler("Consumer#transformInput protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.foldLeft[Long, Long](0L)(_ + _).transformInput[Int](_ => throw ex))
@@ -59,7 +59,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  test("Consumer#transformInput propagates cancelable assignment") { implicit s =>
+  testScheduler("Consumer#transformInput propagates cancelable assignment") { implicit s =>
     val sum = Atomic(0L)
 
     val sumEvens = Consumer.create[Int, Long] { (_, cancelable, callback) =>

@@ -17,7 +17,6 @@
 
 package monix.reactive.observers
 
-import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.MultiProducer
@@ -27,13 +26,13 @@ import monix.execution.exceptions.DummyException
 import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
-object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+class OverflowStrategyBackPressureBatchedSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("should do back-pressure") { implicit s =>
+  testScheduler("should do back-pressure") { implicit s =>
     val promise = Promise[Ack]()
     var wasCompleted = false
 
@@ -79,7 +78,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
     assert(wasCompleted)
   }
 
-  test("should not lose events, test 1") { implicit s =>
+  testScheduler("should not lose events, test 1") { implicit s =>
     var sum = 0
     var wasCompleted = false
 
@@ -106,11 +105,11 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
 
     assert(!wasCompleted)
     s.tick()
-    assert(sum == 999 * 500)
+    assertEquals(sum, 999 * 500)
     assert(wasCompleted)
   }
 
-  test("should not lose events, test 2") { implicit s =>
+  testScheduler("should not lose events, test 2") { implicit s =>
     var sum = 0
     var completed = false
 
@@ -149,7 +148,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
     assertEquals(sum, 10001 * 5000)
   }
 
-  test("should not lose events, test 3") { implicit s =>
+  testScheduler("should not lose events, test 3") { implicit s =>
     var sum = 0
     var completed = false
 
@@ -188,7 +187,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
     assertEquals(sum, 10001 * 5000)
   }
 
-  test("should send onError when empty") { implicit s =>
+  testScheduler("should send onError when empty") { implicit s =>
     var errorThrown: Throwable = null
     val underlying = new Subscriber[List[Int]] {
       def onError(ex: Throwable) = errorThrown = ex
@@ -206,7 +205,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
     assertEquals(r, Stop)
   }
 
-  test("should send onError when in flight") { implicit s =>
+  testScheduler("should send onError when in flight") { implicit s =>
     var errorThrown: Throwable = null
     val promise = Promise[Ack]()
     val underlying = new Subscriber[List[Int]] {
@@ -225,7 +224,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
     promise.success(Continue); ()
   }
 
-  test("should send onError when at capacity") { implicit s =>
+  testScheduler("should send onError when at capacity") { implicit s =>
     var errorThrown: Throwable = null
     val promise = Promise[Ack]()
     val underlying = new Subscriber[List[Int]] {
@@ -243,7 +242,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  test("should send onComplete when empty") { implicit s =>
+  testScheduler("should send onComplete when empty") { implicit s =>
     var wasCompleted = false
     val underlying = new Subscriber[List[Int]] {
       val scheduler = s
@@ -259,7 +258,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
     assert(wasCompleted)
   }
 
-  test("should not back-pressure onComplete") { implicit s =>
+  testScheduler("should not back-pressure onComplete") { implicit s =>
     var wasCompleted = false
     val promise = Promise[Ack]()
 
@@ -281,7 +280,7 @@ object OverflowStrategyBackPressureBatchedSuite extends TestSuite[TestScheduler]
     assert(wasCompleted)
   }
 
-  test("should signal Stop upstream when it is back-pressured") { implicit s =>
+  testScheduler("should signal Stop upstream when it is back-pressured") { implicit s =>
     val promise = Promise[Ack]()
 
     val buffer = BufferedSubscriber.batched[Int](

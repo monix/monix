@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.builders
 
-import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.extensions._
@@ -27,13 +26,13 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object FutureAsObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+class FutureAsObservableSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
-  test("should work for synchronous futures and synchronous observers") { implicit s =>
+  testScheduler("should work for synchronous futures and synchronous observers") { implicit s =>
     val f = Future.successful(10)
     var received = 0
     var wasCompleted = false
@@ -57,7 +56,7 @@ object FutureAsObservableSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("from should work for asynchronous futures and asynchronous observers") { implicit s =>
+  testScheduler("from should work for asynchronous futures and asynchronous observers") { implicit s =>
     val f = Future.delayedResult(100.millis)(10)
     var received = 0
     var wasCompleted = false
@@ -84,7 +83,7 @@ object FutureAsObservableSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("should emit onError for synchronous futures") { implicit s =>
+  testScheduler("should emit onError for synchronous futures") { implicit s =>
     val f = Future.failed(DummyException("dummy"))
     var errorThrown: Throwable = null
 
@@ -99,7 +98,7 @@ object FutureAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  test("should emit onError for asynchronous futures") { implicit s =>
+  testScheduler("should emit onError for asynchronous futures") { implicit s =>
     val f = Future.delayedResult(100.millis)(throw DummyException("dummy"))
     var errorThrown: Throwable = null
 
@@ -115,7 +114,7 @@ object FutureAsObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  test("CancelableFuture should be cancelable") { implicit s =>
+  testScheduler("CancelableFuture should be cancelable") { implicit s =>
     val f = Task.evalAsync(1).delayExecution(1.second).runToFuture
     var received = 0
     var wasCompleted = false

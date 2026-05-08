@@ -17,25 +17,25 @@
 
 package monix.execution.cancelables
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 import monix.execution.Cancelable
 
-object ChainedCancelableSuite extends SimpleTestSuite {
+class ChainedCancelableSuite extends MUnitFunSuite {
   test("cancel()") {
     var effect = 0
     val sub = BooleanCancelable(() => effect += 1)
     val mSub = ChainedCancelable(sub)
 
-    assert(effect == 0)
+    assertEquals(effect, 0)
     assert(!sub.isCanceled)
 
     mSub.cancel()
     assert(sub.isCanceled, "sub.isCanceled")
-    assert(effect == 1)
+    assertEquals(effect, 1)
 
     mSub.cancel()
     assert(sub.isCanceled, "sub.isCanceled")
-    assert(effect == 1)
+    assertEquals(effect, 1)
   }
 
   test("cancel() after second assignment") {
@@ -45,12 +45,12 @@ object ChainedCancelableSuite extends SimpleTestSuite {
     val sub2 = BooleanCancelable(() => effect += 10)
     mSub := sub2
 
-    assert(effect == 0)
+    assertEquals(effect, 0)
     assert(!sub.isCanceled && !sub2.isCanceled, "!sub.isCanceled && !sub2.isCanceled")
 
     mSub.cancel()
     assert(sub2.isCanceled && !sub.isCanceled)
-    assert(effect == 10)
+    assertEquals(effect, 10)
   }
 
   test("automatically cancel assigned") {
@@ -60,11 +60,11 @@ object ChainedCancelableSuite extends SimpleTestSuite {
     var effect = 0
     val sub = BooleanCancelable(() => effect += 1)
 
-    assert(effect == 0)
+    assertEquals(effect, 0)
     assert(!sub.isCanceled, "!sub.isCanceled")
 
     mSub := sub
-    assert(effect == 1)
+    assertEquals(effect, 1)
     assert(sub.isCanceled)
   }
 

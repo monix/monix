@@ -254,7 +254,7 @@ object TaskRaceSuite extends BaseTestSuite {
     assertEquals(f.value, None)
 
     s.tick(1.seconds)
-    assert(s.state.tasks.size == 1, "source should be canceled after timeout")
+    assertEquals(s.state.tasks.size, 1, clue("source should be canceled after timeout"))
 
     s.tick(1.seconds)
     assert(s.state.tasks.isEmpty, "all task should be completed")

@@ -23,7 +23,7 @@ import monix.reactive.{ BaseTestSuite, Observable }
 
 import scala.util.{ Failure, Success }
 
-object ObservableForeachSuite extends BaseTestSuite {
+class ObservableForeachSuite extends monix.reactive.BaseTestSuite {
   test("foreach subscribes immediately") { scheduler =>
     implicit val s = scheduler.withExecutionModel(SynchronousExecution)
 
@@ -44,13 +44,13 @@ object ObservableForeachSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("foreach protects against user error") { implicit s =>
+  testScheduler("foreach protects against user error") { implicit s =>
     val dummy = DummyException("dummy")
     val f = Observable.fromIterable(0 until 1000).foreach(_ => throw dummy)
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("foreachL protects against user error") { implicit s =>
+  testScheduler("foreachL protects against user error") { implicit s =>
     val dummy = DummyException("dummy")
     val f = Observable.fromIterable(0 until 1000).foreachL(_ => throw dummy).runToFuture
     assertEquals(f.value, Some(Failure(dummy)))

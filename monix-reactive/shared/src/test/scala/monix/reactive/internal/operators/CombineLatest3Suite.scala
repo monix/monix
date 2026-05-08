@@ -22,7 +22,7 @@ import monix.execution.exceptions.DummyException
 
 import scala.concurrent.duration._
 
-object CombineLatest3Suite extends BaseOperatorSuite {
+class CombineLatest3Suite extends BaseOperatorSuite {
   def waitFirst = Duration.Zero
   def waitNext = Duration.Zero
 

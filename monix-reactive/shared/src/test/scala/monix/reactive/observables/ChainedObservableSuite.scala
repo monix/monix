@@ -17,18 +17,17 @@
 
 package monix.reactive.observables
 
-import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
 import scala.util.Success
 
-object ChainedObservableSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
+class ChainedObservableSuite extends monix.reactive.BaseTestSuite {
+  override def setup(): TestScheduler = TestScheduler()
+  override def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("plain suspend") { implicit s =>
+  testScheduler("plain suspend") { implicit s =>
     def loop[A](n: Int): Observable[Int] =
       Observable.suspend {
         if (n > 0) loop(n - 1) else Observable.now(111)
@@ -40,7 +39,7 @@ object ChainedObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(Some(111))))
   }
 
-  test("concat") { implicit s =>
+  testScheduler("concat") { implicit s =>
     def loop[A](n: Long): Observable[Long] =
       Observable.now(n) ++ Observable.suspend {
         if (n <= 0) Observable.empty

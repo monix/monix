@@ -24,8 +24,8 @@ import scala.util.Success
 import scala.concurrent.duration._
 import monix.catnap.SchedulerEffect
 
-object IntervalIntervalSuite extends BaseTestSuite {
-  test("Iterant[Task].intervalWithFixedDelay(1.second, 2.seconds)") { implicit s =>
+final class IntervalIntervalSuite extends BaseTestSuite {
+  testScheduler("Iterant[Task].intervalWithFixedDelay(1.second, 2.seconds)") { implicit s =>
     var effect = 0
     val lst = Iterant[Task]
       .intervalWithFixedDelay(1.second, 2.seconds)
@@ -57,7 +57,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2, 3, 4))))
   }
 
-  test("Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)") { s =>
+  testScheduler("Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)") { s =>
     implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
@@ -91,7 +91,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2, 3, 4))))
   }
 
-  test("Iterant[Task].intervalWithFixedDelay(2.seconds)") { implicit s =>
+  testScheduler("Iterant[Task].intervalWithFixedDelay(2.seconds)") { implicit s =>
     var effect = 0
     val lst = Iterant[Task]
       .intervalWithFixedDelay(2.seconds)
@@ -117,7 +117,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2, 3, 4))))
   }
 
-  test("Iterant[IO].intervalWithFixedDelay(2.seconds)") { s =>
+  testScheduler("Iterant[IO].intervalWithFixedDelay(2.seconds)") { s =>
     implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
@@ -145,7 +145,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2, 3, 4))))
   }
 
-  test("Iterant[Task].intervalAtFixedRate(1.second)") { implicit s =>
+  testScheduler("Iterant[Task].intervalAtFixedRate(1.second)") { implicit s =>
     var effect = 0
     val lst = Iterant[Task]
       .intervalAtFixedRate(1.second)
@@ -168,7 +168,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2))))
   }
 
-  test("Iterant[IO].intervalAtFixedRate(1.second)") { s =>
+  testScheduler("Iterant[IO].intervalAtFixedRate(1.second)") { s =>
     implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
@@ -197,7 +197,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2))))
   }
 
-  test("Iterant[Task].intervalAtFixedRate(2.seconds, 1.second)") { implicit s =>
+  testScheduler("Iterant[Task].intervalAtFixedRate(2.seconds, 1.second)") { implicit s =>
     var effect = 0
     val lst = Iterant[Task]
       .intervalAtFixedRate(2.seconds, 1.second)
@@ -222,7 +222,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2))))
   }
 
-  test("Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)") { s =>
+  testScheduler("Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)") { s =>
     implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
@@ -253,7 +253,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2))))
   }
 
-  test("Iterant[Task].intervalAtFixedRate accounts for time it takes task to finish") { implicit s =>
+  testScheduler("Iterant[Task].intervalAtFixedRate accounts for time it takes task to finish") { implicit s =>
     var effect = 0
     val lst = Iterant[Task]
       .intervalAtFixedRate(1.second)
@@ -277,7 +277,7 @@ object IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2))))
   }
 
-  test("Iterant[IO].intervalAtFixedRate accounts for time it takes task to finish") { s =>
+  testScheduler("Iterant[IO].intervalAtFixedRate accounts for time it takes task to finish") { s =>
     implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0

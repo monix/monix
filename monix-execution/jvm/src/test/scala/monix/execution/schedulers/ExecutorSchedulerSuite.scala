@@ -17,9 +17,9 @@
 
 package monix.execution.schedulers
 
+import monix.execution.MUnitFixtureSuite
 import java.util.concurrent.{ CountDownLatch, TimeUnit, TimeoutException }
 
-import minitest.TestSuite
 import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, Default => DefaultExecutionModel }
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.exceptions.DummyException
@@ -28,7 +28,7 @@ import monix.execution.{ Cancelable, Scheduler, UncaughtExceptionReporter }
 import scala.concurrent.duration._
 import scala.concurrent.{ blocking, Await, Promise }
 
-abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self =>
+abstract class ExecutorSchedulerSuite extends MUnitFixtureSuite[SchedulerService] { self =>
   var lastReportedFailure = null: Throwable
   var lastReportedFailureLatch = null: CountDownLatch
 
@@ -68,7 +68,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
   test("scheduleOnce with delay lower than 1.milli") { scheduler =>
     val p = Promise[Int]()
     val _ = scheduleOnce(scheduler, 20.nanos) { p.success(1); () }
-    assert(Await.result(p.future, 3.seconds) == 1)
+    assertEquals(Await.result(p.future, 3.seconds), 1)
   }
 
   test("scheduleOnce with delay and cancel") { scheduler =>
@@ -104,7 +104,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
       }
     )
 
-    assert(Await.result(p.future, 5.second) == 4)
+    assertEquals(Await.result(p.future, 5.second), 4)
   }
 
   test("schedule at fixed rate") { scheduler =>
@@ -128,7 +128,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
       }
     )
 
-    assert(Await.result(p.future, 5.second) == 4)
+    assertEquals(Await.result(p.future, 5.second), 4)
   }
 
   test("execute local") { scheduler =>
@@ -203,13 +203,13 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
     () => f
 }
 
-object ComputationSchedulerSuite extends ExecutorSchedulerSuite {
+class ComputationSchedulerSuite extends ExecutorSchedulerSuite {
   def setup(): SchedulerService =
     monix.execution.Scheduler
       .forkJoin(name = "monix-tests-computation", parallelism = 4, maxThreads = 256, reporter = testsReporter)
 }
 
-object ForkJoinSchedulerSuite extends ExecutorSchedulerSuite {
+class ForkJoinSchedulerSuite extends ExecutorSchedulerSuite {
   def setup(): SchedulerService =
     monix.execution.Scheduler
       .forkJoin(name = "monix-tests-forkjoin", parallelism = 4, maxThreads = 256, reporter = testsReporter)
@@ -233,22 +233,22 @@ object ForkJoinSchedulerSuite extends ExecutorSchedulerSuite {
   }
 }
 
-object FixedPoolSchedulerSuite extends ExecutorSchedulerSuite {
+class FixedPoolSchedulerSuite extends ExecutorSchedulerSuite {
   def setup(): SchedulerService =
     monix.execution.Scheduler.fixedPool("monix-tests-fixedPool", poolSize = 4, reporter = testsReporter)
 }
 
-object SingleThreadSchedulerSuite extends ExecutorSchedulerSuite {
+class SingleThreadSchedulerSuite extends ExecutorSchedulerSuite {
   def setup(): SchedulerService =
     monix.execution.Scheduler.singleThread("monix-tests-singleThread", reporter = testsReporter)
 }
 
-object CachedSchedulerSuite extends ExecutorSchedulerSuite {
+class CachedSchedulerSuite extends ExecutorSchedulerSuite {
   def setup(): SchedulerService =
     monix.execution.Scheduler.cached("monix-tests-cached", 1, 4, reporter = testsReporter)
 }
 
-object IOSchedulerSuite extends ExecutorSchedulerSuite {
+class IOSchedulerSuite extends ExecutorSchedulerSuite {
   def setup(): SchedulerService =
     monix.execution.Scheduler.io("monix-tests-io", reporter = testsReporter)
 }

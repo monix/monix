@@ -17,9 +17,9 @@
 
 package monix.execution.internal.forkJoin
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 
-object ForkJoinJVMSuite extends SimpleTestSuite {
+class ForkJoinJVMSuite extends MUnitFunSuite {
   test("execute tasks on saturated forkJoin Scheduler") {
     import monix.execution.Scheduler
 
@@ -44,6 +44,6 @@ object ForkJoinJVMSuite extends SimpleTestSuite {
 
     val p = Promise[Int]()
     s.execute(() => p.success(42))
-    assert(Await.result(p.future, 5.seconds) == 42)
+    assertEquals(Await.result(p.future, 5.seconds), 42)
   }
 }

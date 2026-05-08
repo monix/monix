@@ -17,7 +17,6 @@
 
 package monix.reactive.consumers
 
-import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
@@ -25,13 +24,13 @@ import monix.reactive.{ Consumer, Observable }
 
 import scala.util.{ Failure, Success }
 
-object HeadConsumerSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
+class HeadConsumerSuite extends monix.reactive.BaseTestSuite {
+  override def setup(): TestScheduler = TestScheduler()
+  override def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("stops on first on next") { implicit s =>
+  testScheduler("stops on first on next") { implicit s =>
     var wasStopped = false
     val obs = Observable.now(1).doOnEarlyStopF { () =>
       wasStopped = true
@@ -43,7 +42,7 @@ object HeadConsumerSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("on complete") { implicit s =>
+  testScheduler("on complete") { implicit s =>
     var wasStopped = false
     var wasCompleted = false
     val obs = Observable
@@ -66,7 +65,7 @@ object HeadConsumerSuite extends TestSuite[TestScheduler] {
     )
   }
 
-  test("on error") { implicit s =>
+  testScheduler("on error") { implicit s =>
     val ex = DummyException("dummy")
     var wasStopped = false
     var wasCompleted = false

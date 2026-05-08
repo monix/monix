@@ -17,8 +17,8 @@
 
 package monix.execution.schedulers
 
+import monix.execution.MUnitFunSuite
 import java.util.concurrent.{ CountDownLatch, TimeUnit, TimeoutException }
-import minitest.SimpleTestSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.{ Cancelable, Scheduler }
@@ -26,7 +26,7 @@ import monix.execution.{ ExecutionModel => ExecModel }
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Future, Promise }
 
-object AsyncSchedulerJVMSuite extends SimpleTestSuite {
+class AsyncSchedulerJVMSuite extends MUnitFunSuite {
   val s: Scheduler = monix.execution.Scheduler.global
 
   def scheduleOnce(s: Scheduler, delay: FiniteDuration)(action: => Unit): Cancelable = {
@@ -45,7 +45,7 @@ object AsyncSchedulerJVMSuite extends SimpleTestSuite {
   test("scheduleOnce with delay lower than 1.milli") {
     val p = Promise[Int]()
     val _ = scheduleOnce(s, 20.nanos) { p.success(1); () }
-    assert(Await.result(p.future, 3.seconds) == 1)
+    assertEquals(Await.result(p.future, 3.seconds), 1)
   }
 
   test("scheduleOnce with delay and cancel") {
@@ -81,7 +81,7 @@ object AsyncSchedulerJVMSuite extends SimpleTestSuite {
       }
     )
 
-    assert(Await.result(p.future, 5.second) == 4)
+    assertEquals(Await.result(p.future, 5.second), 4)
   }
 
   test("schedule at fixed rate") {
@@ -105,7 +105,7 @@ object AsyncSchedulerJVMSuite extends SimpleTestSuite {
       }
     )
 
-    assert(Await.result(p.future, 5.second) == 4)
+    assertEquals(Await.result(p.future, 5.second), 4)
   }
 
   test("builder for ExecutionModel works") {

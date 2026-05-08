@@ -16,19 +16,16 @@
  */
 
 package monix.catnap
-import scala.annotation.nowarn
 
 import cats.effect.concurrent.{ Deferred, Ref }
 import cats.effect.{ ContextShift, IO, Timer }
 import cats.implicits._
-import minitest.SimpleTestSuite
-import monix.execution.Scheduler
+import monix.execution.{ MUnitFunSuite, Scheduler }
 import monix.execution.internal.Platform
 
 import scala.concurrent.duration._
 
-@nowarn
-object MVarConcurrentSuite extends BaseMVarSuite {
+class MVarConcurrentSuite extends BaseMVarSuite {
   def init[A](a: A): IO[MVar[IO, A]] =
     MVar[IO](OrElse.primary(IO.ioConcurrentEffect)).of(a)(cs)
 
@@ -85,7 +82,7 @@ object MVarConcurrentSuite extends BaseMVarSuite {
   }
 }
 
-object MVarAsyncSuite extends BaseMVarSuite {
+class MVarAsyncSuite extends BaseMVarSuite {
   def init[A](a: A): IO[MVar[IO, A]] =
     MVar[IO](OrElse.secondary(IO.ioEffect)).of(a)
 
@@ -125,7 +122,7 @@ object MVarAsyncSuite extends BaseMVarSuite {
   }
 }
 
-abstract class BaseMVarSuite extends SimpleTestSuite {
+abstract class BaseMVarSuite extends MUnitFunSuite {
   implicit def executionContext: Scheduler =
     Scheduler.Implicits.global
   implicit val timer: Timer[IO] =

@@ -17,18 +17,17 @@
 
 package monix.reactive.internal.builders
 
-import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.{ Observable, Observer }
 import concurrent.duration._
 
-object NeverObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
+class NeverObservableSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
   }
 
-  test("should never complete") { implicit s =>
+  testScheduler("should never complete") { implicit s =>
     Observable.never.unsafeSubscribeFn(new Observer[Any] {
       def onNext(elem: Any) = throw new IllegalStateException()
       def onComplete(): Unit = throw new IllegalStateException()
@@ -36,6 +35,6 @@ object NeverObservableSuite extends TestSuite[TestScheduler] {
     })
 
     s.tick(100.days)
-    assert(s.state.lastReportedError == null)
+    assertEquals(s.state.lastReportedError, null)
   }
 }

@@ -17,19 +17,18 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.{ Observable, Observer }
 
-object MiscCompleteSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+class MiscCompleteSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("should complete") { implicit s =>
+  testScheduler("should complete") { implicit s =>
     var received = 0
     var wasCompleted = false
 
@@ -50,7 +49,7 @@ object MiscCompleteSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("should signal error") { implicit s =>
+  testScheduler("should signal error") { implicit s =>
     var thrown: Throwable = null
 
     Observable

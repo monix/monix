@@ -23,22 +23,22 @@ import monix.eval.{ Coeval, Task }
 import monix.execution.exceptions.DummyException
 import scala.util.Failure
 
-object IterantFromIterableSuite extends BaseTestSuite {
-  test("Iterant[Task].fromIterable") { implicit s =>
+final class IterantFromIterableSuite extends BaseTestSuite {
+  testScheduler("Iterant[Task].fromIterable") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromIterable(list).toListL
       result <-> Task.now(list)
     }
   }
 
-  test("Iterant[Task].fromIterable (async)") { implicit s =>
+  testScheduler("Iterant[Task].fromIterable (async)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromIterable(list).mapEval(x => Task.evalAsync(x)).toListL
       result <-> Task.now(list)
     }
   }
 
-  test("Iterant[Task].fromIterator protects against user code") { implicit s =>
+  testScheduler("Iterant[Task].fromIterator protects against user code") { implicit s =>
     val dummy = DummyException("dummy")
     val iterator = new Iterator[Int] {
       def hasNext: Boolean = true
@@ -49,21 +49,21 @@ object IterantFromIterableSuite extends BaseTestSuite {
     s.tick(); assertEquals(result.value, Some(Failure(dummy)))
   }
 
-  test("Iterant[Coeval].fromIterable") { _ =>
+  testScheduler("Iterant[Coeval].fromIterable") { _ =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Coeval].fromIterable(list).toListL
       result <-> Coeval.now(list)
     }
   }
 
-  test("Iterant[Coeval].fromIterable (async)") { _ =>
+  testScheduler("Iterant[Coeval].fromIterable (async)") { _ =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Coeval].fromIterable(list).mapEval(x => Coeval(x)).toListL
       result <-> Coeval.now(list)
     }
   }
 
-  test("Iterant[Coeval].fromIterator protects against user code") { _ =>
+  testScheduler("Iterant[Coeval].fromIterator protects against user code") { _ =>
     val dummy = DummyException("dummy")
     val iterator = new Iterator[Int] {
       def hasNext: Boolean = true

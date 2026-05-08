@@ -18,13 +18,12 @@
 package monix.eval
 
 import cats.effect.{ ExitCode, IO }
-import minitest.SimpleTestSuite
 import monix.eval.Task.Options
 import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.Promise
 
-object TaskAppSuite extends SimpleTestSuite {
-  testAsync("run works") {
+class TaskAppSuite extends monix.execution.MUnitFunSuite {
+  test("run works") {
     val wasExecuted = Promise[Boolean]()
     val app = new TaskApp {
       override def run(args: List[String]) =
@@ -36,15 +35,15 @@ object TaskAppSuite extends SimpleTestSuite {
 
     app.main(Array("true"))
     for (f <- wasExecuted.future) yield {
-      assert(f, "wasExecuted")
+      assert(f, clue("wasExecuted"))
     }
   }
 
-  testAsync("options are configurable") {
+  test("options are configurable") {
     val opts = Task.defaultOptions
-    assert(!opts.localContextPropagation, "!opts.localContextPropagation")
+    assert(!opts.localContextPropagation, clue("!opts.localContextPropagation"))
     val opts2 = opts.enableLocalContextPropagation
-    assert(opts2.localContextPropagation, "opts2.localContextPropagation")
+    assert(opts2.localContextPropagation, clue("opts2.localContextPropagation"))
     val p = Promise[Options]()
 
     val app = new TaskApp {
@@ -63,7 +62,7 @@ object TaskAppSuite extends SimpleTestSuite {
     }
   }
 
-  testAsync("ConcurrentEffect[Task]") {
+  test("ConcurrentEffect[Task]") {
     val wasExecuted = Promise[Boolean]()
     val app = new TaskApp {
       def run(args: List[String]) = {
@@ -81,7 +80,7 @@ object TaskAppSuite extends SimpleTestSuite {
 
     app.main(Array("true"))
     for (r <- wasExecuted.future) yield {
-      assert(r, "wasExecuted == true")
+      assert(r, clue("wasExecuted == true"))
     }
   }
 }

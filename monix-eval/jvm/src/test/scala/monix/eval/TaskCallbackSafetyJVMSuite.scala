@@ -19,7 +19,6 @@ package monix.eval
 
 import java.util.concurrent.{ CountDownLatch, TimeUnit }
 
-import minitest.SimpleTestSuite
 import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, DummyException }
 import monix.execution.schedulers.SchedulerService
 import monix.execution.{ Callback, Scheduler, TestUtils }
@@ -27,7 +26,7 @@ import monix.execution.{ Callback, Scheduler, TestUtils }
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
+class TaskCallbackSafetyJVMSuite extends monix.execution.MUnitFunSuite with TestUtils {
   val WORKERS = 10
   val RETRIES = if (!isCI) 1000 else 100
 
@@ -84,7 +83,7 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
         }
       } finally {
         sc.shutdown()
-        assert(sc.awaitTermination(10.seconds), "io.awaitTermination")
+        assert(sc.awaitTermination(10.seconds), clue("io.awaitTermination"))
       }
     }
 
@@ -146,6 +145,6 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
 
   def await(latch: CountDownLatch): Unit = {
     val seconds = 10
-    assert(latch.await(seconds.toLong, TimeUnit.SECONDS), s"latch.await($seconds seconds)")
+    assert(latch.await(seconds.toLong, TimeUnit.SECONDS), clue(s"latch.await($seconds seconds)"))
   }
 }

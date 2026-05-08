@@ -17,13 +17,12 @@
 
 package monix.eval
 
-import minitest.SimpleTestSuite
 import monix.execution.exceptions.DummyException
 
-object TaskToStringSuite extends SimpleTestSuite {
+class TaskToStringSuite extends monix.execution.MUnitFunSuite {
   def assertContains[A](ref: Task[A], startStr: String): Unit = {
     val str = ref.toString
-    assert(str.startsWith(startStr), s""""$str".startsWith("$startStr")""")
+    assert(str.startsWith(startStr), clue(s""""$str".startsWith("$startStr")"""))
   }
 
   test("Task.Now") {

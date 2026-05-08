@@ -17,9 +17,9 @@
 
 package monix.execution.rstreams
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 
-object SingleAssignSubscriptionSuite extends SimpleTestSuite {
+class SingleAssignSubscriptionSuite extends MUnitFunSuite {
   test("should call cancel on assignment") {
     val ref = SingleAssignSubscription()
     ref.cancel()

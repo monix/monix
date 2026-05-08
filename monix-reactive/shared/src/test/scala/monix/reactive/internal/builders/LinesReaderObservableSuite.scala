@@ -19,7 +19,6 @@ package monix.reactive.internal.builders
 
 import java.io.{ BufferedReader, Reader, StringReader }
 
-import minitest.SimpleTestSuite
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
@@ -33,7 +32,7 @@ import monix.reactive.observers.Subscriber
 
 import scala.util.{ Failure, Random, Success }
 
-object LinesReaderObservableSuite extends SimpleTestSuite {
+class LinesReaderObservableSuite extends munit.FunSuite {
   test("fromLinesReaderUnsafe yields a single subscriber observable") {
     implicit val s = TestScheduler()
     var errorThrown: Throwable = null

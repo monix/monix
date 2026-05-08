@@ -17,13 +17,13 @@
 
 package monix.execution.misc
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 import monix.execution.{ Cancelable, CancelableFuture, Scheduler }
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TracingScheduler
 import scala.concurrent.Future
 
-object LocalJVMSuite extends SimpleTestSuite {
+class LocalJVMSuite extends MUnitFunSuite {
   testAsync("Local.isolate should properly isolate during async boundaries") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
 

@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.schedulers.TestScheduler
 import monix.execution.exceptions.DummyException
@@ -25,13 +24,13 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.{ CancellationException, Future }
 import scala.concurrent.duration._
 
-object OnCancelTriggerErrorSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
+class OnCancelTriggerErrorSuite extends monix.reactive.BaseTestSuite {
+  override def setup(): TestScheduler = TestScheduler()
+  override def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("should work") { implicit s =>
+  testScheduler("should work") { implicit s =>
     var errorThrow: Throwable = null
     var effect = 0
     val obs = Observable.now(1).delayExecution(1.second).onCancelTriggerError
@@ -50,7 +49,7 @@ object OnCancelTriggerErrorSuite extends TestSuite[TestScheduler] {
     )
   }
 
-  test("cannot cancel after complete") { implicit s =>
+  testScheduler("cannot cancel after complete") { implicit s =>
     var errorThrow: Throwable = null
     var effect = 0
     val obs = Observable.now(1).onCancelTriggerError
@@ -66,7 +65,7 @@ object OnCancelTriggerErrorSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrow, null)
   }
 
-  test("cannot cancel after error") { implicit s =>
+  testScheduler("cannot cancel after error") { implicit s =>
     val dummy = DummyException("dummy")
     var errorThrow: Throwable = null
     var effect = 0
@@ -84,7 +83,7 @@ object OnCancelTriggerErrorSuite extends TestSuite[TestScheduler] {
     assertEquals(errorThrow, dummy)
   }
 
-  test("cannot cancel after asynchronous stop") { implicit s =>
+  testScheduler("cannot cancel after asynchronous stop") { implicit s =>
     var errorThrow: Throwable = null
     var effect = 0
     val obs = Observable.now(1).delayOnComplete(1.second).onCancelTriggerError

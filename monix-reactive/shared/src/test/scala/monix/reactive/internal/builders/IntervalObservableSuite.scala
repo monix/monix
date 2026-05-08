@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.builders
 
-import minitest.SimpleTestSuite
 import monix.execution.Ack
 import monix.execution.Ack.Continue
 import monix.execution.FutureUtils.extensions._
@@ -26,7 +25,7 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object IntervalObservableSuite extends SimpleTestSuite {
+class IntervalObservableSuite extends munit.FunSuite {
   test("should do intervalWithFixedDelay") {
     implicit val s = TestScheduler()
     var received = 0

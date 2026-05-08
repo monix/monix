@@ -17,14 +17,31 @@
 
 package monix.eval
 
-import minitest.TestSuite
-import minitest.laws.Checkers
-import monix.execution.schedulers.TestScheduler
+import monix.execution.TestSchedulerSuite
+import munit.Location
+import monix.execution.internal.Platform
+import org.scalacheck.{ Arbitrary, Prop, Test }
 
-abstract class BaseTestSuite extends TestSuite[TestScheduler] with Checkers with ArbitraryInstances {
+abstract class BaseTestSuite extends TestSchedulerSuite with ArbitraryInstances {
+  // TestSchedulerSuite provides createTestScheduler() and assertNoRemainingTasks()
+  // Use testScheduler("name") { implicit s => ... } in leaf suites
 
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(env: TestScheduler): Unit = {
-    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
+  override def scalaCheckTestParameters: Test.Parameters =
+    super.scalaCheckTestParameters
+      .withMinSuccessfulTests(if (Platform.isJVM) 100 else 10)
+      .withMaxDiscardRatio(if (Platform.isJVM) 5.0f else 50.0f)
+
+  def check(prop: Prop): Unit = {
+    val result = Test.check(scalaCheckTestParameters, prop)
+    assert(result.passed, clue(result.toString))
   }
+
+  def check1[A: Arbitrary](f: A => Prop): Unit =
+    check(Prop.forAll(f))
+
+  def check3[A: Arbitrary, B: Arbitrary, C: Arbitrary](f: (A, B, C) => Prop): Unit =
+    check(Prop.forAll(f))
+
+  def fail()(implicit loc: Location): Nothing =
+    fail("failed")
 }

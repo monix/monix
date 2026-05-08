@@ -17,10 +17,8 @@
 
 package monix.tail
 
-import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Scheduler
-import monix.execution.Scheduler.global
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
@@ -28,10 +26,7 @@ import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 
 import scala.concurrent.{ Future, Promise }
 
-object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
-  def setup(): Scheduler = global
-  def tearDown(env: Scheduler): Unit = ()
-
+final class IterantFromReactiveStreamAsyncSuite extends BaseTestSuite {
   def testRangeConsumptionWithAsyncTasks(request: Int, eagerBuffer: Boolean, async: Boolean)(implicit sc: Scheduler) = {
     def test() = {
       val count = if (async || Platform.isJS) 1000 else 5000
@@ -54,52 +49,64 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
     loop(if (Platform.isJVM) 100 else 1)
   }
 
-  testAsync("convert range publisher with requestCount=1,   eagerBuffer=true  and async tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = true, async = true)
+  testSchedulerAsync("convert range publisher with requestCount=1,   eagerBuffer=true  and async tasks") {
+    implicit sc =>
+      testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = true, async = true)
   }
 
-  testAsync("convert range publisher with requestCount=1,   eagerBuffer=false and async tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = false, async = true)
+  testSchedulerAsync("convert range publisher with requestCount=1,   eagerBuffer=false and async tasks") {
+    implicit sc =>
+      testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = false, async = true)
   }
 
-  testAsync("convert range publisher with requestCount=16,  eagerBuffer=true  and async tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = true, async = true)
+  testSchedulerAsync("convert range publisher with requestCount=16,  eagerBuffer=true  and async tasks") {
+    implicit sc =>
+      testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = true, async = true)
   }
 
-  testAsync("convert range publisher with requestCount=16,  eagerBuffer=false and async tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = false, async = true)
+  testSchedulerAsync("convert range publisher with requestCount=16,  eagerBuffer=false and async tasks") {
+    implicit sc =>
+      testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = false, async = true)
   }
 
-  testAsync("convert range publisher with requestCount=256, eagerBuffer=true  and async tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = true, async = true)
+  testSchedulerAsync("convert range publisher with requestCount=256, eagerBuffer=true  and async tasks") {
+    implicit sc =>
+      testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = true, async = true)
   }
 
-  testAsync("convert range publisher with requestCount=256, eagerBuffer=false and async tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = false, async = true)
+  testSchedulerAsync("convert range publisher with requestCount=256, eagerBuffer=false and async tasks") {
+    implicit sc =>
+      testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = false, async = true)
   }
 
-  testAsync("convert range publisher with requestCount=1,   eagerBuffer=true  and sync  tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = true, async = false)
+  testSchedulerAsync("convert range publisher with requestCount=1,   eagerBuffer=true  and sync  tasks") {
+    implicit sc =>
+      testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = true, async = false)
   }
 
-  testAsync("convert range publisher with requestCount=1,   eagerBuffer=false and sync  tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = false, async = false)
+  testSchedulerAsync("convert range publisher with requestCount=1,   eagerBuffer=false and sync  tasks") {
+    implicit sc =>
+      testRangeConsumptionWithAsyncTasks(request = 1, eagerBuffer = false, async = false)
   }
 
-  testAsync("convert range publisher with requestCount=16,  eagerBuffer=true  and sync  tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = true, async = false)
+  testSchedulerAsync("convert range publisher with requestCount=16,  eagerBuffer=true  and sync  tasks") {
+    implicit sc =>
+      testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = true, async = false)
   }
 
-  testAsync("convert range publisher with requestCount=16,  eagerBuffer=false and sync  tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = false, async = false)
+  testSchedulerAsync("convert range publisher with requestCount=16,  eagerBuffer=false and sync  tasks") {
+    implicit sc =>
+      testRangeConsumptionWithAsyncTasks(request = 16, eagerBuffer = false, async = false)
   }
 
-  testAsync("convert range publisher with requestCount=256, eagerBuffer=true  and sync  tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = true, async = false)
+  testSchedulerAsync("convert range publisher with requestCount=256, eagerBuffer=true  and sync  tasks") {
+    implicit sc =>
+      testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = true, async = false)
   }
 
-  testAsync("convert range publisher with requestCount=256, eagerBuffer=false and sync  tasks") { implicit sc =>
-    testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = false, async = false)
+  testSchedulerAsync("convert range publisher with requestCount=256, eagerBuffer=false and sync  tasks") {
+    implicit sc =>
+      testRangeConsumptionWithAsyncTasks(request = 256, eagerBuffer = false, async = false)
   }
 
   def testStreamEndingInError(request: Int, eagerBuffer: Boolean, async: Boolean)(implicit sc: Scheduler) = {
@@ -132,51 +139,51 @@ object IterantFromReactiveStreamAsyncSuite extends TestSuite[Scheduler] {
     })
   }
 
-  testAsync("stream ending in error with requestCount=1,   eagerBuffer=true  and async tasks") { implicit sc =>
+  testSchedulerAsync("stream ending in error with requestCount=1,   eagerBuffer=true  and async tasks") { implicit sc =>
     testStreamEndingInError(1, eagerBuffer = true, async = true)
   }
 
-  testAsync("stream ending in error with requestCount=1,   eagerBuffer=false and async tasks") { implicit sc =>
+  testSchedulerAsync("stream ending in error with requestCount=1,   eagerBuffer=false and async tasks") { implicit sc =>
     testStreamEndingInError(1, eagerBuffer = false, async = true)
   }
 
-  testAsync("stream ending in error with requestCount=16,  eagerBuffer=true  and async tasks") { implicit sc =>
+  testSchedulerAsync("stream ending in error with requestCount=16,  eagerBuffer=true  and async tasks") { implicit sc =>
     testStreamEndingInError(16, eagerBuffer = true, async = true)
   }
 
-  testAsync("stream ending in error with requestCount=16,  eagerBuffer=false and async tasks") { implicit sc =>
+  testSchedulerAsync("stream ending in error with requestCount=16,  eagerBuffer=false and async tasks") { implicit sc =>
     testStreamEndingInError(16, eagerBuffer = false, async = true)
   }
 
-  testAsync("stream ending in error with requestCount=256, eagerBuffer=true  and async tasks") { implicit sc =>
+  testSchedulerAsync("stream ending in error with requestCount=256, eagerBuffer=true  and async tasks") { implicit sc =>
     testStreamEndingInError(256, eagerBuffer = true, async = true)
   }
 
-  testAsync("stream ending in error with requestCount=256, eagerBuffer=false and async tasks") { implicit sc =>
+  testSchedulerAsync("stream ending in error with requestCount=256, eagerBuffer=false and async tasks") { implicit sc =>
     testStreamEndingInError(256, eagerBuffer = false, async = true)
   }
 
-  testAsync("stream ending in error with requestCount=1,   eagerBuffer=true  and sync  tasks") { implicit sc =>
+  testSchedulerAsync("stream ending in error with requestCount=1,   eagerBuffer=true  and sync  tasks") { implicit sc =>
     testStreamEndingInError(1, eagerBuffer = true, async = false)
   }
 
-  testAsync("stream ending in error with requestCount=1,   eagerBuffer=false and sync  tasks") { implicit sc =>
+  testSchedulerAsync("stream ending in error with requestCount=1,   eagerBuffer=false and sync  tasks") { implicit sc =>
     testStreamEndingInError(1, eagerBuffer = false, async = false)
   }
 
-  testAsync("stream ending in error with requestCount=16,  eagerBuffer=true  and sync  tasks") { implicit sc =>
+  testSchedulerAsync("stream ending in error with requestCount=16,  eagerBuffer=true  and sync  tasks") { implicit sc =>
     testStreamEndingInError(16, eagerBuffer = true, async = false)
   }
 
-  testAsync("stream ending in error with requestCount=16,  eagerBuffer=false and sync  tasks") { implicit sc =>
+  testSchedulerAsync("stream ending in error with requestCount=16,  eagerBuffer=false and sync  tasks") { implicit sc =>
     testStreamEndingInError(16, eagerBuffer = false, async = false)
   }
 
-  testAsync("stream ending in error with requestCount=256, eagerBuffer=true  and sync  tasks") { implicit sc =>
+  testSchedulerAsync("stream ending in error with requestCount=256, eagerBuffer=true  and sync  tasks") { implicit sc =>
     testStreamEndingInError(256, eagerBuffer = true, async = false)
   }
 
-  testAsync("stream ending in error with requestCount=256, eagerBuffer=false and sync  tasks") { implicit sc =>
+  testSchedulerAsync("stream ending in error with requestCount=256, eagerBuffer=false and sync  tasks") { implicit sc =>
     testStreamEndingInError(256, eagerBuffer = false, async = false)
   }
 

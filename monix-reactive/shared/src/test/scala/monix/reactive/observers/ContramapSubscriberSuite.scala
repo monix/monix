@@ -22,8 +22,8 @@ import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.BaseTestSuite
 
-object ContramapSubscriberSuite extends BaseTestSuite {
-  test("Subscriber.contramap equivalence with plain Subscriber") { implicit s =>
+class ContramapSubscriberSuite extends monix.reactive.BaseTestSuite {
+  testScheduler("Subscriber.contramap equivalence with plain Subscriber") { implicit s =>
     check1 { (xs: List[Int]) =>
       var sum = 0
       val plainSubscriber: Subscriber[Int] = new Subscriber[Int] {
@@ -49,7 +49,7 @@ object ContramapSubscriberSuite extends BaseTestSuite {
     }
   }
 
-  test("Subscriber.contramap protects against user code") { implicit s =>
+  testScheduler("Subscriber.contramap protects against user code") { implicit s =>
     val dummy = DummyException("dummy")
     val out: Subscriber[Long] = (Subscriber.empty[Int]: Subscriber[Int])
       .contramap(_ => throw dummy)
@@ -58,7 +58,7 @@ object ContramapSubscriberSuite extends BaseTestSuite {
     assertEquals(out.onNext(1), Stop)
   }
 
-  test("Subscriber.contramap works") { implicit s =>
+  testScheduler("Subscriber.contramap works") { implicit s =>
     var isDone = 0
     val intSubscriber: Subscriber[Int] = new Subscriber[Int] {
       def onError(ex: Throwable): Unit = isDone += 1

@@ -18,7 +18,6 @@
 package monix.execution
 
 import java.util.concurrent.atomic.AtomicLong
-import minitest.TestSuite
 import monix.execution.BufferCapacity.{ Bounded, Unbounded }
 import monix.execution.ChannelType.{ MPMC, MPSC, SPMC, SPSC }
 import monix.execution.internal.Platform
@@ -27,7 +26,7 @@ import scala.collection.immutable.Queue
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object AsyncQueueFakeSuite extends BaseAsyncQueueSuite[TestScheduler] {
+class AsyncQueueFakeSuite extends BaseAsyncQueueSuite[TestScheduler] {
   def setup() = TestScheduler()
 
   def tearDown(env: TestScheduler): Unit =
@@ -47,7 +46,7 @@ object AsyncQueueFakeSuite extends BaseAsyncQueueSuite[TestScheduler] {
   }
 }
 
-object AsyncQueueGlobalSuite extends BaseAsyncQueueSuite[Scheduler] {
+class AsyncQueueGlobalSuite extends BaseAsyncQueueSuite[Scheduler] {
   def setup() = Scheduler.global
   def tearDown(env: Scheduler): Unit = ()
 
@@ -66,7 +65,7 @@ object AsyncQueueGlobalSuite extends BaseAsyncQueueSuite[Scheduler] {
   }
 }
 
-abstract class BaseAsyncQueueSuite[S <: Scheduler] extends TestSuite[S] {
+abstract class BaseAsyncQueueSuite[S <: Scheduler] extends MUnitFixtureSuite[S] {
   val repeatForFastTests = {
     if (Platform.isJVM) 1000 else 100
   }

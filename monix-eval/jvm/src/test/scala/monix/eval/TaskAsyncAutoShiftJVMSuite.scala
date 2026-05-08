@@ -19,7 +19,6 @@ package monix.eval
 
 import java.util.concurrent.CountDownLatch
 
-import minitest.TestSuite
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.SchedulerService
 import monix.execution.{ Cancelable, CancelableFuture, ExecutionModel, Scheduler }
@@ -27,7 +26,7 @@ import monix.execution.{ Cancelable, CancelableFuture, ExecutionModel, Scheduler
 import scala.concurrent.duration._
 import scala.concurrent.{ blocking, ExecutionContext, Future }
 
-object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
+class TaskAsyncAutoShiftJVMSuite extends monix.execution.MUnitFixtureSuite[SchedulerService] {
   private val ThreadName = "test-thread"
 
   override def setup(): SchedulerService =
@@ -36,7 +35,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
   override def tearDown(env: SchedulerService): Unit = {
     env.shutdown()
     blocking {
-      assert(env.awaitTermination(10.seconds), "env.awaitTermination")
+      assert(env.awaitTermination(10.seconds), clue("env.awaitTermination"))
     }
   }
 
@@ -72,7 +71,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     else Future.successful(())
   }
 
-  testAsync("Task.fromFuture(async) should shift back to the main scheduler") { implicit s =>
+  test("Task.fromFuture(async) should shift back to the main scheduler") { implicit s =>
     val s2 = Scheduler.global
 
     repeatTest(1000) {
@@ -89,7 +88,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.fromFuture(completed) should not shift to the main scheduler") { s =>
+  test("Task.fromFuture(completed) should not shift to the main scheduler") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -105,7 +104,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.fromFuture(async error) should shift back to the main scheduler") { implicit ec =>
+  test("Task.fromFuture(async error) should shift back to the main scheduler") { implicit ec =>
     val s2 = Scheduler.global
 
     repeatTest(1000) {
@@ -125,7 +124,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.fromFuture(completed error) should not shift to the main scheduler") { s =>
+  test("Task.fromFuture(completed error) should not shift to the main scheduler") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -143,7 +142,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFuture(async) should shift back to the main scheduler") { implicit s =>
+  test("Task.deferFuture(async) should shift back to the main scheduler") { implicit s =>
     val s2 = Scheduler.global
 
     repeatTest(1000) {
@@ -160,7 +159,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFuture(completed) should not shift to the main scheduler") { s =>
+  test("Task.deferFuture(completed) should not shift to the main scheduler") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -176,7 +175,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFuture(async error) should shift back to the main scheduler") { implicit ec =>
+  test("Task.deferFuture(async error) should shift back to the main scheduler") { implicit ec =>
     val s2 = Scheduler.global
 
     repeatTest(1000) {
@@ -196,7 +195,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFuture(completed error) should not shift to the main scheduler") { s =>
+  test("Task.deferFuture(completed error) should not shift to the main scheduler") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -214,7 +213,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFutureAction(async) should shift back to the main scheduler") { implicit s =>
+  test("Task.deferFutureAction(async) should shift back to the main scheduler") { implicit s =>
     val s2 = Scheduler.global
 
     repeatTest(1000) {
@@ -231,7 +230,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFutureAction(completed) should not shift to the main scheduler") { s =>
+  test("Task.deferFutureAction(completed) should not shift to the main scheduler") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -247,7 +246,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFutureAction(async error) should shift back to the main scheduler") { implicit ec =>
+  test("Task.deferFutureAction(async error) should shift back to the main scheduler") { implicit ec =>
     val s2 = Scheduler.global
 
     repeatTest(1000) {
@@ -267,7 +266,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFutureAction(completed error) should not shift to the main scheduler") { s =>
+  test("Task.deferFutureAction(completed error) should not shift to the main scheduler") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -285,7 +284,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.fromFuture(async cancelable) should shift back to the main scheduler") { implicit s =>
+  test("Task.fromFuture(async cancelable) should shift back to the main scheduler") { implicit s =>
     val s2 = Scheduler.global
 
     repeatTest(1000) {
@@ -302,7 +301,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.fromFuture(completed cancelable) should not shift to the main scheduler") { s =>
+  test("Task.fromFuture(completed cancelable) should not shift to the main scheduler") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -318,7 +317,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.fromFuture(async error cancelable) should shift back to the main scheduler") { implicit ec =>
+  test("Task.fromFuture(async error cancelable) should shift back to the main scheduler") { implicit ec =>
     val s2 = Scheduler.global
 
     repeatTest(1000) {
@@ -338,7 +337,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.fromFuture(completed error cancelable) should not shift to the main scheduler") { s =>
+  test("Task.fromFuture(completed error cancelable) should not shift to the main scheduler") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -356,7 +355,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFuture(async cancelable) should shift back to the main scheduler") { implicit s =>
+  test("Task.deferFuture(async cancelable) should shift back to the main scheduler") { implicit s =>
     val s2 = Scheduler.global
 
     repeatTest(1000) {
@@ -373,7 +372,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFuture(completed cancelable) should not shift to the main scheduler") { s =>
+  test("Task.deferFuture(completed cancelable) should not shift to the main scheduler") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -389,7 +388,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFuture(async error cancelable) should shift back to the main scheduler") { implicit ec =>
+  test("Task.deferFuture(async error cancelable) should shift back to the main scheduler") { implicit ec =>
     val s2 = Scheduler.global
 
     repeatTest(1000) {
@@ -409,7 +408,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFuture(completed error cancelable) should not shift to the main scheduler") { s =>
+  test("Task.deferFuture(completed error cancelable) should not shift to the main scheduler") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -427,7 +426,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFutureAction(async cancelable) should shift back to the main scheduler") { implicit s =>
+  test("Task.deferFutureAction(async cancelable) should shift back to the main scheduler") { implicit s =>
     val s2 = Scheduler.global
 
     repeatTest(1000) {
@@ -444,7 +443,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFutureAction(completed cancelable) should not shift to the main scheduler") { s =>
+  test("Task.deferFutureAction(completed cancelable) should not shift to the main scheduler") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -460,7 +459,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFutureAction(async error cancelable) should shift back to the main scheduler") { implicit ec =>
+  test("Task.deferFutureAction(async error cancelable) should shift back to the main scheduler") { implicit ec =>
     val s2 = Scheduler.global
 
     repeatTest(1000) {
@@ -480,7 +479,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.deferFutureAction(completed error cancelable) should not shift to the main scheduler") { s =>
+  test("Task.deferFutureAction(completed error cancelable) should not shift to the main scheduler") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -498,7 +497,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async(register) should shift back if register forks") { s =>
+  test("Task.async(register) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -516,7 +515,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async(register) should not shift back if register does not fork") { s =>
+  test("Task.async(register) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -531,7 +530,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async(register error) should shift back if register forks") { s =>
+  test("Task.async(register error) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -551,7 +550,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async(register error) should not shift back if register does not fork") { s =>
+  test("Task.async(register error) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -568,7 +567,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async0(register) should shift back if register forks") { s =>
+  test("Task.async0(register) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -586,7 +585,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async0(register) should not shift back if register does not fork") { s =>
+  test("Task.async0(register) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -601,7 +600,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async0(register error) should shift back if register forks") { s =>
+  test("Task.async0(register error) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -621,7 +620,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async0(register error) should not shift back if register does not fork") { s =>
+  test("Task.async0(register error) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -638,7 +637,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable(register) should shift back if register forks") { s =>
+  test("Task.cancelable(register) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -657,7 +656,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable(register) should not shift back if register does not fork") { s =>
+  test("Task.cancelable(register) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -675,7 +674,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable(register error) should shift back if register forks") { s =>
+  test("Task.cancelable(register error) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -696,7 +695,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable(register error) should not shift back if register does not fork") { s =>
+  test("Task.cancelable(register error) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -716,7 +715,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable0(register) should shift back if register forks") { s =>
+  test("Task.cancelable0(register) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -735,7 +734,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable0(register) should not shift back if register does not fork") { s =>
+  test("Task.cancelable0(register) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -753,7 +752,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable0(register error) should shift back if register forks") { s =>
+  test("Task.cancelable0(register error) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -774,7 +773,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable0(register error) should not shift back if register does not fork") { s =>
+  test("Task.cancelable0(register error) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -794,7 +793,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.create(register) should shift back if register forks") { s =>
+  test("Task.create(register) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -813,7 +812,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.create(register) should not shift back if register does not fork") { s =>
+  test("Task.create(register) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -831,7 +830,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.create(register error) should shift back if register forks") { s =>
+  test("Task.create(register error) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -852,7 +851,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.create(register error) should not shift back if register does not fork") { s =>
+  test("Task.create(register error) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -873,7 +872,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
   }
 
   /// ...
-  testAsync("Task.asyncF(register) should shift back if register forks") { s =>
+  test("Task.asyncF(register) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -891,7 +890,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.asyncF(register) should not shift back if register does not fork") { s =>
+  test("Task.asyncF(register) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -906,7 +905,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.asyncF(register error) should shift back if register forks") { s =>
+  test("Task.asyncF(register error) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
@@ -926,7 +925,7 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.asyncF(register error) should not shift back if register does not fork") { s =>
+  test("Task.asyncF(register error) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {

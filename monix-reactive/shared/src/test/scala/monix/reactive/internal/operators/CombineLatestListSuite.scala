@@ -22,7 +22,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration.Zero
 
-object CombineLatestListSuite extends BaseOperatorSuite {
+class CombineLatestListSuite extends BaseOperatorSuite {
 
   val NumberOfObservables: Int = 10000 // We want to test with MANY observables to ensure it is stack-safe.
 

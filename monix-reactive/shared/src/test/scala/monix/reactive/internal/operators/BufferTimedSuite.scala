@@ -28,7 +28,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
-object BufferTimedSuite extends BaseOperatorSuite {
+class BufferTimedSuite extends BaseOperatorSuite {
   val waitFirst = 1.second
   val waitNext = 1.second
 
@@ -81,7 +81,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  test("should emit buffer onComplete") { implicit s =>
+  testScheduler("should emit buffer onComplete") { implicit s =>
     val count = 157
 
     val obs = Observable
@@ -112,7 +112,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  test("should throw on negative timespan") { implicit s =>
+  testScheduler("should throw on negative timespan") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable
         .intervalAtFixedRate(100.millis)
@@ -122,7 +122,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
     ()
   }
 
-  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  testScheduler("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 
@@ -147,7 +147,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
     }
   }
 
-  test("should emit everything onComplete") { implicit s =>
+  testScheduler("should emit everything onComplete") { implicit s =>
     val f = Observable
       .range(0, 1000)
       .bufferTimedAndCounted(10.seconds, 10000)
@@ -159,7 +159,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
     assertEquals(f.value, Some(Success(Some(500 * 999))))
   }
 
-  test("should not emit anything onComplete if buffer is empty") { implicit s =>
+  testScheduler("should not emit anything onComplete if buffer is empty") { implicit s =>
     var received: Long = 0
     var isCompleted: Long = 0
 
@@ -187,7 +187,7 @@ object BufferTimedSuite extends BaseOperatorSuite {
     assertEquals(isCompleted, 1)
   }
 
-  test("trigger IllegalArgumentException on maxCount < 0") { implicit s =>
+  testScheduler("trigger IllegalArgumentException on maxCount < 0") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable
         .range(0, 1000)

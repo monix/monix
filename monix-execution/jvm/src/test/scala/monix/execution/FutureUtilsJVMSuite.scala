@@ -20,14 +20,13 @@ package monix.execution
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 
-import minitest.TestSuite
 import monix.execution.FutureUtils.extensions._
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object FutureUtilsJVMSuite extends TestSuite[TestScheduler] {
+class FutureUtilsJVMSuite extends MUnitFixtureSuite[TestScheduler] {
 
   def setup() = TestScheduler()
 

@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.Continue
@@ -32,13 +31,13 @@ import scala.concurrent.duration._
 import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
-object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+class BufferIntrospectiveSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
-  test("it buffers while consumer is busy") { implicit s =>
+  testScheduler("it buffers while consumer is busy") { implicit s =>
     val subject = PublishSubject[Long]()
     val nextAck = Atomic(Promise[Ack]())
     var wasCompleted = 0
@@ -89,7 +88,7 @@ object BufferIntrospectiveSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 1)
   }
 
-  test("it should signal Stop upstream when it is back-pressured") { implicit s =>
+  testScheduler("it should signal Stop upstream when it is back-pressured") { implicit s =>
     var wasFinalized = false
     var wasEarlyStopped = false
 

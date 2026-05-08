@@ -19,8 +19,7 @@ package monix.execution
 
 import java.util.concurrent.{ CountDownLatch, TimeUnit }
 
-import minitest.TestSuite
-import minitest.api.{ AssertionException, MiniTestException }
+import munit.FailException
 import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, DummyException }
 import monix.execution.schedulers.SchedulerService
 
@@ -28,7 +27,7 @@ import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success, Try }
 
-object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils {
+class CallbackSafetyJVMSuite extends MUnitFixtureSuite[SchedulerService] with TestUtils {
   val WORKERS = 10
   val RETRIES = if (!isCI) 1000 else 100
   val DUMMY = DummyException("dummy")
@@ -85,56 +84,56 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
   }
 
   test("Normal callback is not thread-safe via onSuccess") { implicit sc =>
-    val _ = intercept[AssertionException] { executeOnSuccessTest(x => x) }
+    val _ = intercept[FailException] { executeOnSuccessTest(x => x) }
     ()
   }
 
   test("Normal callback is not thread-safe via onError") { implicit sc =>
-    val _ = intercept[AssertionException] { executeOnErrorTest(x => x) }
+    val _ = intercept[FailException] { executeOnErrorTest(x => x) }
     ()
   }
 
   test("Callback.fromAttempt is not thread-safe via onSuccess") { implicit sc =>
-    if (isCI) ignore()
+    if (isCI) assume(false)
 
     val wrap = { (cb: Callback[Throwable, Int]) =>
       val f = (r: Either[Throwable, Int]) => cb(r)
       Callback.fromAttempt(f)
     }
-    val _ = intercept[AssertionException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
+    val _ = intercept[FailException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
     ()
   }
 
   test("Callback.fromAttempt is not thread-safe via onError") { implicit sc =>
-    if (isCI) ignore()
+    if (isCI) assume(false)
 
     val wrap = { (cb: Callback[Throwable, String]) =>
       val f = (r: Either[Throwable, String]) => cb(r)
       Callback.fromAttempt(f)
     }
-    val _ = intercept[AssertionException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
+    val _ = intercept[FailException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
     ()
   }
 
   test("Callback.fromTry is not thread-safe via onSuccess") { implicit sc =>
-    if (isCI) ignore()
+    if (isCI) assume(false)
 
     val wrap = { (cb: Callback[Throwable, Int]) =>
       val f = (r: Try[Int]) => cb(r)
       Callback.fromTry(f)
     }
-    val _ = intercept[AssertionException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
+    val _ = intercept[FailException] { executeOnSuccessTest(wrap, retries = RETRIES * 100) }
     ()
   }
 
   test("Callback.fromTry is not thread-safe via onError") { implicit sc =>
-    if (isCI) ignore()
+    if (isCI) assume(false)
 
     val wrap = { (cb: Callback[Throwable, String]) =>
       val f = (r: Try[String]) => cb(r)
       Callback.fromTry(f)
     }
-    val _ = intercept[AssertionException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
+    val _ = intercept[FailException] { executeOnErrorTest(wrap, retries = RETRIES * 100) }
     ()
   }
 
@@ -167,14 +166,14 @@ object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils
   }
 
   test("Normal callback is not quasi-safe via onSuccess") { _ =>
-    val _ = intercept[MiniTestException] {
+    val _ = intercept[FailException] {
       executeQuasiSafeOnSuccessTest(x => x)
     }
     ()
   }
 
   test("Normal callback is not quasi-safe via onError") { _ =>
-    val _ = intercept[MiniTestException] {
+    val _ = intercept[FailException] {
       executeQuasiSafeOnFailureTest(x => x)
     }
     ()

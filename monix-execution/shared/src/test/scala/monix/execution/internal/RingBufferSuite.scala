@@ -17,12 +17,12 @@
 
 package monix.execution.internal
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 
 /**
   * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
   */
-object RingBufferSuite extends SimpleTestSuite {
+class RingBufferSuite extends MUnitFunSuite {
   test("empty ring buffer") {
     val buffer = new RingBuffer[Integer](2)
     assertEquals(buffer.isEmpty, true)

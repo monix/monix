@@ -16,13 +16,11 @@
  */
 
 package monix.catnap
-import scala.annotation.nowarn
 
 import cats.effect.IO
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 
-@nowarn
-object CancelableFSuite extends SimpleTestSuite {
+class CancelableFSuite extends MUnitFunSuite {
   test("apply") {
     var effect = 0
     val task = IO { effect += 1 }

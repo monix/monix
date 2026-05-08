@@ -17,11 +17,10 @@
 
 package monix.reactive.compression
 
-import minitest.SimpleTestSuite
-import minitest.laws.Checkers
 import monix.execution.Scheduler
+import org.scalacheck.{ Arbitrary, Prop }
 
-trait CompressionIntegrationSuite extends SimpleTestSuite with Checkers {
+trait CompressionIntegrationSuite extends monix.execution.MUnitFunSuite {
 
   implicit val scheduler: Scheduler =
     Scheduler.computation(parallelism = 4, name = "compression-tests", daemonic = true)
@@ -29,4 +28,12 @@ trait CompressionIntegrationSuite extends SimpleTestSuite with Checkers {
   def assertArrayEquals[T](a1: Array[T], a2: Array[T]): Unit = {
     assertEquals(a1.toList, a2.toList)
   }
+
+  def check(prop: Prop): Unit = {
+    val result = org.scalacheck.Test.check(scalaCheckTestParameters, prop)
+    assert(result.passed, clue(result.toString))
+  }
+
+  def check1[A: Arbitrary](f: A => Prop): Unit =
+    check(Prop.forAll(f))
 }

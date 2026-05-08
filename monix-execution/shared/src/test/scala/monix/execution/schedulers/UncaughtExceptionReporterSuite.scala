@@ -17,12 +17,12 @@
 
 package monix.execution.schedulers
 
+import monix.execution.MUnitFixtureSuite
 import scala.concurrent.{ ExecutionContext, Promise }
 import scala.concurrent.duration._
-import minitest.TestSuite
 import monix.execution.{ ExecutionModel, FutureUtils, Scheduler, UncaughtExceptionReporter }
 
-class UncaughtExceptionReporterBaseSuite extends TestSuite[Promise[Throwable]] {
+class UncaughtExceptionReporterBaseSuite extends MUnitFixtureSuite[Promise[Throwable]] {
   protected val immediateEC = TrampolineExecutionContext.immediate
 
   object Dummy extends Throwable
@@ -49,7 +49,7 @@ class UncaughtExceptionReporterBaseSuite extends TestSuite[Promise[Throwable]] {
   }
 }
 
-object UncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSuite {
+class UncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSuite {
   testReports("Scheduler(_, ExecModel)")(Scheduler(_, ExecutionModel.Default))
   testReports("Scheduler(global, _)")(Scheduler(Scheduler.global, _))
   testReports("Scheduler(ExecutionContext, _)")(Scheduler(ExecutionContext.global, _))

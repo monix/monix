@@ -22,7 +22,7 @@ import monix.execution.Scheduler
 import monix.execution.exceptions.DummyException
 import monix.reactive.{ MulticastStrategy, Observer }
 
-object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
+class ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long])(implicit s: Scheduler) = {
     val c = ConcurrentSubject(MulticastStrategy.async[Long])
     Sample(c, expectedElems.lastOption.getOrElse(0))
@@ -30,7 +30,7 @@ object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
 
   def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler) = None
 
-  test("while active, keep adding subscribers, but don't emit anything") { implicit s =>
+  testScheduler("while active, keep adding subscribers, but don't emit anything") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -71,7 +71,7 @@ object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
     assertEquals(wereCompleted, 4)
   }
 
-  test("should interrupt on error without emitting anything") { implicit s =>
+  testScheduler("should interrupt on error without emitting anything") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -115,7 +115,7 @@ object ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
     assertEquals(wereCompleted, 4)
   }
 
-  test("should interrupt when empty") { implicit s =>
+  testScheduler("should interrupt when empty") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 

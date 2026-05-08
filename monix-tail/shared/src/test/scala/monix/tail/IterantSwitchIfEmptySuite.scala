@@ -24,26 +24,26 @@ import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 import monix.tail.batches.{ EmptyBatch, EmptyCursor }
 
-object IterantSwitchIfEmptySuite extends BaseTestSuite {
+final class IterantSwitchIfEmptySuite extends BaseTestSuite {
   val backupStream: Iterant[Coeval, Int] = Iterant[Coeval].of(42)
   val emptyInts: Iterant[Coeval, Int] = Iterant[Coeval].empty[Int]
 
   def assertChoosesArg(source: Iterant[Coeval, Int]): Unit = {
     val target = source.switchIfEmpty(backupStream)
-    assert(target.toListL.value() == source.toListL.value())
+    assertEquals(target.toListL.value(), source.toListL.value())
   }
 
   def assertChoosesFallback(source: Iterant[Coeval, Int]): Unit = {
     val target = source.switchIfEmpty(backupStream)
-    assert(target.toListL.value() == backupStream.toListL.value())
+    assertEquals(target.toListL.value(), backupStream.toListL.value())
   }
 
-  test("Iterant.switchIfEmpty returns left stream on nonempty streams") { implicit s =>
+  testScheduler("Iterant.switchIfEmpty returns left stream on nonempty streams") { implicit s =>
     assertChoosesArg(Iterant[Coeval].of(1, 2, 3))
     assertChoosesArg(Iterant[Coeval].defer(Iterant[Coeval].of(1)))
   }
 
-  test("Iterant.switchIfEmpty propagates error from left stream") { implicit s =>
+  testScheduler("Iterant.switchIfEmpty propagates error from left stream") { implicit s =>
     val ex = DummyException("dummy")
     val source = Iterant[Coeval].raiseError[Int](ex).switchIfEmpty(backupStream)
     intercept[DummyException] {
@@ -53,7 +53,7 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
     ()
   }
 
-  test("Iterant.switchIfEmpty still executes left's earlyStop when switching") { implicit s =>
+  testScheduler("Iterant.switchIfEmpty still executes left's earlyStop when switching") { implicit s =>
     val cancelable = BooleanCancelable()
     val left = emptyInts.guarantee(Coeval { cancelable.cancel() })
 
@@ -62,7 +62,7 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
     assert(cancelable.isCanceled)
   }
 
-  test("Iterant.switchIfEmpty does not evaluate other stream effects when not switching") { implicit s =>
+  testScheduler("Iterant.switchIfEmpty does not evaluate other stream effects when not switching") { implicit s =>
     val cancelable = BooleanCancelable()
     val right = emptyInts.guarantee(Coeval { cancelable.cancel() })
 
@@ -71,11 +71,11 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
     assert(!cancelable.isCanceled)
   }
 
-  test("Iterant.switchIfEmpty chooses fallback for Halt with no errors") { implicit s =>
+  testScheduler("Iterant.switchIfEmpty chooses fallback for Halt with no errors") { implicit s =>
     assertChoosesFallback(Iterant[Coeval].haltS(None))
   }
 
-  test("Iterant.switchIfEmpty chooses fallback for empty cursors") { implicit s =>
+  testScheduler("Iterant.switchIfEmpty chooses fallback for empty cursors") { implicit s =>
     assertChoosesFallback(
       Iterant[Coeval].nextCursorS(
         EmptyCursor,
@@ -84,7 +84,7 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
     )
   }
 
-  test("Iterant.switchIfEmpty chooses fallback for empty batches") { implicit s =>
+  testScheduler("Iterant.switchIfEmpty chooses fallback for empty batches") { implicit s =>
     assertChoosesFallback(
       Iterant[Coeval].nextBatchS(
         EmptyBatch,
@@ -93,7 +93,7 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
     )
   }
 
-  test("Iterant.switchIfEmpty consistent with toListL.isEmpty") { implicit s =>
+  testScheduler("Iterant.switchIfEmpty consistent with toListL.isEmpty") { implicit s =>
     check2 { (left: Iterant[Coeval, Int], right: Iterant[Coeval, Int]) =>
       val target = left.toListL.flatMap { list =>
         if (list.nonEmpty) Coeval.pure(list)
@@ -105,7 +105,7 @@ object IterantSwitchIfEmptySuite extends BaseTestSuite {
     }
   }
 
-  test("Iterant.switchIfEmpty can handle broken batches") { implicit s =>
+  testScheduler("Iterant.switchIfEmpty can handle broken batches") { implicit s =>
     val dummy = DummyException("dummy")
     val iterant = Iterant[Coeval].nextBatchS(
       ThrowExceptionBatch[Int](dummy),

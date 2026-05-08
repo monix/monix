@@ -17,14 +17,14 @@
 
 package monix.execution.schedulers
 
-import minitest.TestSuite
+import monix.execution.MUnitFixtureSuite
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.ExecutionModel.{ Default => DefaultExecModel }
 import monix.execution.Scheduler
 import monix.execution.internal.Platform
 import scala.concurrent.Promise
 
-object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
+class TrampolineSchedulerSuite extends MUnitFixtureSuite[(Scheduler, TestScheduler)] {
   def setup(): (Scheduler, TestScheduler) = {
     val u = TestScheduler(DefaultExecModel)
     val t = TrampolineScheduler(u, DefaultExecModel)
@@ -139,7 +139,7 @@ object TrampolineSchedulerSuite extends TestSuite[(Scheduler, TestScheduler)] {
   test("on blocking it should fork") {
     case (s, u) =>
       import concurrent.blocking
-      if (!Platform.isJVM) ignore("test relevant only for the JVM")
+      if (!Platform.isJVM) assume(false, "test relevant only for the JVM")
 
       var effect = 0
       s.execute { () =>

@@ -21,7 +21,7 @@ import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
 import monix.reactive.{ Consumer, Observable, Observer }
 
-object AsyncSubjectSuite extends BaseSubjectSuite {
+class AsyncSubjectSuite extends BaseSubjectSuite {
   def alreadyTerminatedTest(expectedElems: Seq[Long]) = {
     val s = AsyncSubject[Long]()
     Sample(s, expectedElems.lastOption.getOrElse(0))
@@ -29,7 +29,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
 
   def continuousStreamingTest(expectedElems: Seq[Long]) = None
 
-  test("while active, keep adding subscribers, but don't emit anything") { implicit s =>
+  testScheduler("while active, keep adding subscribers, but don't emit anything") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -69,7 +69,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     assertEquals(wereCompleted, 4)
   }
 
-  test("should interrupt on error without emitting anything") { implicit s =>
+  testScheduler("should interrupt on error without emitting anything") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -112,7 +112,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     assertEquals(wereCompleted, 4)
   }
 
-  test("should interrupt when empty") { implicit s =>
+  testScheduler("should interrupt when empty") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -141,7 +141,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     assertEquals(wereCompleted, 4)
   }
 
-  test("subscribe after complete should complete immediately if empty") { implicit s =>
+  testScheduler("subscribe after complete should complete immediately if empty") { implicit s =>
     val subject = AsyncSubject[Int]()
     subject.onComplete()
 
@@ -155,7 +155,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     assert(wasCompleted)
   }
 
-  test("subscribe after complete should complete immediately if non-empty") { implicit s =>
+  testScheduler("subscribe after complete should complete immediately if non-empty") { implicit s =>
     val subject = AsyncSubject[Int]()
     subject.onNext(10)
     subject.onComplete()
@@ -173,7 +173,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     assertEquals(received, 10)
   }
 
-  test("onError should terminate current and future subscribers") { implicit s =>
+  testScheduler("onError should terminate current and future subscribers") { implicit s =>
     val subject = AsyncSubject[Int]()
     val dummy = DummyException("dummy")
     var elemsReceived = 0
@@ -205,7 +205,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     assertEquals(errorsReceived, 11)
   }
 
-  test("unsubscribe after onComplete") { implicit s =>
+  testScheduler("unsubscribe after onComplete") { implicit s =>
     var result: Int = 0
     val subject = AsyncSubject[Int]()
     val c = subject.subscribe { e =>
@@ -220,7 +220,7 @@ object AsyncSubjectSuite extends BaseSubjectSuite {
     assertEquals(result, 1)
   }
 
-  test("Observable.publishLast should emit only the last element") { implicit s =>
+  testScheduler("Observable.publishLast should emit only the last element") { implicit s =>
     var foreachSum = 0
     var consumerSum = 0
     var subscribeSum = 0

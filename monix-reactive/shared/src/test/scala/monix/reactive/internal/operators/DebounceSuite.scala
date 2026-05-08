@@ -20,7 +20,7 @@ package monix.reactive.internal.operators
 import monix.reactive.Observable
 import scala.concurrent.duration._
 
-object DebounceSuite extends BaseOperatorSuite {
+class DebounceSuite extends BaseOperatorSuite {
   def createObservable(sourceCount: Int) = Some {
     val o = Observable
       .interval(2.seconds)

@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.builders
 
-import minitest.TestSuite
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.Scheduler
 import monix.execution.FutureUtils.extensions._
@@ -28,13 +27,13 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object RangeObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+class RangeObservableSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty, "TestScheduler should not have pending tasks left")
   }
 
-  test("should do increments and synchronous observers") { implicit s =>
+  testScheduler("should do increments and synchronous observers") { implicit s =>
     var wasCompleted = false
     var sum = 0L
 
@@ -54,7 +53,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, true)
   }
 
-  test("should do decrements and synchronous observers") { implicit s =>
+  testScheduler("should do decrements and synchronous observers") { implicit s =>
     var wasCompleted = false
     var sum = 0L
 
@@ -74,7 +73,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, true)
   }
 
-  test("should do back-pressure") { implicit s =>
+  testScheduler("should do back-pressure") { implicit s =>
     var wasCompleted = false
     var received = 0L
     var sum = 0L
@@ -102,7 +101,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     assert(wasCompleted)
   }
 
-  test("should throw if step is zero") { implicit s =>
+  testScheduler("should throw if step is zero") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable.range(0L, 10L, 0L)
       ()
@@ -110,7 +109,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     ()
   }
 
-  test("should do synchronous execution in batches") { implicit s =>
+  testScheduler("should do synchronous execution in batches") { implicit s =>
     val batchSize = s.executionModel.recommendedBatchSize
     var received = 0
 
@@ -124,7 +123,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     }
   }
 
-  test("should be cancelable") { implicit s =>
+  testScheduler("should be cancelable") { implicit s =>
     var received = 0
     var wasCompleted = 0
     val source = Observable.range(0L, Platform.recommendedBatchSize.toLong * 10)
@@ -148,7 +147,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, 0)
   }
 
-  test("should complete when Long.MaxValue is reached") { implicit s =>
+  testScheduler("should complete when Long.MaxValue is reached") { implicit s =>
     var wasCompleted = false
     var elements = List.empty[Long]
 
@@ -174,7 +173,7 @@ object RangeObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCompleted, true)
   }
 
-  test("should complete when Long.MinValue is reached") { implicit s =>
+  testScheduler("should complete when Long.MinValue is reached") { implicit s =>
     var wasCompleted = false
     var elements = List.empty[Long]
 

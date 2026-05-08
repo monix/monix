@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.builders
 
-import minitest.TestSuite
 import monix.execution.Cancelable
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.Observable
@@ -25,13 +24,13 @@ import monix.reactive.OverflowStrategy.Unbounded
 import monix.execution.exceptions.DummyException
 import scala.util.Success
 
-object CreateObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
+class CreateObservableSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
   }
 
-  test("should work") { implicit s =>
+  testScheduler("should work") { implicit s =>
     val o = Observable.create[Int](Unbounded) { out =>
       out.onNext(1)
       out.onNext(2)
@@ -46,7 +45,7 @@ object CreateObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(sum.value.get, Success(Some(10)))
   }
 
-  test("should protect against user error") { implicit s =>
+  testScheduler("should protect against user error") { implicit s =>
     val ex = DummyException("dummy")
     val o = Observable.create[Int](Unbounded) { out =>
       throw ex

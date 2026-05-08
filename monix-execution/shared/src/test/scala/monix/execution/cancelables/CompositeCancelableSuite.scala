@@ -17,8 +17,7 @@
 
 package monix.execution.cancelables
 
-import minitest.SimpleTestSuite
-import minitest.laws.Checkers
+import monix.execution.MUnitFunSuite
 import monix.execution.Cancelable
 import monix.execution.atomic.PaddingStrategy.LeftRight256
 import scala.annotation.nowarn
@@ -26,7 +25,7 @@ import scala.annotation.nowarn
 import scala.collection.mutable.ListBuffer
 
 @nowarn("msg=The syntax `x: _\\*` is no longer supported for vararg splices; use `x\\*` instead")
-object CompositeCancelableSuite extends SimpleTestSuite with Checkers {
+class CompositeCancelableSuite extends MUnitFunSuite {
   test("simple cancel") {
     val s = CompositeCancelable()
     val b1 = BooleanCancelable()

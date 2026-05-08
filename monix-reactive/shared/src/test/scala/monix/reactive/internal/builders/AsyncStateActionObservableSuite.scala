@@ -18,7 +18,6 @@
 package monix.reactive.internal.builders
 
 import cats.effect.IO
-import minitest.TestSuite
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.internal.Platform
@@ -31,13 +30,13 @@ import monix.reactive.observers.Subscriber
 import scala.util.Failure
 import scala.concurrent.duration.MILLISECONDS
 
-object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
+class AsyncStateActionObservableSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("first execution can be sync") { implicit s =>
+  testScheduler("first execution can be sync") { implicit s =>
     var received = 0
     Observable
       .fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
@@ -49,7 +48,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(received, 1)
   }
 
-  test("should do synchronous execution in batches") { implicit s =>
+  testScheduler("should do synchronous execution in batches") { implicit s =>
     var received = 0
     Observable
       .fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
@@ -65,7 +64,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(received, Platform.recommendedBatchSize * 3)
   }
 
-  test("should do async execution") { implicit s =>
+  testScheduler("should do async execution") { implicit s =>
     var received = 0
     Observable
       .fromAsyncStateAction(intAsync)(s.clockMonotonic(MILLISECONDS))
@@ -78,7 +77,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(received, Platform.recommendedBatchSize * 2)
   }
 
-  test("fromAsyncStateAction should be cancelable") { implicit s =>
+  testScheduler("fromAsyncStateAction should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -102,7 +101,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     assert(!wasCompleted)
   }
 
-  test("should protect against user code errors") { implicit s =>
+  testScheduler("should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable.fromAsyncStateAction(intError(ex))(s.clockMonotonic(MILLISECONDS)).runAsyncGetFirst
 
@@ -130,7 +129,7 @@ object AsyncStateActionObservableSuite extends TestSuite[TestScheduler] {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  test("should do async execution with cats.effect.IO") { implicit s =>
+  testScheduler("should do async execution with cats.effect.IO") { implicit s =>
     var received = 0
     Observable
       .fromAsyncStateActionF(intAsyncIO)(s.clockMonotonic(MILLISECONDS))

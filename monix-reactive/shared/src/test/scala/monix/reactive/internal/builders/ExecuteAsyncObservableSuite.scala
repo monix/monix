@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.builders
 
-import minitest.TestSuite
 import monix.execution.Ack
 import monix.execution.Ack.Stop
 import monix.execution.internal.Platform
@@ -27,13 +26,13 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.{ Future, Promise }
 import scala.util.Success
 
-object ExecuteAsyncObservableSuite extends TestSuite[TestScheduler] {
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+class ExecuteAsyncObservableSuite extends monix.reactive.BaseTestSuite {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
-  test("Observable.now.executeAsync should execute async") { implicit s =>
+  testScheduler("Observable.now.executeAsync should execute async") { implicit s =>
     val obs = Observable.now(10).executeAsync
     val p = Promise[Int]()
 
@@ -49,7 +48,7 @@ object ExecuteAsyncObservableSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  test("Observer.executeWithModel should work") { implicit s =>
+  testScheduler("Observer.executeWithModel should work") { implicit s =>
     val count = Platform.recommendedBatchSize * 4
     val obs = Observable.range(0L, count.toLong).executeWithModel(SynchronousExecution)
     val sum = obs.sumL.runToFuture

@@ -17,10 +17,10 @@
 
 package monix.execution.cancelables
 
-import minitest.SimpleTestSuite
+import monix.execution.MUnitFunSuite
 import monix.execution.TestUtils
 
-object ChainedCancelableJVMSuite extends SimpleTestSuite with TestUtils {
+class ChainedCancelableJVMSuite extends MUnitFunSuite with TestUtils {
   test("chain strong reference") {
     val source = ChainedCancelable()
     val child = ChainedCancelable()
@@ -34,7 +34,7 @@ object ChainedCancelableJVMSuite extends SimpleTestSuite with TestUtils {
   }
 
   test("chain weak reference") {
-    if (isCI) ignore("Test is flaky, ignoring on top of CI")
+    if (isCI) assume(false, "Test is flaky, ignoring on top of CI")
 
     def setupForward(child: ChainedCancelable): Unit = {
       val source = ChainedCancelable()

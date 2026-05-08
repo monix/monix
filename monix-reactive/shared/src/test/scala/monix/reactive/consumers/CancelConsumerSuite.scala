@@ -17,7 +17,6 @@
 
 package monix.reactive.consumers
 
-import minitest.TestSuite
 import monix.execution.Callback
 import monix.execution.Ack.Stop
 import monix.execution.Cancelable
@@ -27,13 +26,13 @@ import monix.reactive.{ Consumer, Observable }
 import scala.concurrent.Promise
 import scala.util.Success
 
-object CancelConsumerSuite extends TestSuite[TestScheduler] {
-  def setup(): TestScheduler = TestScheduler()
-  def tearDown(s: TestScheduler): Unit = {
+class CancelConsumerSuite extends monix.reactive.BaseTestSuite {
+  override def setup(): TestScheduler = TestScheduler()
+  override def tearDown(s: TestScheduler): Unit = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("should cancel immediately") { implicit s =>
+  testScheduler("should cancel immediately") { implicit s =>
     val consumer = Consumer.cancel[Int]
 
     val p = Promise[Unit]()
@@ -51,14 +50,14 @@ object CancelConsumerSuite extends TestSuite[TestScheduler] {
     assertEquals(out.onNext(1), Stop)
   }
 
-  test("observable.now") { implicit s =>
+  testScheduler("observable.now") { implicit s =>
     val obs = Observable.now(1)
     val f = obs.consumeWith(Consumer.cancel).runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
-  test("onError should report errors") { implicit s =>
+  testScheduler("onError should report errors") { implicit s =>
     val consumer = Consumer.cancel[Int]
     val (out, _) = consumer.createSubscriber(Callback.empty, s)
 

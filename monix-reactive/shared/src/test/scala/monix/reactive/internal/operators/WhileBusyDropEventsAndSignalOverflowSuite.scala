@@ -17,7 +17,6 @@
 
 package monix.reactive.internal.operators
 
-import minitest.TestSuite
 import monix.execution.Ack.Continue
 import monix.execution.schedulers.TestScheduler
 import monix.reactive.subjects.PublishSubject
@@ -25,14 +24,14 @@ import monix.reactive.{ Observable, Observer }
 import scala.concurrent.Promise
 import scala.util.Success
 
-object WhileBusyDropEventsAndSignalOverflowSuite extends TestSuite[TestScheduler] {
+class WhileBusyDropEventsAndSignalOverflowSuite extends monix.reactive.BaseTestSuite {
 
-  def setup() = TestScheduler()
-  def tearDown(s: TestScheduler) = {
+  override def setup() = TestScheduler()
+  override def tearDown(s: TestScheduler) = {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  test("should not drop events for synchronous observers") { implicit s =>
+  testScheduler("should not drop events for synchronous observers") { implicit s =>
     val f = Observable
       .range(0, 1000)
       .whileBusyDropEventsAndSignal(x => x)
@@ -43,7 +42,7 @@ object WhileBusyDropEventsAndSignalOverflowSuite extends TestSuite[TestScheduler
     assertEquals(f.value, Some(Success(Some(999 * 500))))
   }
 
-  test("should drop events for busy observers") { implicit s =>
+  testScheduler("should drop events for busy observers") { implicit s =>
     val source = PublishSubject[Long]()
     val p = Promise[Continue.type]()
     var received = 0L
@@ -80,7 +79,7 @@ object WhileBusyDropEventsAndSignalOverflowSuite extends TestSuite[TestScheduler
     assertEquals(received, 102L + 1)
   }
 
-  test("should send number of dropped events when onComplete") { implicit s =>
+  testScheduler("should send number of dropped events when onComplete") { implicit s =>
     val source = PublishSubject[Long]()
     val p = Promise[Continue.type]()
     var received = 0L

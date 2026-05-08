@@ -16,16 +16,14 @@
  */
 
 package monix.catnap
-import scala.annotation.nowarn
 
 import java.util.concurrent.atomic.AtomicLong
 
 import cats.effect.{ ContextShift, IO, Timer }
 import cats.implicits._
-import minitest.TestSuite
 import monix.execution.BufferCapacity.{ Bounded, Unbounded }
 import monix.execution.ChannelType.{ MPMC, MPSC, SPMC, SPSC }
-import monix.execution.{ BufferCapacity, ChannelType, Scheduler }
+import monix.execution.{ BufferCapacity, ChannelType, MUnitFunSuite, Scheduler }
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 
@@ -33,45 +31,42 @@ import scala.collection.immutable.Queue
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
-@nowarn
-object ConcurrentQueueFakeSuite extends BaseConcurrentQueueSuite[TestScheduler] {
-  def setup() = TestScheduler()
-
-  def tearDown(env: TestScheduler): Unit =
-    assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
-
+class ConcurrentQueueFakeSuite extends BaseConcurrentQueueSuite {
   def testIO(name: String, times: Int)(f: Scheduler => IO[Unit]): Unit = {
     def repeatTest(test: IO[Unit], n: Int): IO[Unit] =
       if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
       else IO.unit
 
-    test(name) { ec =>
+    test(name) {
+      val ec = TestScheduler()
       val result = repeatTest(f(ec), times).unsafeToFuture()
       ec.tick(1.day)
-      result.value match {
-        case None => throw new TimeoutException("1 day")
-        case Some(value) => value.get
+      try {
+        result.value match {
+          case None => throw new TimeoutException("1 day")
+          case Some(value) => value.get
+        }
+      } finally {
+        assertEquals(ec.state.tasks.isEmpty, true, "should not have tasks left to execute")
       }
     }
   }
 }
 
-object ConcurrentQueueGlobalSuite extends BaseConcurrentQueueSuite[Scheduler] {
-  def setup() = Scheduler.global
-  def tearDown(env: Scheduler): Unit = ()
-
+class ConcurrentQueueGlobalSuite extends BaseConcurrentQueueSuite {
   def testIO(name: String, times: Int)(f: Scheduler => IO[Unit]): Unit = {
     def repeatTest(test: IO[Unit], n: Int): IO[Unit] =
       if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
       else IO.unit
 
-    testAsync(name) { implicit ec =>
+    testAsync(name) {
+      implicit val ec: Scheduler = Scheduler.global
       repeatTest(f(ec).timeout(60.seconds), times).unsafeToFuture()
     }
   }
 }
 
-abstract class BaseConcurrentQueueSuite[S <: Scheduler] extends TestSuite[S] {
+trait BaseConcurrentQueueSuite extends MUnitFunSuite {
   implicit def contextShift(implicit s: Scheduler): ContextShift[IO] =
     SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
   implicit def timer(implicit s: Scheduler): Timer[IO] =

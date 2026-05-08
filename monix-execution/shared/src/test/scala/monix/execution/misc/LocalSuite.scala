@@ -17,14 +17,14 @@
 
 package monix.execution.misc
 
+import monix.execution.MUnitFunSuite
 import cats.Eval
-import minitest.SimpleTestSuite
 import monix.execution.schedulers.{ TestScheduler, TracingScheduler }
 import monix.execution.misc.CanBindLocals.Implicits.synchronousAsDefault
 import scala.concurrent.Future
 import scala.util.Success
 
-object LocalSuite extends SimpleTestSuite {
+class LocalSuite extends MUnitFunSuite {
   test("Local.apply") {
     val local = Local(0)
     assertEquals(local.get, 0)
