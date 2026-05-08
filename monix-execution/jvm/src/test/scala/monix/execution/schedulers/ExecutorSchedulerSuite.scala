@@ -29,11 +29,12 @@ import scala.concurrent.duration.*
 import scala.concurrent.{ blocking, Await, Promise }
 
 abstract class ExecutorSchedulerSuite extends MUnitFixtureSuite[SchedulerService] { self =>
+  val lock = new AnyRef
   var lastReportedFailure = null: Throwable
   var lastReportedFailureLatch = null: CountDownLatch
 
   def testsReporter = UncaughtExceptionReporter { ex =>
-    self.synchronized {
+    lock.synchronized {
       lastReportedFailure = ex
       if (lastReportedFailureLatch != null) {
         lastReportedFailureLatch.countDown()
@@ -54,59 +55,59 @@ abstract class ExecutorSchedulerSuite extends MUnitFixtureSuite[SchedulerService
   def scheduleOnce(s: Scheduler, delay: FiniteDuration)(action: => Unit): Cancelable =
     s.scheduleOnce(delay.length, delay.unit, runnableAction(action))
 
-//  test("scheduleOnce with delay") { scheduler =>
-//    val p = Promise[Long]()
-//    val startedAt = System.nanoTime()
-//    val _ = scheduleOnce(scheduler, 100.millis) {
-//      p.success(System.nanoTime())
-//      ()
-//    }
-//    val timeTaken = Await.result(p.future, 3.second)
-//    assert((timeTaken - startedAt).nanos.toMillis >= 100)
-//  }
-//
-//  test("scheduleOnce with delay lower than 1.milli") { scheduler =>
-//    val p = Promise[Int]()
-//    val _ = scheduleOnce(scheduler, 20.nanos) { p.success(1); () }
-//    assertEquals(Await.result(p.future, 3.seconds), 1)
-//  }
-//
-//  test("scheduleOnce with delay and cancel") { scheduler =>
-//    val p = Promise[Int]()
-//    val task = scheduleOnce(scheduler, 100.millis) { p.success(1); () }
-//    task.cancel()
-//
-//    val _ = intercept[TimeoutException] {
-//      val _ = Await.result(p.future, 150.millis)
-//      ()
-//    }
-//    ()
-//  }
-//
-//  test("schedule with fixed delay") { scheduler =>
-//    val sub = SingleAssignCancelable()
-//    val p = Promise[Int]()
-//    var value = 0
-//
-//    sub := scheduler.scheduleWithFixedDelay(
-//      10,
-//      50,
-//      TimeUnit.MILLISECONDS,
-//      runnableAction {
-//        if (value + 1 == 4) {
-//          value += 1
-//          sub.cancel()
-//          p.success(value)
-//          ()
-//        } else if (value < 4) {
-//          value += 1
-//        }
-//      }
-//    )
-//
-//    assertEquals(Await.result(p.future, 5.second), 4)
-//  }
-//
+  test("scheduleOnce with delay") { scheduler =>
+    val p = Promise[Long]()
+    val startedAt = System.nanoTime()
+    val _ = scheduleOnce(scheduler, 100.millis) {
+      p.success(System.nanoTime())
+      ()
+    }
+    val timeTaken = Await.result(p.future, 3.second)
+    assert((timeTaken - startedAt).nanos.toMillis >= 100)
+  }
+
+  test("scheduleOnce with delay lower than 1.milli") { scheduler =>
+    val p = Promise[Int]()
+    val _ = scheduleOnce(scheduler, 20.nanos) { p.success(1); () }
+    assertEquals(Await.result(p.future, 3.seconds), 1)
+  }
+
+  test("scheduleOnce with delay and cancel") { scheduler =>
+    val p = Promise[Int]()
+    val task = scheduleOnce(scheduler, 100.millis) { p.success(1); () }
+    task.cancel()
+
+    val _ = intercept[TimeoutException] {
+      val _ = Await.result(p.future, 150.millis)
+      ()
+    }
+    ()
+  }
+
+  test("schedule with fixed delay") { scheduler =>
+    val sub = SingleAssignCancelable()
+    val p = Promise[Int]()
+    var value = 0
+
+    sub := scheduler.scheduleWithFixedDelay(
+      10,
+      50,
+      TimeUnit.MILLISECONDS,
+      runnableAction {
+        if (value + 1 == 4) {
+          value += 1
+          sub.cancel()
+          p.success(value)
+          ()
+        } else if (value < 4) {
+          value += 1
+        }
+      }
+    )
+
+    assertEquals(Await.result(p.future, 5.second), 4)
+  }
+
   test("schedule at fixed rate") { scheduler =>
     val sub = SingleAssignCancelable()
     val p = Promise[Int]()
@@ -154,7 +155,7 @@ abstract class ExecutorSchedulerSuite extends MUnitFixtureSuite[SchedulerService
 
   test("reports errors on execute") { scheduler =>
     val latch = new CountDownLatch(1)
-    self.synchronized {
+    lock.synchronized {
       assertEquals(lastReportedFailure, null)
       assertEquals(lastReportedFailureLatch, null)
       lastReportedFailureLatch = latch
@@ -165,9 +166,9 @@ abstract class ExecutorSchedulerSuite extends MUnitFixtureSuite[SchedulerService
       scheduler.execute(() => throw ex)
 
       assert(latch.await(munitTimeout.length, munitTimeout.unit), "lastReportedFailureLatch.await")
-      self.synchronized(assertEquals(lastReportedFailure, ex))
+      lock.synchronized(assertEquals(lastReportedFailure, ex))
     } finally {
-      self.synchronized {
+      lock.synchronized {
         lastReportedFailure = null
         assertEquals(lastReportedFailureLatch, latch)
         lastReportedFailureLatch = null
@@ -177,7 +178,7 @@ abstract class ExecutorSchedulerSuite extends MUnitFixtureSuite[SchedulerService
 
   test("reports errors on scheduleOnce") { scheduler =>
     val latch = new CountDownLatch(1)
-    self.synchronized {
+    lock.synchronized {
       assertEquals(lastReportedFailure, null)
       assertEquals(lastReportedFailureLatch, null)
       lastReportedFailureLatch = latch
@@ -190,9 +191,9 @@ abstract class ExecutorSchedulerSuite extends MUnitFixtureSuite[SchedulerService
         () => throw ex
       )
       assert(latch.await(munitTimeout.length, munitTimeout.unit), "lastReportedFailureLatch.await")
-      self.synchronized(assertEquals(lastReportedFailure, ex))
+      lock.synchronized(assertEquals(lastReportedFailure, ex))
     } finally {
-      self.synchronized {
+      lock.synchronized {
         lastReportedFailure = null
         assertEquals(lastReportedFailureLatch, latch)
         lastReportedFailureLatch = null
