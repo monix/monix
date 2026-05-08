@@ -36,7 +36,7 @@ class BehaviorSubjectSuite extends BaseSubjectSuite {
     Some(Sample(s, expectedElems.sum))
   }
 
-  testScheduler("should work synchronously for synchronous subscribers") { implicit s =>
+  test("should work synchronously for synchronous subscribers") { implicit s =>
     val subject = BehaviorSubject[Int](10)
     var received = 0
     var wasCompleted = 0
@@ -62,7 +62,7 @@ class BehaviorSubjectSuite extends BaseSubjectSuite {
     assertEquals(wasCompleted, 10)
   }
 
-  testScheduler("should work with asynchronous subscribers") { implicit s =>
+  test("should work with asynchronous subscribers") { implicit s =>
     val subject = BehaviorSubject[Int](10)
     var received = 0
     var wasCompleted = 0
@@ -91,7 +91,7 @@ class BehaviorSubjectSuite extends BaseSubjectSuite {
     assertEquals(wasCompleted, 10)
   }
 
-  testScheduler("subscribe after complete should complete immediately") { implicit s =>
+  test("subscribe after complete should complete immediately") { implicit s =>
     val subject = BehaviorSubject[Int](10)
     var received = 0
     subject.onComplete()
@@ -107,7 +107,7 @@ class BehaviorSubjectSuite extends BaseSubjectSuite {
     assertEquals(received, 10)
   }
 
-  testScheduler("onError should terminate current and future subscribers") { implicit s =>
+  test("onError should terminate current and future subscribers") { implicit s =>
     val subject = BehaviorSubject[Int](10)
     val dummy = DummyException("dummy")
     var elemsReceived = 0
@@ -140,7 +140,7 @@ class BehaviorSubjectSuite extends BaseSubjectSuite {
     assertEquals(errorsReceived, 11)
   }
 
-  testScheduler("can stop streaming while connecting") { implicit s =>
+  test("can stop streaming while connecting") { implicit s =>
     val subject = BehaviorSubject[Int](10)
 
     val future1 = subject.runAsyncGetFirst
@@ -155,7 +155,7 @@ class BehaviorSubjectSuite extends BaseSubjectSuite {
     assertEquals(subject.size, 0)
   }
 
-  testScheduler("unsubscribe after onComplete") { implicit s =>
+  test("unsubscribe after onComplete") { implicit s =>
     var result: Int = 0
     val subject = BehaviorSubject[Int](0)
     val c = subject.subscribe { e =>
@@ -170,7 +170,7 @@ class BehaviorSubjectSuite extends BaseSubjectSuite {
     assertEquals(result, 1)
   }
 
-  testScheduler("Observable.behavior should emit only the latest element") { implicit s =>
+  test("Observable.behavior should emit only the latest element") { implicit s =>
     var foreachSum = 0
     var consumerSum = 0
     var subscribeSum = 0

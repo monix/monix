@@ -31,7 +31,7 @@ class DoOnNextSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should work for cats.effect.IO") { implicit s =>
+  test("should work for cats.effect.IO") { implicit s =>
     var sum = 0L
     var wasCompleted = 0
 
@@ -50,7 +50,7 @@ class DoOnNextSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasCompleted, 1)
   }
 
-  testScheduler("should work for Observable.range and async task") { implicit s =>
+  test("should work for Observable.range and async task") { implicit s =>
     var sum = 0L
     var wasCompleted = 0
 
@@ -69,7 +69,7 @@ class DoOnNextSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasCompleted, 1)
   }
 
-  testScheduler("should work for Observable.range and sync task") { implicit s =>
+  test("should work for Observable.range and sync task") { implicit s =>
     var sum = 0L
     var wasCompleted = 0
 
@@ -87,7 +87,7 @@ class DoOnNextSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasCompleted, 1)
   }
 
-  testScheduler("should work for Observable.now and async task") { implicit s =>
+  test("should work for Observable.now and async task") { implicit s =>
     var sum = 0L
     var wasCompleted = 0
 
@@ -106,7 +106,7 @@ class DoOnNextSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasCompleted, 1)
   }
 
-  testScheduler("should work for Observable.now and sync task") { implicit s =>
+  test("should work for Observable.now and sync task") { implicit s =>
     var sum = 0L
     var wasCompleted = 0
 
@@ -124,7 +124,7 @@ class DoOnNextSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasCompleted, 1)
   }
 
-  testScheduler("should protect against user code for direct exceptions") { implicit s =>
+  test("should protect against user code for direct exceptions") { implicit s =>
     val dummy = DummyException("dummy")
     var received = 0L
     var wasCompleted = 0L
@@ -145,7 +145,7 @@ class DoOnNextSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasCompleted, 0)
   }
 
-  testScheduler("should protect against user code for indirect exceptions") { implicit s =>
+  test("should protect against user code for indirect exceptions") { implicit s =>
     val dummy = DummyException("dummy")
     var received = 0L
     var wasCompleted = 0L

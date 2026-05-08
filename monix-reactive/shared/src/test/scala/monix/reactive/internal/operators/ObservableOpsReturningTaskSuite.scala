@@ -39,21 +39,21 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     p.future
   }
 
-  testScheduler("runAsyncGetFirst works") { implicit s =>
+  test("runAsyncGetFirst works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       obs.runAsyncGetFirst.materialize <-> first(obs)
     }
   }
 
-  testScheduler("runAsyncGetLast works") { implicit s =>
+  test("runAsyncGetLast works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       obs.runAsyncGetLast.materialize <-> first(obs.last)
     }
   }
 
-  testScheduler("countL works") { implicit s =>
+  test("countL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Long]]] =
@@ -63,7 +63,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("countL is equivalent with countF") { implicit s =>
+  test("countL is equivalent with countF") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Long]]] =
@@ -73,7 +73,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("existsL works") { implicit s =>
+  test("existsL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Boolean]]] =
@@ -83,7 +83,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("existsL is equivalent with existsF") { implicit s =>
+  test("existsL is equivalent with existsF") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Boolean]]] =
@@ -93,7 +93,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("findL is equivalent with findF") { implicit s =>
+  test("findL is equivalent with findF") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Int]]] =
@@ -103,7 +103,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("foldLeftL works") { implicit s =>
+  test("foldLeftL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Int]]] =
@@ -113,7 +113,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("foldWhileL works") { implicit s =>
+  test("foldWhileL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val sum1 = obs.foldLeftL(0)(_ + _)
@@ -122,7 +122,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("forAllL works") { implicit s =>
+  test("forAllL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Boolean]]] =
@@ -132,7 +132,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("forAllL is equivalent with forAllF") { implicit s =>
+  test("forAllL is equivalent with forAllF") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Boolean]]] =
@@ -142,7 +142,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("firstOptionL works") { implicit s =>
+  test("firstOptionL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.firstOptionL
@@ -150,7 +150,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("firstL works") { implicit s =>
+  test("firstL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.firstL.onErrorHandle(_ => -101)
@@ -158,21 +158,21 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("headL is equivalent with firstL") { implicit s =>
+  test("headL is equivalent with firstL") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       obs.headL.onErrorHandle(_ => -101) <-> obs.firstL.onErrorHandle(_ => -101)
     }
   }
 
-  testScheduler("headOptionL is equivalent with firstOptionL") { implicit s =>
+  test("headOptionL is equivalent with firstOptionL") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       obs.headOptionL <-> obs.firstOptionL
     }
   }
 
-  testScheduler("headOrElseL is equivalent with firstOrElseL") { implicit s =>
+  test("headOrElseL is equivalent with firstOrElseL") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       obs.map(Some.apply).headOrElseL(None) <->
@@ -180,7 +180,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("lastOptionL is equivalent with lastF") { implicit s =>
+  test("lastOptionL is equivalent with lastF") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Int]]] =
@@ -190,7 +190,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("lastOrElseL is equivalent with lastF") { implicit s =>
+  test("lastOrElseL is equivalent with lastF") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result: Future[Try[Option[Int]]] =
@@ -200,7 +200,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("lastL works") { implicit s =>
+  test("lastL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.lastL.onErrorHandle(_ => -101)
@@ -208,7 +208,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("isEmptyL works") { implicit s =>
+  test("isEmptyL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.isEmptyL
@@ -216,7 +216,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("nonEmptyL works") { implicit s =>
+  test("nonEmptyL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.nonEmptyL
@@ -224,7 +224,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("maxL works") { implicit s =>
+  test("maxL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.maxL.map(_.getOrElse(-101))
@@ -232,7 +232,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("maxByL works") { implicit s =>
+  test("maxByL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.maxByL(identity).map(_.getOrElse(-101))
@@ -240,7 +240,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("minL works") { implicit s =>
+  test("minL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.minL.map(_.getOrElse(-101))
@@ -248,7 +248,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("minByL works") { implicit s =>
+  test("minByL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.minByL(identity).map(_.getOrElse(-101))
@@ -256,7 +256,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("sumL works") { implicit s =>
+  test("sumL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.sumL
@@ -264,7 +264,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("toListL works") { implicit s =>
+  test("toListL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.toListL
@@ -272,7 +272,7 @@ class ObservableOpsReturningTaskSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("foreachL works") { implicit s =>
+  test("foreachL works") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val sumRef = Atomic(0)

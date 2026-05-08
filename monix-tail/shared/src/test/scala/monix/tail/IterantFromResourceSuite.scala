@@ -32,7 +32,7 @@ final class IterantFromResourceSuite extends BaseTestSuite {
     def release = Task { r.released += 1 }
   }
 
-  testScheduler("fromResource(Allocate)") { implicit s =>
+  test("fromResource(Allocate)") { implicit s =>
     val r = new Semaphore
     val res = Resource.make(r.acquire)(_.release)
 
@@ -52,7 +52,7 @@ final class IterantFromResourceSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(Some(1))))
   }
 
-  testScheduler("fromResource(Suspend(FlatMap(Allocate)))") { implicit s =>
+  test("fromResource(Suspend(FlatMap(Allocate)))") { implicit s =>
     val r = new Semaphore
     val res = Resource.make(r.acquire)(_.release)
     val res2 = Resource.suspend(Task(res.flatMap(_ => res)))

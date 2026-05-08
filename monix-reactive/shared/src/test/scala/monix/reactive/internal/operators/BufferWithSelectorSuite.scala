@@ -70,7 +70,7 @@ class BufferWithSelectorSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
-  testScheduler("selector onComplete should complete the resulting observable") { implicit s =>
+  test("selector onComplete should complete the resulting observable") { implicit s =>
     val selector = Observable.intervalAtFixedRate(1.second, 1.second).take(2L)
     val f = Observable
       .range(0, 10000)
@@ -83,7 +83,7 @@ class BufferWithSelectorSuite extends BaseOperatorSuite {
     assertEquals(f.value, Some(Success(Some(10 * 19))))
   }
 
-  testScheduler("selector onError should terminate the resulting observable") { implicit s =>
+  test("selector onError should terminate the resulting observable") { implicit s =>
     val ex = DummyException("dummy")
     val selector = Observable
       .intervalAtFixedRate(1.second, 1.second)
@@ -101,7 +101,7 @@ class BufferWithSelectorSuite extends BaseOperatorSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  testScheduler("sizeOf should weight elements with observable.bufferTimedWithPressure") { implicit s =>
+  test("sizeOf should weight elements with observable.bufferTimedWithPressure") { implicit s =>
     // since each element is specified to weight 20 and the maxSize is 50
     // each buffer will be emitted with at most 3 elements
     val f = Observable

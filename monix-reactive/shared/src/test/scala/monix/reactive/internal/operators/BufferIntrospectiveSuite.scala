@@ -37,7 +37,7 @@ class BufferIntrospectiveSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
-  testScheduler("it buffers while consumer is busy") { implicit s =>
+  test("it buffers while consumer is busy") { implicit s =>
     val subject = PublishSubject[Long]()
     val nextAck = Atomic(Promise[Ack]())
     var wasCompleted = 0
@@ -88,7 +88,7 @@ class BufferIntrospectiveSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasCompleted, 1)
   }
 
-  testScheduler("it should signal Stop upstream when it is back-pressured") { implicit s =>
+  test("it should signal Stop upstream when it is back-pressured") { implicit s =>
     var wasFinalized = false
     var wasEarlyStopped = false
 

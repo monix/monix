@@ -91,7 +91,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("should work synchronously for synchronous observers") { implicit s =>
+  test("should work synchronously for synchronous observers") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var received = 0
     var total = 0L
@@ -114,7 +114,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     assertEquals(total, sum(sourceCount))
   }
 
-  testScheduler("should work for asynchronous observers") { implicit s =>
+  test("should work for asynchronous observers") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var received = 0
     var total = 0L
@@ -140,7 +140,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     assertEquals(total, sum(sourceCount))
   }
 
-  testScheduler("map can be expressed in terms of mapTask") { implicit s =>
+  test("map can be expressed in terms of mapTask") { implicit s =>
     check2 { (list: List[Int], isAsync: Boolean) =>
       val received = Observable
         .fromIterable(list)
@@ -152,7 +152,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("should wait the completion of the current, before subscribing to the next") { implicit s =>
+  test("should wait the completion of the current, before subscribing to the next") { implicit s =>
     var received = 0L
     var continued = 0
     var wasCompleted = false
@@ -192,7 +192,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     assertEquals(continued, 2)
   }
 
-  testScheduler("should interrupt the streaming on error, test #1") { implicit s =>
+  test("should interrupt the streaming on error, test #1") { implicit s =>
     val dummy = DummyException("dummy")
     var wasThrown: Throwable = null
     var received = 0L
@@ -235,7 +235,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     assertEquals(received, 10)
   }
 
-  testScheduler("should interrupt the streaming on error, test #2") { implicit s =>
+  test("should interrupt the streaming on error, test #2") { implicit s =>
     val dummy = DummyException("dummy")
     var wasThrown: Throwable = null
     var received = 0L
@@ -265,7 +265,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     s.tick(1.second)
   }
 
-  testScheduler("should interrupt the streaming on error, test #3") { implicit s =>
+  test("should interrupt the streaming on error, test #3") { implicit s =>
     val dummy = DummyException("dummy")
     var wasThrown: Throwable = null
     var received = 0L
@@ -289,7 +289,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     assertEquals(wasThrown, dummy)
   }
 
-  testScheduler("should not break the contract on user-level error #1") { implicit s =>
+  test("should not break the contract on user-level error #1") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
 
@@ -324,7 +324,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     assertEquals(onErrorReceived, 1)
   }
 
-  testScheduler("should not break the contract on user-level error #2") { implicit s =>
+  test("should not break the contract on user-level error #2") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
 
@@ -359,7 +359,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     assertEquals(onErrorReceived, 1)
   }
 
-  testScheduler("should not break the contract on user-level error #3") { implicit s =>
+  test("should not break the contract on user-level error #3") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
 
@@ -395,7 +395,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     assertEquals(onErrorReceived, 1)
   }
 
-  testScheduler("should be cancelable, test #1") { implicit s =>
+  test("should be cancelable, test #1") { implicit s =>
     var sumBeforeMap = 0L
     var sumAfterMap = 0L
 
@@ -420,7 +420,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     assertEquals(f.value, None)
   }
 
-  testScheduler("should be cancelable, test #2") { implicit s =>
+  test("should be cancelable, test #2") { implicit s =>
     var sumBeforeMap = 0L
     var sumAfterMap = 0L
 
@@ -445,7 +445,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     assertEquals(f.value, None)
   }
 
-  testScheduler("should be cancelable, test #3") { implicit s =>
+  test("should be cancelable, test #3") { implicit s =>
     var sumBeforeMap = 0L
     var sumAfterMap = 0L
 
@@ -470,7 +470,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     assertEquals(f.value, None)
   }
 
-  testScheduler("should be cancelable, test #4") { implicit s =>
+  test("should be cancelable, test #4") { implicit s =>
     var sumBeforeMapTask = 0L
     var sumAfterMapTask = 0L
     var sumAfterMapFuture = 0L
@@ -503,7 +503,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     assertEquals(f.value, None)
   }
 
-  testScheduler("should be cancelable after the main stream has ended") { implicit s =>
+  test("should be cancelable after the main stream has ended") { implicit s =>
     val f = Observable
       .now(1)
       .mapEval(x => Task.evalAsync(x + 1).delayExecution(1.second))
@@ -519,7 +519,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("exceptions can be triggered synchronously by throw") { implicit s =>
+  test("exceptions can be triggered synchronously by throw") { implicit s =>
     val dummy = DummyException("dummy")
     val source = Observable.now(1L).mapEval(_ => throw dummy)
 
@@ -530,7 +530,7 @@ class MapTaskSuite extends BaseOperatorSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  testScheduler("exceptions can be triggered synchronously through raiseError") { implicit s =>
+  test("exceptions can be triggered synchronously through raiseError") { implicit s =>
     val dummy = DummyException("dummy")
     val source = Observable.now(1L).mapEval(_ => Task.raiseError(dummy))
 

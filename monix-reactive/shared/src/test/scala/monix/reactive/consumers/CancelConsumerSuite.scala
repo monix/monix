@@ -32,7 +32,7 @@ class CancelConsumerSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should cancel immediately") { implicit s =>
+  test("should cancel immediately") { implicit s =>
     val consumer = Consumer.cancel[Int]
 
     val p = Promise[Unit]()
@@ -50,14 +50,14 @@ class CancelConsumerSuite extends monix.reactive.BaseTestSuite {
     assertEquals(out.onNext(1), Stop)
   }
 
-  testScheduler("observable.now") { implicit s =>
+  test("observable.now") { implicit s =>
     val obs = Observable.now(1)
     val f = obs.consumeWith(Consumer.cancel).runToFuture
     s.tick()
     assertEquals(f.value, Some(Success(())))
   }
 
-  testScheduler("onError should report errors") { implicit s =>
+  test("onError should report errors") { implicit s =>
     val consumer = Consumer.cancel[Int]
     val (out, _) = consumer.createSubscriber(Callback.empty, s)
 

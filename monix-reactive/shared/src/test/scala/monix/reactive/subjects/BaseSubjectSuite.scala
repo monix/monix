@@ -44,7 +44,7 @@ trait BaseSubjectSuite extends monix.reactive.BaseTestSuite {
     */
   def continuousStreamingTest(expectedElems: Seq[Long]): Option[Sample]
 
-  testScheduler("already completed and empty subject terminates observers") { implicit s =>
+  test("already completed and empty subject terminates observers") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -73,7 +73,7 @@ trait BaseSubjectSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wereCompleted, 3)
   }
 
-  testScheduler("failed empty subject terminates observers with an error") { implicit s =>
+  test("failed empty subject terminates observers with an error") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -105,7 +105,7 @@ trait BaseSubjectSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wereCompleted, 3)
   }
 
-  testScheduler("already completed but non-empty subject terminates new observers") { implicit s =>
+  test("already completed but non-empty subject terminates new observers") { implicit s =>
     val elems = (0 until 20).map(_ => Random.nextLong())
     var wereCompleted = 0
     var sum = 0L
@@ -136,7 +136,7 @@ trait BaseSubjectSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wereCompleted, 3)
   }
 
-  testScheduler("already failed but non-empty subject terminates new observers") { implicit s =>
+  test("already failed but non-empty subject terminates new observers") { implicit s =>
     val elems = (0 until 20).map(_ => Random.nextLong())
     var wereCompleted = 0
 
@@ -167,7 +167,7 @@ trait BaseSubjectSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wereCompleted, 3)
   }
 
-  testScheduler("should remove subscribers that triggered errors") { implicit s =>
+  test("should remove subscribers that triggered errors") { implicit s =>
     val elemsLength = Random.nextInt(300) + 100
     val elems = (0 until elemsLength).map(_.toLong)
     var wereCompleted = 0
@@ -214,7 +214,7 @@ trait BaseSubjectSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("should protect onNext after onCompleted") { implicit s =>
+  test("should protect onNext after onCompleted") { implicit s =>
     val Sample(subject, _) = alreadyTerminatedTest(Seq.empty)
     subject.onComplete()
 
@@ -223,7 +223,7 @@ trait BaseSubjectSuite extends monix.reactive.BaseTestSuite {
     assertEquals(subject.onNext(2), Stop)
   }
 
-  testScheduler("should protect onNext after onError") { implicit s =>
+  test("should protect onNext after onError") { implicit s =>
     val Sample(subject, _) = alreadyTerminatedTest(Seq.empty)
     subject.onError(DummyException("dummy"))
 

@@ -25,61 +25,61 @@ import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success }
 
 final class IterantBasicSuite extends BaseTestSuite {
-  testScheduler("arbitraryListToTaskStream works") { implicit s =>
+  test("arbitraryListToTaskStream works") { implicit s =>
     check2 { (list: List[Int], i: Int) =>
       val stream = arbitraryListToIterant[Task, Int](list, math.abs(i % 4), allowErrors = false)
       stream.toListL <-> Task.now(list)
     }
   }
 
-  testScheduler("arbitraryListToCoevalStream") { implicit s =>
+  test("arbitraryListToCoevalStream") { implicit s =>
     check2 { (list: List[Int], i: Int) =>
       val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(i % 4), allowErrors = false)
       stream.toListL <-> Coeval.now(list)
     }
   }
 
-  testScheduler("Iterant.pure") { implicit s =>
+  test("Iterant.pure") { implicit s =>
     val iter = Iterant[IO].pure(10)
     val f = iter.headOptionL.unsafeToFuture()
     assertEquals(f.value, Some(Success(Some(10))))
   }
 
-  testScheduler("Iterant.eval") { implicit s =>
+  test("Iterant.eval") { implicit s =>
     var effect = 0
     val iter = Iterant[IO].eval { effect += 1; effect }
     val f = iter.foldLeftL(0)(_ + _).unsafeToFuture()
     assertEquals(f.value, Some(Success(1)))
   }
 
-  testScheduler("Iterant.defer") { implicit s =>
+  test("Iterant.defer") { implicit s =>
     var effect = 0
     val iter = Iterant[IO].defer { effect += 1; Iterant[IO].pure(effect) }
     val f = iter.foldLeftL(0)(_ + _).unsafeToFuture()
     assertEquals(f.value, Some(Success(1)))
   }
 
-  testScheduler("Iterant.liftF") { implicit s =>
+  test("Iterant.liftF") { implicit s =>
     var effect = 0
     val iter = Iterant[IO].liftF(IO { effect += 1; effect })
     val f = iter.foldLeftL(0)(_ + _).unsafeToFuture()
     assertEquals(f.value, Some(Success(1)))
   }
 
-  testScheduler("Iterant.liftF should lift raised errors") { implicit s =>
+  test("Iterant.liftF should lift raised errors") { implicit s =>
     val dummy = DummyException("dummy")
     val iter = Iterant[IO].liftF(IO.raiseError(dummy))
     val f = iter.headOptionL.unsafeToFuture()
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Iterant.liftF should lift any IO value") { implicit s =>
+  test("Iterant.liftF should lift any IO value") { implicit s =>
     check1 { (io: IO[Int]) =>
       Iterant[IO].liftF(io).headOptionL <-> io.map(Some.apply)
     }
   }
 
-  testScheduler("tailRecM basic usage") { implicit s =>
+  test("tailRecM basic usage") { implicit s =>
     val fa = Iterant[Coeval].tailRecM(0) { (a: Int) =>
       if (a < 10)
         Iterant[Coeval].of[Either[Int, Int]](Right(a), Left(a + 1))
@@ -91,7 +91,7 @@ final class IterantBasicSuite extends BaseTestSuite {
     assertEquals(list, (0 to 10).toList)
   }
 
-  testScheduler("tailRecM should protect against user error") { implicit s =>
+  test("tailRecM should protect against user error") { implicit s =>
     val dummy = DummyException("dummy")
     val fa = Iterant[Coeval].tailRecM(0) { _ =>
       throw dummy

@@ -51,7 +51,7 @@ class TimeoutOnSlowUpstreamSuite extends BaseOperatorSuite {
     Seq(Sample(o, 1, 1, 0.seconds, 0.seconds))
   }
 
-  testScheduler("should emit timeout after time passes") { implicit s =>
+  test("should emit timeout after time passes") { implicit s =>
     val p = PublishSubject[Int]()
     var received = 0
     var errorThrown: Throwable = null

@@ -50,7 +50,7 @@ class MaxSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("empty observable should be empty") { implicit s =>
+  test("empty observable should be empty") { implicit s =>
     val source: Observable[Long] = Observable.empty
     var received = 0
     var wasCompleted = false

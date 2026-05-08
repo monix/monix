@@ -48,21 +48,21 @@ final class IterantInterleaveSuite extends BaseTestSuite {
     loop(lh, rh, ListBuffer.empty)
   }
 
-  testScheduler("interleaveLists #1") { _ =>
+  test("interleaveLists #1") { _ =>
     val list1 = List(1, 2, 3, 4)
     val list2 = List(1, 2)
 
     assertEquals(interleaveLists(list1, list2), List(1, 1, 2, 2, 3))
   }
 
-  testScheduler("interleaveLists #2") { _ =>
+  test("interleaveLists #2") { _ =>
     val list1 = List(1, 2)
     val list2 = List(1, 2, 3)
 
     assertEquals(interleaveLists(list1, list2), List(1, 1, 2, 2))
   }
 
-  testScheduler("Iterant.interleave equivalence with interleaveLists") { implicit s =>
+  test("Iterant.interleave equivalence with interleaveLists") { implicit s =>
     check4 { (list1: List[Int], idx1: Int, list2: List[Int], idx2: Int) =>
       val stream1 = arbitraryListToIterant[Coeval, Int](list1, math.abs(idx1) + 1, allowErrors = false)
       val stream2 = arbitraryListToIterant[Coeval, Int](list2, math.abs(idx2) + 1, allowErrors = false)

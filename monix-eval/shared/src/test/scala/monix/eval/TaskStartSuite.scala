@@ -52,7 +52,7 @@ class TaskStartSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  testAsync("task.start shares Local.Context with fibers") { _ =>
+  test("task.start shares Local.Context with fibers") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 

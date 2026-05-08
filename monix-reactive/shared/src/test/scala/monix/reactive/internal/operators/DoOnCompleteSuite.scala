@@ -35,7 +35,7 @@ class DoOnCompleteSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should work for cats.effect.IO") { implicit s =>
+  test("should work for cats.effect.IO") { implicit s =>
     var wasTriggered = 0
     var wasCompleted = 0
 
@@ -53,7 +53,7 @@ class DoOnCompleteSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasCompleted, 1)
   }
 
-  testScheduler("should work for synchronous subscribers") { implicit s =>
+  test("should work for synchronous subscribers") { implicit s =>
     var wasTriggered = 0
     var wasCompleted = 0
 
@@ -71,7 +71,7 @@ class DoOnCompleteSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasCompleted, 1)
   }
 
-  testScheduler("should work for asynchronous subscribers") { implicit s =>
+  test("should work for asynchronous subscribers") { implicit s =>
     var wasTriggered = 0
     var wasCompleted = 0
 
@@ -90,7 +90,7 @@ class DoOnCompleteSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasCompleted, 1)
   }
 
-  testScheduler("should stream onError") { implicit s =>
+  test("should stream onError") { implicit s =>
     val dummy = DummyException("ex")
     var wasTriggered = 0
     var wasCompleted = 0
@@ -116,7 +116,7 @@ class DoOnCompleteSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, dummy)
   }
 
-  testScheduler("should be cancelable") { implicit s =>
+  test("should be cancelable") { implicit s =>
     var wasTriggered = 0
     val cancelable = Observable
       .now(1)
@@ -131,7 +131,7 @@ class DoOnCompleteSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasTriggered, 0)
   }
 
-  testScheduler("should protect against user code") { implicit s =>
+  test("should protect against user code") { implicit s =>
     val dummy = DummyException("dummy")
     var errorThrown: Throwable = null
 

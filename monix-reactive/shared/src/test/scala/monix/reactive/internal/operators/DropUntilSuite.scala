@@ -72,7 +72,7 @@ class DropUntilSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("if signal ends in error, then end in error") { implicit s =>
+  test("if signal ends in error, then end in error") { implicit s =>
     var received = 0
     var errorThrown: Throwable = null
     val sourceCount = Random.nextInt(300) + 100

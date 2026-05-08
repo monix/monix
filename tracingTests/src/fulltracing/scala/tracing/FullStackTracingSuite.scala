@@ -11,7 +11,7 @@ class FullStackTracingSuite extends BaseTestSuite {
   def traced[A](io: Task[A]): Task[TaskTrace] =
     io.flatMap(_ => Task.trace)
 
-  testSchedulerAsync("captures map frames") { implicit s =>
+  test("captures map frames") { implicit s =>
     val task = Task.pure(0).map(_ + 1).map(_ + 1)
 
     val test =
@@ -26,7 +26,7 @@ class FullStackTracingSuite extends BaseTestSuite {
     test.runToFuture
   }
 
-  testSchedulerAsync("captures bind frames") { implicit s =>
+  test("captures bind frames") { implicit s =>
     val task = Task.pure(0).flatMap(a => Task(a + 1)).flatMap(a => Task(a + 1))
 
     val test =
@@ -42,7 +42,7 @@ class FullStackTracingSuite extends BaseTestSuite {
     test.runToFuture
   }
 
-  testSchedulerAsync("captures async frames") { implicit s =>
+  test("captures async frames") { implicit s =>
     val task = Task.async[Int](_(Right(0))).flatMap(a => Task(a + 1)).flatMap(a => Task(a + 1))
 
     val test =
@@ -57,7 +57,7 @@ class FullStackTracingSuite extends BaseTestSuite {
     test.runToFuture
   }
 
-  testSchedulerAsync("captures pure frames") { implicit s =>
+  test("captures pure frames") { implicit s =>
     val task = Task.pure(0).flatMap(a => Task.pure(a + 1))
 
     val test =
@@ -72,7 +72,7 @@ class FullStackTracingSuite extends BaseTestSuite {
     test.runToFuture
   }
 
-  testSchedulerAsync("full stack tracing captures eval frames") { implicit s =>
+  test("full stack tracing captures eval frames") { implicit s =>
     val task = Task(0).flatMap(a => Task(a + 1))
 
     val test =
@@ -87,7 +87,7 @@ class FullStackTracingSuite extends BaseTestSuite {
     test.runToFuture
   }
 
-  testSchedulerAsync("full stack tracing captures suspend frames") { implicit s =>
+  test("full stack tracing captures suspend frames") { implicit s =>
     val task = Task.suspend(Task(1)).flatMap(a => Task.suspend(Task(a + 1)))
 
     val test =
@@ -103,7 +103,7 @@ class FullStackTracingSuite extends BaseTestSuite {
     test.runToFuture
   }
 
-  testSchedulerAsync("captures raiseError frames") { implicit s =>
+  test("captures raiseError frames") { implicit s =>
     val task = Task(0).flatMap(_ => Task.raiseError(new Throwable())).onErrorHandleWith(_ => Task.unit)
 
     val test =
@@ -119,7 +119,7 @@ class FullStackTracingSuite extends BaseTestSuite {
     test.runToFuture
   }
 
-  testSchedulerAsync("captures bracket frames") { implicit s =>
+  test("captures bracket frames") { implicit s =>
     val task = Task.unit.bracket(_ => Task.pure(10))(_ => Task.unit).flatMap(a => Task(a + 1)).flatMap(a => Task(a + 1))
 
     val test =
@@ -135,7 +135,7 @@ class FullStackTracingSuite extends BaseTestSuite {
     test.runToFuture
   }
 
-  testSchedulerAsync("captures bracketCase frames") { implicit s =>
+  test("captures bracketCase frames") { implicit s =>
     val task =
       Task.unit.bracketCase(_ => Task.pure(10))((_, _) => Task.unit).flatMap(a => Task(a + 1)).flatMap(a => Task(a + 1))
 

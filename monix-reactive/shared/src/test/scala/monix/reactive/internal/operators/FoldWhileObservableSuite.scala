@@ -60,7 +60,7 @@ class FoldWhileObservableSuite extends BaseOperatorSuite {
     Sample(obs, 0, 0, 0.seconds, 0.seconds)
   }
 
-  testScheduler("should trigger error if the initial state triggers errors") { implicit s =>
+  test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable(1, 2, 3, 4)
       .foldWhileLeft((throw ex): Int)((acc, e) => Left(acc + e))

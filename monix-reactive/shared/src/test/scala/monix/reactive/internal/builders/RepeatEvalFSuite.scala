@@ -35,7 +35,7 @@ class RepeatEvalFSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should do sync evaluation in batches") { implicit s =>
+  test("should do sync evaluation in batches") { implicit s =>
     var wasCompleted = false
     var received = 0
 
@@ -61,7 +61,7 @@ class RepeatEvalFSuite extends monix.reactive.BaseTestSuite {
     ()
   }
 
-  testScheduler("should do back-pressure") { implicit s =>
+  test("should do back-pressure") { implicit s =>
     var wasCompleted = false
     var received = 0
 
@@ -94,7 +94,7 @@ class RepeatEvalFSuite extends monix.reactive.BaseTestSuite {
     assert(!wasCompleted)
   }
 
-  testScheduler("should lift errors raised in F") { implicit s =>
+  test("should lift errors raised in F") { implicit s =>
     val dummy = DummyException("dummy")
     var errorThrown: Throwable = null
 

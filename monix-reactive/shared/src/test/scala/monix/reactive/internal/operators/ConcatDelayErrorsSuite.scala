@@ -23,7 +23,7 @@ import monix.reactive.{ BaseTestSuite, Observable, Observer }
 import scala.concurrent.Future
 
 class ConcatDelayErrorsSuite extends monix.reactive.BaseTestSuite {
-  testScheduler("flatMapDelayErrors works for synchronous observers") { implicit s =>
+  test("flatMapDelayErrors works for synchronous observers") { implicit s =>
     val obs = Observable
       .range(0, 100)
       .flatMapDelayErrors(x =>
@@ -62,7 +62,7 @@ class ConcatDelayErrorsSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("flatMapDelayErrors works for asynchronous observers") { implicit s =>
+  test("flatMapDelayErrors works for asynchronous observers") { implicit s =>
     val obs = Observable
       .range(0, 100)
       .flatMapDelayErrors(x => Observable(x, x, x).endWithError(DummyException(x.toString)))

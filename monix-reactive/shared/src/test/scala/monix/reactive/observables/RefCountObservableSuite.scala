@@ -33,7 +33,7 @@ class RefCountObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should work") { implicit s =>
+  test("should work") { implicit s =>
     var received = 0L
     var completed = 0
 
@@ -78,7 +78,7 @@ class RefCountObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(completed, 0)
   }
 
-  testScheduler("onError should stop everything") { implicit s =>
+  test("onError should stop everything") { implicit s =>
     var received = 0L
     var completed = 0
 
@@ -112,7 +112,7 @@ class RefCountObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(received, 2)
   }
 
-  testScheduler("onComplete") { implicit s =>
+  test("onComplete") { implicit s =>
     var received = 0L
     var completed = 0
 
@@ -140,7 +140,7 @@ class RefCountObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(completed, 2)
   }
 
-  testScheduler("cancel and stop should be idempotent") { implicit s =>
+  test("cancel and stop should be idempotent") { implicit s =>
     val ch = ConcurrentSubject.publish[Long](Unbounded)
     var received = 0L
     var completed = 0

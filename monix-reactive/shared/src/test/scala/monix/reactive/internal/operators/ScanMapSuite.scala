@@ -25,7 +25,7 @@ import monix.reactive.{ BaseTestSuite, Observable }
 
 class ScanMapSuite extends monix.reactive.BaseTestSuite {
 
-  testScheduler("Observable.scanMap equivalence to Observable.scan") { implicit s =>
+  test("Observable.scanMap equivalence to Observable.scan") { implicit s =>
     val obs1 = Observable(1, 2, 3, 4).scanMap(x => x)
     val obs2 = Observable(1, 2, 3, 4).scan(0)(_ + _)
     val f1 = obs1.runAsyncGetLast
@@ -34,13 +34,13 @@ class ScanMapSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f1.value, f2.value)
   }
 
-  testScheduler("Observable.scanMap0.drop(1) <-> Observable.scanMap") { implicit s =>
+  test("Observable.scanMap0.drop(1) <-> Observable.scanMap") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       obs.scanMap0(x => x).drop(1) <-> obs.scanMap(x => x)
     }
   }
 
-  testScheduler("Observable.scanMap0 emits empty element as head") { implicit s =>
+  test("Observable.scanMap0 emits empty element as head") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       obs.scanMap0(x => x).headL <-> Task.pure(Monoid[Int].empty)
     }

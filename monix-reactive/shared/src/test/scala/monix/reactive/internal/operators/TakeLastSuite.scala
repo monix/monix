@@ -65,7 +65,7 @@ class TakeLastSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
-  testScheduler("takeLast(0) shouldn't subscribe to the source at all") { implicit s =>
+  test("takeLast(0) shouldn't subscribe to the source at all") { implicit s =>
     var counter = 0
 
     def inc() = {

@@ -33,119 +33,119 @@ abstract class BatchSuite[A: ClassTag](
 
   def fromList(list: List[A]): Batch
 
-  testScheduler("batch.toList") { _ =>
+  test("batch.toList") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.toList == list
     }
   }
 
-  testScheduler("batch.toArray") { _ =>
+  test("batch.toArray") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.toArray.toList == list
     }
   }
 
-  testScheduler("batch.drop(2).toArray") { _ =>
+  test("batch.drop(2).toArray") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.drop(2).toArray.toList == list.drop(2)
     }
   }
 
-  testScheduler("batch.take(2).toArray") { _ =>
+  test("batch.take(2).toArray") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.take(2).toArray.toList == list.take(2)
     }
   }
 
-  testScheduler("batch.drop(2).toIterable") { _ =>
+  test("batch.drop(2).toIterable") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.drop(2).toIterable.toList == list.drop(2)
     }
   }
 
-  testScheduler("batch.take(2).toIterable") { _ =>
+  test("batch.take(2).toIterable") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.take(2).toIterable.toList == list.take(2)
     }
   }
 
-  testScheduler("batch.drop(5).toList") { _ =>
+  test("batch.drop(5).toList") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.drop(5).toList == list.drop(5)
     }
   }
 
-  testScheduler("batch.drop(1000).toList") { _ =>
+  test("batch.drop(1000).toList") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.drop(1000).toList == list.drop(1000)
     }
   }
 
-  testScheduler("batch.take(5).toList") { _ =>
+  test("batch.take(5).toList") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.drop(5).toList == list.drop(5)
     }
   }
 
-  testScheduler("batch.take(1000).toList") { _ =>
+  test("batch.take(1000).toList") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.drop(1000).toList == list.drop(1000)
     }
   }
 
-  testScheduler("batch.take(5).drop(5).toList") { _ =>
+  test("batch.take(5).drop(5).toList") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.take(5).drop(5).toList == Nil
     }
   }
 
-  testScheduler("batch.drop(5).take(5).toList") { _ =>
+  test("batch.drop(5).take(5).toList") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.drop(5).take(5).toList == list.slice(5, 10)
     }
   }
 
-  testScheduler("batch.slice(5,5).toList") { _ =>
+  test("batch.slice(5,5).toList") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.slice(5, 5).toList == list.slice(5, 5)
     }
   }
 
-  testScheduler("batch.slice(5,10).toList") { _ =>
+  test("batch.slice(5,10).toList") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.slice(5, 10).toList == list.slice(5, 10)
     }
   }
 
-  testScheduler("batch.map") { _ =>
+  test("batch.map") { _ =>
     check2 { (list: List[A], f: A => A) =>
       val batch = fromList(list)
       batch.map(f).toList == list.map(f)
     }
   }
 
-  testScheduler("batch.filter") { _ =>
+  test("batch.filter") { _ =>
     check2 { (list: List[A], f: A => Boolean) =>
       val batch = fromList(list)
       batch.filter(f).toList == list.filter(f)
     }
   }
 
-  testScheduler("batch.collect") { _ =>
+  test("batch.collect") { _ =>
     check3 { (list: List[A], p: A => Boolean, f: A => A) =>
       val pf: PartialFunction[A, A] = { case x if p(x) => f(x) }
       val batch = fromList(list)
@@ -153,14 +153,14 @@ abstract class BatchSuite[A: ClassTag](
     }
   }
 
-  testScheduler("batch.toIterable") { _ =>
+  test("batch.toIterable") { _ =>
     check1 { (list: List[A]) =>
       val batch = fromList(list)
       batch.toIterable.toList == list
     }
   }
 
-  testScheduler("Batch.fromArray") { _ =>
+  test("Batch.fromArray") { _ =>
     check1 { (array: Array[A]) =>
       Batch.fromArray(array).toArray.toSeq == array.toSeq
     }

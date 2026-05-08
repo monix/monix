@@ -74,21 +74,21 @@ class FlatScanDelayErrorSuite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("should trigger error if the initial state triggers errors") { implicit s =>
+  test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable(1, 2, 3, 4).flatScanDelayErrors[Int](throw ex)((_, e) => Observable(e))
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  testScheduler("flatScan0DelayErrors.drop(1) <-> flatScanDelayErrors") { implicit s =>
+  test("flatScan0DelayErrors.drop(1) <-> flatScanDelayErrors") { implicit s =>
     check2 { (obs: Observable[Long], seed: Long) =>
       obs.flatScan0DelayErrors(seed)((a, b) => Observable(a, b)).drop(1) <->
         obs.flatScanDelayErrors(seed)((a, b) => Observable(a, b))
     }
   }
 
-  testScheduler("flatScan0DelayErrors.headL <-> Task.pure(seed)") { implicit s =>
+  test("flatScan0DelayErrors.headL <-> Task.pure(seed)") { implicit s =>
     check2 { (obs: Observable[Int], seed: Int) =>
       obs.flatScan0DelayErrors(seed)((_, _) => Observable.empty).headL <-> Task.pure(seed)
     }

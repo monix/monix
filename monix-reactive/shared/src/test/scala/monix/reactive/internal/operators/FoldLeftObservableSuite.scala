@@ -45,20 +45,20 @@ class FoldLeftObservableSuite extends BaseOperatorSuite {
     Sample(obs, 0, 0, 0.seconds, 0.seconds)
   }
 
-  testScheduler("should trigger error if the initial state triggers errors") { implicit s =>
+  test("should trigger error if the initial state triggers errors") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable(1, 2, 3, 4).foldLeft[Int](throw ex)(_ + _)
     val f = obs.runAsyncGetFirst; s.tick()
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  testScheduler("foldL is consistent with foldLeftL") { implicit s =>
+  test("foldL is consistent with foldLeftL") { implicit s =>
     check1 { (stream: Observable[Int]) =>
       stream.foldL <-> stream.foldLeftL(0)(_ + _)
     }
   }
 
-  testScheduler("foldL is consistent with sumL") { implicit s =>
+  test("foldL is consistent with sumL") { implicit s =>
     check1 { (stream: Observable[Int]) =>
       stream.foldL <-> stream.sumL
     }

@@ -30,7 +30,7 @@ class SafeSubscriberSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty)
   }
 
-  testScheduler("should protect against synchronous errors, test 1") { implicit s =>
+  test("should protect against synchronous errors, test 1") { implicit s =>
     var errorThrown: Throwable = null
     val observer = SafeSubscriber(new Subscriber[Int] {
       val scheduler = s
@@ -55,7 +55,7 @@ class SafeSubscriberSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  testScheduler("should protect against synchronous errors, test 2") { implicit s =>
+  test("should protect against synchronous errors, test 2") { implicit s =>
     var errorThrown: Throwable = null
     val observer = SafeSubscriber(new Subscriber[Int] {
       val scheduler = s
@@ -80,7 +80,7 @@ class SafeSubscriberSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  testScheduler("should protect against asynchronous errors") { implicit s =>
+  test("should protect against asynchronous errors") { implicit s =>
     var errorThrown: Throwable = null
     val observer = SafeSubscriber(new Subscriber[Int] {
       val scheduler = s
@@ -107,7 +107,7 @@ class SafeSubscriberSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  testScheduler("should protect against errors in onComplete") { implicit s =>
+  test("should protect against errors in onComplete") { implicit s =>
     val observer = SafeSubscriber(new Subscriber[Int] {
       val scheduler = s
 
@@ -124,7 +124,7 @@ class SafeSubscriberSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.lastReportedError.isInstanceOf[DummyException], "lastReportedError.isInstanceOf[DummyException]")
   }
 
-  testScheduler("should protect against errors in onError") { implicit s =>
+  test("should protect against errors in onError") { implicit s =>
     var errorThrown: Throwable = null
     val observer = SafeSubscriber(new Subscriber[Int] {
       val scheduler = s
@@ -146,7 +146,7 @@ class SafeSubscriberSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, DummyException("external"))
   }
 
-  testScheduler("on synchronous cancel should block further signals") { implicit s =>
+  test("on synchronous cancel should block further signals") { implicit s =>
     var received = 0
     val observer = SafeSubscriber(new Subscriber[Int] {
       val scheduler = s
@@ -173,7 +173,7 @@ class SafeSubscriberSuite extends monix.reactive.BaseTestSuite {
     assertEquals(received, 1)
   }
 
-  testScheduler("on asynchronous cancel should block further signals") { implicit s =>
+  test("on asynchronous cancel should block further signals") { implicit s =>
     val p = Promise[Stop.type]()
     var received = 0
 

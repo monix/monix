@@ -30,7 +30,7 @@ class ConnectableObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should be consumed synchronously with foreach, consumeWith and subscribe") { implicit s =>
+  test("should be consumed synchronously with foreach, consumeWith and subscribe") { implicit s =>
     var foreachSum = 0
     var consumerSum = 0
     var subscribeSum = 0
@@ -51,7 +51,7 @@ class ConnectableObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(subscribeSum, 21)
   }
 
-  testScheduler("cacheUntilConnect") { implicit s =>
+  test("cacheUntilConnect") { implicit s =>
     val source = Observable(1, 2, 3, 4, 5, 6)
     val subject = ConcurrentSubject.replay[Int]
     val observable = ConnectableObservable.cacheUntilConnect(source, subject)

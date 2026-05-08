@@ -80,7 +80,7 @@ class CollectWhileSuite extends BaseOperatorSuite {
     Seq(Sample(s, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("should not call onComplete multiple times for 1 element") { implicit s =>
+  test("should not call onComplete multiple times for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = 0
 
@@ -105,7 +105,7 @@ class CollectWhileSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("should only invoke the partial function once per element") { implicit s =>
+  test("should only invoke the partial function once per element") { implicit s =>
     var invocationCount = 0
     var result: Int = 0
     var wasCompleted = false
@@ -128,7 +128,7 @@ class CollectWhileSuite extends BaseOperatorSuite {
     assertEquals(invocationCount, 1)
   }
 
-  testScheduler("Observable.collectWhile <=> Observable.takeWhile.collect ") { implicit s =>
+  test("Observable.collectWhile <=> Observable.takeWhile.collect ") { implicit s =>
     check2 { (stream: Observable[Option[Int]], f: Int => Int) =>
       val result = stream.collectWhile { case Some(x) => f(x) }.toListL
       val expected = stream.takeWhile(_.isDefined).collect { case Some(x) => f(x) }.toListL

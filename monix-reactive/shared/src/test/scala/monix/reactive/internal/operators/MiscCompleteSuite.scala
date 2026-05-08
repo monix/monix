@@ -28,7 +28,7 @@ class MiscCompleteSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should complete") { implicit s =>
+  test("should complete") { implicit s =>
     var received = 0
     var wasCompleted = false
 
@@ -49,7 +49,7 @@ class MiscCompleteSuite extends monix.reactive.BaseTestSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("should signal error") { implicit s =>
+  test("should signal error") { implicit s =>
     var thrown: Throwable = null
 
     Observable

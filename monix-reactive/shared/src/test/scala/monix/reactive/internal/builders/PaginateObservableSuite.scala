@@ -25,7 +25,7 @@ import scala.concurrent.duration.MILLISECONDS
 
 class PaginateObservableSuite extends monix.reactive.BaseTestSuite {
 
-  testScheduler("paginate should be exception-proof") { implicit s =>
+  test("paginate should be exception-proof") { implicit s =>
     val dummy = new RuntimeException("dummy")
     var received = 0
 
@@ -38,7 +38,7 @@ class PaginateObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  testScheduler("paginate should execute 11 times then return None") { implicit s =>
+  test("paginate should execute 11 times then return None") { implicit s =>
     var received = 0
 
     Observable.paginate(0)(i => if (i < 10) (i, Some(i + 1)) else (i, None)).subscribe { (_: Int) =>
@@ -49,7 +49,7 @@ class PaginateObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals((0 until received).toList, (0 to 10).toList)
   }
 
-  testScheduler("paginate should be cancelable") { implicit s =>
+  test("paginate should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 

@@ -30,7 +30,7 @@ class HeadConsumerSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("stops on first on next") { implicit s =>
+  test("stops on first on next") { implicit s =>
     var wasStopped = false
     val obs = Observable.now(1).doOnEarlyStopF { () =>
       wasStopped = true
@@ -42,7 +42,7 @@ class HeadConsumerSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  testScheduler("on complete") { implicit s =>
+  test("on complete") { implicit s =>
     var wasStopped = false
     var wasCompleted = false
     val obs = Observable
@@ -65,7 +65,7 @@ class HeadConsumerSuite extends monix.reactive.BaseTestSuite {
     )
   }
 
-  testScheduler("on error") { implicit s =>
+  test("on error") { implicit s =>
     val ex = DummyException("dummy")
     var wasStopped = false
     var wasCompleted = false

@@ -77,7 +77,7 @@ class SwitchMapSuite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("source.switchMap(unit) == source") { implicit s =>
+  test("source.switchMap(unit) == source") { implicit s =>
     val source = Observable.range(0, 100)
     val switched = source.switchMap(i => Observable.now(i))
 
@@ -88,7 +88,7 @@ class SwitchMapSuite extends BaseOperatorSuite {
     assertEquals(r2.value.get, r1.value.get)
   }
 
-  testScheduler("Observable.unit.switchMap(_ => a) <-> a") { implicit s =>
+  test("Observable.unit.switchMap(_ => a) <-> a") { implicit s =>
     val expectedCount = 100
     val size = Observable.unit
       .switchMap(_ => Observable.interval(1.second).take(expectedCount.toLong))

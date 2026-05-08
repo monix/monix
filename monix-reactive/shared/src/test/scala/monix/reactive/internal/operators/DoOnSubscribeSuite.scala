@@ -30,7 +30,7 @@ class DoOnSubscribeSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("doOnSubscribe should work") { implicit s =>
+  test("doOnSubscribe should work") { implicit s =>
     var elem = 0
     Observable
       .now(10)
@@ -45,7 +45,7 @@ class DoOnSubscribeSuite extends monix.reactive.BaseTestSuite {
     assertEquals(elem, 2)
   }
 
-  testScheduler("doOnSubscribe should protect against error") { implicit s =>
+  test("doOnSubscribe should protect against error") { implicit s =>
     val dummy = DummyException("dummy")
     var wasThrown: Throwable = null
     Observable
@@ -61,7 +61,7 @@ class DoOnSubscribeSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasThrown, dummy)
   }
 
-  testScheduler("doAfterSubscribe should work") { implicit s =>
+  test("doAfterSubscribe should work") { implicit s =>
     var elem = 0
     Observable
       .now(10)
@@ -76,7 +76,7 @@ class DoOnSubscribeSuite extends monix.reactive.BaseTestSuite {
     assertEquals(elem, 2)
   }
 
-  testScheduler("doAfterSubscribe should protect against error") { implicit s =>
+  test("doAfterSubscribe should protect against error") { implicit s =>
     val dummy = DummyException("dummy")
     var wasThrown: Throwable = null
     Observable
@@ -92,7 +92,7 @@ class DoOnSubscribeSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasThrown, dummy)
   }
 
-  testScheduler("doAfterSubscribe should preserve original cancelable") { implicit s =>
+  test("doAfterSubscribe should preserve original cancelable") { implicit s =>
     var wasCanceled = false
 
     Observable

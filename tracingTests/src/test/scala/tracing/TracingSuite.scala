@@ -31,7 +31,7 @@ class TracingSuite extends BaseTestSuite {
   def traced[A](io: Task[A]): Task[TaskTrace] =
     io.flatMap(_ => Task.trace)
 
-  testSchedulerAsync("traces are preserved across asynchronous boundaries") { implicit s =>
+  test("traces are preserved across asynchronous boundaries") { implicit s =>
     val task = for {
       a <- Task.pure(1)
       _ <- Task.shift
@@ -46,7 +46,7 @@ class TracingSuite extends BaseTestSuite {
     test
   }
 
-  testSchedulerAsync("enhanced exceptions are not augmented more than once") { implicit s =>
+  test("enhanced exceptions are not augmented more than once") { implicit s =>
     val task = for {
       _  <- Task.pure(1)
       _  <- Task.pure(2)
@@ -65,7 +65,7 @@ class TracingSuite extends BaseTestSuite {
     }
   }
 
-  testSchedulerAsync("enhanced exceptions is not applied when stack trace is empty") { implicit s =>
+  test("enhanced exceptions is not applied when stack trace is empty") { implicit s =>
     val task = for {
       e1 <- Task.raiseError(new EmptyException).attempt
     } yield e1

@@ -40,7 +40,7 @@ class DelayExecutionWithSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
-  testScheduler("it delays") { implicit s =>
+  test("it delays") { implicit s =>
     val obs = Observable.now(1).delayExecution(1.second)
     var wasCompleted = false
     var received = 0
@@ -62,7 +62,7 @@ class DelayExecutionWithSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("delayExecution.onFuture triggering an error") { implicit s =>
+  test("delayExecution.onFuture triggering an error") { implicit s =>
     val obs = Observable.now(1).delayExecutionWithF(Future { throw DummyException("dummy") })
 
     var errorThrown: Throwable = null

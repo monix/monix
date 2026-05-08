@@ -17,28 +17,53 @@
 
 package monix.execution
 
-import java.util.concurrent.TimeUnit
-
 import monix.execution.schedulers.SchedulerService
 import monix.execution.schedulers.TestScheduler
+import munit.Compare
 import munit.FunSuite
 import munit.Location
-import munit.Compare
-import org.scalacheck.{ Arbitrary, Prop, Test }
+import org.scalacheck.Arbitrary
+import org.scalacheck.Prop
+import org.scalacheck.Test
 
+import java.util.concurrent.locks.ReentrantLock
 import scala.concurrent.Future
-import scala.util.{ Failure, Success }
-import scala.util.control.NonFatal
+import scala.concurrent.TimeoutException
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 /** Base trait for all MUnit-based Monix test suites. */
 trait MUnitFunSuite extends FunSuite {
   override def isCI: Boolean =
     monix.execution.internal.Platform.getEnv("CI").map(_.toLowerCase).contains("true")
 
-  implicit def laxCompare[A, B]: Compare[A, B] = Compare.defaultCompare[A, B]
+  override def munitTimeout: FiniteDuration =
+    if (isCI) 30.seconds
+    else 10.seconds
 
-  def testAsync(name: String)(body: => Future[Any])(implicit loc: Location): Unit =
-    test(name)(body)
+  override def munitValueTransforms: List[ValueTransform] = {
+    import Scheduler.Implicits.global
+    val alreadyDefined = super.munitValueTransforms
+    val forCancelableFuture =
+      new ValueTransform(
+        "CancelableFuture",
+        {
+          case ref: CancelableFuture[_] =>
+            ref.timeoutTo(
+              munitTimeout,
+              Failure(
+                new TimeoutException(s"Test timed-out after $munitTimeout")
+              )
+            )
+        }
+      )
+    forCancelableFuture :: alreadyDefined
+  }
+
+  implicit def laxCompare[A, B]: Compare[A, B] = Compare.defaultCompare[A, B]
 
   def scalaCheckTestParameters: Test.Parameters =
     Test.Parameters.default
@@ -56,29 +81,26 @@ trait MUnitFixtureSuite[A] extends MUnitFunSuite {
 
   def tearDown(env: A): Unit
 
-  def test(name: String)(body: A => Any)(implicit loc: Location): Unit =
+  def test(name: String)(property: A => Any)(implicit loc: Location): Unit =
     super[MUnitFunSuite].test(name) {
+      import scala.concurrent.ExecutionContext.Implicits.global
       val env = setup()
-      try body(env)
-      finally tearDown(env)
-    }
-
-  def testAsync(name: String)(body: A => Future[Any])(implicit loc: Location): Unit =
-    super[MUnitFunSuite].test(name) {
-      val env = setup()
-      try body(env).transformWith {
-        case Success(result) =>
-          try Future.successful { tearDown(env); result }
-          catch { case NonFatal(e) => Future.failed(e) }
-        case Failure(e) =>
-          try tearDown(env)
-          catch { case NonFatal(teardownError) => e.addSuppressed(teardownError) }
-          Future.failed(e)
-      }(munitExecutionContext)
-      catch {
-        case NonFatal(e) =>
+      val result = Try(property(env))
+      result match {
+        case Success(f: Future[_]) =>
+          f.transform {
+            case Success(value) =>
+              Try(tearDown(env)).map(_ => value)
+            case Failure(e) =>
+              Try(tearDown(env)).failed.foreach(e.addSuppressed)
+              Failure(e)
+          }
+        case Success(value) =>
           tearDown(env)
-          Future.failed(e)
+          value
+        case Failure(e) =>
+          Try(tearDown(env)).failed.foreach(e.addSuppressed)
+          throw e
       }
     }
 }
@@ -103,76 +125,11 @@ trait TestSchedulerSuite extends MUnitFixtureSuite[TestScheduler] {
       clue("should not have tasks left to execute")
     )
   }
-
-  /** Synchronous test with TestScheduler injected. Teardown runs after body completes. */
-  def testScheduler(name: String)(body: TestScheduler => Any)(implicit loc: Location): Unit = {
-    test(name)(body)
-  }
-
-  /** Async test with TestScheduler. Teardown runs AFTER the returned Future completes.
-    * This is critical: do NOT teardown synchronously around a returned Future.
-    */
-  def testSchedulerAsync(name: String)(body: TestScheduler => Future[Any])(implicit loc: Location): Unit = {
-    testAsync(name)(body)
-  }
-
-  /** Run body with a fresh TestScheduler and teardown assertion.
-    * Use for one-off scheduler-based assertions inside tests.
-    */
-  def withTestScheduler[A](body: TestScheduler => A): A = {
-    val s = createTestScheduler()
-    val result = body(s)
-    assertNoRemainingTasks(s)
-    result
-  }
 }
 
-/** For JVM-only suites that need a real SchedulerService (e.g. Scheduler.computation, Scheduler.io).
-  * NOT available on Scala.js — use `TestSchedulerSuite` for cross-platform tests.
-  */
-trait SchedulerServiceSuite extends MUnitFunSuite {
+trait SchedulerServiceSuite extends MUnitFixtureSuite[SchedulerService] {
+  def setup(): SchedulerService
 
-  /** Override in concrete suites to provide the service. */
-  def createSchedulerService(): SchedulerService
-
-  /** Synchronous test with SchedulerService. Service is shut down after the test body completes. */
-  def testService(name: String)(body: SchedulerService => Any)(implicit loc: Location): Unit = {
-    test(name) {
-      val service = createSchedulerService()
-      try {
-        body(service)
-        shutdownService(service)
-      } catch {
-        case NonFatal(e) => shutdownService(service).flatMap(_ => Future.failed(e))(munitExecutionContext)
-      }
-    }
-  }
-
-  /** Async test with SchedulerService. Shutdown occurs after the returned Future completes. */
-  def testServiceAsync(name: String)(body: SchedulerService => Future[Any])(implicit loc: Location): Unit = {
-    test(name) {
-      val service = createSchedulerService()
-      try body(service).transformWith {
-        case Success(_) =>
-          shutdownService(service)
-        case Failure(e) =>
-          shutdownService(service).transformWith {
-            case Success(_) => Future.failed(e)
-            case Failure(shutdownError) =>
-              e.addSuppressed(shutdownError)
-              Future.failed(e)
-          }(munitExecutionContext)
-      }(munitExecutionContext)
-      catch {
-        case NonFatal(e) => shutdownService(service).flatMap(_ => Future.failed(e))(munitExecutionContext)
-      }
-    }
-  }
-
-  private def shutdownService(service: SchedulerService): Future[Unit] = {
-    service.shutdown()
-    service.awaitTermination(30, TimeUnit.SECONDS, Scheduler.global).map { terminated =>
-      assertEquals(clue(terminated), true, clue("service should terminate"))
-    }(munitExecutionContext)
-  }
+  override def tearDown(env: SchedulerService): Unit =
+    env.shutdown()
 }

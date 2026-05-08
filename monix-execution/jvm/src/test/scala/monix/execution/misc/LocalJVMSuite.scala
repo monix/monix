@@ -24,7 +24,7 @@ import monix.execution.schedulers.TracingScheduler
 import scala.concurrent.Future
 
 class LocalJVMSuite extends MUnitFunSuite {
-  testAsync("Local.isolate should properly isolate during async boundaries") {
+  test("Local.isolate should properly isolate during async boundaries") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
 
     val local = Local(0)
@@ -42,7 +42,7 @@ class LocalJVMSuite extends MUnitFunSuite {
     for (v <- f) yield assertEquals(v, 50)
   }
 
-  testAsync("Local.isolate(CancelableFuture) should properly isolate during async boundaries") {
+  test("Local.isolate(CancelableFuture) should properly isolate during async boundaries") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
 
     val local = Local(0)
@@ -63,7 +63,7 @@ class LocalJVMSuite extends MUnitFunSuite {
     for (v <- f) yield assertEquals(v, 50)
   }
 
-  testAsync("Local.isolate should properly isolate during async boundaries on error") {
+  test("Local.isolate should properly isolate during async boundaries on error") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
 
     val local = Local(0)
@@ -81,7 +81,7 @@ class LocalJVMSuite extends MUnitFunSuite {
     for (v <- f) yield assertEquals(v, 50)
   }
 
-  testAsync("Local.bindCurrentIf(CancelableFuture) should properly restore context during async boundaries") {
+  test("Local.bindCurrentIf(CancelableFuture) should properly restore context during async boundaries") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
 
     val local = Local(0)
@@ -100,7 +100,7 @@ class LocalJVMSuite extends MUnitFunSuite {
     for (v <- f) yield assertEquals(v, 50)
   }
 
-  testAsync("Local.bind(Local.defaultContext()) should restore context during async boundaries") {
+  test("Local.bind(Local.defaultContext()) should restore context during async boundaries") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
 
     val local = Local(0)
@@ -114,7 +114,7 @@ class LocalJVMSuite extends MUnitFunSuite {
     for (v <- f) yield assertEquals(v, 50)
   }
 
-  testAsync("Local.bindClear should restore context during async boundaries") {
+  test("Local.bindClear should restore context during async boundaries") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
 
     val local = Local(0)
@@ -128,7 +128,7 @@ class LocalJVMSuite extends MUnitFunSuite {
     for (v <- f) yield assertEquals(v, 50)
   }
 
-  testAsync("local.bind should properly restore context during async boundaries") {
+  test("local.bind should properly restore context during async boundaries") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
 
     val local = Local(0)
@@ -142,7 +142,7 @@ class LocalJVMSuite extends MUnitFunSuite {
     for (v <- f) yield assertEquals(v, 50)
   }
 
-  testAsync("local.bindClear should properly restore context during async boundaries") {
+  test("local.bindClear should properly restore context during async boundaries") {
     implicit val s = TracingScheduler(Scheduler.singleThread("local-test"))
 
     val local = Local(0)

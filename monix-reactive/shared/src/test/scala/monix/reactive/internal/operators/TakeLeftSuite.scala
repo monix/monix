@@ -59,7 +59,7 @@ class TakeLeftSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) =
     None
 
-  testScheduler("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 
@@ -84,7 +84,7 @@ class TakeLeftSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("take(0) shouldn't subscribe to the source at all") { implicit s =>
+  test("take(0) shouldn't subscribe to the source at all") { implicit s =>
     var counter = 0
 
     def inc() = {

@@ -29,7 +29,7 @@ class AsyncSchedulerJSSuite extends MUnitFixtureSuite[Scheduler] with TestUtils 
   def setup() = AsyncScheduler(MacrotaskExecutor, ExecutionModel.Default)
   def tearDown(env: Scheduler): Unit = ()
 
-  testAsync("execute async should work") { implicit s =>
+  test("execute async should work") { implicit s =>
     var effect = 0
     val p = Promise[Int]()
 
@@ -66,7 +66,7 @@ class AsyncSchedulerJSSuite extends MUnitFixtureSuite[Scheduler] with TestUtils 
     assertEquals(effect, 1 + 2 + 3)
   }
 
-  testAsync("schedule for execution with delay") { implicit s =>
+  test("schedule for execution with delay") { implicit s =>
     if (isCI) {
       assume(false, "Test is slow and flaky on top of underpowered machines, skipping")
     }
@@ -82,7 +82,7 @@ class AsyncSchedulerJSSuite extends MUnitFixtureSuite[Scheduler] with TestUtils 
     }
   }
 
-  testAsync("scheduleWithFixedRate should compensate for scheduling inaccuracy") { implicit s =>
+  test("scheduleWithFixedRate should compensate for scheduling inaccuracy") { implicit s =>
     if (isCI) {
       assume(false, "Test is slow and flaky on top of underpowered machines, skipping")
     }

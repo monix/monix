@@ -45,7 +45,7 @@ final class IterantDropWhileSuite extends BaseTestSuite {
         Nil
     }
 
-  testScheduler("Iterant.dropWhile equivalence with List.dropWhile") { implicit s =>
+  test("Iterant.dropWhile equivalence with List.dropWhile") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
       val iter = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1, allowErrors = false)
       val stream = iter ++ Iterant[Coeval].of(1, 2, 3)
@@ -55,7 +55,7 @@ final class IterantDropWhileSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.dropWhile protects against broken batches") { implicit s =>
+  test("Iterant.dropWhile protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
@@ -65,7 +65,7 @@ final class IterantDropWhileSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.dropWhile protects against broken cursors") { implicit s =>
+  test("Iterant.dropWhile protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
@@ -75,7 +75,7 @@ final class IterantDropWhileSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.dropWhile protects against user code") { implicit s =>
+  test("Iterant.dropWhile protects against user code") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](BatchCursor(1, 2, 3), Task.now(Iterant[Task].empty))
@@ -85,7 +85,7 @@ final class IterantDropWhileSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.dropWhile preserves the source earlyStop") { implicit s =>
+  test("Iterant.dropWhile preserves the source earlyStop") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
     val source =

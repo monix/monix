@@ -286,6 +286,12 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   //
   // Tries disabling parallel execution in tests (in the same project / task)
   Test / logBuffered := isCI,
+  Test / testOptions ++= {
+    if (!isCI)
+      Seq(Tests.Argument(TestFrameworks.MUnit, "-b"))
+    else
+      Nil
+  },
   Test / parallelExecution := false,
   Test / testForkedParallel := false,
 

@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 
 abstract class ConcurrentQueueJVMSuite(parallelism: Int) extends SchedulerServiceSuite with BaseConcurrentQueueSuite {
 
-  def createSchedulerService(): SchedulerService =
+  def setup(): SchedulerService =
     Scheduler.computation(
       name = s"concurrent-queue-par-$parallelism",
       parallelism = parallelism
@@ -35,8 +35,8 @@ abstract class ConcurrentQueueJVMSuite(parallelism: Int) extends SchedulerServic
       if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
       else IO.unit
 
-    testServiceAsync(name) { implicit ec =>
-      repeatTest(f(ec).timeout(60.second), times).unsafeToFuture()
+    test(name) { implicit ec =>
+      repeatTest(f(ec).timeout(munitTimeout), times).unsafeToFuture()
     }
   }
 }

@@ -82,7 +82,7 @@ abstract class BaseOperatorSuite extends monix.reactive.BaseTestSuite {
   def createObservableEndingInError(source: Observable[Long], ex: Throwable): Observable[Long] =
     source.endWithError(ex)
 
-  testScheduler("should emit exactly the requested elements") { implicit s =>
+  test("should emit exactly the requested elements") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var received = 0
     var wasCompleted = false
@@ -107,7 +107,7 @@ abstract class BaseOperatorSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("should work for synchronous observers") { implicit s =>
+  test("should work for synchronous observers") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var received = 0
     var total = 0L
@@ -136,7 +136,7 @@ abstract class BaseOperatorSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("should work for asynchronous observers") { implicit s =>
+  test("should work for asynchronous observers") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var received = 0
     var total = 0L
@@ -174,7 +174,7 @@ abstract class BaseOperatorSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("should back-pressure all the way") { implicit s =>
+  test("should back-pressure all the way") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var p = Promise[Continue.type]()
     var wasCompleted = false
@@ -214,7 +214,7 @@ abstract class BaseOperatorSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("should protect user-level code") { implicit s =>
+  test("should protect user-level code") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
 
     brokenUserCodeObservable(sourceCount, DummyException("dummy")) match {
@@ -247,7 +247,7 @@ abstract class BaseOperatorSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("should not break the contract on user-level error") { implicit s =>
+  test("should not break the contract on user-level error") { implicit s =>
     brokenUserCodeObservable(1, DummyException("dummy")) match {
       case None => ignore()
       case Some(Sample(obs, count, _, waitForFirst, waitForNext)) =>
@@ -275,7 +275,7 @@ abstract class BaseOperatorSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("onError should work") { implicit s =>
+  test("onError should work") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
 
     observableInError(sourceCount, DummyException("dummy")) match {
@@ -321,7 +321,7 @@ abstract class BaseOperatorSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("should stop on first onNext") { implicit s =>
+  test("should stop on first onNext") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
 
     createObservable(sourceCount) match {
@@ -353,7 +353,7 @@ abstract class BaseOperatorSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("should be cancelable") { implicit s =>
+  test("should be cancelable") { implicit s =>
     val observables = cancelableObservables()
     if (observables.isEmpty) ignore()
 

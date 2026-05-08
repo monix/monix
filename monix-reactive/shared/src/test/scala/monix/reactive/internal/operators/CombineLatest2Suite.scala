@@ -76,7 +76,7 @@ class CombineLatest2Suite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("self starts before other and finishes before other") { implicit s =>
+  test("self starts before other and finishes before other") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -111,7 +111,7 @@ class CombineLatest2Suite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("self starts after other and finishes after other") { implicit s =>
+  test("self starts after other and finishes after other") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -146,7 +146,7 @@ class CombineLatest2Suite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("self signals error and interrupts the stream before it starts") { implicit s =>
+  test("self signals error and interrupts the stream before it starts") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 
@@ -173,7 +173,7 @@ class CombineLatest2Suite extends BaseOperatorSuite {
     assert(wasCanceled)
   }
 
-  testScheduler("other signals error and interrupts the stream before it starts") { implicit s =>
+  test("other signals error and interrupts the stream before it starts") { implicit s =>
     val obs1 = PublishSubject[Int]()
     val obs2 = PublishSubject[Int]()
 

@@ -61,7 +61,7 @@ class EchoRepeatedSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("should timeout on inactivity and start emitting") { implicit s =>
+  test("should timeout on inactivity and start emitting") { implicit s =>
     val channel = PublishSubject[Int]()
     var received = 0
     var wasCompleted = false
@@ -94,7 +94,7 @@ class EchoRepeatedSuite extends BaseOperatorSuite {
     assertEquals(wasCompleted, true)
   }
 
-  testScheduler("time for processing upstream messages should be ignored") { implicit s =>
+  test("time for processing upstream messages should be ignored") { implicit s =>
     val channel = PublishSubject[Int]()
     var received = 0
     var wasCompleted = false
@@ -135,7 +135,7 @@ class EchoRepeatedSuite extends BaseOperatorSuite {
     assertEquals(wasCompleted, true)
   }
 
-  testScheduler("interval should be at fixed rate") { implicit s =>
+  test("interval should be at fixed rate") { implicit s =>
     val channel = PublishSubject[Int]()
     var received = 0
     var wasCompleted = false
@@ -169,7 +169,7 @@ class EchoRepeatedSuite extends BaseOperatorSuite {
     assertEquals(wasCompleted, true)
   }
 
-  testScheduler("new item should interrupt the streaming") { implicit s =>
+  test("new item should interrupt the streaming") { implicit s =>
     val channel = PublishSubject[Int]()
     var received = 0
     var wasCompleted = false

@@ -65,7 +65,7 @@ class AsyncSemaphoreSuite extends MUnitFixtureSuite[TestScheduler] {
     assertEquals(semaphore.available(), 2)
   }
 
-  testAsync("real async test of many futures") { _ =>
+  test("real async test of many futures") { _ =>
     // Executing Futures on the global scheduler!
     import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -142,7 +142,7 @@ class AsyncSemaphoreSuite extends MUnitFixtureSuite[TestScheduler] {
     assert(!p3.isCompleted, "!p3.isCompleted")
   }
 
-  testAsync("withPermitN / awaitAvailable concurrent test") { _ =>
+  test("withPermitN / awaitAvailable concurrent test") { _ =>
     // Executing Futures on the global scheduler!
     import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -176,7 +176,7 @@ class AsyncSemaphoreSuite extends MUnitFixtureSuite[TestScheduler] {
     }
   }
 
-  testAsync("tryAcquireN / awaitAvailable concurrent test") { _ =>
+  test("tryAcquireN / awaitAvailable concurrent test") { _ =>
     // Executing Futures on the global scheduler!
     import scala.concurrent.ExecutionContext.Implicits.global
 

@@ -34,7 +34,7 @@ import scala.concurrent.{ Future, Promise }
 import scala.util.{ Failure, Success }
 
 class LoadBalanceConsumerSuite extends monix.reactive.BaseTestSuite {
-  testScheduler("trigger error when parallelism < 1") { implicit s =>
+  test("trigger error when parallelism < 1") { implicit s =>
     intercept[IllegalArgumentException] {
       Consumer.loadBalance(0, Consumer.head[Int])
       ()
@@ -42,7 +42,7 @@ class LoadBalanceConsumerSuite extends monix.reactive.BaseTestSuite {
     ()
   }
 
-  testScheduler("trigger error when array of consumers is empty") { implicit s =>
+  test("trigger error when array of consumers is empty") { implicit s =>
     intercept[IllegalArgumentException] {
       new LoadBalanceConsumer(1, Array.empty[Consumer[Int, Int]])
       ()
@@ -50,7 +50,7 @@ class LoadBalanceConsumerSuite extends monix.reactive.BaseTestSuite {
     ()
   }
 
-  testScheduler("aggregate all events") { implicit s =>
+  test("aggregate all events") { implicit s =>
     check2 { (source: Observable[Int], rndInt: Int) =>
       // Parallelism value will be between 1 and 16
       val parallelism = {
@@ -67,7 +67,7 @@ class LoadBalanceConsumerSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("aggregate all events with subscribers that stop") { implicit s =>
+  test("aggregate all events with subscribers that stop") { implicit s =>
     check2 { (source: Observable[Int], rndInt: Int) =>
       // Parallelism value will be between 1 and 16
       val parallelism = {
@@ -87,7 +87,7 @@ class LoadBalanceConsumerSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("keep subscribers busy until the end") { implicit s =>
+  test("keep subscribers busy until the end") { implicit s =>
     val iterations = 10000
     val expectedSum = iterations.toLong * (iterations - 1) / 2
     val ackPromise = Promise[Ack]()
@@ -120,7 +120,7 @@ class LoadBalanceConsumerSuite extends monix.reactive.BaseTestSuite {
     assertEquals(finishPromise.future.value, Some(Success(6)))
   }
 
-  testScheduler("a subscriber triggering an error in onNext will cancel everything") { implicit s =>
+  test("a subscriber triggering an error in onNext will cancel everything") { implicit s =>
     val iterations = 10000
     val ackPromise1 = Promise[Ack]()
     val ackPromise2 = Promise[Ack]()
@@ -166,7 +166,7 @@ class LoadBalanceConsumerSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  testScheduler("a subscriber triggering an error by callback will cancel everything") { implicit s =>
+  test("a subscriber triggering an error by callback will cancel everything") { implicit s =>
     val iterations = 10000
     val ackPromise1 = Promise[Ack]()
     val ackPromise2 = Promise[Ack]()
@@ -212,7 +212,7 @@ class LoadBalanceConsumerSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  testScheduler("a subscriber can cancel at any time") { implicit s =>
+  test("a subscriber can cancel at any time") { implicit s =>
     val sum = Atomic(0L)
     val wasCompleted = Atomic(0)
 

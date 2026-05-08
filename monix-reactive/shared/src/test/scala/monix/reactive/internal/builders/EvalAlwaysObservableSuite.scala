@@ -29,7 +29,7 @@ class EvalAlwaysObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should work") { implicit s =>
+  test("should work") { implicit s =>
     var wasCompleted = 0
     var received = 0
 

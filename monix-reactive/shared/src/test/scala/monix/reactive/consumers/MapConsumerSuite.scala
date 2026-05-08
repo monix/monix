@@ -24,7 +24,7 @@ import monix.reactive.{ BaseTestSuite, Consumer, Observable }
 import scala.util.Failure
 
 class MapConsumerSuite extends monix.reactive.BaseTestSuite {
-  testScheduler("consumer.map equivalence with task.map") { implicit s =>
+  test("consumer.map equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
       val t1 = obs.consumeWith(consumer.map(_ + 100))
@@ -33,7 +33,7 @@ class MapConsumerSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("consumer.map streams error") { implicit s =>
+  test("consumer.map streams error") { implicit s =>
     check2 { (obs: Observable[Int], ex: Throwable) =>
       val withError = obs.endWithError(ex)
       val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
@@ -44,7 +44,7 @@ class MapConsumerSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("consumer.map protects against user code") { implicit s =>
+  test("consumer.map protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].map(_ => throw ex))

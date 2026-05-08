@@ -27,7 +27,7 @@ class EmptyObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
   }
 
-  testScheduler("should complete immediately") { implicit s =>
+  test("should complete immediately") { implicit s =>
     var wasCompleted = false
     Observable.empty.unsafeSubscribeFn(new Observer[Any] {
       def onNext(elem: Any) = throw new IllegalStateException()

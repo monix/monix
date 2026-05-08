@@ -36,7 +36,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should work for cats.effect.IO") { implicit s =>
+  test("should work for cats.effect.IO") { implicit s =>
     var wasCalled = 0
     var wasCompleted = 0
 
@@ -55,7 +55,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should execute callback onComplete") { implicit s =>
+  test("should execute callback onComplete") { implicit s =>
     var wasCalled = 0
     var wasCompleted = 0
 
@@ -74,7 +74,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should protect against user code onComplete (direct)") { implicit s =>
+  test("should protect against user code onComplete (direct)") { implicit s =>
     val ex = DummyException("dummy")
     var wasThrown: Throwable = null
 
@@ -93,7 +93,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should protect against user code onComplete (indirect)") { implicit s =>
+  test("should protect against user code onComplete (indirect)") { implicit s =>
     val ex = DummyException("dummy")
     var wasThrown: Throwable = null
 
@@ -112,7 +112,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should execute callback onError") { implicit s =>
+  test("should execute callback onError") { implicit s =>
     val ex = DummyException("dummy")
     var wasCalled = 0
     var wasThrown: Throwable = null
@@ -134,7 +134,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should protect against user-code onError (direct)") { implicit s =>
+  test("should protect against user-code onError (direct)") { implicit s =>
     val ex1 = DummyException("dummy1")
     val ex2 = DummyException("dummy2")
     var wasThrown: Throwable = null
@@ -167,7 +167,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should protect against user-code onError (indirect)") { implicit s =>
+  test("should protect against user-code onError (indirect)") { implicit s =>
     val ex1 = DummyException("dummy1")
     val ex2 = DummyException("dummy2")
     var wasThrown: Throwable = null
@@ -198,7 +198,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should call on synchronous downstream Stop") { implicit s =>
+  test("should call on synchronous downstream Stop") { implicit s =>
     var wasCalled = 0
     var wasCompleted = 0
 
@@ -218,7 +218,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should call on asynchronous downstream Stop") { implicit s =>
+  test("should call on asynchronous downstream Stop") { implicit s =>
     var wasCalled = 0
     var wasCompleted = 0
 
@@ -238,7 +238,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should protect against user code on synchronous downstream Stop (direct)") { implicit s =>
+  test("should protect against user code on synchronous downstream Stop (direct)") { implicit s =>
     val ex = DummyException("dummy")
 
     Observable
@@ -257,7 +257,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  testScheduler("should protect against user code on synchronous downstream Stop (indirect)") { implicit s =>
+  test("should protect against user code on synchronous downstream Stop (indirect)") { implicit s =>
     val ex = DummyException("dummy")
 
     Observable
@@ -276,7 +276,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  testScheduler("should protect against user code on asynchronous downstream Stop (direct)") { implicit s =>
+  test("should protect against user code on asynchronous downstream Stop (direct)") { implicit s =>
     val ex = DummyException("dummy")
 
     Observable
@@ -295,7 +295,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  testScheduler("should protect against user code on asynchronous downstream Stop (indirect)") { implicit s =>
+  test("should protect against user code on asynchronous downstream Stop (indirect)") { implicit s =>
     val ex = DummyException("dummy")
 
     Observable
@@ -314,7 +314,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  testScheduler("should receive error if onNext generates error asynchronously") { implicit s =>
+  test("should receive error if onNext generates error asynchronously") { implicit s =>
     val ex = DummyException("dummy")
     var errorThrown = Option.empty[ExitCase[Throwable]]
 
@@ -337,7 +337,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, Some(ExitCase.Error(ex)))
   }
 
-  testScheduler("should receive error if onNext returns error synchronously") { implicit s =>
+  test("should receive error if onNext returns error synchronously") { implicit s =>
     val ex = DummyException("dummy")
     var errorThrown = Option.empty[ExitCase[Throwable]]
 
@@ -362,7 +362,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
 
   // Tests converted and imported from the old DoOnTerminateSuite
 
-  testScheduler("should protect against user code onComplete") { implicit s =>
+  test("should protect against user code onComplete") { implicit s =>
     val ex = DummyException("dummy")
     var wasThrown: Throwable = null
 
@@ -381,7 +381,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should execute callback onError") { implicit s =>
+  test("should execute callback onError") { implicit s =>
     val ex = DummyException("dummy")
     var wasCalled = 0
     var wasThrown: Throwable = null
@@ -403,7 +403,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should protect against user-code onError") { implicit s =>
+  test("should protect against user-code onError") { implicit s =>
     val ex1 = DummyException("dummy1")
     val ex2 = DummyException("dummy2")
     var wasThrown: Throwable = null
@@ -435,7 +435,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should call on synchronous downstream Stop (IO)") { implicit s =>
+  test("should call on synchronous downstream Stop (IO)") { implicit s =>
     var wasCalled = 0
     var wasCompleted = 0
 
@@ -455,7 +455,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should call on asynchronous downstream Stop") { implicit s =>
+  test("should call on asynchronous downstream Stop") { implicit s =>
     var wasCalled = 0
     var wasCompleted = 0
 
@@ -475,7 +475,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should protect against user code on synchronous downstream Stop") { implicit s =>
+  test("should protect against user code on synchronous downstream Stop") { implicit s =>
     val ex = DummyException("dummy")
 
     Observable
@@ -494,7 +494,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  testScheduler("should protect against user code on asynchronous downstream Stop") { implicit s =>
+  test("should protect against user code on asynchronous downstream Stop") { implicit s =>
     val ex = DummyException("dummy")
 
     Observable
@@ -513,7 +513,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  testScheduler("should receive error if onNext generates error asynchronously") { implicit s =>
+  test("should receive error if onNext generates error asynchronously") { implicit s =>
     val ex = DummyException("dummy")
     var errorThrown = Option.empty[Throwable]
 
@@ -539,7 +539,7 @@ class GuaranteeCaseSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, Some(ex))
   }
 
-  testScheduler("should receive error if onNext returns error synchronously") { implicit s =>
+  test("should receive error if onNext returns error synchronously") { implicit s =>
     val ex = DummyException("dummy")
     var errorThrown = Option.empty[Throwable]
 

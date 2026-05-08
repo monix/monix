@@ -43,7 +43,7 @@ class SerializableSuite extends monix.reactive.BaseTestSuite {
       ref
     }
 
-  testScheduler("Observable is serializable") { implicit s =>
+  test("Observable is serializable") { implicit s =>
     check1 { (stream: Observable[Int]) =>
       val stream2 = deserialize[Observable[Int]](serialize(stream)) match {
         case Success(v) => v
@@ -54,7 +54,7 @@ class SerializableSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("Observer is serializable") { implicit s =>
+  test("Observer is serializable") { implicit s =>
     class MyObserver extends Observer.Sync[Int] {
       var sum = 0
       var completed: Option[Throwable] = _
@@ -85,7 +85,7 @@ class SerializableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(obs2.completed, None)
   }
 
-  testScheduler("Consumer is serializable") { implicit s =>
+  test("Consumer is serializable") { implicit s =>
     val ref1 = Consumer.foldLeft[Long, Long](0)(_ + _)
     val ref2 = deserialize[Consumer[Long, Long]](serialize(ref1)) match {
       case Success(v) => v
@@ -98,7 +98,7 @@ class SerializableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(99 * 50)))
   }
 
-  testScheduler("Pipe is serializable") { implicit s =>
+  test("Pipe is serializable") { implicit s =>
     val ref1 = Pipe.publish[Int]
     val ref2 = deserialize[Pipe[Int, Int]](serialize(ref1)) match {
       case Success(v) => v

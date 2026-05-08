@@ -24,7 +24,7 @@ import monix.reactive.Observable
 import scala.concurrent.duration.Duration.Zero
 
 class InflateOperatorSuite extends BaseDecompressionSuite with DeflateTestUtils {
-  testSchedulerAsync("long input, not wrapped in ZLIB header and trailer") { _ =>
+  test("long input, not wrapped in ZLIB header and trailer") { _ =>
     noWrapDeflatedStream(longText)
       .transform(inflate(1024, noWrap = true))
       .toListL
@@ -32,7 +32,7 @@ class InflateOperatorSuite extends BaseDecompressionSuite with DeflateTestUtils 
       .runToFuture
   }
 
-  testSchedulerAsync("inflate nowrap: remaining = 0 but not all was pulled") { _ =>
+  test("inflate nowrap: remaining = 0 but not all was pulled") { _ =>
     // This case shown error when not all data was pulled out of inflater
     noWrapDeflatedStream(inflateRandomExampleThatFailed, chunkSize = 40)
       .transform(inflate(bufferSize = 11, noWrap = true))

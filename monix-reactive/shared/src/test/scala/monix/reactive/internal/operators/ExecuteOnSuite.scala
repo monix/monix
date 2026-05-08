@@ -33,7 +33,7 @@ class ExecuteOnSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
-  testScheduler("it works") { implicit s =>
+  test("it works") { implicit s =>
     val other = TestScheduler()
     val nr = s.executionModel.recommendedBatchSize * 2
     val expectedSum = nr.toLong * (nr - 1) / 2

@@ -32,126 +32,126 @@ abstract class BatchCursorSuite[A: ClassTag](
 
   def fromList(list: List[A]): Cursor
 
-  testScheduler("cursor.toList") { _ =>
+  test("cursor.toList") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.toList == list
     }
   }
 
-  testScheduler("cursor.toArray") { _ =>
+  test("cursor.toArray") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.toArray.toList == list
     }
   }
 
-  testScheduler("cursor.drop(2).toArray") { _ =>
+  test("cursor.drop(2).toArray") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.drop(2).toArray.toList == list.drop(2)
     }
   }
 
-  testScheduler("cursor.take(2).toArray") { _ =>
+  test("cursor.take(2).toArray") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.take(2).toArray.toList == list.take(2)
     }
   }
 
-  testScheduler("cursor.toBatch") { _ =>
+  test("cursor.toBatch") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.toBatch.cursor().toList == list
     }
   }
 
-  testScheduler("cursor.drop(2).toBatch") { _ =>
+  test("cursor.drop(2).toBatch") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.drop(2).toBatch.cursor().toList == list.drop(2)
     }
   }
 
-  testScheduler("cursor.take(2).toBatch") { _ =>
+  test("cursor.take(2).toBatch") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.take(2).toBatch.cursor().toList == list.take(2)
     }
   }
 
-  testScheduler("cursor.drop(5).toList") { _ =>
+  test("cursor.drop(5).toList") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.drop(5).toList == list.drop(5)
     }
   }
 
-  testScheduler("cursor.drop(1000).toList") { _ =>
+  test("cursor.drop(1000).toList") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.drop(1000).toList == list.drop(1000)
     }
   }
 
-  testScheduler("cursor.take(5).toList") { _ =>
+  test("cursor.take(5).toList") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.drop(5).toList == list.drop(5)
     }
   }
 
-  testScheduler("cursor.take(1000).toList") { _ =>
+  test("cursor.take(1000).toList") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.drop(1000).toList == list.drop(1000)
     }
   }
 
-  testScheduler("cursor.take(5).drop(5).toList") { _ =>
+  test("cursor.take(5).drop(5).toList") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.take(5).drop(5).toList == Nil
     }
   }
 
-  testScheduler("cursor.drop(5).take(5).toList") { _ =>
+  test("cursor.drop(5).take(5).toList") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.drop(5).take(5).toList == list.slice(5, 10)
     }
   }
 
-  testScheduler("cursor.slice(5,5).toList") { _ =>
+  test("cursor.slice(5,5).toList") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.slice(5, 5).toList == list.slice(5, 5)
     }
   }
 
-  testScheduler("cursor.slice(5,10).toList") { _ =>
+  test("cursor.slice(5,10).toList") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.slice(5, 10).toList == list.slice(5, 10)
     }
   }
 
-  testScheduler("cursor.map") { _ =>
+  test("cursor.map") { _ =>
     check2 { (list: List[A], f: A => A) =>
       val cursor = fromList(list)
       cursor.map(f).toList == list.map(f)
     }
   }
 
-  testScheduler("cursor.filter") { _ =>
+  test("cursor.filter") { _ =>
     check2 { (list: List[A], f: A => Boolean) =>
       val cursor = fromList(list)
       cursor.filter(f).toList == list.filter(f)
     }
   }
 
-  testScheduler("cursor.collect") { _ =>
+  test("cursor.collect") { _ =>
     check3 { (list: List[A], p: A => Boolean, f: A => A) =>
       val pf: PartialFunction[A, A] = { case x if p(x) => f(x) }
       val cursor = fromList(list)
@@ -159,14 +159,14 @@ abstract class BatchCursorSuite[A: ClassTag](
     }
   }
 
-  testScheduler("cursor.toIterator") { _ =>
+  test("cursor.toIterator") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.toIterator.toList == list
     }
   }
 
-  testScheduler("cursor.hasNext") { _ =>
+  test("cursor.hasNext") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       var seen = 0
@@ -180,35 +180,35 @@ abstract class BatchCursorSuite[A: ClassTag](
     }
   }
 
-  testScheduler("cursor.hasNext <=> !cursor.isEmpty") { _ =>
+  test("cursor.hasNext <=> !cursor.isEmpty") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.hasNext() == !cursor.isEmpty
     }
   }
 
-  testScheduler("cursor.hasNext <=> cursor.nonEmpty") { _ =>
+  test("cursor.hasNext <=> cursor.nonEmpty") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.hasNext() == cursor.nonEmpty
     }
   }
 
-  testScheduler("cursor.hasNext == list.nonEmpty") { _ =>
+  test("cursor.hasNext == list.nonEmpty") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       list.nonEmpty == cursor.hasNext()
     }
   }
 
-  testScheduler("recommendedBatchSize is positive") { _ =>
+  test("recommendedBatchSize is positive") { _ =>
     check1 { (list: List[A]) =>
       val cursor = fromList(list)
       cursor.recommendedBatchSize > 0
     }
   }
 
-  testScheduler("BatchCursor.fromArray") { _ =>
+  test("BatchCursor.fromArray") { _ =>
     check1 { (array: Array[A]) =>
       BatchCursor.fromArray(array).toArray.toSeq == array.toSeq
     }

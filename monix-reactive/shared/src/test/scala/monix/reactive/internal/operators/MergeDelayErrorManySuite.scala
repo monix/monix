@@ -72,7 +72,7 @@ class MergeDelayErrorManySuite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("error emitted by the source should also be delayed") { implicit s =>
+  test("error emitted by the source should also be delayed") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var received = 0
     var receivedSum = 0L

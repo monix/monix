@@ -44,13 +44,13 @@ class ObservableForeachSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(())))
   }
 
-  testScheduler("foreach protects against user error") { implicit s =>
+  test("foreach protects against user error") { implicit s =>
     val dummy = DummyException("dummy")
     val f = Observable.fromIterable(0 until 1000).foreach(_ => throw dummy)
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  testScheduler("foreachL protects against user error") { implicit s =>
+  test("foreachL protects against user error") { implicit s =>
     val dummy = DummyException("dummy")
     val f = Observable.fromIterable(0 until 1000).foreachL(_ => throw dummy).runToFuture
     assertEquals(f.value, Some(Failure(dummy)))

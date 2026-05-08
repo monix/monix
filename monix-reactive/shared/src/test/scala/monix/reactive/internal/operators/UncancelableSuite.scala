@@ -27,7 +27,7 @@ import scala.util.Success
 class UncancelableSuite extends monix.reactive.BaseTestSuite {
   implicit val opts: Task.Options = Task.defaultOptions.disableAutoCancelableRunLoops
 
-  testScheduler("uncancelable works") { implicit ec =>
+  test("uncancelable works") { implicit ec =>
     val obs = Observable
       .eval(1)
       .delayExecution(1.second)
@@ -47,7 +47,7 @@ class UncancelableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(Some(1))))
   }
 
-  testScheduler("uncancelable works for suspend loop") { implicit ec =>
+  test("uncancelable works for suspend loop") { implicit ec =>
     def loop(n: Int): Observable[Int] =
       Observable.suspend {
         if (n > 0)

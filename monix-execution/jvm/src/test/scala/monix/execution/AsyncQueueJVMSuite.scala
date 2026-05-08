@@ -43,7 +43,7 @@ abstract class AsyncQueueJVMSuite(parallelism: Int) extends BaseAsyncQueueSuite[
       else
         Future.successful(())
 
-    testAsync(name) { implicit ec =>
+    test(name) { implicit ec =>
       repeatTest(f(ec), times)
     }
   }

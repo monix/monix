@@ -56,7 +56,7 @@ class TimeoutOnSlowDownstreamSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("Observable.timeoutOnSlowDownstreamTo should timeout on slow downstream") { implicit sc =>
+  test("Observable.timeoutOnSlowDownstreamTo should timeout on slow downstream") { implicit sc =>
     val backup = AtomicInt(0)
 
     Observable
@@ -70,7 +70,7 @@ class TimeoutOnSlowDownstreamSuite extends BaseOperatorSuite {
     assertEquals(backup.get(), 1)
   }
 
-  testScheduler("Observable.timeoutOnSlowDownstreamTo should complete successfully") { implicit sc =>
+  test("Observable.timeoutOnSlowDownstreamTo should complete successfully") { implicit sc =>
     val backup = AtomicInt(0)
 
     Observable

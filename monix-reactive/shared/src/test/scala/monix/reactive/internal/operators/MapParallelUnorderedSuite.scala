@@ -64,7 +64,7 @@ class MapParallelUnorderedSuite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("should work for synchronous observers") { implicit s =>
+  test("should work for synchronous observers") { implicit s =>
     val randomCount = Random.nextInt(300) + 100
 
     for (sourceCount <- List(0, 1, 2, 3, 4, 5, randomCount)) {
@@ -93,7 +93,7 @@ class MapParallelUnorderedSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("should work for asynchronous observers") { implicit s =>
+  test("should work for asynchronous observers") { implicit s =>
     val randomCount = Random.nextInt(300) + 100
 
     for (sourceCount <- List(0, 1, 2, 3, 4, 5, randomCount)) {
@@ -122,7 +122,7 @@ class MapParallelUnorderedSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("mapParallelUnordered equivalence with map") { implicit s =>
+  test("mapParallelUnordered equivalence with map") { implicit s =>
     check2 { (list: List[Int], isAsync: Boolean) =>
       val received = Observable
         .fromIterable(list)
@@ -135,7 +135,7 @@ class MapParallelUnorderedSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("mapParallelUnordered(parallelism=1) equivalence with mapTask") { implicit s =>
+  test("mapParallelUnordered(parallelism=1) equivalence with mapTask") { implicit s =>
     check2 { (list: List[Int], isAsync: Boolean) =>
       val received = Observable
         .fromIterable(list)
@@ -151,7 +151,7 @@ class MapParallelUnorderedSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("should interrupt the streaming on error, test #1") { implicit s =>
+  test("should interrupt the streaming on error, test #1") { implicit s =>
     val dummy = DummyException("dummy")
     var isComplete = false
     var wasThrown: Throwable = null
@@ -188,7 +188,7 @@ class MapParallelUnorderedSuite extends BaseOperatorSuite {
     assertEquals(wasThrown, dummy)
   }
 
-  testScheduler("should interrupt the streaming on error, test #2") { implicit s =>
+  test("should interrupt the streaming on error, test #2") { implicit s =>
     val dummy = DummyException("dummy")
     var isComplete = false
     var wasThrown: Throwable = null
@@ -224,7 +224,7 @@ class MapParallelUnorderedSuite extends BaseOperatorSuite {
     assertEquals(wasThrown, dummy)
   }
 
-  testScheduler("should protect against user error") { implicit s =>
+  test("should protect against user error") { implicit s =>
     val dummy = DummyException("dummy")
     var isComplete = false
     var wasThrown: Throwable = null
@@ -256,7 +256,7 @@ class MapParallelUnorderedSuite extends BaseOperatorSuite {
     assertEquals(wasThrown, dummy)
   }
 
-  testScheduler("should back-pressure on semaphore") { implicit s =>
+  test("should back-pressure on semaphore") { implicit s =>
     var initiated = 0
     var received = 0
     var isComplete = false
@@ -289,7 +289,7 @@ class MapParallelUnorderedSuite extends BaseOperatorSuite {
     assert(isComplete, "isComplete")
   }
 
-  testScheduler("should back-pressure on buffer") { implicit s =>
+  test("should back-pressure on buffer") { implicit s =>
     var initiated = 0
     var received = 0
     var isComplete = false
@@ -324,7 +324,7 @@ class MapParallelUnorderedSuite extends BaseOperatorSuite {
     assert(isComplete, "isComplete")
   }
 
-  testScheduler("should respect custom overflow strategy") { implicit s =>
+  test("should respect custom overflow strategy") { implicit s =>
     var initiated = 0
     var received = 0
     var isComplete = false
@@ -360,7 +360,7 @@ class MapParallelUnorderedSuite extends BaseOperatorSuite {
     assert(isComplete, "isComplete")
   }
 
-  testScheduler("should be cancelable after the main stream has ended") { implicit s =>
+  test("should be cancelable after the main stream has ended") { implicit s =>
     val f = Observable
       .now(1)
       .mapParallelUnordered(parallelism = 4)(x => Task.evalAsync(x + 1).delayExecution(1.second))
@@ -376,7 +376,7 @@ class MapParallelUnorderedSuite extends BaseOperatorSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("exceptions can be triggered synchronously by throw") { implicit s =>
+  test("exceptions can be triggered synchronously by throw") { implicit s =>
     val dummy = DummyException("dummy")
     val source = Observable.now(1L).mapParallelUnordered(parallelism = 4)(_ => throw dummy)
 
@@ -387,7 +387,7 @@ class MapParallelUnorderedSuite extends BaseOperatorSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  testScheduler("exceptions can be triggered synchronously through raiseError") { implicit s =>
+  test("exceptions can be triggered synchronously through raiseError") { implicit s =>
     val dummy = DummyException("dummy")
     val source = Observable.now(1).mapParallelUnordered(parallelism = 4)(_ => Task.raiseError(dummy))
 
@@ -398,7 +398,7 @@ class MapParallelUnorderedSuite extends BaseOperatorSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  testScheduler("should end with error on parallelism <= 0") { implicit s =>
+  test("should end with error on parallelism <= 0") { implicit s =>
     var error = false
 
     val source = Observable
@@ -415,7 +415,7 @@ class MapParallelUnorderedSuite extends BaseOperatorSuite {
     assert(error)
   }
 
-  testScheduler("should cancel the whole stream when if one fails") { implicit s =>
+  test("should cancel the whole stream when if one fails") { implicit s =>
     var received = 0
 
     val failedTask = Task.raiseError(DummyException("boom")).delayExecution(1.second)

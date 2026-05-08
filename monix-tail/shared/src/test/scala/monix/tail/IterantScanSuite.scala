@@ -24,7 +24,7 @@ import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
 
 final class IterantScanSuite extends BaseTestSuite {
-  testScheduler("scan evolves state") { implicit s =>
+  test("scan evolves state") { implicit s =>
     check1 { (source: Iterant[Coeval, Int]) =>
       sealed trait State[+A] { def count: Int }
       case object Init extends State[Nothing] { def count = 0 }
@@ -45,27 +45,27 @@ final class IterantScanSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("scan protects against exceptions initial") { implicit s =>
+  test("scan protects against exceptions initial") { implicit s =>
     val dummy = DummyException("dummy")
     val fa = Iterant[Coeval].of(1, 2, 3)
     val r = fa.scan((throw dummy): Int)((_, e) => e).attempt.toListL
     assertEquals(r.value(), List(Left(dummy)))
   }
 
-  testScheduler("scan protects against exceptions in f") { implicit s =>
+  test("scan protects against exceptions in f") { implicit s =>
     val dummy = DummyException("dummy")
     val fa = Iterant[Coeval].of(1, 2, 3)
     val r = fa.scan(0)((_, _) => throw dummy).attempt.toListL
     assertEquals(r.value(), List(Left(dummy)))
   }
 
-  testScheduler("scan0 emits seed as first element") { implicit s =>
+  test("scan0 emits seed as first element") { implicit s =>
     check2 { (source: Iterant[Coeval, Int], seed: Int) =>
       source.scan0(seed)(_ + _).headOptionL <-> Coeval.pure(Some(seed))
     }
   }
 
-  testScheduler("scan0.drop(1) <-> scan") { implicit s =>
+  test("scan0.drop(1) <-> scan") { implicit s =>
     check2 { (source: Iterant[Coeval, Int], seed: Int) =>
       source.scan0(seed)(_ + _).drop(1) <-> source.scan(seed)(_ + _)
     }

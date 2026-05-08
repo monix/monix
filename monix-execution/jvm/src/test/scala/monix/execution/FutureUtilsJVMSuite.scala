@@ -34,7 +34,7 @@ class FutureUtilsJVMSuite extends MUnitFixtureSuite[TestScheduler] {
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
   }
 
-  testAsync("timeoutTo should not evaluate fallback when future and timeout are finished at the same time") { _ =>
+  test("timeoutTo should not evaluate fallback when future and timeout are finished at the same time") { _ =>
     implicit val scheduler: Scheduler = Scheduler(Executors.newWorkStealingPool())
 
     case class TestException() extends RuntimeException

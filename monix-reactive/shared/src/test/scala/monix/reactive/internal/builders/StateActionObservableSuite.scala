@@ -32,7 +32,7 @@ class StateActionObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("first execution is sync") { implicit s =>
+  test("first execution is sync") { implicit s =>
     var received = 0
     Observable
       .fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
@@ -43,7 +43,7 @@ class StateActionObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(received, 1)
   }
 
-  testScheduler("should do synchronous execution in batches") { implicit s =>
+  test("should do synchronous execution in batches") { implicit s =>
     var received = 0
     Observable
       .fromStateAction(int)(s.clockMonotonic(MILLISECONDS))
@@ -59,7 +59,7 @@ class StateActionObservableSuite extends monix.reactive.BaseTestSuite {
     ()
   }
 
-  testScheduler("fromStateAction should be cancelable") { implicit s =>
+  test("fromStateAction should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 

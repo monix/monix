@@ -32,7 +32,7 @@ class FutureAsObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
-  testScheduler("should work for synchronous futures and synchronous observers") { implicit s =>
+  test("should work for synchronous futures and synchronous observers") { implicit s =>
     val f = Future.successful(10)
     var received = 0
     var wasCompleted = false
@@ -56,7 +56,7 @@ class FutureAsObservableSuite extends monix.reactive.BaseTestSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("from should work for asynchronous futures and asynchronous observers") { implicit s =>
+  test("from should work for asynchronous futures and asynchronous observers") { implicit s =>
     val f = Future.delayedResult(100.millis)(10)
     var received = 0
     var wasCompleted = false
@@ -83,7 +83,7 @@ class FutureAsObservableSuite extends monix.reactive.BaseTestSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("should emit onError for synchronous futures") { implicit s =>
+  test("should emit onError for synchronous futures") { implicit s =>
     val f = Future.failed(DummyException("dummy"))
     var errorThrown: Throwable = null
 
@@ -98,7 +98,7 @@ class FutureAsObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  testScheduler("should emit onError for asynchronous futures") { implicit s =>
+  test("should emit onError for asynchronous futures") { implicit s =>
     val f = Future.delayedResult(100.millis)(throw DummyException("dummy"))
     var errorThrown: Throwable = null
 
@@ -114,7 +114,7 @@ class FutureAsObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  testScheduler("CancelableFuture should be cancelable") { implicit s =>
+  test("CancelableFuture should be cancelable") { implicit s =>
     val f = Task.evalAsync(1).delayExecution(1.second).runToFuture
     var received = 0
     var wasCompleted = false

@@ -60,7 +60,7 @@ class ReduceSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("Observable.reduce is equivalent with List.reduce") { implicit s =>
+  test("Observable.reduce is equivalent with List.reduce") { implicit s =>
     check1 { (list: List[Int]) =>
       val obs = Observable.fromIterable(list)
       val result = obs.reduce(_ + _).lastL

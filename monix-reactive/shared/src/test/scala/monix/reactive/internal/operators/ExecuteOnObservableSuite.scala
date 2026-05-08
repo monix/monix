@@ -30,7 +30,7 @@ class ExecuteOnObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
-  testScheduler("executeOn must execute async if forceAsync=true") { implicit s =>
+  test("executeOn must execute async if forceAsync=true") { implicit s =>
     val s2 = TestScheduler()
     val obs = Observable.now(10).executeOn(s2)
     val p = Promise[Int]()
@@ -49,7 +49,7 @@ class ExecuteOnObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  testScheduler("executeOn should not force async if forceAsync=false") { implicit s =>
+  test("executeOn should not force async if forceAsync=false") { implicit s =>
     val s2 = TestScheduler()
     val obs = Observable.now(10).executeOn(s2, forceAsync = false)
     val p = Promise[Int]()
@@ -64,7 +64,7 @@ class ExecuteOnObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  testScheduler("executeOn should inject scheduler") { implicit s =>
+  test("executeOn should inject scheduler") { implicit s =>
     val s2 = TestScheduler()
     val obs = Observable.now(10).executeAsync.executeOn(s2, forceAsync = false)
     val p = Promise[Int]()

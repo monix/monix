@@ -30,21 +30,21 @@ abstract class BaseDecompressionSuite extends BaseOperatorSuite with Compression
   implicit val scheduler: Scheduler =
     Scheduler.computation(parallelism = 4, name = "compression-tests", daemonic = true)
 
-  testSchedulerAsync("short stream") { _ =>
+  test("short stream") { _ =>
     jdkCompressedStream(shortText)
       .transform(decompress(bufferSize = 64))
       .toListL
       .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
-  testSchedulerAsync("stream of two deflated inputs") { _ =>
+  test("stream of two deflated inputs") { _ =>
     (jdkCompressedStream(shortText) ++ jdkCompressedStream(otherShortText))
       .transform(decompress(bufferSize = 64))
       .toListL
       .map(list => assertEquals(list.flatten, (shortText ++ otherShortText).toList))
       .runToFuture
   }
-  testSchedulerAsync("stream of two deflated inputs as a single chunk") { _ =>
+  test("stream of two deflated inputs as a single chunk") { _ =>
     (jdkCompressedStream(shortText) ++ jdkCompressedStream(otherShortText))
       .bufferTumbling(2)
       .concatMapIterable(seq => seq.toList)
@@ -53,28 +53,28 @@ abstract class BaseDecompressionSuite extends BaseOperatorSuite with Compression
       .map(list => assertEquals(list.flatten, (shortText ++ otherShortText).toList))
       .runToFuture
   }
-  testSchedulerAsync("long input") { _ =>
+  test("long input") { _ =>
     jdkCompressedStream(longText)
       .transform(decompress(bufferSize = 64))
       .toListL
       .map(list => assertEquals(list.flatten, longText.toList))
       .runToFuture
   }
-  testSchedulerAsync("long input, buffer smaller than chunks") { _ =>
+  test("long input, buffer smaller than chunks") { _ =>
     jdkCompressedStream(longText, chunkSize = 500)
       .transform(decompress(bufferSize = 1))
       .toListL
       .map(list => assertEquals(list.flatten, longText.toList))
       .runToFuture
   }
-  testSchedulerAsync("long input, chunks smaller then buffer") { _ =>
+  test("long input, chunks smaller then buffer") { _ =>
     jdkCompressedStream(longText, chunkSize = 1)
       .transform(decompress(bufferSize = 500))
       .toListL
       .map(list => assertEquals(list.flatten, longText.toList))
       .runToFuture
   }
-  testSchedulerAsync("fail early if header is corrupted") { _ =>
+  test("fail early if header is corrupted") { _ =>
     Observable
       .now(Array(1, 2, 3, 4, 5).map(_.toByte))
       .transform(decompress())
@@ -84,7 +84,7 @@ abstract class BaseDecompressionSuite extends BaseOperatorSuite with Compression
       .runToFuture
   }
 
-  testSchedulerAsync("fail if input stream finished unexpected") { _ =>
+  test("fail if input stream finished unexpected") { _ =>
     jdkCompressedStream(longText)
       .map(_.take(20))
       .transform(decompress())

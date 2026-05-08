@@ -33,7 +33,7 @@ class RangeObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should not have pending tasks left")
   }
 
-  testScheduler("should do increments and synchronous observers") { implicit s =>
+  test("should do increments and synchronous observers") { implicit s =>
     var wasCompleted = false
     var sum = 0L
 
@@ -53,7 +53,7 @@ class RangeObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasCompleted, true)
   }
 
-  testScheduler("should do decrements and synchronous observers") { implicit s =>
+  test("should do decrements and synchronous observers") { implicit s =>
     var wasCompleted = false
     var sum = 0L
 
@@ -73,7 +73,7 @@ class RangeObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasCompleted, true)
   }
 
-  testScheduler("should do back-pressure") { implicit s =>
+  test("should do back-pressure") { implicit s =>
     var wasCompleted = false
     var received = 0L
     var sum = 0L
@@ -101,7 +101,7 @@ class RangeObservableSuite extends monix.reactive.BaseTestSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("should throw if step is zero") { implicit s =>
+  test("should throw if step is zero") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable.range(0L, 10L, 0L)
       ()
@@ -109,7 +109,7 @@ class RangeObservableSuite extends monix.reactive.BaseTestSuite {
     ()
   }
 
-  testScheduler("should do synchronous execution in batches") { implicit s =>
+  test("should do synchronous execution in batches") { implicit s =>
     val batchSize = s.executionModel.recommendedBatchSize
     var received = 0
 
@@ -123,7 +123,7 @@ class RangeObservableSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("should be cancelable") { implicit s =>
+  test("should be cancelable") { implicit s =>
     var received = 0
     var wasCompleted = 0
     val source = Observable.range(0L, Platform.recommendedBatchSize.toLong * 10)
@@ -147,7 +147,7 @@ class RangeObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasCompleted, 0)
   }
 
-  testScheduler("should complete when Long.MaxValue is reached") { implicit s =>
+  test("should complete when Long.MaxValue is reached") { implicit s =>
     var wasCompleted = false
     var elements = List.empty[Long]
 
@@ -173,7 +173,7 @@ class RangeObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasCompleted, true)
   }
 
-  testScheduler("should complete when Long.MinValue is reached") { implicit s =>
+  test("should complete when Long.MinValue is reached") { implicit s =>
     var wasCompleted = false
     var elements = List.empty[Long]
 

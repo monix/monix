@@ -24,7 +24,7 @@ import scala.concurrent.duration.Duration.Zero
 
 class GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
 
-  testSchedulerAsync("long input, no SYNC_FLUSH") { _ =>
+  test("long input, no SYNC_FLUSH") { _ =>
     jdkGzippedStream(longText, syncFlush = false)
       .transform(gunzip(64))
       .toListL
@@ -32,7 +32,7 @@ class GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
       .runToFuture
   }
 
-  testSchedulerAsync("no output on very incomplete stream is not OK") { _ =>
+  test("no output on very incomplete stream is not OK") { _ =>
     Observable
       .now((1 to 5).map(_.toByte).toArray)
       .transform(gunzip())
@@ -41,35 +41,35 @@ class GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
       .onErrorRecover { case e if !e.isInstanceOf[FailException] => () }
       .runToFuture
   }
-  testSchedulerAsync("parses header with FEXTRA") { _ =>
+  test("parses header with FEXTRA") { _ =>
     headerWithExtra
       .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
-  testSchedulerAsync("parses header with FCOMMENT") { _ =>
+  test("parses header with FCOMMENT") { _ =>
     headerWithComment
       .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
-  testSchedulerAsync("parses header with FNAME") { _ =>
+  test("parses header with FNAME") { _ =>
     headerWithFileName
       .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
-  testSchedulerAsync("parses header with CRC16") { _ =>
+  test("parses header with CRC16") { _ =>
     headerWithCrc
       .transform(gunzip(64))
       .toListL
       .map(list => assertEquals(list.flatten, shortText.toList))
       .runToFuture
   }
-  testSchedulerAsync("parses header with CRC16, FNAME, FCOMMENT, FEXTRA") { _ =>
+  test("parses header with CRC16, FNAME, FCOMMENT, FEXTRA") { _ =>
     headerWithAll
       .transform(gunzip(64))
       .toListL

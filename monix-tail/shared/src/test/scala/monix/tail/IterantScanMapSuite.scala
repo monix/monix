@@ -24,7 +24,7 @@ import monix.eval.Coeval
 
 final class IterantScanMapSuite extends BaseTestSuite {
 
-  testScheduler("Iterant.scanMap equivalence to Iterant.scan") { implicit s =>
+  test("Iterant.scanMap equivalence to Iterant.scan") { implicit s =>
     check1 { (source: Iterant[Coeval, Int]) =>
       val scanned1 = source.scanMap(x => x)
       val scanned2 = source.scan(0)(_ + _)
@@ -39,7 +39,7 @@ final class IterantScanMapSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.scanMap0 starts with empty element") { implicit s =>
+  test("Iterant.scanMap0 starts with empty element") { implicit s =>
     check1 { (source: Iterant[Coeval, Int]) =>
       source.scanMap0(x => x).headOptionL <-> Coeval(Some(Monoid[Int].empty))
     }

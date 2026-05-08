@@ -22,7 +22,7 @@ import monix.execution.exceptions.DummyException
 import monix.reactive.{ BaseTestSuite, Observer }
 
 class StoppedObserverSuite extends monix.reactive.BaseTestSuite {
-  testScheduler("Observer.stopped works") { implicit s =>
+  test("Observer.stopped works") { implicit s =>
     val out = Observer.stopped[Int]
 
     assertEquals(out.onNext(1), Stop)
@@ -31,7 +31,7 @@ class StoppedObserverSuite extends monix.reactive.BaseTestSuite {
     assertEquals(out.onNext(2), Stop)
   }
 
-  testScheduler("Subscriber.canceled works") { implicit s =>
+  test("Subscriber.canceled works") { implicit s =>
     val out = Subscriber.canceled[Int]
 
     assertEquals(out.onNext(1), Stop)

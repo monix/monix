@@ -24,7 +24,7 @@ import monix.eval.Coeval
 import monix.execution.exceptions.DummyException
 
 final class IterantScanEvalSuite extends BaseTestSuite {
-  testScheduler("scanEval evolves state") { implicit s =>
+  test("scanEval evolves state") { implicit s =>
     sealed trait State[+A] { def count: Int }
     case object Init extends State[Nothing] { def count = 0 }
     case class Current[A](current: Option[A], count: Int) extends State[A]
@@ -70,7 +70,7 @@ final class IterantScanEvalSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("scanEval protects against errors in initial") { implicit s =>
+  test("scanEval protects against errors in initial") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -82,7 +82,7 @@ final class IterantScanEvalSuite extends BaseTestSuite {
     assertEquals(effect, 0)
   }
 
-  testScheduler("scan protects against exceptions in f") { implicit s =>
+  test("scan protects against exceptions in f") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -94,7 +94,7 @@ final class IterantScanEvalSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("scan protects against errors in f") { implicit s =>
+  test("scan protects against errors in f") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -106,14 +106,14 @@ final class IterantScanEvalSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("scanEval0 emits seed as first element") { implicit s =>
+  test("scanEval0 emits seed as first element") { implicit s =>
     check2 { (source: Iterant[Coeval, Int], seed: Coeval[Int]) =>
       source.scanEval0(seed)((a, b) => Coeval.pure(a + b)).headOptionL <->
         seed.map(Some(_))
     }
   }
 
-  testScheduler("scanEval0.drop(1) <-> scanEval") { implicit s =>
+  test("scanEval0.drop(1) <-> scanEval") { implicit s =>
     check2 { (source: Iterant[Coeval, Int], seed: Coeval[Int]) =>
       source.scanEval0(seed)((a, b) => Coeval.pure(a + b)).drop(1) <->
         source.scanEval(seed)((a, b) => Coeval.pure(a + b))

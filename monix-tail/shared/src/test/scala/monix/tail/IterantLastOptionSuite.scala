@@ -27,21 +27,21 @@ import monix.tail.batches.{ Batch, BatchCursor }
 import scala.util.Failure
 
 final class IterantLastOptionSuite extends BaseTestSuite {
-  testScheduler("Iterant.lastOptionL <-> List.lastOption") { _ =>
+  test("Iterant.lastOptionL <-> List.lastOption") { _ =>
     check2 { (list: List[Int], idx: Int) =>
       val iter = arbitraryListToIterant[Coeval, Int](list, math.abs(idx % 4), allowErrors = false)
       iter.lastOptionL <-> Coeval.now(list.lastOption)
     }
   }
 
-  testScheduler("Iterant.lastOption <-> List.lastOption") { _ =>
+  test("Iterant.lastOption <-> List.lastOption") { _ =>
     check2 { (list: List[Int], idx: Int) =>
       val iter = arbitraryListToIterant[Coeval, Int](list, math.abs(idx % 4), allowErrors = false)
       iter.lastOptionL.value() == list.lastOption
     }
   }
 
-  testScheduler("Iterant.lastOption suspends execution for NextCursor or NextBatch") { _ =>
+  test("Iterant.lastOption suspends execution for NextCursor or NextBatch") { _ =>
     check1 { (list: List[Int]) =>
       val iter1 = Iterant[Coeval].nextBatchS(Batch(list*), Coeval.now(Iterant[Coeval].empty[Int]))
       iter1.lastOptionL <-> Coeval.suspend(Coeval.now(list.lastOption))
@@ -51,7 +51,7 @@ final class IterantLastOptionSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.lastOption works for empty NextCursor or NextBatch") { _ =>
+  test("Iterant.lastOption works for empty NextCursor or NextBatch") { _ =>
     val iter1 = Iterant[Coeval].nextBatchS(Batch[Int](), Coeval.now(Iterant[Coeval].empty[Int]))
     assertEquals(iter1.lastOptionL.value(), None)
 
@@ -59,7 +59,7 @@ final class IterantLastOptionSuite extends BaseTestSuite {
     assertEquals(iter2.lastOptionL.value(), None)
   }
 
-  testScheduler("Iterant.lastOption doesn't touch Halt") { implicit s =>
+  test("Iterant.lastOption doesn't touch Halt") { implicit s =>
     val dummy = DummyException("dummy")
     val iter1: Iterant[Task, Int] = Iterant[Task].haltS(Some(dummy))
     val state1 = iter1.lastOptionL
@@ -69,7 +69,7 @@ final class IterantLastOptionSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Iterant.lastOption earlyStop gets called for failing `rest` on Next node") { implicit s =>
+  test("Iterant.lastOption earlyStop gets called for failing `rest` on Next node") { implicit s =>
     var effect = 0
 
     def stop(i: Int): Coeval[Unit] = Coeval { effect += i }
@@ -82,7 +82,7 @@ final class IterantLastOptionSuite extends BaseTestSuite {
     assertEquals(effect, 6)
   }
 
-  testScheduler("protects against broken batches as first node") { implicit s =>
+  test("protects against broken batches as first node") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -96,7 +96,7 @@ final class IterantLastOptionSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("lastOptionL handles Scope's release before the rest of the stream") { implicit s =>
+  test("lastOptionL handles Scope's release before the rest of the stream") { implicit s =>
     val triggered = Atomic(false)
     val fail = DummyException("fail")
 
@@ -119,7 +119,7 @@ final class IterantLastOptionSuite extends BaseTestSuite {
     assertEquals(stream.lastOptionL.value(), None)
   }
 
-  testScheduler("lastOptionL handles Scope's release after use is finished") { implicit s =>
+  test("lastOptionL handles Scope's release after use is finished") { implicit s =>
     val triggered = Atomic(false)
     val fail = DummyException("fail")
 

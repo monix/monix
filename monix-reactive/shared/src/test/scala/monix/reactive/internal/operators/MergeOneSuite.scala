@@ -94,7 +94,7 @@ class MergeOneSuite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("filter can be expressed in terms of mergeMap, without ordering") { implicit s =>
+  test("filter can be expressed in terms of mergeMap, without ordering") { implicit s =>
     val obs1 = Observable.range(0, 100).filter(_ % 2 == 0)
     val obs2 = Observable.range(0, 100).mergeMap(x => if (x % 2 == 0) now(x) else empty)
 
@@ -106,7 +106,7 @@ class MergeOneSuite extends BaseOperatorSuite {
     assertEquals(lst1.value.get, lst2.value.get)
   }
 
-  testScheduler("map can be expressed in terms of mergeMap, without ordering") { implicit s =>
+  test("map can be expressed in terms of mergeMap, without ordering") { implicit s =>
     val obs1 = Observable.range(0, 100).map(_ + 10)
     val obs2 = Observable.range(0, 100).mergeMap(x => now(x + 10))
 
@@ -118,7 +118,7 @@ class MergeOneSuite extends BaseOperatorSuite {
     assertEquals(lst1.value.get, lst2.value.get)
   }
 
-  testScheduler("should wait the completion of the current, before subscribing to the next") { implicit s =>
+  test("should wait the completion of the current, before subscribing to the next") { implicit s =>
     var obs2WasStarted = false
     var received = 0L
     var wasCompleted = false
@@ -161,7 +161,7 @@ class MergeOneSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("should interrupt the streaming on error") { implicit s =>
+  test("should interrupt the streaming on error") { implicit s =>
     var obs1WasStarted = false
     var obs2WasStarted = false
     var wasThrown: Throwable = null

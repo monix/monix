@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 import monix.catnap.SchedulerEffect
 
 final class IntervalIntervalSuite extends BaseTestSuite {
-  testScheduler("Iterant[Task].intervalWithFixedDelay(1.second, 2.seconds)") { implicit s =>
+  test("Iterant[Task].intervalWithFixedDelay(1.second, 2.seconds)") { implicit s =>
     var effect = 0
     val lst = Iterant[Task]
       .intervalWithFixedDelay(1.second, 2.seconds)
@@ -57,7 +57,7 @@ final class IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2, 3, 4))))
   }
 
-  testScheduler("Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)") { s =>
+  test("Iterant[IO].intervalWithFixedDelay(1.second, 2.seconds)") { s =>
     implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
@@ -91,7 +91,7 @@ final class IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2, 3, 4))))
   }
 
-  testScheduler("Iterant[Task].intervalWithFixedDelay(2.seconds)") { implicit s =>
+  test("Iterant[Task].intervalWithFixedDelay(2.seconds)") { implicit s =>
     var effect = 0
     val lst = Iterant[Task]
       .intervalWithFixedDelay(2.seconds)
@@ -117,7 +117,7 @@ final class IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2, 3, 4))))
   }
 
-  testScheduler("Iterant[IO].intervalWithFixedDelay(2.seconds)") { s =>
+  test("Iterant[IO].intervalWithFixedDelay(2.seconds)") { s =>
     implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
@@ -145,7 +145,7 @@ final class IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2, 3, 4))))
   }
 
-  testScheduler("Iterant[Task].intervalAtFixedRate(1.second)") { implicit s =>
+  test("Iterant[Task].intervalAtFixedRate(1.second)") { implicit s =>
     var effect = 0
     val lst = Iterant[Task]
       .intervalAtFixedRate(1.second)
@@ -168,7 +168,7 @@ final class IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2))))
   }
 
-  testScheduler("Iterant[IO].intervalAtFixedRate(1.second)") { s =>
+  test("Iterant[IO].intervalAtFixedRate(1.second)") { s =>
     implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
@@ -197,7 +197,7 @@ final class IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2))))
   }
 
-  testScheduler("Iterant[Task].intervalAtFixedRate(2.seconds, 1.second)") { implicit s =>
+  test("Iterant[Task].intervalAtFixedRate(2.seconds, 1.second)") { implicit s =>
     var effect = 0
     val lst = Iterant[Task]
       .intervalAtFixedRate(2.seconds, 1.second)
@@ -222,7 +222,7 @@ final class IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2))))
   }
 
-  testScheduler("Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)") { s =>
+  test("Iterant[IO].intervalAtFixedRate(2.seconds, 1.second)") { s =>
     implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0
@@ -253,7 +253,7 @@ final class IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2))))
   }
 
-  testScheduler("Iterant[Task].intervalAtFixedRate accounts for time it takes task to finish") { implicit s =>
+  test("Iterant[Task].intervalAtFixedRate accounts for time it takes task to finish") { implicit s =>
     var effect = 0
     val lst = Iterant[Task]
       .intervalAtFixedRate(1.second)
@@ -277,7 +277,7 @@ final class IntervalIntervalSuite extends BaseTestSuite {
     assertEquals(lst.value, Some(Success(List(0, 1, 2))))
   }
 
-  testScheduler("Iterant[IO].intervalAtFixedRate accounts for time it takes task to finish") { s =>
+  test("Iterant[IO].intervalAtFixedRate accounts for time it takes task to finish") { s =>
     implicit val timer: Timer[IO] = SchedulerEffect.timerLiftIO[IO](s)(IO.ioEffect)
 
     var effect = 0

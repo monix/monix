@@ -67,7 +67,7 @@ class TaskAsyncBoundarySuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(2)))
   }
 
-  testAsync("Task.asyncBoundary should preserve locals") { _ =>
+  test("Task.asyncBoundary should preserve locals") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
@@ -82,7 +82,7 @@ class TaskAsyncBoundarySuite extends BaseTestSuite {
     }
   }
 
-  testAsync("Task.asyncBoundary(scheduler) should preserve locals") { _ =>
+  test("Task.asyncBoundary(scheduler) should preserve locals") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 

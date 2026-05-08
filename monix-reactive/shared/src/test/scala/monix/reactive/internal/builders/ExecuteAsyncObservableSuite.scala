@@ -32,7 +32,7 @@ class ExecuteAsyncObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
-  testScheduler("Observable.now.executeAsync should execute async") { implicit s =>
+  test("Observable.now.executeAsync should execute async") { implicit s =>
     val obs = Observable.now(10).executeAsync
     val p = Promise[Int]()
 
@@ -48,7 +48,7 @@ class ExecuteAsyncObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(10)))
   }
 
-  testScheduler("Observer.executeWithModel should work") { implicit s =>
+  test("Observer.executeWithModel should work") { implicit s =>
     val count = Platform.recommendedBatchSize * 4
     val obs = Observable.range(0L, count.toLong).executeWithModel(SynchronousExecution)
     val sum = obs.sumL.runToFuture

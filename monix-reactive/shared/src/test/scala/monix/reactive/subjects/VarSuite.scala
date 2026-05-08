@@ -26,7 +26,7 @@ class VarSubjectSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("initial value is emitted on subscribe") { implicit s =>
+  test("initial value is emitted on subscribe") { implicit s =>
     val var0 = Var(0)
     var emitted: Option[Int] = None
 
@@ -41,7 +41,7 @@ class VarSubjectSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("new value is emitted on update") { implicit s =>
+  test("new value is emitted on update") { implicit s =>
     val var0 = Var(0)
     var emitted: Option[Int] = None
 

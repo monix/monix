@@ -86,7 +86,7 @@ class LocalSuite extends MUnitFunSuite {
     assertEquals(f.value, Some(Success(200)))
   }
 
-  testAsync("captures snapshot in actual async execution") {
+  test("captures snapshot in actual async execution") {
     import monix.execution.Scheduler.Implicits.traced
 
     val local1 = Local(0)

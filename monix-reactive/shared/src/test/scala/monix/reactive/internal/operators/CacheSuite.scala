@@ -32,7 +32,7 @@ class CacheSuite extends BaseOperatorSuite {
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
   def cancelableObservables() = Seq.empty
 
-  testScheduler("should work with limited capacity") { implicit s =>
+  test("should work with limited capacity") { implicit s =>
     val observable = Observable(1, 2, 3, 4, 5, 6).cache(2)
     val f = observable.sumL.runToFuture
 
@@ -40,7 +40,7 @@ class CacheSuite extends BaseOperatorSuite {
     assertEquals(f.value, Some(Success(11)))
   }
 
-  testScheduler("should require capacity > 0") { implicit s =>
+  test("should require capacity > 0") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable.empty[Int].cache(0)
       ()

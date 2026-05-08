@@ -31,7 +31,7 @@ import scala.concurrent.{ Await, Future, Promise }
 import scala.util.Random
 
 class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite {
-  testService("merge test should work") { scheduler =>
+  test("merge test should work") { scheduler =>
     implicit val s = scheduler.withExecutionModel(BatchedExecution(1024))
 
     val num = 100000
@@ -50,7 +50,7 @@ class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite
     assertEquals(result, Some(num * 3L + num * 4L + num * 5L))
   }
 
-  testService("should do back-pressure") { implicit s =>
+  test("should do back-pressure") { implicit s =>
     // Repeating due to possible problems
     for (_ <- 0 until 10) {
       val promise = Promise[Ack]()
@@ -95,7 +95,7 @@ class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite
     }
   }
 
-  testService("should not lose events, test 1") { scheduler =>
+  test("should not lose events, test 1") { scheduler =>
     implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
 
     // Repeating due to problems
@@ -128,7 +128,7 @@ class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite
     }
   }
 
-  testService("should not lose events, test 2") { scheduler =>
+  test("should not lose events, test 2") { scheduler =>
     implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
     val totalCount = 10000
 
@@ -164,7 +164,7 @@ class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite
     assertEquals(number, totalCount)
   }
 
-  testService("should not lose events with async subscriber from one publisher (with sufficient buffer)") { scheduler =>
+  test("should not lose events with async subscriber from one publisher (with sufficient buffer)") { scheduler =>
     implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
 
     // Repeating because of possible problems
@@ -212,7 +212,7 @@ class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite
     }
   }
 
-  testService("should not lose events with async subscriber from one publisher (with small buffer)") { scheduler =>
+  test("should not lose events with async subscriber from one publisher (with small buffer)") { scheduler =>
     implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
 
     // Repeating because of possible problems
@@ -259,7 +259,7 @@ class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite
     }
   }
 
-  testService("should send onError when empty") { implicit s =>
+  test("should send onError when empty") { implicit s =>
     val latch = new CountDownLatch(1)
     val buffer = BufferedSubscriber[Int](
       new Subscriber[Int] {
@@ -282,7 +282,7 @@ class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite
     assertEquals(r, Stop)
   }
 
-  testService("should send onError when in flight") { implicit s =>
+  test("should send onError when in flight") { implicit s =>
     val latch = new CountDownLatch(1)
     val buffer = BufferedSubscriber[Int](
       new Subscriber[Int] {
@@ -302,7 +302,7 @@ class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
-  testService("should send onError when at capacity") { implicit s =>
+  test("should send onError when at capacity") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
 
@@ -330,7 +330,7 @@ class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
-  testService("should send onComplete when empty") { implicit s =>
+  test("should send onComplete when empty") { implicit s =>
     val latch = new CountDownLatch(1)
     val buffer = BufferedSubscriber[Int](
       new Subscriber[Int] {
@@ -346,7 +346,7 @@ class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
-  testService("should send onComplete when in flight") { implicit s =>
+  test("should send onComplete when in flight") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
     val buffer = BufferedSubscriber[Int](
@@ -365,7 +365,7 @@ class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite
     promise.success(Continue); ()
   }
 
-  testService("should send onComplete when at capacity") { implicit s =>
+  test("should send onComplete when at capacity") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
     val buffer = BufferedSubscriber[Int](
@@ -390,7 +390,7 @@ class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
-  testService("should do onComplete only after all the queue was drained") { scheduler =>
+  test("should do onComplete only after all the queue was drained") { scheduler =>
     implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
     val totalCount = 10000
 
@@ -419,7 +419,7 @@ class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite
     assertEquals(sum, (0 until (totalCount - 1)).sum)
   }
 
-  testService("should do onComplete only after all the queue was drained, test2") { scheduler =>
+  test("should do onComplete only after all the queue was drained, test2") { scheduler =>
     implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
 
     val totalCount = 10000
@@ -446,7 +446,7 @@ class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite
     assertEquals(sum, (0 until (totalCount - 1)).sum)
   }
 
-  testService("should do onError only after the queue was drained") { scheduler =>
+  test("should do onError only after the queue was drained") { scheduler =>
     implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
 
     val totalCount = 10000
@@ -475,7 +475,7 @@ class OverflowStrategyBackPressuredConcurrencySuite extends BaseConcurrencySuite
     assertEquals(sum, (0 until (totalCount - 1)).sum.toLong)
   }
 
-  testService("should do onError only after all the queue was drained, test2") { scheduler =>
+  test("should do onError only after all the queue was drained, test2") { scheduler =>
     implicit val s = scheduler.withExecutionModel(BatchedExecution(128))
     val totalCount = 10000
 

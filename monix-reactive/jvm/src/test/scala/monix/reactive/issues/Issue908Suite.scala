@@ -31,7 +31,7 @@ class Issue908Suite extends monix.execution.SchedulerServiceSuite {
   val CONCURRENT_TASKS = 1000
   val CYCLES = 100
 
-  def createSchedulerService(): SchedulerService = {
+  def setup(): SchedulerService = {
     Scheduler.computation(
       parallelism = math.max(Runtime.getRuntime.availableProcessors(), 2),
       name = "issue908-suite",
@@ -40,7 +40,7 @@ class Issue908Suite extends monix.execution.SchedulerServiceSuite {
     )
   }
 
-  testService("broken tasks test (1)") { implicit sc =>
+  test("broken tasks test (1)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val task = Task.async[String] { cb =>
         sc.execute(() => cb.onSuccess("1"))
@@ -57,7 +57,7 @@ class Issue908Suite extends monix.execution.SchedulerServiceSuite {
     }
   }
 
-  testService("broken tasks test (2)") { implicit sc =>
+  test("broken tasks test (2)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val task = Task.async[String] { cb =>
         sc.execute(() => cb.onSuccess("1"))
@@ -71,7 +71,7 @@ class Issue908Suite extends monix.execution.SchedulerServiceSuite {
     }
   }
 
-  testService("broken tasks test (3)") { implicit sc =>
+  test("broken tasks test (3)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val task = Task.async[String] { cb =>
         sc.execute(() => cb.onSuccess("1"))
@@ -88,7 +88,7 @@ class Issue908Suite extends monix.execution.SchedulerServiceSuite {
     }
   }
 
-  testService("concurrent test (1)") { implicit sc =>
+  test("concurrent test (1)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val subject = AsyncSubject.apply[Int]()
 
@@ -103,7 +103,7 @@ class Issue908Suite extends monix.execution.SchedulerServiceSuite {
     }
   }
 
-  testService("concurrent test (2)") { implicit sc =>
+  test("concurrent test (2)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
       val subject = AsyncSubject.apply[Int]()
 

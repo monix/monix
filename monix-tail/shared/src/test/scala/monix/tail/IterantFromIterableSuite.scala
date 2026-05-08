@@ -24,21 +24,21 @@ import monix.execution.exceptions.DummyException
 import scala.util.Failure
 
 final class IterantFromIterableSuite extends BaseTestSuite {
-  testScheduler("Iterant[Task].fromIterable") { implicit s =>
+  test("Iterant[Task].fromIterable") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromIterable(list).toListL
       result <-> Task.now(list)
     }
   }
 
-  testScheduler("Iterant[Task].fromIterable (async)") { implicit s =>
+  test("Iterant[Task].fromIterable (async)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromIterable(list).mapEval(x => Task.evalAsync(x)).toListL
       result <-> Task.now(list)
     }
   }
 
-  testScheduler("Iterant[Task].fromIterator protects against user code") { implicit s =>
+  test("Iterant[Task].fromIterator protects against user code") { implicit s =>
     val dummy = DummyException("dummy")
     val iterator = new Iterator[Int] {
       def hasNext: Boolean = true
@@ -49,21 +49,21 @@ final class IterantFromIterableSuite extends BaseTestSuite {
     s.tick(); assertEquals(result.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Iterant[Coeval].fromIterable") { _ =>
+  test("Iterant[Coeval].fromIterable") { _ =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Coeval].fromIterable(list).toListL
       result <-> Coeval.now(list)
     }
   }
 
-  testScheduler("Iterant[Coeval].fromIterable (async)") { _ =>
+  test("Iterant[Coeval].fromIterable (async)") { _ =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Coeval].fromIterable(list).mapEval(x => Coeval(x)).toListL
       result <-> Coeval.now(list)
     }
   }
 
-  testScheduler("Iterant[Coeval].fromIterator protects against user code") { _ =>
+  test("Iterant[Coeval].fromIterator protects against user code") { _ =>
     val dummy = DummyException("dummy")
     val iterator = new Iterator[Int] {
       def hasNext: Boolean = true

@@ -19,17 +19,21 @@ package monix.reactive
 
 import cats.Eq
 import monix.eval.Task
+import monix.execution.MUnitFixtureSuite
 import monix.execution.Scheduler
 import monix.execution.schedulers.SchedulerService
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scala.concurrent.{ Await, Future }
 import scala.util.{ Failure, Success }
 
-trait BaseConcurrencySuite extends monix.execution.SchedulerServiceSuite with ArbitraryInstancesBase {
-
-  def createSchedulerService(): SchedulerService = {
+trait BaseConcurrencySuite extends MUnitFixtureSuite[SchedulerService] with ArbitraryInstancesBase {
+  override def setup(): SchedulerService =
     Scheduler.computation(parallelism = 4, name = "concurrency-tests", daemonic = true)
+
+  override def tearDown(s: SchedulerService): Unit = {
+    s.shutdown()
+    assert(s.awaitTermination(10.seconds), "ScheduledService was not shut down")
   }
 
   implicit def equalityObservable[A](implicit A: Eq[A], ec: Scheduler): Eq[Observable[A]] =

@@ -31,7 +31,7 @@ class DoOnSubscriptionCancelSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should work") { implicit s =>
+  test("should work") { implicit s =>
     var wasCanceled = 0
     var wasCompleted = 0
 
@@ -54,7 +54,7 @@ class DoOnSubscriptionCancelSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should protect against user code") { implicit s =>
+  test("should protect against user code") { implicit s =>
     var wasCanceled = 0
     var wasCompleted = 0
 
@@ -77,7 +77,7 @@ class DoOnSubscriptionCancelSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("Issue #1177: should work with doAfterSubscribe") { implicit s =>
+  test("Issue #1177: should work with doAfterSubscribe") { implicit s =>
     var wasCanceled = false
     var wasSubscribed = false
 

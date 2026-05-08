@@ -53,7 +53,7 @@ class MaterializeSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("materializeAttempt error") { implicit s =>
+  test("materializeAttempt error") { implicit s =>
     val dummyEx = DummyException("dummy")
     val o = (Observable.now(1) ++ Observable.raiseError(dummyEx)).materialize
     var received = 0

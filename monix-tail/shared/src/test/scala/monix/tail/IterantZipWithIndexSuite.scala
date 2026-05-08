@@ -35,7 +35,7 @@ final class IterantZipWithIndexSuite extends BaseTestSuite {
       Test.Parameters.default.withMaxSize(32)
   }
 
-  testScheduler("Iterant.zipWithIndex equivalence with List.zipWithIndex") { implicit s =>
+  test("Iterant.zipWithIndex equivalence with List.zipWithIndex") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val stream = arbitraryListToIterant[Coeval, Int](list, math.abs(idx) + 1, allowErrors = false)
       val received = stream.zipWithIndex.toListL
@@ -45,14 +45,14 @@ final class IterantZipWithIndexSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Task].zipWithIndex works for non-determinate batches") { implicit s =>
+  test("Iterant[Task].zipWithIndex works for non-determinate batches") { implicit s =>
     check2 { (list: List[Int], _: Int) =>
       val stream = Iterant[Task].nextBatchS(Batch.fromIterable(list, 1), Task.now(Iterant[Task].empty[Int]))
       stream.zipWithIndex.toListL <-> stream.toListL.map(_.zipWithIndex.map { case (a, b) => (a, b.toLong) })
     }
   }
 
-  testScheduler("Iterant.zipWithIndex works for infinite cursors") { implicit s =>
+  test("Iterant.zipWithIndex works for infinite cursors") { implicit s =>
     check2 { (el: Int, _: Int) =>
       val stream = Iterant[Coeval].nextCursorS(BatchCursor.continually(el), Coeval.now(Iterant[Coeval].empty[Int]))
       val received = stream.zipWithIndex.take(1).toListL
@@ -62,7 +62,7 @@ final class IterantZipWithIndexSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.zipWithIndex protects against broken batches") { implicit s =>
+  test("Iterant.zipWithIndex protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
@@ -72,7 +72,7 @@ final class IterantZipWithIndexSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.zipWithIndex protects against broken cursors") { implicit s =>
+  test("Iterant.zipWithIndex protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
@@ -82,7 +82,7 @@ final class IterantZipWithIndexSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.zipWithIndex releases resources on exception") { _ =>
+  test("Iterant.zipWithIndex releases resources on exception") { _ =>
     check1 { (iter: Iterant[Coeval, Int]) =>
       val cancelable = BooleanCancelable()
       val dummy = DummyException("dummy")
@@ -97,7 +97,7 @@ final class IterantZipWithIndexSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.zipWithIndex releases resources on completion") { implicit s =>
+  test("Iterant.zipWithIndex releases resources on completion") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval]

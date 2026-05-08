@@ -30,7 +30,7 @@ class ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
 
   def continuousStreamingTest(expectedElems: Seq[Long])(implicit s: Scheduler) = None
 
-  testScheduler("while active, keep adding subscribers, but don't emit anything") { implicit s =>
+  test("while active, keep adding subscribers, but don't emit anything") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -71,7 +71,7 @@ class ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
     assertEquals(wereCompleted, 4)
   }
 
-  testScheduler("should interrupt on error without emitting anything") { implicit s =>
+  test("should interrupt on error without emitting anything") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 
@@ -115,7 +115,7 @@ class ConcurrentAsyncSubjectSuite extends BaseConcurrentSubjectSuite {
     assertEquals(wereCompleted, 4)
   }
 
-  testScheduler("should interrupt when empty") { implicit s =>
+  test("should interrupt when empty") { implicit s =>
     var wereCompleted = 0
     var sum = 0L
 

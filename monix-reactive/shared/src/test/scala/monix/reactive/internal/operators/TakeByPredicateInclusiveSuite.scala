@@ -69,7 +69,7 @@ class TakeByPredicateInclusiveSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("should not call onComplete multiple times for 1 element") { implicit s =>
+  test("should not call onComplete multiple times for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = 0
 

@@ -84,7 +84,7 @@ class ConcatMapIterableSuite extends BaseOperatorSuite {
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("should delay onComplete, for last element") { implicit s =>
+  test("should delay onComplete, for last element") { implicit s =>
     val p = List(Promise[Ack](), Promise[Ack]())
     var wasCompleted = false
 
@@ -113,7 +113,7 @@ class ConcatMapIterableSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("Observable.concatMapIterable is equivalent with Observable.flatMap + Observable.fromIterable") {
+  test("Observable.concatMapIterable is equivalent with Observable.flatMap + Observable.fromIterable") {
     implicit s =>
       check1 { (list: List[List[Int]]) =>
         val obs = Observable.fromIterable(list)

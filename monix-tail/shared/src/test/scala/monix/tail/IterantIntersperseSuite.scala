@@ -27,13 +27,13 @@ final class IterantIntersperseSuite extends BaseTestSuite {
     xs.flatMap(e => e :: separator :: Nil).dropRight(1)
   }
 
-  testScheduler("Iterant.intersperse(x) inserts the separator between elem pairs") { implicit s =>
+  test("Iterant.intersperse(x) inserts the separator between elem pairs") { implicit s =>
     check2 { (stream: Iterant[Coeval, Int], elem: Int) =>
       stream.intersperse(elem).toListL <-> stream.toListL.map(intersperseList(elem))
     }
   }
 
-  testScheduler("Iterant.intersperse(x) releases the source's resources") { implicit s =>
+  test("Iterant.intersperse(x) releases the source's resources") { implicit s =>
     val builders = Iterant[Coeval]
     import builders._
 
@@ -46,7 +46,7 @@ final class IterantIntersperseSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("Iterant.intersperse(x) protects against broken batches") { implicit s =>
+  test("Iterant.intersperse(x) protects against broken batches") { implicit s =>
     val builders = Iterant[Coeval]
     import builders._
 
@@ -62,7 +62,7 @@ final class IterantIntersperseSuite extends BaseTestSuite {
     )
   }
 
-  testScheduler("Iterant.intersperse(x) protects against broken cursors") { implicit s =>
+  test("Iterant.intersperse(x) protects against broken cursors") { implicit s =>
     val builders = Iterant[Coeval]
     import builders._
 
@@ -78,7 +78,7 @@ final class IterantIntersperseSuite extends BaseTestSuite {
     )
   }
 
-  testScheduler("Iterant.intersperse(a, b, c) inserts the separator between elem pairs and adds prefix/suffix") {
+  test("Iterant.intersperse(a, b, c) inserts the separator between elem pairs and adds prefix/suffix") {
     implicit s =>
       check3 { (stream: Iterant[Coeval, Int], prefix: Int, suffix: Int) =>
         val separator = prefix ^ suffix

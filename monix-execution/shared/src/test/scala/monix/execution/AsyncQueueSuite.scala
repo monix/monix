@@ -59,7 +59,7 @@ class AsyncQueueGlobalSuite extends BaseAsyncQueueSuite[Scheduler] {
       else
         Future.successful(())
 
-    testAsync(name) { implicit ec =>
+    test(name) { implicit ec =>
       repeatTest(f(ec), times)
     }
   }

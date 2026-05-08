@@ -30,7 +30,7 @@ class ListConsumerSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should return the same all consumed elements as a list") { implicit s =>
+  test("should return the same all consumed elements as a list") { implicit s =>
     val l = List("a", "b", "c", "d")
     val ob: Observable[String] = Observable.fromIterable(l)
     val f: CancelableFuture[List[String]] = ob.consumeWith(Consumer.toList).runToFuture
@@ -39,7 +39,7 @@ class ListConsumerSuite extends monix.reactive.BaseTestSuite {
     assertEquals(Some(Success(l)), f.value)
   }
 
-  testScheduler("should interrupt with error") { implicit s =>
+  test("should interrupt with error") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 100).endWithError(ex)
     val f = obs.consumeWith(Consumer.toList).runToFuture

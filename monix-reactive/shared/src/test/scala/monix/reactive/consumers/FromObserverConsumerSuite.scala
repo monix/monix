@@ -30,7 +30,7 @@ import scala.concurrent.Promise
 import scala.util.{ Failure, Success }
 
 class FromObserverConsumerSuite extends monix.reactive.BaseTestSuite {
-  testScheduler("convert an observer into a consumer") { implicit s =>
+  test("convert an observer into a consumer") { implicit s =>
     check1 { (source: Observable[Int]) =>
       val lh = source.sumL
       val rh = Task.create[Int] { (s, cb) =>
@@ -60,7 +60,7 @@ class FromObserverConsumerSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("report onError") { implicit s =>
+  test("report onError") { implicit s =>
     check1 { (source: Observable[Int]) =>
       val ex = DummyException("dummy")
       val lh = Task.raiseError[Unit](ex)

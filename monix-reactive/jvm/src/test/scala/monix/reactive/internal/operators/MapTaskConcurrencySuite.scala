@@ -27,7 +27,7 @@ class MapTaskConcurrencySuite extends BaseConcurrencySuite {
   val cancelTimeout = 30.seconds
   val cancelIterations = 1000
 
-  testService("mapTask should work for synchronous children") { implicit s =>
+  test("mapTask should work for synchronous children") { implicit s =>
     val count = 10000L
     val expected = 3L * count * (count - 1) / 2
 
@@ -43,7 +43,7 @@ class MapTaskConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  testService("mapTask should work for asynchronous children") { implicit s =>
+  test("mapTask should work for asynchronous children") { implicit s =>
     val count = 10000L
     val expected = 3L * count * (count - 1) / 2
 
@@ -59,7 +59,7 @@ class MapTaskConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  testService(s"mapTask should be cancellable, test 1, count $cancelIterations (issue #468)") { implicit s =>
+  test(s"mapTask should be cancellable, test 1, count $cancelIterations (issue #468)") { implicit s =>
     def never(): (Future[Unit], Task[Int]) = {
       val isCancelled = Promise[Unit]()
       val ref =

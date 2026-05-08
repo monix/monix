@@ -38,7 +38,7 @@ class TaskExecuteWithOptionsSuite extends BaseTestSuite {
     assert(!opt2.localContextPropagation, "!opt2.localContextPropagation")
   }
 
-  testAsync("local.write.executeWithOptions") { _ =>
+  test("local.write.executeWithOptions") { _ =>
     import monix.execution.Scheduler.Implicits.global
 
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation

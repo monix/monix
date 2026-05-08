@@ -57,7 +57,7 @@ class GroupBySuite extends BaseOperatorSuite {
     Sample(o, 0, 0, Zero, Zero)
   }
 
-  testScheduler("on complete the key should get recycled") { implicit s =>
+  test("on complete the key should get recycled") { implicit s =>
     var received = 0
     var wasCompleted = 0
     var fallbackTick = 0
@@ -109,7 +109,7 @@ class GroupBySuite extends BaseOperatorSuite {
     assertEquals(fallbackTick, 3)
   }
 
-  testScheduler("on error groups should also error") { implicit s =>
+  test("on error groups should also error") { implicit s =>
     var groupsErrored = 0
 
     Observable(1, 2, 3)

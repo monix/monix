@@ -36,7 +36,7 @@ class TaskExecuteWithModelSuite extends BaseTestSuite {
     assertEquals(f2.value, Some(Success(AlwaysAsyncExecution)))
   }
 
-  testAsync("local.write.executeWithModel(AlwaysAsyncExecution) works") { _ =>
+  test("local.write.executeWithModel(AlwaysAsyncExecution) works") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
@@ -52,7 +52,7 @@ class TaskExecuteWithModelSuite extends BaseTestSuite {
     }
   }
 
-  testAsync("local.write.executeWithModel(SynchronousExecution) works") { _ =>
+  test("local.write.executeWithModel(SynchronousExecution) works") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 

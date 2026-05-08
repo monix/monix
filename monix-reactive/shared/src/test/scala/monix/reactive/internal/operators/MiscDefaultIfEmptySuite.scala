@@ -44,7 +44,7 @@ class MiscDefaultIfEmptySuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("should not emit default if not empty") { implicit s =>
+  test("should not emit default if not empty") { implicit s =>
     val obs = Observable.now(1).defaultIfEmpty(2)
     var received = 0
     var wasCompleted = false

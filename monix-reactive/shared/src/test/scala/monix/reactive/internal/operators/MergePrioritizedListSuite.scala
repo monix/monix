@@ -58,11 +58,11 @@ class MergePrioritizedListSuite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("should return Observable.empty if sources empty") { implicit s =>
+  test("should return Observable.empty if sources empty") { implicit s =>
     assertEquals(Observable.mergePrioritizedList(), Observable.empty)
   }
 
-  testScheduler("should pick items in priority order") { implicit s =>
+  test("should pick items in priority order") { implicit s =>
     val sources = (1 to 10).map(i => (i, Observable.now(i * 1L)))
     val source = Observable.mergePrioritizedList(sources*)
     var last = 0L
@@ -87,7 +87,7 @@ class MergePrioritizedListSuite extends BaseOperatorSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should push all items downstream before calling onComplete") { implicit s =>
+  test("should push all items downstream before calling onComplete") { implicit s =>
     val source =
       Observable.mergePrioritizedList((1, Observable.now(1L)), (1, Observable.now(1L)), (1, Observable.now(1L)))
     var count = 0L
@@ -114,7 +114,7 @@ class MergePrioritizedListSuite extends BaseOperatorSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should complete all upstream onNext promises when downstream stops early") { implicit s =>
+  test("should complete all upstream onNext promises when downstream stops early") { implicit s =>
     val sources = (1 to 10).map(i => (i, new OnNextExposingObservable(i * 1L)))
     val source = Observable.mergePrioritizedList(sources*)
 
@@ -135,7 +135,7 @@ class MergePrioritizedListSuite extends BaseOperatorSuite {
     sources.foreach(src => assert(src._2.onNextRes.exists(_.isCompleted), "source promise completed"))
   }
 
-  testScheduler("should complete all upstream onNext promises when downstream errors early") { implicit s =>
+  test("should complete all upstream onNext promises when downstream errors early") { implicit s =>
     val sources = (1 to 10).map(i => (i, new OnNextExposingObservable(i * 1L)))
     val source = Observable.mergePrioritizedList(sources*)
 

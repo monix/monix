@@ -23,7 +23,7 @@ import monix.eval.Task
 import monix.reactive.{ BaseConcurrencySuite, Observable }
 
 class MapParallelOrderedConcurrencySuite extends BaseConcurrencySuite {
-  testService("mapParallelOrdered works concurrently") { implicit s =>
+  test("mapParallelOrdered works concurrently") { implicit s =>
     check2 { (list: List[Int], rnd: Int) =>
       val parallelism = {
         val abs = math.abs(rnd)
@@ -37,7 +37,7 @@ class MapParallelOrderedConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  testService("mapParallelOrdered works concurrently and preserves order") { implicit s =>
+  test("mapParallelOrdered works concurrently and preserves order") { implicit s =>
     check2 { (list: List[Int], rnd: Int) =>
       val parallelism = {
         val abs = math.abs(rnd)

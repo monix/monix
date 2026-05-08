@@ -18,15 +18,23 @@
 package monix.execution
 
 import monix.execution.Cancelable.IsDummy
-import monix.execution.CancelableFuture.{ Async, Never, Pure }
-import monix.execution.cancelables.{ ChainedCancelable, SingleAssignCancelable }
+import monix.execution.CancelableFuture.Async
+import monix.execution.CancelableFuture.Never
+import monix.execution.CancelableFuture.Pure
+import monix.execution.cancelables.ChainedCancelable
+import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.misc.Local
-import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.schedulers.TrampolineExecutionContext.immediate
-import scala.concurrent._
+import monix.execution.schedulers.TrampolinedRunnable
+
+import java.util.concurrent.TimeoutException
+import scala.concurrent.*
 import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
 import scala.reflect.ClassTag
-import scala.util.{ Failure, Success, Try }
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 import scala.util.control.NonFatal
 
 /** Represents an asynchronous computation that can be canceled
@@ -52,7 +60,7 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
     }
   }
 
-  override final def transform[S](s: (A) => S, f: (Throwable) => Throwable)(implicit
+  override final def transform[S](s: A => S, f: Throwable => Throwable)(implicit
     executor: ExecutionContext
   ): CancelableFuture[S] =
     transform {
@@ -60,13 +68,13 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
       case Failure(e) => Failure(f(e))
     }
 
-  override final def map[S](f: (A) => S)(implicit executor: ExecutionContext): CancelableFuture[S] =
+  override final def map[S](f: A => S)(implicit executor: ExecutionContext): CancelableFuture[S] =
     transform {
       case Success(a) => Success(f(a))
       case fail => fail.asInstanceOf[Try[S]]
     }
 
-  override final def filter(p: (A) => Boolean)(implicit executor: ExecutionContext): CancelableFuture[A] =
+  override final def filter(p: A => Boolean)(implicit executor: ExecutionContext): CancelableFuture[A] =
     transform {
       case Success(a) if !p(a) =>
         throw new NoSuchElementException("Future.filter predicate is not satisfied")
@@ -138,7 +146,7 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
       this
     }
 
-  override final def flatMap[S](f: (A) => Future[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
+  override final def flatMap[S](f: A => Future[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
     transformWith {
       case Success(s) => f(s)
       case Failure(_) => this.asInstanceOf[CancelableFuture[S]]
@@ -196,6 +204,46 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
     )
     CancelableFuture.applyWithLocal(f2, cRef, isolatedCtx)
   }
+
+  /** Applies a timeout to the current computation, which will be canceled if
+    * it doesn't complete within the specified duration.
+    *
+    * A timed-out future will be complete with an `TimeoutException`.
+    *
+    * @param atMost the maximum duration to wait for the computation to complete
+    * @param sc the scheduler to use for scheduling the timeout
+    * @return a `CancelableFuture` that will complete with the result of the
+    *         computation if it finishes within the timeout, or fail with a
+    *         `TimeoutException` if the timeout is exceeded
+    */
+  def timeout(atMost: Duration)(implicit sc: Scheduler): CancelableFuture[A] =
+    timeoutTo(atMost, Failure(new TimeoutException(s"Timed out after $atMost")))
+
+  /**
+    * Applies a timeout to the current computation, which will be canceled if
+    * it doesn't complete within the specified `atMost` duration. If the
+    * computation times out, the resulting future will be completed with the
+    * provided `fallback` value.
+    *
+    * @param atMost   the maximum duration to wait for the computation to complete
+    * @param fallback the fallback value to use if the computation times out
+    * @param sc       the scheduler to use for scheduling the timeout
+    * @return a `CancelableFuture` that will complete with the result of the
+    *         computation if it finishes within the timeout, or with the provided
+    *         fallback value if the timeout is exceeded
+    */
+  def timeoutTo[U >: A](atMost: Duration, fallback: Try[U])(implicit sc: Scheduler): CancelableFuture[U] =
+    atMost match {
+      case fd: FiniteDuration =>
+        val timeout = CancelableFuture.delayedResult(fd)(())
+        CancelableFuture.race(timeout, this).transform {
+          case Failure(e) => Failure(e)
+          case Success(Right(r)) => Success(r)
+          case Success(Left(_)) => fallback
+        }
+      case _ =>
+        this
+    }
 }
 
 object CancelableFuture extends internal.CancelableFutureForPlatform {
@@ -294,8 +342,8 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     val cRef = SingleAssignCancelable()
 
     // Light async boundary to guard against stack overflows
-    ec.execute(new TrampolinedRunnable {
-      def run(): Unit = {
+    ec.execute(new TrampolinedRunnable() {
+      def run() = {
         try {
           cRef := register { v => p.complete(v); () }
           ()
@@ -306,8 +354,48 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
         }
       }
     })
-
     CancelableFuture(p.future, cRef)
+  }
+
+  /** Creates a future that completes with the specified `result`, but only
+    * after the specified `delay`.
+    */
+  def delayedResult[A](delay: FiniteDuration)(result: => A)(implicit sc: Scheduler): CancelableFuture[A] = {
+    val p = Promise[A]()
+    val token = sc.scheduleOnce(delay.length, delay.unit, () => p.complete(Try(result)))
+    CancelableFuture(p.future, token)
+  }
+
+  /**
+    * Returns a new [[CancelableFuture]] that will complete with the result
+    * of the first of the futures to complete. The losing computation will be
+    * canceled.
+    *
+    * @param fa the first [[CancelableFuture]] to participate in the race
+    * @param fb the second [[CancelableFuture]] to participate in the race
+    * @param ec the [[ExecutionContext]] needed for registering callbacks
+    *
+    * @return a new [[CancelableFuture]] that will complete with the result of
+    *         the first future to complete, wrapped in `Left` if it was `fa`,
+    *         or `Right` if it was `fb`. The losing future will be canceled.
+    */
+  def race[A, B](
+    fa: CancelableFuture[A],
+    fb: CancelableFuture[B]
+  )(implicit ec: ExecutionContext): CancelableFuture[Either[A, B]] = {
+    val promise = Promise[Either[A, B]]()
+    fa.onComplete { resultA =>
+      if (promise.tryComplete(resultA.map(Left.apply)))
+        fb.cancel()
+    }
+    fb.onComplete { resultB =>
+      if (promise.tryComplete(resultB.map(Right.apply)))
+        fa.cancel()
+    }
+    CancelableFuture(
+      promise.future,
+      Cancelable.collection(fa.cancelable, fb.cancelable)
+    )
   }
 
   private[monix] def successfulWithLocal[A](value: A, isolatedCtx: Local.Context): CancelableFuture[A] =
@@ -322,7 +410,7 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
 
   /** A [[CancelableFuture]] instance that will never complete. */
   private[execution] object Never extends CancelableFuture[Nothing] {
-    def onComplete[U](f: (Try[Nothing]) => U)(implicit executor: ExecutionContext): Unit = ()
+    def onComplete[U](f: Try[Nothing] => U)(implicit executor: ExecutionContext): Unit = ()
 
     val isCompleted = false
     val value = None
@@ -342,9 +430,9 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
 
     def cancel(): Unit = ()
 
-    override def transform[S](f: (Try[Nothing]) => Try[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
+    override def transform[S](f: Try[Nothing] => Try[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
       this
-    override def transformWith[S](f: (Try[Nothing]) => Future[S])(implicit
+    override def transformWith[S](f: Try[Nothing] => Future[S])(implicit
       executor: ExecutionContext
     ): CancelableFuture[S] =
       this
@@ -363,7 +451,7 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     def isCompleted: Boolean = true
     def value: Option[Try[A]] = underlying.value
 
-    def onComplete[U](f: (Try[A]) => U)(implicit executor: ExecutionContext): Unit =
+    def onComplete[U](f: Try[A] => U)(implicit executor: ExecutionContext): Unit =
       executor.execute(() => {
         val _ = f(immediate)
         ()
@@ -377,7 +465,7 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     override val isolatedCtx: Local.Context = null
   ) extends CancelableFuture[A] {
 
-    override def onComplete[U](f: (Try[A]) => U)(implicit executor: ExecutionContext): Unit = {
+    override def onComplete[U](f: Try[A] => U)(implicit executor: ExecutionContext): Unit = {
       underlying.onComplete(f)(executor)
     }
     override def isCompleted: Boolean =

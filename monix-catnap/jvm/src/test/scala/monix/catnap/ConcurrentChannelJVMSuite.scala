@@ -19,15 +19,15 @@ package monix.catnap
 
 import cats.effect.IO
 import monix.execution.BufferCapacity.Bounded
-import monix.execution.{ BufferCapacity, Scheduler, SchedulerServiceSuite }
 import monix.execution.schedulers.SchedulerService
-import scala.concurrent.duration._
+import monix.execution.BufferCapacity
+import monix.execution.Scheduler
+import monix.execution.SchedulerServiceSuite
 
 abstract class ConcurrentChannelJVMSuite(parallelism: Int) extends SchedulerServiceSuite
   with BaseConcurrentChannelSuite {
-  val taskTimeout = 60.seconds
 
-  def createSchedulerService(): SchedulerService =
+  def setup(): SchedulerService =
     Scheduler.computation(
       name = s"concurrent-channel-par-$parallelism",
       parallelism = parallelism
@@ -38,8 +38,8 @@ abstract class ConcurrentChannelJVMSuite(parallelism: Int) extends SchedulerServ
       if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
       else IO.unit
 
-    testServiceAsync(name) { implicit ec =>
-      repeatTest(f(ec).timeout(taskTimeout), times).unsafeToFuture()
+    test(name) { implicit ec =>
+      repeatTest(f(ec).timeout(munitTimeout), times).unsafeToFuture()
     }
   }
 

@@ -24,7 +24,7 @@ import monix.execution.exceptions.DummyException
 import scala.util.Failure
 
 final class IterantBufferSuite extends BaseTestSuite {
-  testScheduler("bufferTumbling(c) is consistent with List.sliding(c, c)") { implicit s =>
+  test("bufferTumbling(c) is consistent with List.sliding(c, c)") { implicit s =>
     check3 { (list: List[Int], idx: Int, num: Int) =>
       val count = math.abs(num % 4) + 2
       val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
@@ -34,7 +34,7 @@ final class IterantBufferSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("bufferSliding(c, s) is consistent with List.sliding(c, s)") { implicit s =>
+  test("bufferSliding(c, s) is consistent with List.sliding(c, s)") { implicit s =>
     check4 { (list: List[Int], idx: Int, c: Int, s: Int) =>
       val count = math.abs(c % 4) + 2
       val skip = math.abs(s % 4) + 2
@@ -45,14 +45,14 @@ final class IterantBufferSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("source.batched <-> source") { implicit s =>
+  test("source.batched <-> source") { implicit s =>
     check2 { (stream: Iterant[Coeval, Int], c: Int) =>
       val count = math.abs(c % 4) + 2
       stream.batched(count) <-> stream
     }
   }
 
-  testScheduler("protect against broken batches") { implicit s =>
+  test("protect against broken batches") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -66,7 +66,7 @@ final class IterantBufferSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("protect against broken cursors") { implicit s =>
+  test("protect against broken cursors") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 

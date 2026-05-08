@@ -78,7 +78,7 @@ class ConcatManySuite extends BaseOperatorSuite {
     Seq(Sample(o, count, count, 1.seconds, 0.seconds))
   }
 
-  testScheduler("concatMap should be cancelable before main stream has finished") { implicit s =>
+  test("concatMap should be cancelable before main stream has finished") { implicit s =>
     val source = Observable(1L, 2L).concatMap { x =>
       Observable.intervalWithFixedDelay(1.second, 1.second).map(_ + x)
     }
@@ -103,7 +103,7 @@ class ConcatManySuite extends BaseOperatorSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("concatMap should be cancelable after main stream has finished") { implicit s =>
+  test("concatMap should be cancelable after main stream has finished") { implicit s =>
     val source = Observable.now(1L).concatMap { x =>
       Observable.intervalWithFixedDelay(1.second, 1.second).map(_ + x)
     }

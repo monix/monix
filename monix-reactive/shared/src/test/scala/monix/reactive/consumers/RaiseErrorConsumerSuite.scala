@@ -27,7 +27,7 @@ import scala.concurrent.Promise
 import scala.util.Failure
 
 class RaiseErrorConsumerSuite extends monix.reactive.BaseTestSuite {
-  testScheduler("cancels and raises error") { implicit s =>
+  test("cancels and raises error") { implicit s =>
     val ex = DummyException("dummy")
     val consumer = Consumer.raiseError[Int, Unit](ex)
 
@@ -42,7 +42,7 @@ class RaiseErrorConsumerSuite extends monix.reactive.BaseTestSuite {
     assert(conn.isCanceled, "conn.isCanceled")
   }
 
-  testScheduler("logs onError events") { implicit s =>
+  test("logs onError events") { implicit s =>
     val ex1 = DummyException("dummy1")
     val ex2 = DummyException("dummy2")
     val consumer = Consumer.raiseError(ex1)

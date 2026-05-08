@@ -53,7 +53,7 @@ class SampleOnceSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
-  testScheduler("specified period should be respected if consumer is responsive") { implicit s =>
+  test("specified period should be respected if consumer is responsive") { implicit s =>
     val sub = PublishSubject[Long]()
     val obs = sub.sample(500.millis)
 
@@ -96,7 +96,7 @@ class SampleOnceSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("specified period should not be respected if consumer is not responsive") { implicit s =>
+  test("specified period should not be respected if consumer is not responsive") { implicit s =>
     val sub = PublishSubject[Long]()
     val obs = sub.sample(500.millis)
 

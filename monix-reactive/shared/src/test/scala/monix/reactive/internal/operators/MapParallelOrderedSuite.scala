@@ -70,7 +70,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("should preserve ordering") { implicit s =>
+  test("should preserve ordering") { implicit s =>
     val list = List(5, 4, 3, 2, 1)
     var counterList = List[Int]()
 
@@ -86,7 +86,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     assertEquals(counterList, List[Int](1, 2, 3, 4, 5))
   }
 
-  testScheduler("should execute in parallel") { implicit s =>
+  test("should execute in parallel") { implicit s =>
     val list = List(1, 2)
     var counter = 0
 
@@ -106,7 +106,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     assertEquals(counter, 2)
   }
 
-  testScheduler("should work for synchronous observers") { implicit s =>
+  test("should work for synchronous observers") { implicit s =>
     val randomCount = Random.nextInt(300) + 100
 
     for (sourceCount <- List(0, 1, 2, 3, 4, 5, randomCount)) {
@@ -136,7 +136,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("should work for asynchronous observers") { implicit s =>
+  test("should work for asynchronous observers") { implicit s =>
     val randomCount = Random.nextInt(300) + 100
 
     for (sourceCount <- List(0, 1, 2, 3, 4, 5, randomCount)) {
@@ -166,7 +166,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("mapParallelOrdered equivalence with map") { implicit s =>
+  test("mapParallelOrdered equivalence with map") { implicit s =>
     check2 { (list: List[Int], isAsync: Boolean) =>
       val received = Observable
         .fromIterable(list)
@@ -179,7 +179,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("mapParallelOrdered(parallelism = 1) equivalence with mapTask") { implicit s =>
+  test("mapParallelOrdered(parallelism = 1) equivalence with mapTask") { implicit s =>
     check2 { (list: List[Int], isAsync: Boolean) =>
       val received = Observable
         .fromIterable(list)
@@ -195,7 +195,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("should interrupt the streaming on error, test #1") { implicit s =>
+  test("should interrupt the streaming on error, test #1") { implicit s =>
     val dummy = DummyException("dummy")
     var isComplete = false
     var wasThrown: Throwable = null
@@ -232,7 +232,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     assertEquals(wasThrown, dummy)
   }
 
-  testScheduler("should interrupt the streaming on error, test #2") { implicit s =>
+  test("should interrupt the streaming on error, test #2") { implicit s =>
     val dummy = DummyException("dummy")
     var isComplete = false
     var wasThrown: Throwable = null
@@ -268,7 +268,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     assertEquals(wasThrown, dummy)
   }
 
-  testScheduler("should protect against user error") { implicit s =>
+  test("should protect against user error") { implicit s =>
     val dummy = DummyException("dummy")
     var isComplete = false
     var wasThrown: Throwable = null
@@ -300,7 +300,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     assertEquals(wasThrown, dummy)
   }
 
-  testScheduler("should back-pressure on semaphore") { implicit s =>
+  test("should back-pressure on semaphore") { implicit s =>
     var initiated = 0
     var received = 0
     var isComplete = false
@@ -335,7 +335,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     assert(isComplete, "isComplete")
   }
 
-  testScheduler("should back-pressure on buffer") { implicit s =>
+  test("should back-pressure on buffer") { implicit s =>
     var initiated = 0
     var received = 0
     var isComplete = false
@@ -370,7 +370,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     assert(isComplete, "isComplete")
   }
 
-  testScheduler("should respect custom overflow strategy") { implicit s =>
+  test("should respect custom overflow strategy") { implicit s =>
     var initiated = 0
     var received = 0
     var isComplete = false
@@ -406,7 +406,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     assert(isComplete, "isComplete")
   }
 
-  testScheduler("should be cancelable after the main stream has ended") { implicit s =>
+  test("should be cancelable after the main stream has ended") { implicit s =>
     val f = Observable
       .now(1)
       .mapParallelOrdered(parallelism = 4)(x => Task(x + 1).delayExecution(1.second))
@@ -423,7 +423,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("exceptions can be triggered synchronously by throw") { implicit s =>
+  test("exceptions can be triggered synchronously by throw") { implicit s =>
     val dummy = DummyException("dummy")
     val source = Observable.now(1L).mapParallelOrdered(parallelism = 4)(_ => throw dummy)
 
@@ -434,7 +434,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  testScheduler("exceptions can be triggered synchronously through raiseError") { implicit s =>
+  test("exceptions can be triggered synchronously through raiseError") { implicit s =>
     val dummy = DummyException("dummy")
     val source = Observable.now(1).mapParallelOrdered(parallelism = 4)(_ => Task.raiseError(dummy))
 
@@ -445,7 +445,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  testScheduler("should end with error on parallelism <= 0") { implicit s =>
+  test("should end with error on parallelism <= 0") { implicit s =>
     var error = false
 
     val source = Observable
@@ -462,7 +462,7 @@ class MapParallelOrderedSuite extends BaseOperatorSuite {
     assert(error)
   }
 
-  testScheduler("should cancel the whole stream when if one fails") { implicit s =>
+  test("should cancel the whole stream when if one fails") { implicit s =>
     var received = 0
 
     val failedTask = Task.raiseError(DummyException("dummy")).delayExecution(1.second)

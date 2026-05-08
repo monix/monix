@@ -37,12 +37,12 @@ class UncaughtExceptionReporterBaseSuite extends MUnitFixtureSuite[Promise[Throw
   }
 
   def testReports(name: String)(f: UncaughtExceptionReporter => Scheduler) = {
-    testAsync(name) { p =>
+    test(name) { p =>
       f(reporter(p)).execute(throwRunnable)
       FutureUtils.timeout(p.future.collect { case Dummy => }(immediateEC), 500.millis)(Scheduler.global)
     }
 
-    testAsync(name + ".withUncaughtExceptionReporter") { p =>
+    test(name + ".withUncaughtExceptionReporter") { p =>
       f(UncaughtExceptionReporter.default).withUncaughtExceptionReporter(reporter(p)).execute(throwRunnable)
       FutureUtils.timeout(p.future.collect { case Dummy => }(immediateEC), 500.millis)(Scheduler.global)
     }

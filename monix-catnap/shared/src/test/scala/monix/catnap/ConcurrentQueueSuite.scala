@@ -59,7 +59,7 @@ class ConcurrentQueueGlobalSuite extends BaseConcurrentQueueSuite {
       if (n > 0) test.flatMap(_ => repeatTest(test, n - 1))
       else IO.unit
 
-    testAsync(name) {
+    test(name) {
       implicit val ec: Scheduler = Scheduler.global
       repeatTest(f(ec).timeout(60.seconds), times).unsafeToFuture()
     }

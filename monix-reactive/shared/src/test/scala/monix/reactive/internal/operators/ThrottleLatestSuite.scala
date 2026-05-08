@@ -56,7 +56,7 @@ class ThrottleLatestSuite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("should emit last element onComplete if emitLast is set to true") { implicit s =>
+  test("should emit last element onComplete if emitLast is set to true") { implicit s =>
     val source: Observable[Long] =
       Observable.intervalAtFixedRate(110.millisecond).take(30).throttleLatest(1.second, true)
     var wasCompleted = false
@@ -75,7 +75,7 @@ class ThrottleLatestSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("should not emit last element onComplete if emitLast is set to false") { implicit s =>
+  test("should not emit last element onComplete if emitLast is set to false") { implicit s =>
     val source: Observable[Long] =
       Observable.intervalAtFixedRate(110.millisecond).take(30).throttleLatest(1.second, false)
     var wasCompleted = false
@@ -94,7 +94,7 @@ class ThrottleLatestSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("specified period should be respected if consumer is responsive") { implicit s =>
+  test("specified period should be respected if consumer is responsive") { implicit s =>
     val sub = PublishSubject[Long]()
     val obs = sub.throttleLatest(500.millis, true)
 
@@ -141,7 +141,7 @@ class ThrottleLatestSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("specified period should not be respected if consumer is not responsive") { implicit s =>
+  test("specified period should not be respected if consumer is not responsive") { implicit s =>
     val sub = PublishSubject[Long]()
     val obs = sub.throttleLatest(500.millis, true)
 

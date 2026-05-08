@@ -32,7 +32,7 @@ import scala.concurrent.duration.MILLISECONDS
 
 class UnfoldEvalObservableSuite extends monix.reactive.BaseTestSuite {
 
-  testScheduler("unfoldEval should be exception-proof") { implicit s =>
+  test("unfoldEval should be exception-proof") { implicit s =>
     val dummy = DummyException("dummy")
     var received = 0
 
@@ -45,7 +45,7 @@ class UnfoldEvalObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  testScheduler("unfoldEval and fromAsyncStateAction results should be equal given generated inputs") { implicit s =>
+  test("unfoldEval and fromAsyncStateAction results should be equal given generated inputs") { implicit s =>
     check2 { (start: Int, i: Int) =>
       val seed = start % (recommendedBatchSize * 2)
       val n = i % (recommendedBatchSize * 2)
@@ -59,7 +59,7 @@ class UnfoldEvalObservableSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("unfoldEval should be cancelable") { implicit s =>
+  test("unfoldEval should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -86,7 +86,7 @@ class UnfoldEvalObservableSuite extends monix.reactive.BaseTestSuite {
     assert(!wasCompleted)
   }
 
-  testScheduler("unfoldEvalF should be exception-proof") { implicit s =>
+  test("unfoldEvalF should be exception-proof") { implicit s =>
     val dummy = DummyException("dummy")
     var received = 0
 
@@ -99,7 +99,7 @@ class UnfoldEvalObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  testScheduler("unfoldEvalF and fromAsyncStateActionF results should be equal given generated inputs") { implicit s =>
+  test("unfoldEvalF and fromAsyncStateActionF results should be equal given generated inputs") { implicit s =>
     check2 { (start: Int, i: Int) =>
       val seed = start % (recommendedBatchSize * 2)
       val n = i % (recommendedBatchSize * 2)
@@ -113,7 +113,7 @@ class UnfoldEvalObservableSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("unfoldEvalF should be cancelable") { implicit s =>
+  test("unfoldEvalF should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 

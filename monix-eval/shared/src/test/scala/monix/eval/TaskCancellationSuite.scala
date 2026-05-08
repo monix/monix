@@ -248,7 +248,7 @@ class TaskCancellationSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(0)))
   }
 
-  testAsync("local.write.uncancelable works") { _ =>
+  test("local.write.uncancelable works") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
@@ -264,7 +264,7 @@ class TaskCancellationSuite extends BaseTestSuite {
     }
   }
 
-  testAsync("local.write.onCancelRaiseError works") { _ =>
+  test("local.write.onCancelRaiseError works") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
     val error = DummyException("dummy")

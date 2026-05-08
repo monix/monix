@@ -47,7 +47,7 @@ class RecursiveConcatSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def cancelableObservables() = Seq.empty
 
-  testScheduler("stack safety") { implicit s =>
+  test("stack safety") { implicit s =>
     val count = 10000
     val f = range(0, count.toLong).sumL.runToFuture; s.tick()
     assertEquals(f.value, Some(Success(sum(count.toLong))))
@@ -59,7 +59,7 @@ class RecursiveConcatSuite extends BaseOperatorSuite {
     loop(1)
   }
 
-  testScheduler("laziness of ++'s param") { implicit s =>
+  test("laziness of ++'s param") { implicit s =>
     val count = 1000000L
 
     val f = nats.take(count).sumL.runToFuture; s.tick()

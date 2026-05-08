@@ -28,7 +28,7 @@ class GzipOperatorSuite extends BaseOperatorSuite with GzipTestsUtils {
   implicit val scheduler: Scheduler =
     Scheduler.computation(parallelism = 4, name = "compression-tests", daemonic = true)
 
-  testSchedulerAsync("gzip empty bytes, small buffer") { _ =>
+  test("gzip empty bytes, small buffer") { _ =>
     Observable
       .empty[Array[Byte]]
       .transform(gzip(1))
@@ -36,7 +36,7 @@ class GzipOperatorSuite extends BaseOperatorSuite with GzipTestsUtils {
       .map(l => assert(jdkGunzip(l.flatten.toArray).isEmpty))
       .runToFuture
   }
-  testSchedulerAsync("gzip empty bytes") { _ =>
+  test("gzip empty bytes") { _ =>
     Observable
       .empty[Array[Byte]]
       .transform(gzip(`1K`))
@@ -44,7 +44,7 @@ class GzipOperatorSuite extends BaseOperatorSuite with GzipTestsUtils {
       .map(l => assert(jdkGunzip(l.flatten.toArray).isEmpty))
       .runToFuture
   }
-  testSchedulerAsync("gzips, small chunks, small buffer") { _ =>
+  test("gzips, small chunks, small buffer") { _ =>
     Observable
       .fromIterable(longText)
       .bufferTumbling(1)
@@ -54,7 +54,7 @@ class GzipOperatorSuite extends BaseOperatorSuite with GzipTestsUtils {
       .map(l => assertArrayEquals(jdkGunzip(l.flatten.toArray), longText))
       .runToFuture
   }
-  testSchedulerAsync("gzips, small chunks, 1k buffer") { _ =>
+  test("gzips, small chunks, 1k buffer") { _ =>
     Observable
       .fromIterable(longText)
       .bufferTumbling(1)
@@ -64,7 +64,7 @@ class GzipOperatorSuite extends BaseOperatorSuite with GzipTestsUtils {
       .map(l => assertArrayEquals(jdkGunzip(l.flatten.toArray), longText))
       .runToFuture
   }
-  testSchedulerAsync("chunks bigger than buffer") { _ =>
+  test("chunks bigger than buffer") { _ =>
     Observable
       .fromIterable(longText)
       .bufferTumbling(`1K`)

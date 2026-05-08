@@ -30,7 +30,7 @@ class CompleteConsumerSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should run to completion") { implicit s =>
+  test("should run to completion") { implicit s =>
     val obs = Observable(1) ++ Observable.now(2).delayExecution(3.seconds)
     val f = obs.consumeWith(Consumer.complete).runToFuture
 
@@ -38,7 +38,7 @@ class CompleteConsumerSuite extends monix.reactive.BaseTestSuite {
     s.tick(3.seconds); assertEquals(f.value, Some(Success(())))
   }
 
-  testScheduler("should trigger error") { implicit s =>
+  test("should trigger error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable.raiseError(ex).consumeWith(Consumer.complete).runToFuture
     s.tick(); assertEquals(f.value, Some(Failure(ex)))

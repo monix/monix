@@ -24,7 +24,7 @@ import org.scalacheck.{ Arbitrary, Prop, Test }
 
 abstract class BaseTestSuite extends TestSchedulerSuite with ArbitraryInstances {
   // TestSchedulerSuite provides createTestScheduler() and assertNoRemainingTasks()
-  // Use testScheduler("name") { implicit s => ... } in leaf suites
+  // Use test("name") { implicit s => ... } in leaf suites
 
   override def scalaCheckTestParameters: Test.Parameters =
     super.scalaCheckTestParameters

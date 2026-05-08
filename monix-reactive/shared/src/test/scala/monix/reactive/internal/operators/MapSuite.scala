@@ -82,7 +82,7 @@ class MapSuite extends BaseOperatorSuite {
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 

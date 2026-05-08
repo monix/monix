@@ -29,7 +29,7 @@ import scala.concurrent.duration.MILLISECONDS
 
 class UnfoldObservableSuite extends monix.reactive.BaseTestSuite {
 
-  testScheduler("should be exception-proof") { implicit s =>
+  test("should be exception-proof") { implicit s =>
     val dummy = new RuntimeException("dummy")
     var received = 0
 
@@ -42,7 +42,7 @@ class UnfoldObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  testScheduler("should execute 10 times then return None") { implicit s =>
+  test("should execute 10 times then return None") { implicit s =>
     var received = 0
 
     Observable.unfold(0)(i => if (i < 10) Some((i, i + 1)) else None).subscribe { (_: Int) =>
@@ -53,7 +53,7 @@ class UnfoldObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals((0 until received).toList, (0 to 9).toList)
   }
 
-  testScheduler("should be cancelable") { implicit s =>
+  test("should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -80,7 +80,7 @@ class UnfoldObservableSuite extends monix.reactive.BaseTestSuite {
     assert(!wasCompleted)
   }
 
-  testScheduler("unfold and fromStateAction results should be equal given generated inputs") { implicit s =>
+  test("unfold and fromStateAction results should be equal given generated inputs") { implicit s =>
     check2 { (start: Int, i: Int) =>
       val seed = start % (recommendedBatchSize * 2)
       val n = i % (recommendedBatchSize * 2)

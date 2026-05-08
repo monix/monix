@@ -36,7 +36,7 @@ class AsyncStateActionObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("first execution can be sync") { implicit s =>
+  test("first execution can be sync") { implicit s =>
     var received = 0
     Observable
       .fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
@@ -48,7 +48,7 @@ class AsyncStateActionObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(received, 1)
   }
 
-  testScheduler("should do synchronous execution in batches") { implicit s =>
+  test("should do synchronous execution in batches") { implicit s =>
     var received = 0
     Observable
       .fromAsyncStateAction(intNow)(s.clockMonotonic(MILLISECONDS))
@@ -64,7 +64,7 @@ class AsyncStateActionObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(received, Platform.recommendedBatchSize * 3)
   }
 
-  testScheduler("should do async execution") { implicit s =>
+  test("should do async execution") { implicit s =>
     var received = 0
     Observable
       .fromAsyncStateAction(intAsync)(s.clockMonotonic(MILLISECONDS))
@@ -77,7 +77,7 @@ class AsyncStateActionObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(received, Platform.recommendedBatchSize * 2)
   }
 
-  testScheduler("fromAsyncStateAction should be cancelable") { implicit s =>
+  test("fromAsyncStateAction should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -101,7 +101,7 @@ class AsyncStateActionObservableSuite extends monix.reactive.BaseTestSuite {
     assert(!wasCompleted)
   }
 
-  testScheduler("should protect against user code errors") { implicit s =>
+  test("should protect against user code errors") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable.fromAsyncStateAction(intError(ex))(s.clockMonotonic(MILLISECONDS)).runAsyncGetFirst
 
@@ -129,7 +129,7 @@ class AsyncStateActionObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("should do async execution with cats.effect.IO") { implicit s =>
+  test("should do async execution with cats.effect.IO") { implicit s =>
     var received = 0
     Observable
       .fromAsyncStateActionF(intAsyncIO)(s.clockMonotonic(MILLISECONDS))

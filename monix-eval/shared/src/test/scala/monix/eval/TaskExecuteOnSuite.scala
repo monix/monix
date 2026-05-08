@@ -77,7 +77,7 @@ class TaskExecuteOnSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(10000)))
   }
 
-  testAsync("local.write.executeOn(forceAsync = false) works") { _ =>
+  test("local.write.executeOn(forceAsync = false) works") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
@@ -93,7 +93,7 @@ class TaskExecuteOnSuite extends BaseTestSuite {
     }
   }
 
-  testAsync("local.write.executeOn(forceAsync = true) works") { _ =>
+  test("local.write.executeOn(forceAsync = true) works") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 

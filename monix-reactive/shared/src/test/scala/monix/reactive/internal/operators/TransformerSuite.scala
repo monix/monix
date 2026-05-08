@@ -64,7 +64,7 @@ class TransformerSuite extends BaseOperatorSuite {
     Seq(Sample(obs, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("should transform the observable using the given transformer") { implicit s =>
+  test("should transform the observable using the given transformer") { implicit s =>
     val l = List(1L, 2, 3, 4)
     val f = Observable.from(l).transform(dummyTransformer).toListL.runToFuture
     s.tick()

@@ -30,7 +30,7 @@ class CreateObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
   }
 
-  testScheduler("should work") { implicit s =>
+  test("should work") { implicit s =>
     val o = Observable.create[Int](Unbounded) { out =>
       out.onNext(1)
       out.onNext(2)
@@ -45,7 +45,7 @@ class CreateObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(sum.value.get, Success(Some(10)))
   }
 
-  testScheduler("should protect against user error") { implicit s =>
+  test("should protect against user error") { implicit s =>
     val ex = DummyException("dummy")
     val o = Observable.create[Int](Unbounded) { out =>
       throw ex

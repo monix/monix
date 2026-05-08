@@ -30,7 +30,7 @@ class OnCancelTriggerErrorSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should work") { implicit s =>
+  test("should work") { implicit s =>
     var errorThrow: Throwable = null
     var effect = 0
     val obs = Observable.now(1).delayExecution(1.second).onCancelTriggerError
@@ -49,7 +49,7 @@ class OnCancelTriggerErrorSuite extends monix.reactive.BaseTestSuite {
     )
   }
 
-  testScheduler("cannot cancel after complete") { implicit s =>
+  test("cannot cancel after complete") { implicit s =>
     var errorThrow: Throwable = null
     var effect = 0
     val obs = Observable.now(1).onCancelTriggerError
@@ -65,7 +65,7 @@ class OnCancelTriggerErrorSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrow, null)
   }
 
-  testScheduler("cannot cancel after error") { implicit s =>
+  test("cannot cancel after error") { implicit s =>
     val dummy = DummyException("dummy")
     var errorThrow: Throwable = null
     var effect = 0
@@ -83,7 +83,7 @@ class OnCancelTriggerErrorSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrow, dummy)
   }
 
-  testScheduler("cannot cancel after asynchronous stop") { implicit s =>
+  test("cannot cancel after asynchronous stop") { implicit s =>
     var errorThrow: Throwable = null
     var effect = 0
     val obs = Observable.now(1).delayOnComplete(1.second).onCancelTriggerError

@@ -47,7 +47,7 @@ class RecursiveConsSuite extends BaseOperatorSuite {
   def observableInError(sourceCount: Int, ex: Throwable) = None
   def cancelableObservables() = Seq.empty
 
-  testScheduler("stack safety") { implicit s =>
+  test("stack safety") { implicit s =>
     val count = 10000
     val f = range(0L, count.toLong).sumL.runToFuture
     s.tick()

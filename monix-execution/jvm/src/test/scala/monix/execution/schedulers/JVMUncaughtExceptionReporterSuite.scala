@@ -31,7 +31,7 @@ class JVMUncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSui
   testReports("Scheduler.cached")(r => Scheduler.cached("test-cached", 1, 5, reporter = r))
   testReports("Scheduler.fixedPool")(r => Scheduler.fixedPool("test-fixed", 1, reporter = r))
 
-  testAsync("UncaughtExceptionReporter.asJava") { p =>
+  test("UncaughtExceptionReporter.asJava") { p =>
     import Scheduler.Implicits.global
 
     val e = DummyException("dummy")

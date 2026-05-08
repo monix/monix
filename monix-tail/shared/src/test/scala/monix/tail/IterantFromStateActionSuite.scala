@@ -25,7 +25,7 @@ import monix.execution.internal.Platform.recommendedBatchSize
 import monix.tail.Iterant.NextBatch
 
 final class IterantFromStateActionSuite extends BaseTestSuite {
-  testScheduler("Iterant.fromStateAction should evolve state") { implicit s =>
+  test("Iterant.fromStateAction should evolve state") { implicit s =>
     check3 { (seed: Int, f: Int => (Int, Int), i: Int) =>
       val n = i % (recommendedBatchSize * 2)
       val stream = Iterant[Task].fromStateAction[Int, Int](f)(seed)
@@ -40,27 +40,27 @@ final class IterantFromStateActionSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.fromStateAction should emit NextBatch items") { implicit s =>
+  test("Iterant.fromStateAction should emit NextBatch items") { implicit s =>
     val stream = Iterant[Task].fromStateAction[Int, Int](seed => (seed, seed))(0)
 
     assert(stream.isInstanceOf[NextBatch[Task, Int]], "should emit NextBatch items")
   }
 
-  testScheduler("Iterant.fromStateAction protects against exceptions initial") { implicit s =>
+  test("Iterant.fromStateAction protects against exceptions initial") { implicit s =>
     val dummy = DummyException("dummy")
     val received = Iterant[Coeval].fromStateAction[Int, Int](e => (e, e))(throw dummy).attempt.toListL
 
     assertEquals(received.value(), List(Left(dummy)))
   }
 
-  testScheduler("Iterant.fromStateAction protects against exceptions in f") { implicit s =>
+  test("Iterant.fromStateAction protects against exceptions in f") { implicit s =>
     val dummy = DummyException("dummy")
     def throwDummy: Int = throw dummy
     val received = Iterant[Coeval].fromStateAction[Int, Int](_ => (throwDummy, throwDummy))(0).attempt.toListL
     assertEquals(received.value(), List(Left(dummy)))
   }
 
-  testScheduler("Iterant.fromStateActionL should evolve state") { implicit s =>
+  test("Iterant.fromStateActionL should evolve state") { implicit s =>
     check3 { (seed: Int, f: Int => (Int, Int), i: Int) =>
       val n = i % (recommendedBatchSize * 2)
       val stream = Iterant[Task].fromStateActionL[Int, Int](f.andThen(Task.now))(Task.now(seed))
@@ -75,7 +75,7 @@ final class IterantFromStateActionSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.fromStateAction <->  Iterant.fromStateActionL") { implicit s =>
+  test("Iterant.fromStateAction <->  Iterant.fromStateActionL") { implicit s =>
     check3 { (seed: Int, f: Int => (Int, Int), i: Int) =>
       val n = i % (recommendedBatchSize * 2)
       val stream = Iterant[Task].fromStateAction[Int, Int](f)(seed)
@@ -85,14 +85,14 @@ final class IterantFromStateActionSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.fromStateActionL protects against exceptions initial") { implicit s =>
+  test("Iterant.fromStateActionL protects against exceptions initial") { implicit s =>
     val dummy = DummyException("dummy")
     val received = Iterant[Coeval].fromStateActionL[Int, Int](e => Coeval.pure((e, e)))(throw dummy)
 
     check(received <-> Iterant[Coeval].haltS[Int](Some(dummy)))
   }
 
-  testScheduler("Iterant.fromStateActionL protects against exceptions in f") { implicit s =>
+  test("Iterant.fromStateActionL protects against exceptions in f") { implicit s =>
     val dummy = DummyException("dummy")
     val received = Iterant[Coeval].fromStateActionL[Int, Int](_ => throw dummy)(Coeval.pure(0)).attempt.toListL
 

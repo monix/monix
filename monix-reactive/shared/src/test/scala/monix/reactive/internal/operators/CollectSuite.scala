@@ -94,7 +94,7 @@ class CollectSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 
@@ -118,7 +118,7 @@ class CollectSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("should only invoke the partial function once per element") { implicit s =>
+  test("should only invoke the partial function once per element") { implicit s =>
     var invocationCount = 0
     var result: Int = 0
     var wasCompleted = false

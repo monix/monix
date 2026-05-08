@@ -28,7 +28,7 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 
 class TracingSchedulerServiceSuite extends MUnitFunSuite {
-  testAsync("captures locals in actual async execution") {
+  test("captures locals in actual async execution") {
     val service = TracingSchedulerService(Scheduler.singleThread("test"))
     val f1 = {
       implicit val ec = service

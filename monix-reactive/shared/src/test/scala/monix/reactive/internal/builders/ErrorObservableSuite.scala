@@ -27,7 +27,7 @@ class ErrorObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
   }
 
-  testScheduler("should stream immediately") { implicit s =>
+  test("should stream immediately") { implicit s =>
     var errorThrown: Throwable = null
     Observable
       .raiseError(DummyException("dummy"))

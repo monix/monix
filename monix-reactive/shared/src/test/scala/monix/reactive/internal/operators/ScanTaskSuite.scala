@@ -92,7 +92,7 @@ class ScanTaskSuite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("should protect against errors in seed") { implicit s =>
+  test("should protect against errors in seed") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -108,7 +108,7 @@ class ScanTaskSuite extends BaseOperatorSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("should protect against exceptions thrown in op") { implicit s =>
+  test("should protect against exceptions thrown in op") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -124,7 +124,7 @@ class ScanTaskSuite extends BaseOperatorSuite {
     assertEquals(effect, 2)
   }
 
-  testScheduler("should protect against errors raised in op") { implicit s =>
+  test("should protect against errors raised in op") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -140,7 +140,7 @@ class ScanTaskSuite extends BaseOperatorSuite {
     assertEquals(effect, 2)
   }
 
-  testScheduler("back-pressure with onError") { implicit s =>
+  test("back-pressure with onError") { implicit s =>
     val dummy = DummyException("dummy")
     var sum = 0
     var effect = 0
@@ -174,7 +174,7 @@ class ScanTaskSuite extends BaseOperatorSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  testScheduler("onError from source + error in task") { implicit s =>
+  test("onError from source + error in task") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
     var effect = 0
@@ -205,7 +205,7 @@ class ScanTaskSuite extends BaseOperatorSuite {
     assertEquals(s.state.lastReportedError, dummy1)
   }
 
-  testScheduler("error in task after user cancelled") { implicit s =>
+  test("error in task after user cancelled") { implicit s =>
     def delay[A](ex: Throwable): Task[A] =
       Task.async0 { (sc, cb) =>
         sc.scheduleOnce(1, TimeUnit.SECONDS, () => cb.onError(ex))
@@ -245,13 +245,13 @@ class ScanTaskSuite extends BaseOperatorSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  testScheduler("scanTask0.headL <-> seed") { implicit s =>
+  test("scanTask0.headL <-> seed") { implicit s =>
     check2 { (obs: Observable[Int], seed: Task[Int]) =>
       obs.scanEval0(seed)((a, b) => Task.pure(a + b)).headL <-> seed
     }
   }
 
-  testScheduler("scanTask0.drop(1) <-> scanTask") { implicit s =>
+  test("scanTask0.drop(1) <-> scanTask") { implicit s =>
     check2 { (obs: Observable[Int], seed: Task[Int]) =>
       obs.scanEval0(seed)((a, b) => Task.pure(a + b)).drop(1) <-> obs.scanEval(seed)((a, b) => Task.pure(a + b))
     }

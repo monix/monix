@@ -32,7 +32,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should not lose events, test 1") { implicit s =>
+  test("should not lose events, test 1") { implicit s =>
     var number = 0
     var wasCompleted = false
 
@@ -61,7 +61,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("should not lose events, test 2") { implicit s =>
+  test("should not lose events, test 2") { implicit s =>
     var number = 0
     var completed = false
 
@@ -97,7 +97,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(number, 10000)
   }
 
-  testScheduler("should drop old events when over capacity") { implicit s =>
+  test("should drop old events when over capacity") { implicit s =>
     var received = 0
     var wasCompleted = false
     val promise = Promise[Ack]()
@@ -133,7 +133,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assert(wasCompleted, "wasCompleted should be true")
   }
 
-  testScheduler("should send onError when empty") { implicit s =>
+  test("should send onError when empty") { implicit s =>
     var errorThrown: Throwable = null
     val buffer = BufferedSubscriber[Int](
       new Subscriber[Int] {
@@ -156,7 +156,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(r, Stop)
   }
 
-  testScheduler("should send onError when in flight") { implicit s =>
+  test("should send onError when in flight") { implicit s =>
     var errorThrown: Throwable = null
     val buffer = BufferedSubscriber[Int](
       new Subscriber[Int] {
@@ -177,7 +177,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  testScheduler("should send onError when at capacity") { implicit s =>
+  test("should send onError when at capacity") { implicit s =>
     var errorThrown: Throwable = null
     val promise = Promise[Ack]()
 
@@ -202,7 +202,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  testScheduler("should do onComplete only after all the queue was drained") { implicit s =>
+  test("should do onComplete only after all the queue was drained") { implicit s =>
     var sum = 0L
     var wasCompleted = false
     val startConsuming = Promise[Continue.type]()
@@ -229,7 +229,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(sum, (0 until 9999).sum)
   }
 
-  testScheduler("should do onComplete only after all the queue was drained, test2") { implicit s =>
+  test("should do onComplete only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     var wasCompleted = false
 
@@ -254,7 +254,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(sum, (0 until 9999).sum)
   }
 
-  testScheduler("should do onError only after the queue was drained") { implicit s =>
+  test("should do onError only after the queue was drained") { implicit s =>
     var sum = 0L
     var errorThrown: Throwable = null
     val startConsuming = Promise[Continue.type]()
@@ -281,7 +281,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
-  testScheduler("should do onError only after all the queue was drained, test2") { implicit s =>
+  test("should do onError only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     var errorThrown: Throwable = null
 
@@ -306,7 +306,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
-  testScheduler("should do synchronous execution in batches") { implicit s =>
+  test("should do synchronous execution in batches") { implicit s =>
     var received = 0L
     var wasCompleted = false
 
@@ -335,7 +335,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(wasCompleted, true)
   }
 
-  testScheduler("subscriber STOP after a synchronous onNext") { implicit s =>
+  test("subscriber STOP after a synchronous onNext") { implicit s =>
     var received = 0
     var wasCompleted = false
     val underlying = new Subscriber[Int] {
@@ -363,7 +363,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(received, 1)
   }
 
-  testScheduler("subscriber STOP after an asynchronous onNext") { implicit s =>
+  test("subscriber STOP after an asynchronous onNext") { implicit s =>
     var received = 0
     var wasCompleted = false
     val underlying = new Subscriber[Int] {
@@ -394,7 +394,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(received, 1)
   }
 
-  testScheduler("stop after a synchronous Failure(ex)") { implicit s =>
+  test("stop after a synchronous Failure(ex)") { implicit s =>
     var received = 0
     var wasCompleted = false
     var errorThrown: Throwable = null
@@ -426,7 +426,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, dummy)
   }
 
-  testScheduler("stop after an asynchronous Failure(ex)") { implicit s =>
+  test("stop after an asynchronous Failure(ex)") { implicit s =>
     var received = 0
     var wasCompleted = false
     var errorThrown: Throwable = null
@@ -459,7 +459,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, dummy)
   }
 
-  testScheduler("should protect against user-code in onNext") { implicit s =>
+  test("should protect against user-code in onNext") { implicit s =>
     var received = 0
     var wasCompleted = false
     var errorThrown: Throwable = null
@@ -491,7 +491,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, dummy)
   }
 
-  testScheduler("should protect against user-code in onComplete") { implicit s =>
+  test("should protect against user-code in onComplete") { implicit s =>
     var received = 0
     var errorThrown: Throwable = null
     val dummy = new RuntimeException("dummy")
@@ -521,7 +521,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy)
   }
 
-  testScheduler("should protect against user-code in onError") { implicit s =>
+  test("should protect against user-code in onError") { implicit s =>
     var received = 0
     var errorThrown: Throwable = null
 
@@ -554,7 +554,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, dummy2)
   }
 
-  testScheduler("streaming null is not allowed") { implicit s =>
+  test("streaming null is not allowed") { implicit s =>
     var errorThrown: Throwable = null
 
     val underlying = new Subscriber[String] {
@@ -575,7 +575,7 @@ class OverflowStrategyDropOldSuite extends monix.reactive.BaseTestSuite {
     assert(errorThrown.isInstanceOf[NullPointerException], "errorThrown.isInstanceOf[NullPointerException]")
   }
 
-  testScheduler("buffer size is required to be greater than 1") { implicit s =>
+  test("buffer size is required to be greater than 1") { implicit s =>
     intercept[IllegalArgumentException] {
       BufferedSubscriber[Int](Subscriber.empty[Int], DropOld(1))
       ()

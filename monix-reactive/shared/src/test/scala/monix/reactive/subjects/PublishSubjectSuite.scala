@@ -38,7 +38,7 @@ class PublishSubjectSuite extends BaseSubjectSuite {
     Some(Sample(s, expectedElems.sum))
   }
 
-  testScheduler("issue #50") { implicit s =>
+  test("issue #50") { implicit s =>
     val p = PublishSubject[Int]()
     var received = 0
 
@@ -62,7 +62,7 @@ class PublishSubjectSuite extends BaseSubjectSuite {
     assertEquals(received, 1)
   }
 
-  testScheduler("should emit from the point of subscription forward") { implicit s =>
+  test("should emit from the point of subscription forward") { implicit s =>
     val subject = PublishSubject[Int]()
     assertEquals(subject.onNext(1), Continue)
     assertEquals(subject.onNext(2), Continue)
@@ -89,7 +89,7 @@ class PublishSubjectSuite extends BaseSubjectSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("should work synchronously for synchronous subscribers") { implicit s =>
+  test("should work synchronously for synchronous subscribers") { implicit s =>
     val subject = PublishSubject[Int]()
     var received = 0
     var wasCompleted = 0
@@ -114,7 +114,7 @@ class PublishSubjectSuite extends BaseSubjectSuite {
     assertEquals(wasCompleted, 10)
   }
 
-  testScheduler("should work with asynchronous subscribers") { implicit s =>
+  test("should work with asynchronous subscribers") { implicit s =>
     val subject = PublishSubject[Int]()
     var received = 0
     var wasCompleted = 0
@@ -143,7 +143,7 @@ class PublishSubjectSuite extends BaseSubjectSuite {
     assertEquals(wasCompleted, 10)
   }
 
-  testScheduler("subscribe after complete should complete immediately") { implicit s =>
+  test("subscribe after complete should complete immediately") { implicit s =>
     val subject = PublishSubject[Int]()
     subject.onComplete()
 
@@ -157,7 +157,7 @@ class PublishSubjectSuite extends BaseSubjectSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("onError should terminate current and future subscribers") { implicit s =>
+  test("onError should terminate current and future subscribers") { implicit s =>
     val subject = PublishSubject[Int]()
     val dummy = DummyException("dummy")
     var elemsReceived = 0
@@ -189,7 +189,7 @@ class PublishSubjectSuite extends BaseSubjectSuite {
     assertEquals(errorsReceived, 11)
   }
 
-  testScheduler("unsubscribe after onComplete") { implicit s =>
+  test("unsubscribe after onComplete") { implicit s =>
     var result: Int = 0
     val subject = PublishSubject[Int]()
     val c = subject.subscribe { e =>

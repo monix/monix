@@ -50,25 +50,25 @@ final class IterantFoldRightSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("foldRightL can express existsL") { implicit s =>
+  test("foldRightL can express existsL") { implicit s =>
     check2 { (stream: Iterant[Coeval, Int], p: Int => Boolean) =>
       exists(stream, p) <-> stream.existsL(p)
     }
   }
 
-  testScheduler("foldRightL can express forallL") { implicit s =>
+  test("foldRightL can express forallL") { implicit s =>
     check2 { (stream: Iterant[Coeval, Int], p: Int => Boolean) =>
       forall(stream, p) <-> stream.forallL(p)
     }
   }
 
-  testScheduler("foldRightL can express ++") { implicit s =>
+  test("foldRightL can express ++") { implicit s =>
     check2 { (lh: Iterant[Coeval, Int], rh: Iterant[Coeval, Int]) =>
       concat(lh, rh) <-> lh ++ rh
     }
   }
 
-  testScheduler("foldRightL flavored ++ does acquisition and releases in order") { implicit s =>
+  test("foldRightL flavored ++ does acquisition and releases in order") { implicit s =>
     val state = Atomic(0)
 
     val lh = Iterant[Coeval].scopeS[Unit, Int](
@@ -101,7 +101,7 @@ final class IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(list, List(1, 2))
   }
 
-  testScheduler("foldRightL can short-circuit for exists") { implicit s =>
+  test("foldRightL can short-circuit for exists") { implicit s =>
     var effect = 0
     val ref = Iterant[Coeval].of(1, 2, 3, 4) ++ Iterant[Coeval].suspend(Coeval {
       effect += 1
@@ -117,7 +117,7 @@ final class IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("foldRightL protects against broken op") { implicit s =>
+  test("foldRightL protects against broken op") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -131,7 +131,7 @@ final class IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("foldRightL protects against broken cursors") { implicit s =>
+  test("foldRightL protects against broken cursors") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -145,7 +145,7 @@ final class IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("foldRightL protects against broken batches") { implicit s =>
+  test("foldRightL protects against broken batches") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -159,14 +159,14 @@ final class IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("find (via foldRightL) is consistent with List.find") { implicit s =>
+  test("find (via foldRightL) is consistent with List.find") { implicit s =>
     check3 { (list: List[Int], idx: Int, p: Int => Boolean) =>
       val fa = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
       find(fa, p) <-> Coeval(list.find(p))
     }
   }
 
-  testScheduler("find (via foldRightL) can short-circuit, releasing only acquired resources") { implicit s =>
+  test("find (via foldRightL) can short-circuit, releasing only acquired resources") { implicit s =>
     var effect = 0
 
     val ref =
@@ -178,7 +178,7 @@ final class IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("find (via foldRightL) releases all resources when full stream is processed") { implicit s =>
+  test("find (via foldRightL) releases all resources when full stream is processed") { implicit s =>
     var effect = 0
 
     val ref =
@@ -190,7 +190,7 @@ final class IterantFoldRightSuite extends BaseTestSuite {
     assertEquals(effect, 2)
   }
 
-  testScheduler("find (via foldRightL) protects against user errors") { implicit s =>
+  test("find (via foldRightL) protects against user errors") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 

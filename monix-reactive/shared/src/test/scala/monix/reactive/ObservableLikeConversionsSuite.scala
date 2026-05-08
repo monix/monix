@@ -29,7 +29,7 @@ import scala.concurrent.Promise
 import scala.util.{ Failure, Success, Try }
 
 class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
-  testScheduler("Observable.from(future)") { implicit s =>
+  test("Observable.from(future)") { implicit s =>
     val p = Promise[Int]()
     val f = Observable.from(p.future).runAsyncGetFirst
 
@@ -41,7 +41,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(Some(1))))
   }
 
-  testScheduler("Observable.from(future) for errors") { implicit s =>
+  test("Observable.from(future) for errors") { implicit s =>
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
     val f = Observable.from(p.future).runAsyncGetFirst
@@ -54,7 +54,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Observable.from(IO)") { implicit s =>
+  test("Observable.from(IO)") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val p = Promise[Int]()
@@ -68,7 +68,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(Some(1))))
   }
 
-  testScheduler("Observable.from(IO) for errors") { implicit s =>
+  test("Observable.from(IO) for errors") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
 
     val p = Promise[Int]()
@@ -83,7 +83,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Observable.from(Task)") { implicit s =>
+  test("Observable.from(Task)") { implicit s =>
     val p = Promise[Int]()
     val f = Observable.from(Task.fromFuture(p.future)).runAsyncGetFirst
 
@@ -95,7 +95,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(Some(1))))
   }
 
-  testScheduler("Observable.from(Task) for errors") { implicit s =>
+  test("Observable.from(Task) for errors") { implicit s =>
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
     val f = Observable.from(Task.fromFuture(p.future)).runAsyncGetFirst
@@ -114,7 +114,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assertEquals(source, conv)
   }
 
-  testScheduler("Observable.from(Coeval)") { implicit s =>
+  test("Observable.from(Coeval)") { implicit s =>
     var effect = false
     val source = Coeval { effect = true; 1 }
     val conv = Observable.from(source)
@@ -126,7 +126,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assert(effect)
   }
 
-  testScheduler("Observable.from(Coeval) for errors") { implicit s =>
+  test("Observable.from(Coeval) for errors") { implicit s =>
     var effect = false
     val dummy = DummyException("dummy")
     val source = Coeval[Int] { effect = true; throw dummy }
@@ -139,7 +139,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assert(effect)
   }
 
-  testScheduler("Observable.from(Eval)") { implicit s =>
+  test("Observable.from(Eval)") { implicit s =>
     var effect = false
     val source = Eval.always { effect = true; 1 }
     val conv = Observable.from(source)
@@ -151,7 +151,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assert(effect)
   }
 
-  testScheduler("Observable.from(Eval) for errors") { implicit s =>
+  test("Observable.from(Eval) for errors") { implicit s =>
     var effect = false
     val dummy = DummyException("dummy")
     val source = Eval.always[Int] { effect = true; throw dummy }
@@ -164,7 +164,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assert(effect)
   }
 
-  testScheduler("Observable.from(SyncIO)") { implicit s =>
+  test("Observable.from(SyncIO)") { implicit s =>
     var effect = false
     val source = SyncIO { effect = true; 1 }
     val conv = Observable.from(source)
@@ -176,7 +176,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assert(effect)
   }
 
-  testScheduler("Observable.from(SyncIO) for errors") { implicit s =>
+  test("Observable.from(SyncIO) for errors") { implicit s =>
     var effect = false
     val dummy = DummyException("dummy")
     val source = SyncIO.defer[Int] { effect = true; SyncIO.raiseError(dummy) }
@@ -189,33 +189,33 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assert(effect)
   }
 
-  testScheduler("Observable.from(Try)") { implicit s =>
+  test("Observable.from(Try)") { implicit s =>
     val source = Success(1): Try[Int]
     val conv = Observable.from(source)
     assertEquals(conv.runAsyncGetFirst.value, Some(Success(Some(1))))
   }
 
-  testScheduler("Observable.from(Try) for errors") { implicit s =>
+  test("Observable.from(Try) for errors") { implicit s =>
     val dummy = DummyException("dummy")
     val source = Failure(dummy): Try[Int]
     val conv = Observable.from(source)
     assertEquals(conv.runAsyncGetFirst.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Observable.from(Either)") { implicit s =>
+  test("Observable.from(Either)") { implicit s =>
     val source: Either[Throwable, Int] = Right(1)
     val conv = Observable.from(source)
     assertEquals(conv.runAsyncGetFirst.value, Some(Success(Some(1))))
   }
 
-  testScheduler("Observable.from(Either) for errors") { implicit s =>
+  test("Observable.from(Either) for errors") { implicit s =>
     val dummy = DummyException("dummy")
     val source: Either[Throwable, Int] = Left(dummy)
     val conv = Observable.from(source)
     assertEquals(conv.runAsyncGetFirst.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Observable.from(custom Effect)") { implicit s =>
+  test("Observable.from(custom Effect)") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val F: CustomEffect = new CustomEffect()
 
@@ -230,7 +230,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(Some(1))))
   }
 
-  testScheduler("Observable.from(custom Effect) for errors") { implicit s =>
+  test("Observable.from(custom Effect) for errors") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val F: CustomEffect = new CustomEffect()
 
@@ -246,7 +246,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Observable.from(custom ConcurrentEffect)") { implicit s =>
+  test("Observable.from(custom ConcurrentEffect)") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val F: CustomConcurrentEffect = new CustomConcurrentEffect()
 
@@ -261,7 +261,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(Some(1))))
   }
 
-  testScheduler("Observable.from(custom ConcurrentEffect) for errors") { implicit s =>
+  test("Observable.from(custom ConcurrentEffect) for errors") { implicit s =>
     implicit val cs: ContextShift[IO] = SchedulerEffect.contextShift[IO](s)(IO.ioEffect)
     implicit val F: CustomConcurrentEffect = new CustomConcurrentEffect()
 
@@ -277,7 +277,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Observable.from(ReactivePublisher)") { implicit s =>
+  test("Observable.from(ReactivePublisher)") { implicit s =>
     val pub = new Publisher[Int] {
       def subscribe(s: Subscriber[? >: Int]): Unit = {
         s.onSubscribe(new Subscription {
@@ -302,7 +302,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(Some(1))))
   }
 
-  testScheduler("Observable.from(Iterable)") { implicit s =>
+  test("Observable.from(Iterable)") { implicit s =>
     val iter = List(1, 2, 3, 4)
     val conv = Observable.from(iter)
     val f = conv.toListL.runToFuture
@@ -311,7 +311,7 @@ class ObservableLikeConversionsSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(List(1, 2, 3, 4))))
   }
 
-  testScheduler("Task.from(Function0)") { implicit s =>
+  test("Task.from(Function0)") { implicit s =>
     val task = Observable.from(() => 1).firstL
     val f = task.runToFuture
     s.tick()

@@ -37,7 +37,7 @@ class PublisherIsObservableSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("should work with stop-and-wait back-pressure") { implicit s =>
+  test("should work with stop-and-wait back-pressure") { implicit s =>
     val isPublisherActive = Atomic(true)
     val isObservableActive = Atomic(true)
     val ack = Atomic(Promise[Ack]())
@@ -63,7 +63,7 @@ class PublisherIsObservableSuite extends monix.reactive.BaseTestSuite {
     assert(!isPublisherActive.get(), "!isPublisherActive")
   }
 
-  testScheduler("should work with back-pressure") { implicit s =>
+  test("should work with back-pressure") { implicit s =>
     val isPublisherActive = Atomic(true)
     val isObservableActive = Atomic(true)
     val ack = Atomic(Promise[Ack]())
@@ -90,7 +90,7 @@ class PublisherIsObservableSuite extends monix.reactive.BaseTestSuite {
     assert(!isPublisherActive.get(), "!isPublisherActive")
   }
 
-  testScheduler("canceling observable should cancel publisher") { implicit s =>
+  test("canceling observable should cancel publisher") { implicit s =>
     val isPublisherActive = Atomic(true)
     val isObservableActive = Atomic(true)
     val ack = Atomic(Promise[Ack]())

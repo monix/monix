@@ -47,7 +47,7 @@ class DelayByTimespanSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("works for empty observables triggering onComplete") { implicit s =>
+  test("works for empty observables triggering onComplete") { implicit s =>
     val source: Observable[Long] = Observable.empty.delayOnNext(1.second)
     var wasCompleted = 0
 
@@ -66,7 +66,7 @@ class DelayByTimespanSuite extends BaseOperatorSuite {
     assertEquals(wasCompleted, 1)
   }
 
-  testScheduler("works for empty observables triggering onError") { implicit s =>
+  test("works for empty observables triggering onError") { implicit s =>
     val dummy = DummyException("dummy")
     val source: Observable[Long] = Observable.raiseError(dummy).delayOnNext(1.second)
     var errorThrown: Throwable = null

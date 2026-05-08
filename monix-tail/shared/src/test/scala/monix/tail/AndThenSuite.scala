@@ -21,7 +21,7 @@ import monix.execution.internal.Platform
 import monix.tail.internal.AndThen
 
 final class AndThenSuite extends BaseTestSuite {
-  testScheduler("compose a chain of functions with andThen") { _ =>
+  test("compose a chain of functions with andThen") { _ =>
     check2 { (i: Int, fs: List[Int => Int]) =>
       val result = fs.map(AndThen(_)).reduceOption(_.andThen(_)).map(_(i))
       val expect = fs.reduceOption(_.andThen(_)).map(_(i))
@@ -30,7 +30,7 @@ final class AndThenSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("compose a chain of functions with compose") { _ =>
+  test("compose a chain of functions with compose") { _ =>
     check2 { (i: Int, fs: List[Int => Int]) =>
       val result = fs.map(AndThen(_)).reduceOption(_.compose(_)).map(_(i))
       val expect = fs.reduceOption(_.compose(_)).map(_(i))
@@ -39,7 +39,7 @@ final class AndThenSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("andThen is stack safe") { _ =>
+  test("andThen is stack safe") { _ =>
     val count = if (Platform.isJVM) 500000 else 1000
     val fs = (0 until count).map(_ => { (i: Int) => i + 1 })
     val result = fs.foldLeft(AndThen((x: Int) => x))(_.andThen(_))(42)
@@ -47,7 +47,7 @@ final class AndThenSuite extends BaseTestSuite {
     assertEquals(result, count + 42)
   }
 
-  testScheduler("compose is stack safe") { _ =>
+  test("compose is stack safe") { _ =>
     val count = if (Platform.isJVM) 500000 else 1000
     val fs = (0 until count).map(_ => { (i: Int) => i + 1 })
     val result = fs.foldLeft(AndThen((x: Int) => x))(_.compose(_))(42)
@@ -55,7 +55,7 @@ final class AndThenSuite extends BaseTestSuite {
     assertEquals(result, count + 42)
   }
 
-  testScheduler("Function1 andThen is stack safe") { _ =>
+  test("Function1 andThen is stack safe") { _ =>
     val count = if (Platform.isJVM) 50000 else 1000
     val start: (Int => Int) = AndThen((x: Int) => x)
     val fs = (0 until count).foldLeft(start) { (acc, _) =>
@@ -64,7 +64,7 @@ final class AndThenSuite extends BaseTestSuite {
     assertEquals(fs(0), count)
   }
 
-  testScheduler("toString") { _ =>
+  test("toString") { _ =>
     assert(AndThen((x: Int) => x).toString.startsWith("AndThen$"))
   }
 }

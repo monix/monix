@@ -34,7 +34,7 @@ class ConcurrentReplayLimitedSubjectSuite extends BaseConcurrentSubjectSuite {
     Some(Sample(c, expectedElems.sum))
   }
 
-  testScheduler("should replay only last n elements") { implicit s =>
+  test("should replay only last n elements") { implicit s =>
     check1 { (list: Seq[Long]) =>
       val capacity = 10
       val c = ConcurrentSubject.replayLimited[Long](capacity, list, Unbounded)

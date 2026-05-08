@@ -23,7 +23,7 @@ import cats.laws.discipline._
 import monix.reactive.{ BaseConcurrencySuite, Consumer, Observable }
 
 class LoadBalanceConsumerConcurrencySuite extends BaseConcurrencySuite {
-  testService("aggregate all events") { implicit s =>
+  test("aggregate all events") { implicit s =>
     check2 { (source: Observable[Int], rndInt: Int) =>
       // Parallelism value will be between 1 and 16
       val parallelism = {
@@ -40,7 +40,7 @@ class LoadBalanceConsumerConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  testService("aggregate all events with subscribers that stop") { implicit s =>
+  test("aggregate all events with subscribers that stop") { implicit s =>
     check2 { (source: Observable[Int], rndInt: Int) =>
       // Parallelism value will be between 1 and 16
       val parallelism = {

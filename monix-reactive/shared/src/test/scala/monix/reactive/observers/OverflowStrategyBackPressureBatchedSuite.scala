@@ -32,7 +32,7 @@ class OverflowStrategyBackPressureBatchedSuite extends monix.reactive.BaseTestSu
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should do back-pressure") { implicit s =>
+  test("should do back-pressure") { implicit s =>
     val promise = Promise[Ack]()
     var wasCompleted = false
 
@@ -78,7 +78,7 @@ class OverflowStrategyBackPressureBatchedSuite extends monix.reactive.BaseTestSu
     assert(wasCompleted)
   }
 
-  testScheduler("should not lose events, test 1") { implicit s =>
+  test("should not lose events, test 1") { implicit s =>
     var sum = 0
     var wasCompleted = false
 
@@ -109,7 +109,7 @@ class OverflowStrategyBackPressureBatchedSuite extends monix.reactive.BaseTestSu
     assert(wasCompleted)
   }
 
-  testScheduler("should not lose events, test 2") { implicit s =>
+  test("should not lose events, test 2") { implicit s =>
     var sum = 0
     var completed = false
 
@@ -148,7 +148,7 @@ class OverflowStrategyBackPressureBatchedSuite extends monix.reactive.BaseTestSu
     assertEquals(sum, 10001 * 5000)
   }
 
-  testScheduler("should not lose events, test 3") { implicit s =>
+  test("should not lose events, test 3") { implicit s =>
     var sum = 0
     var completed = false
 
@@ -187,7 +187,7 @@ class OverflowStrategyBackPressureBatchedSuite extends monix.reactive.BaseTestSu
     assertEquals(sum, 10001 * 5000)
   }
 
-  testScheduler("should send onError when empty") { implicit s =>
+  test("should send onError when empty") { implicit s =>
     var errorThrown: Throwable = null
     val underlying = new Subscriber[List[Int]] {
       def onError(ex: Throwable) = errorThrown = ex
@@ -205,7 +205,7 @@ class OverflowStrategyBackPressureBatchedSuite extends monix.reactive.BaseTestSu
     assertEquals(r, Stop)
   }
 
-  testScheduler("should send onError when in flight") { implicit s =>
+  test("should send onError when in flight") { implicit s =>
     var errorThrown: Throwable = null
     val promise = Promise[Ack]()
     val underlying = new Subscriber[List[Int]] {
@@ -224,7 +224,7 @@ class OverflowStrategyBackPressureBatchedSuite extends monix.reactive.BaseTestSu
     promise.success(Continue); ()
   }
 
-  testScheduler("should send onError when at capacity") { implicit s =>
+  test("should send onError when at capacity") { implicit s =>
     var errorThrown: Throwable = null
     val promise = Promise[Ack]()
     val underlying = new Subscriber[List[Int]] {
@@ -242,7 +242,7 @@ class OverflowStrategyBackPressureBatchedSuite extends monix.reactive.BaseTestSu
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  testScheduler("should send onComplete when empty") { implicit s =>
+  test("should send onComplete when empty") { implicit s =>
     var wasCompleted = false
     val underlying = new Subscriber[List[Int]] {
       val scheduler = s
@@ -258,7 +258,7 @@ class OverflowStrategyBackPressureBatchedSuite extends monix.reactive.BaseTestSu
     assert(wasCompleted)
   }
 
-  testScheduler("should not back-pressure onComplete") { implicit s =>
+  test("should not back-pressure onComplete") { implicit s =>
     var wasCompleted = false
     val promise = Promise[Ack]()
 
@@ -280,7 +280,7 @@ class OverflowStrategyBackPressureBatchedSuite extends monix.reactive.BaseTestSu
     assert(wasCompleted)
   }
 
-  testScheduler("should signal Stop upstream when it is back-pressured") { implicit s =>
+  test("should signal Stop upstream when it is back-pressured") { implicit s =>
     val promise = Promise[Ack]()
 
     val buffer = BufferedSubscriber.batched[Int](

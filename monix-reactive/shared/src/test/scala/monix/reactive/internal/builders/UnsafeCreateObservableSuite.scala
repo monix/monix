@@ -31,7 +31,7 @@ class UnsafeCreateObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
   }
 
-  testScheduler("should work") { implicit s =>
+  test("should work") { implicit s =>
     val o = Observable.unsafeCreate[Int] { out =>
       out.onNext(1)
       out.onComplete()
@@ -43,7 +43,7 @@ class UnsafeCreateObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(sum.value.get, Success(Some(1)))
   }
 
-  testScheduler("should protect against user error") { implicit s =>
+  test("should protect against user error") { implicit s =>
     val ex = DummyException("dummy")
     val o = Observable.unsafeCreate[Int] { out =>
       throw ex
@@ -56,7 +56,7 @@ class UnsafeCreateObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(s.state.lastReportedError, ex)
   }
 
-  testScheduler("should protect the grammar onComplete") { implicit s =>
+  test("should protect the grammar onComplete") { implicit s =>
     var effect = 0
     val o = Observable.unsafeCreate[Int] { out =>
       out.onNext(10)
@@ -79,7 +79,7 @@ class UnsafeCreateObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(effect, 11)
   }
 
-  testScheduler("should protect the grammar on cancel") { implicit s =>
+  test("should protect the grammar on cancel") { implicit s =>
     var effect = 0
     val o = Observable.unsafeCreate[Int] { out =>
       out.onNext(10)
@@ -102,7 +102,7 @@ class UnsafeCreateObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(effect, 10)
   }
 
-  testScheduler("should protect the grammar on error") { implicit s =>
+  test("should protect the grammar on error") { implicit s =>
     val ex = DummyException("dummy")
     var effect = 0
 
@@ -131,7 +131,7 @@ class UnsafeCreateObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(effect, 11)
   }
 
-  testScheduler("should protect against onNext synchronous exceptions") { implicit s =>
+  test("should protect against onNext synchronous exceptions") { implicit s =>
     val ex = DummyException("dummy")
     var effect = 0
 

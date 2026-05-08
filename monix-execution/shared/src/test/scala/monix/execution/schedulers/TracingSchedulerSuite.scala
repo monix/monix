@@ -77,7 +77,7 @@ class TracingSchedulerSuite extends MUnitFunSuite {
     assertEquals(f2.value, Some(Success(42)))
   }
 
-  testAsync("captures locals in actual async execution") {
+  test("captures locals in actual async execution") {
     import monix.execution.Scheduler.Implicits.traced
     val local1 = Local(0)
     val local2 = Local(0)

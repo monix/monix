@@ -57,13 +57,13 @@ class TakeUntilObservableSuite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("should mirror the source if never triggered") { implicit s =>
+  test("should mirror the source if never triggered") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       obs <-> obs.takeUntil(Observable.never)
     }
   }
 
-  testScheduler("should cancel the trigger if finished before it") { implicit s =>
+  test("should cancel the trigger if finished before it") { implicit s =>
     val obs = Observable(1).executeAsync.takeUntil(Observable.now(1).delayExecution(1.second))
     val f = obs.runAsyncGetFirst
 
@@ -74,7 +74,7 @@ class TakeUntilObservableSuite extends BaseOperatorSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("takeUntilEval should only take until task completes") { implicit s =>
+  test("takeUntilEval should only take until task completes") { implicit s =>
     val obs = Observable
       .intervalAtFixedRate(2.seconds, 2.seconds)
       .takeUntilEval(Task.unit.delayExecution(3.seconds))
@@ -86,7 +86,7 @@ class TakeUntilObservableSuite extends BaseOperatorSuite {
     assertEquals(obs.value, Some(Success(List(0))))
   }
 
-  testScheduler("takeUntilEvalF should only take until future completes") { implicit s =>
+  test("takeUntilEvalF should only take until future completes") { implicit s =>
     case class FutureIO[A](value: () => Future[A]) {
       def run: Future[A] = value()
     }

@@ -38,7 +38,7 @@ class ObservableIsPublisherSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("should work with stop-and-wait back-pressure, test 1") { implicit scheduler =>
+  test("should work with stop-and-wait back-pressure, test 1") { implicit scheduler =>
     var wasCompleted = false
     var sum = 0L
 
@@ -71,7 +71,7 @@ class ObservableIsPublisherSuite extends monix.reactive.BaseTestSuite {
     assertEquals(sum, 5000 * 9999L)
   }
 
-  testScheduler("should work with stop-and-wait back-pressure, test 2") { implicit s =>
+  test("should work with stop-and-wait back-pressure, test 2") { implicit s =>
     val out = PublishSubject[Long]()
 
     val subscription = SingleAssignSubscription()
@@ -138,7 +138,7 @@ class ObservableIsPublisherSuite extends monix.reactive.BaseTestSuite {
     assert(wasCompleted, "wasCompleted")
   }
 
-  testScheduler("should work in batches of 1000, test 1") { implicit scheduler =>
+  test("should work in batches of 1000, test 1") { implicit scheduler =>
     val range = 10000L
     val chunkSize = 1000
 
@@ -181,7 +181,7 @@ class ObservableIsPublisherSuite extends monix.reactive.BaseTestSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("should work in batches of 1000, test 2") { implicit scheduler =>
+  test("should work in batches of 1000, test 2") { implicit scheduler =>
     val range = 10000L
     val chunkSize = 1000
 

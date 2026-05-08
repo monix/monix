@@ -31,31 +31,31 @@ import org.reactivestreams.{ Subscriber, Subscription }
 import scala.util.{ Failure, Success }
 
 final class IterantToReactivePublisherSuite extends BaseTestSuite {
-  testScheduler("sum with Task and request(1)") { implicit s =>
+  test("sum with Task and request(1)") { implicit s =>
     check1 { (stream: Iterant[Task, Int]) =>
       sum(stream, 1) <-> stream.foldLeftL(0L)(_ + _)
     }
   }
 
-  testScheduler("sum with Task and request(2)") { implicit s =>
+  test("sum with Task and request(2)") { implicit s =>
     check1 { (stream: Iterant[Task, Int]) =>
       sum(stream, 2) <-> stream.foldLeftL(0L)(_ + _)
     }
   }
 
-  testScheduler("sum with Task and request(6)") { implicit s =>
+  test("sum with Task and request(6)") { implicit s =>
     check1 { (stream: Iterant[Task, Int]) =>
       sum(stream, 2) <-> stream.foldLeftL(0L)(_ + _)
     }
   }
 
-  testScheduler("sum with Task and request(Long.MaxValue)") { implicit s =>
+  test("sum with Task and request(Long.MaxValue)") { implicit s =>
     check1 { (stream: Iterant[Task, Int]) =>
       sum(stream, Long.MaxValue) <-> stream.foldLeftL(0L)(_ + _)
     }
   }
 
-  testScheduler("stack-safety for Next nodes") { implicit s =>
+  test("stack-safety for Next nodes") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val stream = Iterant[Task].range(0, count).mapEval(_ => Task.now(1))
     val f = sum(stream, 1).runToFuture
@@ -65,7 +65,7 @@ final class IterantToReactivePublisherSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(count)))
   }
 
-  testScheduler("stack-safety for NextBatch nodes") { implicit s =>
+  test("stack-safety for NextBatch nodes") { implicit s =>
     val count = if (Platform.isJVM) 100000 else 10000
     val stream = Iterant[Task].range(0, count).map(_ => 1).batched(6)
     val f = sum(stream, 1).runToFuture
@@ -75,20 +75,20 @@ final class IterantToReactivePublisherSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(count)))
   }
 
-  testScheduler("works with IO") { implicit s =>
+  test("works with IO") { implicit s =>
     check1 { (stream: Iterant[IO, Int]) =>
       sum(stream, 1) <-> Task.from(stream.foldLeftL(0L)(_ + _))
     }
   }
 
-  testScheduler("works with any Effect") { implicit s =>
+  test("works with any Effect") { implicit s =>
     implicit val ioEffect: Effect[IO] = new CustomIOEffect()(IO.contextShift(s))
     check1 { (stream: Iterant[IO, Int]) =>
       sum(stream, 1) <-> Task.fromEffect(stream.foldLeftL(0L)(_ + _))
     }
   }
 
-  testScheduler("loop is cancelable") { implicit s =>
+  test("loop is cancelable") { implicit s =>
     val count = 10000
     var emitted = 0
     var wasCompleted = false
@@ -132,7 +132,7 @@ final class IterantToReactivePublisherSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("loop is cancellable in flight") { implicit s =>
+  test("loop is cancellable in flight") { implicit s =>
     val count = 10000
     var effect = 0
     var wasStopped = false
@@ -154,7 +154,7 @@ final class IterantToReactivePublisherSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("long batch is cancelable in flight") { s =>
+  test("long batch is cancelable in flight") { s =>
     implicit val ec = s.withExecutionModel(AlwaysAsyncExecution)
 
     val count = 1000
@@ -184,7 +184,7 @@ final class IterantToReactivePublisherSuite extends BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("protects against invalid request") { implicit s =>
+  test("protects against invalid request") { implicit s =>
     val count = 10000
     var emitted = 0
     var wasCompleted: Option[Throwable] = null
@@ -226,7 +226,7 @@ final class IterantToReactivePublisherSuite extends BaseTestSuite {
     )
   }
 
-  testScheduler("protects against invalid subscriber") { implicit s =>
+  test("protects against invalid subscriber") { implicit s =>
     if (Platform.isJVM) {
       intercept[NullPointerException] {
         Iterant[Task].of(1).toReactivePublisher.subscribe(null)
@@ -238,7 +238,7 @@ final class IterantToReactivePublisherSuite extends BaseTestSuite {
     ()
   }
 
-  testScheduler("protects against broken cursors") { implicit s =>
+  test("protects against broken cursors") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
     val stream = Iterant[Task]
@@ -254,7 +254,7 @@ final class IterantToReactivePublisherSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  testScheduler("protects against broken batches") { implicit s =>
+  test("protects against broken batches") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -271,7 +271,7 @@ final class IterantToReactivePublisherSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Iterant.empty completes immediately on subscribe") { implicit s =>
+  test("Iterant.empty completes immediately on subscribe") { implicit s =>
     var wasCompleted: Option[Throwable] = null
 
     Iterant[Task]
@@ -290,7 +290,7 @@ final class IterantToReactivePublisherSuite extends BaseTestSuite {
     assertEquals(wasCompleted, None)
   }
 
-  testScheduler("Iterant.raiseError completes immediately on subscribe") { implicit s =>
+  test("Iterant.raiseError completes immediately on subscribe") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Task]
       .raiseError[Long](dummy)
@@ -317,7 +317,7 @@ final class IterantToReactivePublisherSuite extends BaseTestSuite {
     assertEquals(thrownError, dummy)
   }
 
-  testScheduler("Iterant.empty produces EmptySubscription") { implicit s =>
+  test("Iterant.empty produces EmptySubscription") { implicit s =>
     var wasCompleted: Option[Throwable] = null
 
     Iterant[Task]

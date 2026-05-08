@@ -29,7 +29,7 @@ class EndWithErrorSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should end in the specified error") { implicit s =>
+  test("should end in the specified error") { implicit s =>
     var received = 0
     var wasThrown: Throwable = null
     val p = Promise[Continue.type]()
@@ -56,7 +56,7 @@ class EndWithErrorSuite extends monix.reactive.BaseTestSuite {
     s.tick()
   }
 
-  testScheduler("can end in another unforeseen error") { implicit s =>
+  test("can end in another unforeseen error") { implicit s =>
     var wasThrown: Throwable = null
     val source = Observable
       .raiseError(DummyException("unforeseen"))

@@ -70,7 +70,7 @@ class BufferTumblingSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("should emit buffer onComplete") { implicit s =>
+  test("should emit buffer onComplete") { implicit s =>
     val count = 157
     val obs = Observable.range(0L, count.toLong * 10).bufferTumbling(20).map(_.sum)
 
@@ -96,7 +96,7 @@ class BufferTumblingSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("should drop buffer onError") { implicit s =>
+  test("should drop buffer onError") { implicit s =>
     val count = 157
     val dummy = DummyException("dummy")
     val obs = createObservableEndingInError(Observable.range(0L, count.toLong * 10), dummy)
@@ -125,7 +125,7 @@ class BufferTumblingSuite extends BaseOperatorSuite {
     assertEquals(errorThrown, dummy)
   }
 
-  testScheduler("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 

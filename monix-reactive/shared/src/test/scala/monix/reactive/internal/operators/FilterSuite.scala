@@ -90,7 +90,7 @@ class FilterSuite extends BaseOperatorSuite {
     Seq(Sample(sample, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 
@@ -115,7 +115,7 @@ class FilterSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("withFilter syntax works") { implicit s =>
+  test("withFilter syntax works") { implicit s =>
     val source = Observable.range(1, 1000)
 
     val filtered = for {

@@ -49,7 +49,7 @@ class ThrottleSuite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("should emit elements at given rate without dropping them") { implicit s =>
+  test("should emit elements at given rate without dropping them") { implicit s =>
     val lastElements = ListBuffer[Long]()
 
     val f = Observable

@@ -56,7 +56,7 @@ class DelayBySelectorSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("should terminate immediately on empty observable") { implicit s =>
+  test("should terminate immediately on empty observable") { implicit s =>
     val f = Observable
       .empty[Int]
       .delayOnNextBySelector(n => Observable.empty)

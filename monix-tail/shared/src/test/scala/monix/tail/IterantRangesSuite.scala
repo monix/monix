@@ -20,32 +20,32 @@ package monix.tail
 import monix.eval.Coeval
 
 final class IterantRangesSuite extends BaseTestSuite {
-  testScheduler("Iterant.range(0, 10, 1)") { implicit s =>
+  test("Iterant.range(0, 10, 1)") { implicit s =>
     val lst = Iterant[Coeval].range(0, 10).toListL.value()
     assertEquals(lst, (0 until 10).toList)
   }
 
-  testScheduler("Iterant.range(0, 10, 2)") { implicit s =>
+  test("Iterant.range(0, 10, 2)") { implicit s =>
     val lst = Iterant[Coeval].range(0, 10, 2).toListL.value()
     assertEquals(lst, 0.until(10, 2).toList)
   }
 
-  testScheduler("Iterant.range(10, 0, -1)") { implicit s =>
+  test("Iterant.range(10, 0, -1)") { implicit s =>
     val lst = Iterant[Coeval].range(10, 0, -1).toListL.value()
     assertEquals(lst, 10.until(0, -1).toList)
   }
 
-  testScheduler("Iterant.range(10, 0, -2)") { implicit s =>
+  test("Iterant.range(10, 0, -2)") { implicit s =>
     val lst = Iterant[Coeval].range(10, 0, -2).toListL.value()
     assertEquals(lst, 10.until(0, -2).toList)
   }
 
-  testScheduler("Iterant.range(0, 10, -1)") { implicit s =>
+  test("Iterant.range(0, 10, -1)") { implicit s =>
     val lst = Iterant[Coeval].range(0, 10, -1).toListL.value()
     assertEquals(lst, 0.until(10, -1).toList)
   }
 
-  testScheduler("Iterant.range(10, 0, 1)") { implicit s =>
+  test("Iterant.range(10, 0, 1)") { implicit s =>
     val lst = Iterant[Coeval].range(10, 0).toListL.value()
     assertEquals(lst, 10.until(0, 1).toList)
   }

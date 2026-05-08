@@ -44,7 +44,7 @@ class IntersperseSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
-  testScheduler("start is the first emitted element") { implicit s =>
+  test("start is the first emitted element") { implicit s =>
     val obs = PublishSubject[Int]()
 
     var received = Vector.empty[Int]
@@ -69,7 +69,7 @@ class IntersperseSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("end is the last emitted element") { implicit s =>
+  test("end is the last emitted element") { implicit s =>
     val obs = PublishSubject[Int]()
 
     var received = Vector.empty[Int]
@@ -94,7 +94,7 @@ class IntersperseSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("separator is paired with emitted elements") { implicit s =>
+  test("separator is paired with emitted elements") { implicit s =>
     val obs = PublishSubject[Int]()
 
     var received = Vector.empty[Int]
@@ -123,7 +123,7 @@ class IntersperseSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("do not emit if upstream emits nothing") { implicit s =>
+  test("do not emit if upstream emits nothing") { implicit s =>
     val obs = PublishSubject[Int]()
 
     var received = Vector.empty[Int]

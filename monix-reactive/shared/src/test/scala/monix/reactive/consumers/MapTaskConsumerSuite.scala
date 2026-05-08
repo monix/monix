@@ -25,7 +25,7 @@ import monix.reactive.{ BaseTestSuite, Consumer, Observable }
 import scala.util.Failure
 
 class MapTaskConsumerSuite extends monix.reactive.BaseTestSuite {
-  testScheduler("consumer.mapTask equivalence with task.map") { implicit s =>
+  test("consumer.mapTask equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
       val t1 = obs.consumeWith(consumer.mapTask(x => Task.evalAsync(x + 100)))
@@ -34,7 +34,7 @@ class MapTaskConsumerSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("consumer.mapTask streams error") { implicit s =>
+  test("consumer.mapTask streams error") { implicit s =>
     check2 { (obs: Observable[Int], ex: Throwable) =>
       val withError = obs.endWithError(ex)
       val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
@@ -45,7 +45,7 @@ class MapTaskConsumerSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("consumer.mapTask handles task errors") { implicit s =>
+  test("consumer.mapTask handles task errors") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].mapTask(_ => Task.evalAsync(throw ex)))
@@ -55,7 +55,7 @@ class MapTaskConsumerSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  testScheduler("consumer.mapTask protects against user code") { implicit s =>
+  test("consumer.mapTask protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].mapTask(_ => throw ex))
@@ -65,7 +65,7 @@ class MapTaskConsumerSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  testScheduler("consumer.mapTask(sync) equivalence with task.map") { implicit s =>
+  test("consumer.mapTask(sync) equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
       val t1 = obs.consumeWith(consumer.mapTask(x => Task.eval(x + 100)))
@@ -74,7 +74,7 @@ class MapTaskConsumerSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("consumer.mapTask(sync) streams error") { implicit s =>
+  test("consumer.mapTask(sync) streams error") { implicit s =>
     check2 { (obs: Observable[Int], ex: Throwable) =>
       val withError = obs.endWithError(ex)
       val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
@@ -85,7 +85,7 @@ class MapTaskConsumerSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("consumer.mapTask(sync) protects against user code") { implicit s =>
+  test("consumer.mapTask(sync) protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].mapTask(_ => Task.eval(throw ex)))
@@ -95,7 +95,7 @@ class MapTaskConsumerSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  testScheduler("consumer.mapTask(async) propagates cancellation") { implicit s =>
+  test("consumer.mapTask(async) propagates cancellation") { implicit s =>
     var taskCancelled = false
     val f = Observable(1)
       .consumeWith(

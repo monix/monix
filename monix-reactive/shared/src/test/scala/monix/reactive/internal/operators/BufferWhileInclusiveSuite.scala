@@ -88,7 +88,7 @@ class BufferWhileInclusiveSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("should emit buffer onComplete") { implicit s =>
+  test("should emit buffer onComplete") { implicit s =>
     val count = 157
     val obs = Observable.range(1L, count.toLong * 10).bufferWhileInclusive(_ % 20 != 0).map(_.sum)
 
@@ -114,7 +114,7 @@ class BufferWhileInclusiveSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("should drop buffer onError") { implicit s =>
+  test("should drop buffer onError") { implicit s =>
     val count = 157
     val dummy = DummyException("dummy")
     val obs = createObservableEndingInError(Observable.range(0L, count.toLong * 10), dummy)
@@ -143,7 +143,7 @@ class BufferWhileInclusiveSuite extends BaseOperatorSuite {
     assertEquals(errorThrown, dummy)
   }
 
-  testScheduler("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 
@@ -168,7 +168,7 @@ class BufferWhileInclusiveSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("should work for scaladoc example") { implicit s =>
+  test("should work for scaladoc example") { implicit s =>
     val f =
       Observable(1, 1, 1, 2, 2, 1, 3)
         .bufferWhileInclusive(_ == 1)

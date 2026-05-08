@@ -26,14 +26,14 @@ import monix.tail.batches.{ Batch, BatchCursor }
 import scala.util.Failure
 
 final class IterantMapEvalSuite extends BaseTestSuite {
-  testScheduler("Iterant[Task].mapEval covariant identity") { implicit s =>
+  test("Iterant[Task].mapEval covariant identity") { implicit s =>
     check1 { (list: List[Int]) =>
       val r = Iterant[Task].fromIterable(list).mapEval(x => Task.evalAsync(x)).toListL
       r <-> Task.now(list)
     }
   }
 
-  testScheduler("Iterant[Task].mapEval covariant composition") { implicit s =>
+  test("Iterant[Task].mapEval covariant composition") { implicit s =>
     check3 { (list: List[Int], f: Int => Int, g: Int => Int) =>
       val r1 = Iterant[Task]
         .fromIterable(list)
@@ -50,21 +50,21 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Task].mapEval equivalence") { implicit s =>
+  test("Iterant[Task].mapEval equivalence") { implicit s =>
     check2 { (list: List[Int], f: Int => Int) =>
       val r = Iterant[Task].fromIterable(list).mapEval(x => Task.evalAsync(f(x))).toListL
       r <-> Task.now(list.map(f))
     }
   }
 
-  testScheduler("Iterant[Task].mapEval equivalence (batched)") { implicit s =>
+  test("Iterant[Task].mapEval equivalence (batched)") { implicit s =>
     check2 { (list: List[Int], f: Int => Int) =>
       val r = Iterant[Task].fromIterable(list).mapEval(x => Task.evalAsync(f(x))).toListL
       r <-> Task.now(list.map(f))
     }
   }
 
-  testScheduler("Iterant[Task].next.mapEval guards against direct user code errors") { implicit s =>
+  test("Iterant[Task].next.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Task].now(1)
     val result = stream.mapEval[Int](_ => throw dummy).toListL.runToFuture
@@ -72,7 +72,7 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Iterant[Task].nextCursor.mapEval guards against direct user code errors") { implicit s =>
+  test("Iterant[Task].nextCursor.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Task].fromList(List(1, 2, 3))
     val result = stream.mapEval[Int](_ => throw dummy).toListL.runToFuture
@@ -80,7 +80,7 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Iterant[Task].next.mapEval guards against indirect user code errors") { implicit s =>
+  test("Iterant[Task].next.mapEval guards against indirect user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Task].now(1)
     val result = stream.mapEval[Int](_ => Task.raiseError(dummy)).toListL.runToFuture
@@ -88,7 +88,7 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Iterant[Task].nextCursor.mapEval guards against indirect user code errors") { implicit s =>
+  test("Iterant[Task].nextCursor.mapEval guards against indirect user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Task].fromList(List(1, 2, 3))
     val result = stream.mapEval[Int](_ => Task.raiseError(dummy)).toListL.runToFuture
@@ -96,7 +96,7 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     assertEquals(result.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Iterant[Task].mapEval should protect against direct exceptions") { implicit s =>
+  test("Iterant[Task].mapEval should protect against direct exceptions") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       var effect = 0
@@ -114,7 +114,7 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Task].mapEval should protect against indirect errors") { implicit s =>
+  test("Iterant[Task].mapEval should protect against indirect errors") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       var effect = 0
@@ -132,7 +132,7 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Task].mapEval should protect against broken batches") { implicit s =>
+  test("Iterant[Task].mapEval should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionCursor(dummy)
@@ -142,7 +142,7 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Task].mapEval should protect against broken generators") { implicit s =>
+  test("Iterant[Task].mapEval should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionBatch(dummy)
@@ -152,14 +152,14 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Coeval].mapEval covariant identity") { implicit s =>
+  test("Iterant[Coeval].mapEval covariant identity") { implicit s =>
     check1 { (list: List[Int]) =>
       val r = Iterant[Coeval].fromIterable(list).mapEval(x => Coeval(x)).toListL
       r <-> Coeval.now(list)
     }
   }
 
-  testScheduler("Iterant[Coeval].mapEval covariant composition") { implicit s =>
+  test("Iterant[Coeval].mapEval covariant composition") { implicit s =>
     check3 { (list: List[Int], f: Int => Int, g: Int => Int) =>
       val r1 = Iterant[Coeval]
         .fromIterable(list)
@@ -176,42 +176,42 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Coeval].mapEval equivalence") { implicit s =>
+  test("Iterant[Coeval].mapEval equivalence") { implicit s =>
     check2 { (list: List[Int], f: Int => Int) =>
       val r = Iterant[Coeval].fromIterable(list).mapEval(x => Coeval(f(x))).toListL
       r <-> Coeval.now(list.map(f))
     }
   }
 
-  testScheduler("Iterant[Coeval].next.mapEval guards against direct user code errors") { implicit s =>
+  test("Iterant[Coeval].next.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Coeval].now(1)
     val result = stream.mapEval[Int](_ => throw dummy).toListL.runTry()
     assertEquals(result, Failure(dummy))
   }
 
-  testScheduler("Iterant[Coeval].nextCursor.mapEval guards against direct user code errors") { implicit s =>
+  test("Iterant[Coeval].nextCursor.mapEval guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Coeval].fromList(List(1, 2, 3))
     val result = stream.mapEval[Int](_ => throw dummy).toListL.runTry()
     assertEquals(result, Failure(dummy))
   }
 
-  testScheduler("Iterant[Coeval].next.mapEval guards against indirect user code errors") { implicit s =>
+  test("Iterant[Coeval].next.mapEval guards against indirect user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Coeval].now(1)
     val result = stream.mapEval[Int](_ => Coeval.raiseError(dummy)).toListL.runTry()
     assertEquals(result, Failure(dummy))
   }
 
-  testScheduler("Iterant[Coeval].nextCursor.mapEval guards against indirect user code errors") { implicit s =>
+  test("Iterant[Coeval].nextCursor.mapEval guards against indirect user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Coeval].fromList(List(1, 2, 3))
     val result = stream.mapEval[Int](_ => Coeval.raiseError(dummy)).toListL.runTry()
     assertEquals(result, Failure(dummy))
   }
 
-  testScheduler("Iterant[Coeval].mapEval should protect against indirect user errors") { implicit s =>
+  test("Iterant[Coeval].mapEval should protect against indirect user errors") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
@@ -222,7 +222,7 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Coeval].mapEval should protect against direct exceptions") { implicit s =>
+  test("Iterant[Coeval].mapEval should protect against direct exceptions") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
@@ -232,7 +232,7 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Coeval].mapEval should protect against broken batches") { implicit s =>
+  test("Iterant[Coeval].mapEval should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor: BatchCursor[Int] = new ThrowExceptionCursor(dummy)
@@ -242,7 +242,7 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Coeval].mapEval should protect against broken generators") { implicit s =>
+  test("Iterant[Coeval].mapEval should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor: Batch[Int] = new ThrowExceptionBatch(dummy)
@@ -252,7 +252,7 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.mapEval suspends the evaluation for NextBatch") { implicit s =>
+  test("Iterant.mapEval suspends the evaluation for NextBatch") { implicit s =>
     val dummy = DummyException("dummy")
     val items = new ThrowExceptionBatch(dummy)
     val iter = Iterant[Task].nextBatchS[Int](items, Task.now(Iterant[Task].empty))
@@ -263,7 +263,7 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     assertEquals(state.toListL.runToFuture.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Iterant.mapEval suspends the evaluation for NextCursor") { implicit s =>
+  test("Iterant.mapEval suspends the evaluation for NextCursor") { implicit s =>
     val dummy = DummyException("dummy")
     val items = new ThrowExceptionCursor(dummy)
     val iter = Iterant[Task].nextCursorS[Int](items, Task.now(Iterant[Task].empty))
@@ -274,7 +274,7 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     assertEquals(state.toListL.runToFuture.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Iterant.mapEval suspends the evaluation for Next") { implicit s =>
+  test("Iterant.mapEval suspends the evaluation for Next") { implicit s =>
     val dummy = DummyException("dummy")
     val iter = Iterant[Task].nextS(1, Task.now(Iterant[Task].empty[Int]))
     val state = iter.mapEval { _ =>
@@ -285,7 +285,7 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     assertEquals(state.toListL.runToFuture.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Iterant.mapEval suspends the evaluation for Last") { implicit s =>
+  test("Iterant.mapEval suspends the evaluation for Last") { implicit s =>
     val dummy = DummyException("dummy")
     val iter = Iterant[Task].lastS(1)
     val state = iter.mapEval { _ =>
@@ -296,7 +296,7 @@ final class IterantMapEvalSuite extends BaseTestSuite {
     assertEquals(state.toListL.runToFuture.value, Some(Failure(dummy)))
   }
 
-  testScheduler("Iterant.mapEval preserves resource safety") { implicit s =>
+  test("Iterant.mapEval preserves resource safety") { implicit s =>
     var effect = 0
     val source = Iterant[Coeval]
       .nextCursorS(BatchCursor(1, 2, 3), Coeval.now(Iterant[Coeval].empty[Int]))

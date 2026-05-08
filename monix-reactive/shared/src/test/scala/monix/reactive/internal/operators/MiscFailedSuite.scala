@@ -29,7 +29,7 @@ class MiscFailedSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should complete") { implicit s =>
+  test("should complete") { implicit s =>
     var received = 0
     var wasCompleted = false
 
@@ -50,7 +50,7 @@ class MiscFailedSuite extends monix.reactive.BaseTestSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("should signal error without back-pressure applied") { implicit s =>
+  test("should signal error without back-pressure applied") { implicit s =>
     var wasCompleted = false
     var thrown: Throwable = null
     val p = Promise[Continue.type]()

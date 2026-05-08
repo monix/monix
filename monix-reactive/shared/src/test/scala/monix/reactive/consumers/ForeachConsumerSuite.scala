@@ -28,7 +28,7 @@ class ForeachConsumerSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should sum a long stream") { implicit s =>
+  test("should sum a long stream") { implicit s =>
     val count = 10000L
     val obs = Observable.range(0, count)
     var sum = 0L
@@ -39,7 +39,7 @@ class ForeachConsumerSuite extends monix.reactive.BaseTestSuite {
     assertEquals(sum, count * (count - 1) / 2)
   }
 
-  testScheduler("should interrupt with error") { implicit s =>
+  test("should interrupt with error") { implicit s =>
     val ex = DummyException("dummy")
     val obs = Observable.range(0, 10000).endWithError(ex)
     var sum = 0L
@@ -49,7 +49,7 @@ class ForeachConsumerSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  testScheduler("should protect against user error") { implicit s =>
+  test("should protect against user error") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable
       .now(1)

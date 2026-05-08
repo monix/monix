@@ -27,7 +27,7 @@ class ChainedObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("plain suspend") { implicit s =>
+  test("plain suspend") { implicit s =>
     def loop[A](n: Int): Observable[Int] =
       Observable.suspend {
         if (n > 0) loop(n - 1) else Observable.now(111)
@@ -39,7 +39,7 @@ class ChainedObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(Some(111))))
   }
 
-  testScheduler("concat") { implicit s =>
+  test("concat") { implicit s =>
     def loop[A](n: Long): Observable[Long] =
       Observable.now(n) ++ Observable.suspend {
         if (n <= 0) Observable.empty

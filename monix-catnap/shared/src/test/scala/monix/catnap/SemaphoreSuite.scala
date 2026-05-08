@@ -68,7 +68,7 @@ class SemaphoreSuite extends TestSchedulerSuite {
     assertEquals(semaphore.available.unsafeRunSync(), 2)
   }
 
-  testAsync("real async test of many futures") { _ =>
+  test("real async test of many futures") { _ =>
     // Executing Futures on the global scheduler!
     import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -146,7 +146,7 @@ class SemaphoreSuite extends TestSchedulerSuite {
     assert(!p3.isCompleted, "!p3.isCompleted")
   }
 
-  testAsync("withPermitN / awaitAvailable concurrent test") { _ =>
+  test("withPermitN / awaitAvailable concurrent test") { _ =>
     // Executing Futures on the global scheduler!
     import scala.concurrent.ExecutionContext.Implicits.global
 

@@ -79,7 +79,7 @@ class BufferTimedOrCountedSuite extends BaseOperatorSuite {
     Seq(Sample(o, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("should emit buffer onComplete") { implicit s =>
+  test("should emit buffer onComplete") { implicit s =>
     val sourceCount = 157
 
     val obs = Observable
@@ -110,7 +110,7 @@ class BufferTimedOrCountedSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("should throw on negative timespan") { implicit s =>
+  test("should throw on negative timespan") { implicit s =>
     intercept[IllegalArgumentException] {
       Observable
         .intervalAtFixedRate(100.millis)
@@ -120,7 +120,7 @@ class BufferTimedOrCountedSuite extends BaseOperatorSuite {
     ()
   }
 
-  testScheduler("should not do back-pressure for onComplete, for 1 element") { implicit s =>
+  test("should not do back-pressure for onComplete, for 1 element") { implicit s =>
     val p = Promise[Continue.type]()
     var wasCompleted = false
 

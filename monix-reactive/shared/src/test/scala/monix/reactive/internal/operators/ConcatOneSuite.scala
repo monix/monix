@@ -92,7 +92,7 @@ class ConcatOneSuite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("should work synchronously for synchronous observers") { implicit s =>
+  test("should work synchronously for synchronous observers") { implicit s =>
     val sourceCount = Random.nextInt(300) + 100
     var received = 0
     var total = 0L
@@ -120,7 +120,7 @@ class ConcatOneSuite extends BaseOperatorSuite {
     }
   }
 
-  testScheduler("filter can be expressed in terms of flatMap") { implicit s =>
+  test("filter can be expressed in terms of flatMap") { implicit s =>
     val obs1 = Observable.range(0, 100).filter(_ % 2 == 0)
     val obs2 = Observable.range(0, 100).flatMap(x => if (x % 2 == 0) now(x) else empty)
 
@@ -132,7 +132,7 @@ class ConcatOneSuite extends BaseOperatorSuite {
     assertEquals(lst1.value.get, lst2.value.get)
   }
 
-  testScheduler("filterEval can be expressed in terms of flatMap") { implicit s =>
+  test("filterEval can be expressed in terms of flatMap") { implicit s =>
     val obs1 = Observable.range(0, 100).filterEval(i => Task.pure(i % 2 == 0))
     val obs2 = Observable.range(0, 100).flatMap(x => if (x % 2 == 0) now(x) else empty)
 
@@ -144,7 +144,7 @@ class ConcatOneSuite extends BaseOperatorSuite {
     assertEquals(lst1.value.get, lst2.value.get)
   }
 
-  testScheduler("filterEvalF can be expressed in terms of flatMap") { implicit s =>
+  test("filterEvalF can be expressed in terms of flatMap") { implicit s =>
     val obs1 = Observable.range(0, 100).filterEvalF[Try](i => Try(i % 2 == 0))
     val obs2 = Observable.range(0, 100).flatMap(x => if (x % 2 == 0) now(x) else empty)
 
@@ -156,7 +156,7 @@ class ConcatOneSuite extends BaseOperatorSuite {
     assertEquals(lst1.value.get, lst2.value.get)
   }
 
-  testScheduler("map can be expressed in terms of flatMap") { implicit s =>
+  test("map can be expressed in terms of flatMap") { implicit s =>
     val obs1 = Observable.range(0, 100).map(_ + 10)
     val obs2 = Observable.range(0, 100).flatMap(x => now(x + 10))
 
@@ -168,7 +168,7 @@ class ConcatOneSuite extends BaseOperatorSuite {
     assertEquals(lst1.value.get, lst2.value.get)
   }
 
-  testScheduler("should wait the completion of the current, before subscribing to the next") { implicit s =>
+  test("should wait the completion of the current, before subscribing to the next") { implicit s =>
     var obs2WasStarted = false
     var received = 0L
     var wasCompleted = false
@@ -211,7 +211,7 @@ class ConcatOneSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("should interrupt the streaming on error") { implicit s =>
+  test("should interrupt the streaming on error") { implicit s =>
     var obs1WasStarted = false
     var obs2WasStarted = false
     var wasThrown: Throwable = null
@@ -242,7 +242,7 @@ class ConcatOneSuite extends BaseOperatorSuite {
     assert(!obs2WasStarted)
   }
 
-  testScheduler("should not break the contract on user-level error #2") { implicit s =>
+  test("should not break the contract on user-level error #2") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
 
@@ -277,7 +277,7 @@ class ConcatOneSuite extends BaseOperatorSuite {
     assertEquals(onErrorReceived, 1)
   }
 
-  testScheduler("should not break the contract on user-level error #3") { implicit s =>
+  test("should not break the contract on user-level error #3") { implicit s =>
     val dummy1 = DummyException("dummy1")
     val dummy2 = DummyException("dummy2")
 
@@ -312,7 +312,7 @@ class ConcatOneSuite extends BaseOperatorSuite {
     assertEquals(onErrorReceived, 1)
   }
 
-  testScheduler("exceptions can be triggered synchronously by throw") { implicit s =>
+  test("exceptions can be triggered synchronously by throw") { implicit s =>
     val dummy = DummyException("dummy")
     val source = Observable.now(1L).flatMap(_ => throw dummy)
 
@@ -323,7 +323,7 @@ class ConcatOneSuite extends BaseOperatorSuite {
     assertEquals(s.state.lastReportedError, null)
   }
 
-  testScheduler("exceptions can be triggered synchronously through raiseError") { implicit s =>
+  test("exceptions can be triggered synchronously through raiseError") { implicit s =>
     val dummy = DummyException("dummy")
     val source = Observable.now(1L).flatMap(_ => Observable.raiseError(dummy))
 

@@ -77,13 +77,13 @@ class ScanEffectSuite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("scanEval0.headL.to[IO] <-> seed") { implicit s =>
+  test("scanEval0.headL.to[IO] <-> seed") { implicit s =>
     check2 { (obs: Observable[Int], seed: IO[Int]) =>
       obs.scanEval0F(seed)((a, b) => IO.pure(a + b)).headL.to[IO] <-> seed
     }
   }
 
-  testScheduler("scanEval0.drop(1) <-> scanEval") { implicit s =>
+  test("scanEval0.drop(1) <-> scanEval") { implicit s =>
     check2 { (obs: Observable[Int], seed: IO[Int]) =>
       obs.scanEval0F(seed)((a, b) => IO.pure(a + b)).drop(1) <-> obs.scanEvalF(seed)((a, b) => IO.pure(a + b))
     }

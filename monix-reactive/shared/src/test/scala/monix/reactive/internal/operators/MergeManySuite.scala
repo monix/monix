@@ -65,7 +65,7 @@ class MergeManySuite extends BaseOperatorSuite {
     )
   }
 
-  testScheduler("mergeMap should be cancelable after main stream has finished") { implicit s =>
+  test("mergeMap should be cancelable after main stream has finished") { implicit s =>
     val source = Observable.now(1L).concatMap { x =>
       Observable.intervalWithFixedDelay(1.second, 1.second).map(_ + x)
     }

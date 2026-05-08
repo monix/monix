@@ -26,7 +26,7 @@ import monix.tail.batches.BatchCursor
 import scala.util.{ Failure, Success }
 
 final class IterantFlatMapSuite extends BaseTestSuite {
-  testScheduler("Iterant[Task].flatMap equivalence with List.flatMap") { implicit s =>
+  test("Iterant[Task].flatMap equivalence with List.flatMap") { implicit s =>
     check2 { (stream: Iterant[Task, Int], f: Int => List[Long]) =>
       val result = stream.flatMap(x => Iterant[Task].fromList(f(x))).toListL
       val expected = stream.toListL.map((list: List[Int]) => list.flatMap(f))
@@ -34,13 +34,13 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Task].flatMap can handle errors") { implicit s =>
+  test("Iterant[Task].flatMap can handle errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Task].raiseError[Int](dummy)
     assertEquals(stream, stream.flatMap(x => Iterant[Task].of(x)))
   }
 
-  testScheduler("Iterant[Task].next.flatMap guards against direct user code errors") { implicit s =>
+  test("Iterant[Task].next.flatMap guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
@@ -54,7 +54,7 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  testScheduler("Iterant[Task].nextCursor.flatMap guards against direct user code errors") { implicit s =>
+  test("Iterant[Task].nextCursor.flatMap guards against direct user code errors") { implicit s =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
@@ -68,7 +68,7 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  testScheduler("Iterant[Task].next.flatMap chains stop") { implicit s =>
+  test("Iterant[Task].next.flatMap chains stop") { implicit s =>
     var effects = Vector.empty[Int]
     val stop1T = Task.eval { effects = effects :+ 1 }
     val stream1: Iterant[Task, Int] =
@@ -91,7 +91,7 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     assertEquals(effects, Vector(3, 2, 1))
   }
 
-  testScheduler("Iterant[Task].nextCursor.flatMap works for large lists") { implicit s =>
+  test("Iterant[Task].nextCursor.flatMap works for large lists") { implicit s =>
     val count = 100000
     val list = (0 until count).toList
     val sumTask = Iterant[Task]
@@ -103,7 +103,7 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Success(3 * (count.toLong * (count - 1) / 2))))
   }
 
-  testScheduler("Iterant[Task].flatMap should protect against indirect user errors") { implicit s =>
+  test("Iterant[Task].flatMap should protect against indirect user errors") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
@@ -113,7 +113,7 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Task].flatMap should protect against direct exceptions") { implicit s =>
+  test("Iterant[Task].flatMap should protect against direct exceptions") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
@@ -123,7 +123,7 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Task].flatMap should protect against broken batches") { implicit s =>
+  test("Iterant[Task].flatMap should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionCursor(dummy)
@@ -133,7 +133,7 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Task].flatMap should protect against broken generators") { implicit s =>
+  test("Iterant[Task].flatMap should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val generator = new ThrowExceptionBatch(dummy)
@@ -143,7 +143,7 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Coeval].flatMap equivalence with List.flatMap") { implicit s =>
+  test("Iterant[Coeval].flatMap equivalence with List.flatMap") { implicit s =>
     check2 { (stream: Iterant[Coeval, Int], f: Int => List[Long]) =>
       val result = stream.flatMap(x => Iterant[Coeval].fromList(f(x))).toListL
       val expected = stream.toListL.map((list: List[Int]) => list.flatMap(f))
@@ -151,13 +151,13 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Coeval].flatMap can handle errors") { implicit s =>
+  test("Iterant[Coeval].flatMap can handle errors") { implicit s =>
     val dummy = DummyException("dummy")
     val stream = Iterant[Coeval].raiseError[Int](dummy)
     assertEquals(stream, stream.flatMap(x => Iterant[Coeval].pure(x)))
   }
 
-  testScheduler("Iterant[Coeval].next.flatMap guards against direct user code errors") { _ =>
+  test("Iterant[Coeval].next.flatMap guards against direct user code errors") { _ =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
@@ -168,7 +168,7 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  testScheduler("Iterant[Coeval].nextCursor.flatMap guards against direct user code errors") { _ =>
+  test("Iterant[Coeval].nextCursor.flatMap guards against direct user code errors") { _ =>
     val dummy = DummyException("dummy")
     var isCanceled = false
 
@@ -181,7 +181,7 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     assert(isCanceled, "isCanceled should be true")
   }
 
-  testScheduler("Iterant[Coeval].next.flatMap chains stop") { implicit s =>
+  test("Iterant[Coeval].next.flatMap chains stop") { implicit s =>
     var effects = Vector.empty[Int]
     val stop1T = Coeval.eval { effects = effects :+ 1 }
     val stream1: Iterant[Coeval, Int] =
@@ -203,7 +203,7 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     assertEquals(effects, Vector(3, 2, 1))
   }
 
-  testScheduler("Iterant[Coeval].flatMap should protect against indirect user errors") { implicit s =>
+  test("Iterant[Coeval].flatMap should protect against indirect user errors") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
@@ -213,7 +213,7 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Coeval].flatMap should protect against direct exceptions") { implicit s =>
+  test("Iterant[Coeval].flatMap should protect against direct exceptions") { implicit s =>
     check2 { (l: List[Int], idx: Int) =>
       val dummy = DummyException("dummy")
       val list = if (l.isEmpty) List(1) else l
@@ -223,7 +223,7 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Coeval].flatMap should protect against broken batches") { implicit s =>
+  test("Iterant[Coeval].flatMap should protect against broken batches") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionCursor(dummy)
@@ -233,7 +233,7 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant[Coeval].flatMap should protect against broken generators") { implicit s =>
+  test("Iterant[Coeval].flatMap should protect against broken generators") { implicit s =>
     check1 { (prefix: Iterant[Coeval, Int]) =>
       val dummy = DummyException("dummy")
       val cursor = new ThrowExceptionBatch(dummy)
@@ -243,25 +243,25 @@ final class IterantFlatMapSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.unsafeFlatMap <-> flatMap for pure iterants") { implicit s =>
+  test("Iterant.unsafeFlatMap <-> flatMap for pure iterants") { implicit s =>
     check2 { (iter: Iterant[Coeval, Int], f: Int => Iterant[Coeval, Int]) =>
       iter.unsafeFlatMap(f) <-> iter.flatMap(f)
     }
   }
 
-  testScheduler("Iterant.concatMap is alias of flatMap") { implicit s =>
+  test("Iterant.concatMap is alias of flatMap") { implicit s =>
     check2 { (iter: Iterant[Coeval, Int], f: Int => Iterant[Coeval, Int]) =>
       iter.flatMap(f) <-> iter.concatMap(f)
     }
   }
 
-  testScheduler("Iterant.concat is alias of flatten") { implicit s =>
+  test("Iterant.concat is alias of flatten") { implicit s =>
     check2 { (iter: Iterant[Coeval, Int], f: Int => Iterant[Coeval, Int]) =>
       iter.map(f).flatten <-> iter.map(f).concat
     }
   }
 
-  testScheduler("fa.map(f).flatten <-> fa.flatMap(f)") { implicit s =>
+  test("fa.map(f).flatten <-> fa.flatMap(f)") { implicit s =>
     check2 { (iter: Iterant[Coeval, Int], f: Int => Iterant[Coeval, Int]) =>
       iter.map(f).flatten <-> iter.flatMap(f)
     }

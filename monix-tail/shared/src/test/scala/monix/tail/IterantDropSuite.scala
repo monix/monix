@@ -34,7 +34,7 @@ final class IterantDropSuite extends BaseTestSuite {
       Test.Parameters.default.withMaxSize(32)
   }
 
-  testScheduler("Iterant[Task].drop equivalence with List.drop") { implicit s =>
+  test("Iterant[Task].drop equivalence with List.drop") { implicit s =>
     check3 { (list: List[Int], idx: Int, nr: Int) =>
       val iter = arbitraryListToIterant[Task, Int](list, math.abs(idx) + 1, allowErrors = false)
       val stream = iter ++ Iterant[Task].of(1, 2, 3)
@@ -43,7 +43,7 @@ final class IterantDropSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.drop protects against broken batches") { implicit s =>
+  test("Iterant.drop protects against broken batches") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextBatchS[Int](new ThrowExceptionBatch(dummy), Task.now(Iterant[Task].empty))
@@ -53,7 +53,7 @@ final class IterantDropSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.drop protects against broken cursors") { implicit s =>
+  test("Iterant.drop protects against broken cursors") { implicit s =>
     check1 { (iter: Iterant[Task, Int]) =>
       val dummy = DummyException("dummy")
       val suffix = Iterant[Task].nextCursorS[Int](new ThrowExceptionCursor(dummy), Task.now(Iterant[Task].empty))
@@ -63,7 +63,7 @@ final class IterantDropSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.drop preserves resource safety") { implicit s =>
+  test("Iterant.drop preserves resource safety") { implicit s =>
     var effect = 0
     val stop = Coeval.eval(effect += 1)
     val source = Iterant[Coeval]
@@ -74,7 +74,7 @@ final class IterantDropSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("NextBatch.drop preserves referential transparency") { implicit s =>
+  test("NextBatch.drop preserves referential transparency") { implicit s =>
     var effect = 0
     val batch = Batch.fromIterable(new Iterable[Int] {
       def iterator: Iterator[Int] = {
@@ -89,7 +89,7 @@ final class IterantDropSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("NextCursor.drop preserves referential transparency") { implicit s =>
+  test("NextCursor.drop preserves referential transparency") { implicit s =>
     var effect = 0
     val cursor = BatchCursor.fromIterator(new Iterator[Int] {
       val i = Iterator(1, 2)

@@ -30,11 +30,11 @@ import scala.concurrent.{ blocking, Await, Future, Promise }
 import scala.util.Random
 
 class OverflowStrategyUnboundedConcurrencySuite extends monix.execution.SchedulerServiceSuite {
-  def createSchedulerService() = {
+  def setup() = {
     Scheduler.computation(parallelism = 4, name = "for-testing")
   }
 
-  testService("merge test should work") { implicit s =>
+  test("merge test should work") { implicit s =>
     val num = 200000L
     val source = Observable.repeat(1L).take(num)
     val o1 = source.map(_ + 2)
@@ -51,7 +51,7 @@ class OverflowStrategyUnboundedConcurrencySuite extends monix.execution.Schedule
     assertEquals(result, Some(num * 3 + num * 4 + num * 5))
   }
 
-  testService("should not lose events with sync subscriber, test 1") { implicit s =>
+  test("should not lose events with sync subscriber, test 1") { implicit s =>
     var number = 0
     val completed = new CountDownLatch(1)
 
@@ -80,7 +80,7 @@ class OverflowStrategyUnboundedConcurrencySuite extends monix.execution.Schedule
     }
   }
 
-  testService("should not lose events with sync subscriber, test 2") { implicit s =>
+  test("should not lose events with sync subscriber, test 2") { implicit s =>
     var number = 0
     val completed = new CountDownLatch(1)
 
@@ -114,7 +114,7 @@ class OverflowStrategyUnboundedConcurrencySuite extends monix.execution.Schedule
     }
   }
 
-  testService("should not lose events with async subscriber from one publisher") { implicit s =>
+  test("should not lose events with async subscriber from one publisher") { implicit s =>
     // Repeating because of possible problems
     for (_ <- 0 until 100) {
       val completed = new CountDownLatch(1)
@@ -162,7 +162,7 @@ class OverflowStrategyUnboundedConcurrencySuite extends monix.execution.Schedule
     }
   }
 
-  testService("should not lose events with async subscriber from multiple publishers") { implicit s =>
+  test("should not lose events with async subscriber from multiple publishers") { implicit s =>
     val completed = new CountDownLatch(1)
     val total = 1000000L
     var sum = 0L
@@ -210,7 +210,7 @@ class OverflowStrategyUnboundedConcurrencySuite extends monix.execution.Schedule
     }
   }
 
-  testService("should send onError when empty") { implicit s =>
+  test("should send onError when empty") { implicit s =>
     val latch = new CountDownLatch(1)
     val underlying = new Observer[Int] {
       def onError(ex: Throwable) = {
@@ -229,7 +229,7 @@ class OverflowStrategyUnboundedConcurrencySuite extends monix.execution.Schedule
     }
   }
 
-  testService("should send onError when in flight") { implicit s =>
+  test("should send onError when in flight") { implicit s =>
     val latch = new CountDownLatch(1)
     val underlying = new Observer[Int] {
       def onError(ex: Throwable) = {
@@ -249,7 +249,7 @@ class OverflowStrategyUnboundedConcurrencySuite extends monix.execution.Schedule
     }
   }
 
-  testService("should send onComplete when empty") { implicit s =>
+  test("should send onComplete when empty") { implicit s =>
     val latch = new CountDownLatch(1)
     val underlying = new Observer[Int] {
       def onError(ex: Throwable) = throw new IllegalStateException()
@@ -265,7 +265,7 @@ class OverflowStrategyUnboundedConcurrencySuite extends monix.execution.Schedule
     }
   }
 
-  testService("should not back-pressure onComplete") { implicit s =>
+  test("should not back-pressure onComplete") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
     val underlying = new Observer[Int] {
@@ -283,7 +283,7 @@ class OverflowStrategyUnboundedConcurrencySuite extends monix.execution.Schedule
     }
   }
 
-  testService("should do onComplete only after all the queue was drained") { implicit s =>
+  test("should do onComplete only after all the queue was drained") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue.type]()
@@ -308,7 +308,7 @@ class OverflowStrategyUnboundedConcurrencySuite extends monix.execution.Schedule
     }
   }
 
-  testService("should do onComplete only after all the queue was drained, test2") { implicit s =>
+  test("should do onComplete only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
     val underlying = new Observer[Long] {
@@ -331,7 +331,7 @@ class OverflowStrategyUnboundedConcurrencySuite extends monix.execution.Schedule
     }
   }
 
-  testService("should do onError only after the queue was drained") { implicit s =>
+  test("should do onError only after the queue was drained") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue.type]()
@@ -357,7 +357,7 @@ class OverflowStrategyUnboundedConcurrencySuite extends monix.execution.Schedule
     }
   }
 
-  testService("should do onError only after all the queue was drained, test2") { implicit s =>
+  test("should do onError only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
 

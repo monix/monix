@@ -25,7 +25,7 @@ import monix.reactive.{ BaseTestSuite, Consumer, Observable }
 import scala.util.Failure
 
 class MapEvalConsumerSuite extends monix.reactive.BaseTestSuite {
-  testScheduler("consumer.mapEval equivalence with task.map") { implicit s =>
+  test("consumer.mapEval equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
       val t1 = obs.consumeWith(consumer.mapEval(x => IO(x + 100)))
@@ -34,7 +34,7 @@ class MapEvalConsumerSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("consumer.mapEval streams error") { implicit s =>
+  test("consumer.mapEval streams error") { implicit s =>
     check2 { (obs: Observable[Int], ex: Throwable) =>
       val withError = obs.endWithError(ex)
       val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
@@ -45,7 +45,7 @@ class MapEvalConsumerSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("consumer.mapEval handles task errors") { implicit s =>
+  test("consumer.mapEval handles task errors") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].mapEval(_ => IO.raiseError(ex)))
@@ -55,7 +55,7 @@ class MapEvalConsumerSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  testScheduler("consumer.mapEval protects against user code") { implicit s =>
+  test("consumer.mapEval protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].mapEval(_ => (throw ex): IO[Int]))
@@ -65,7 +65,7 @@ class MapEvalConsumerSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Failure(ex)))
   }
 
-  testScheduler("consumer.mapEval(sync) equivalence with task.map") { implicit s =>
+  test("consumer.mapEval(sync) equivalence with task.map") { implicit s =>
     check1 { (obs: Observable[Int]) =>
       val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
       val t1 = obs.consumeWith(consumer.mapEval(x => IO(x + 100)))
@@ -74,7 +74,7 @@ class MapEvalConsumerSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("consumer.mapEval(sync) streams error") { implicit s =>
+  test("consumer.mapEval(sync) streams error") { implicit s =>
     check2 { (obs: Observable[Int], ex: Throwable) =>
       val withError = obs.endWithError(ex)
       val consumer = Consumer.foldLeft[Long, Int](0L)(_ + _)
@@ -85,7 +85,7 @@ class MapEvalConsumerSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("consumer.mapEval(sync) protects against user code") { implicit s =>
+  test("consumer.mapEval(sync) protects against user code") { implicit s =>
     val ex = DummyException("dummy")
     val f = Observable(1)
       .consumeWith(Consumer.head[Int].mapEval(_ => IO(throw ex)))

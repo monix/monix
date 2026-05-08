@@ -24,7 +24,7 @@ import scala.concurrent.Future
 import scala.util.Success
 
 class ObserverFeedSuite extends monix.reactive.BaseTestSuite {
-  testScheduler("feed synchronous iterable") { implicit s =>
+  test("feed synchronous iterable") { implicit s =>
     check1 { (xs: List[Int]) =>
       var sum = 0
       val downstream = new Observer.Sync[Int] {
@@ -43,7 +43,7 @@ class ObserverFeedSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("feed asynchronous iterable") { implicit s =>
+  test("feed asynchronous iterable") { implicit s =>
     check1 { (xs: List[Int]) =>
       var sum = 0
       val downstream = new Observer[Int] {
@@ -62,7 +62,7 @@ class ObserverFeedSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("stop observable synchronously") { implicit s =>
+  test("stop observable synchronously") { implicit s =>
     check1 { (xs: List[Int]) =>
       var sum = 0
       val downstream = new Observer.Sync[Int] {
@@ -79,7 +79,7 @@ class ObserverFeedSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("stop observable asynchronously") { implicit s =>
+  test("stop observable asynchronously") { implicit s =>
     check1 { (xs: List[Int]) =>
       var sum = 0
       val downstream = new Observer[Int] {
@@ -96,7 +96,7 @@ class ObserverFeedSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("should be cancelable") { implicit s =>
+  test("should be cancelable") { implicit s =>
     check1 { (xs: List[Int]) =>
       var sum = 0
       val downstream = new Observer[Int] {
@@ -116,7 +116,7 @@ class ObserverFeedSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("synchronous feed should be stack safe") { implicit s =>
+  test("synchronous feed should be stack safe") { implicit s =>
     val total = 100000000
     val iterator = Iterator.range(0, total)
     var received = 0

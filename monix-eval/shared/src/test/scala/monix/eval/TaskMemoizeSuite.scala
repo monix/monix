@@ -652,7 +652,7 @@ class TaskMemoizeSuite extends BaseTestSuite {
     assertNotEquals(task, task.memoize, clue("task != task.memoize"))
   }
 
-  testAsync("local.write.memoize works") { _ =>
+  test("local.write.memoize works") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 
@@ -673,7 +673,7 @@ class TaskMemoizeSuite extends BaseTestSuite {
     }
   }
 
-  testAsync("Task.memoize doesn't corrupt Local (issue #856)") { _ =>
+  test("Task.memoize doesn't corrupt Local (issue #856)") { _ =>
     import monix.execution.Scheduler.Implicits.global
     implicit val opts = Task.defaultOptions.enableLocalContextPropagation
 

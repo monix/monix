@@ -99,7 +99,7 @@ class MVarFullJVMParallelism4Suite extends BaseMVarJVMSuite(4) {
 // -----------------------------------------------------------------
 
 abstract class BaseMVarJVMSuite(parallelism: Int) extends SchedulerServiceSuite with TestUtils {
-  def createSchedulerService(): SchedulerService =
+  def setup(): SchedulerService =
     Scheduler.computation(
       name = s"mvar-suite-par-$parallelism",
       parallelism = parallelism
@@ -122,7 +122,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends SchedulerServiceSuite 
 
   // ----------------------------------------------------------------------------
 
-  testService("MVar (concurrent) — issue #380: producer keeps its thread, consumer stays forked") { implicit ec =>
+  test("MVar (concurrent) — issue #380: producer keeps its thread, consumer stays forked") { implicit ec =>
     for (_ <- 0 until iterations) {
       val name = Thread.currentThread().getName
 
@@ -146,7 +146,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends SchedulerServiceSuite 
     }
   }
 
-  testService("MVar (concurrent) — issue #380: with foreverM; with latch") { implicit ec =>
+  test("MVar (concurrent) — issue #380: with foreverM; with latch") { implicit ec =>
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -169,7 +169,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends SchedulerServiceSuite 
     }
   }
 
-  testService("MVar (concurrent) — issue #380: with foreverM; without latch") { implicit ec =>
+  test("MVar (concurrent) — issue #380: with foreverM; without latch") { implicit ec =>
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -190,7 +190,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends SchedulerServiceSuite 
     }
   }
 
-  testService("MVar (concurrent) — issue #380: with cooperative light async boundaries; with latch") { implicit ec =>
+  test("MVar (concurrent) — issue #380: with cooperative light async boundaries; with latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -211,7 +211,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends SchedulerServiceSuite 
     }
   }
 
-  testService("MVar (concurrent) — issue #380: with cooperative light async boundaries; without latch") { implicit ec =>
+  test("MVar (concurrent) — issue #380: with cooperative light async boundaries; without latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -230,7 +230,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends SchedulerServiceSuite 
     }
   }
 
-  testService("MVar (concurrent) — issue #380: with cooperative full async boundaries; with latch") { implicit ec =>
+  test("MVar (concurrent) — issue #380: with cooperative full async boundaries; with latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
@@ -251,7 +251,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends SchedulerServiceSuite 
     }
   }
 
-  testService("MVar (concurrent) — issue #380: with cooperative full async boundaries; without latch") { implicit ec =>
+  test("MVar (concurrent) — issue #380: with cooperative full async boundaries; without latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
@@ -270,7 +270,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends SchedulerServiceSuite 
     }
   }
 
-  testService("MVar (async) — issue #380: producer keeps its thread, consumer stays forked") { implicit ec =>
+  test("MVar (async) — issue #380: producer keeps its thread, consumer stays forked") { implicit ec =>
     for (_ <- 0 until iterations) {
       val name = Thread.currentThread().getName
 
@@ -294,7 +294,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends SchedulerServiceSuite 
     }
   }
 
-  testService("MVar (async) — issue #380: with foreverM; with latch") { implicit ec =>
+  test("MVar (async) — issue #380: with foreverM; with latch") { implicit ec =>
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -317,7 +317,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends SchedulerServiceSuite 
     }
   }
 
-  testService("MVar (async) — issue #380: with foreverM; without latch") { implicit ec =>
+  test("MVar (async) — issue #380: with foreverM; without latch") { implicit ec =>
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -338,7 +338,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends SchedulerServiceSuite 
     }
   }
 
-  testService("MVar (async) — issue #380: with cooperative light async boundaries; with latch") { implicit ec =>
+  test("MVar (async) — issue #380: with cooperative light async boundaries; with latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -359,7 +359,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends SchedulerServiceSuite 
     }
   }
 
-  testService("MVar (async) — issue #380: with cooperative light async boundaries; without latch") { implicit ec =>
+  test("MVar (async) — issue #380: with cooperative light async boundaries; without latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -378,7 +378,7 @@ abstract class BaseMVarJVMSuite(parallelism: Int) extends SchedulerServiceSuite 
     }
   }
 
-  testService("MVar (async) — issue #380: with cooperative full async boundaries; with latch") { implicit ec =>
+  test("MVar (async) — issue #380: with cooperative full async boundaries; with latch") { implicit ec =>
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)

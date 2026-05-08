@@ -38,7 +38,7 @@ final class IterantConsumeSuite extends BaseTestSuite {
     }
   }
 
-  testSchedulerAsync("iterant.pushToChannel (simple)") { _ =>
+  test("iterant.pushToChannel (simple)") { _ =>
     implicit val ec: Scheduler = Scheduler.Implicits.global
     val stream = Iterant[Task].range(0, iterationsCount)
 
@@ -54,7 +54,7 @@ final class IterantConsumeSuite extends BaseTestSuite {
     task.runToFuture
   }
 
-  testSchedulerAsync("iterant.pushToChannel (arbitrary)") { _ =>
+  test("iterant.pushToChannel (arbitrary)") { _ =>
     implicit val ec: Scheduler = Scheduler.Implicits.global
 
     def loop(times: Int): Future[Unit] = {
@@ -80,7 +80,7 @@ final class IterantConsumeSuite extends BaseTestSuite {
     loop(100)
   }
 
-  testSchedulerAsync("iterant.consume (pull)") { _ =>
+  test("iterant.consume (pull)") { _ =>
     implicit val ec: Scheduler = Scheduler.Implicits.global
     val list = Range(0, iterationsCount).toList
     val source = arbitraryListToIterant[Task, Int](list, Random.nextInt(), allowErrors = false)
@@ -91,7 +91,7 @@ final class IterantConsumeSuite extends BaseTestSuite {
     task.runToFuture
   }
 
-  testSchedulerAsync("iterant.consume (pullMany)") { _ =>
+  test("iterant.consume (pullMany)") { _ =>
     implicit val ec: Scheduler = Scheduler.Implicits.global
     val list = Range(0, iterationsCount).toList
     val source = arbitraryListToIterant[Task, Int](list, Random.nextInt(), allowErrors = false)
@@ -102,7 +102,7 @@ final class IterantConsumeSuite extends BaseTestSuite {
     task.runToFuture
   }
 
-  testSchedulerAsync("Iterant.channel") { _ =>
+  test("Iterant.channel") { _ =>
     implicit val ec: Scheduler = Scheduler.Implicits.global
 
     val task = Iterant[Task].channel[Int]().flatMap {

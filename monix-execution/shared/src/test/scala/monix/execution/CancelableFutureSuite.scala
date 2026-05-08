@@ -21,7 +21,7 @@ import monix.execution.cancelables.{ BooleanCancelable, ChainedCancelable }
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Failure, Success, Try }
 
@@ -697,4 +697,85 @@ class CancelableFutureSuite extends MUnitFixtureSuite[TestScheduler] {
     s.tick()
     assertEquals(fa2.value, Some(Failure(dummy2)))
   }
+//
+//  test("race returns left when first wins and cancels second") { implicit s =>
+//    val secondCanceled = BooleanCancelable()
+//    val fa = CancelableFuture.delayedResult(1.second)(1)
+//    val fb = CancelableFuture(CancelableFuture.never[Int], secondCanceled)
+//    val raced = CancelableFuture.race(fa, fb)
+//
+//    assertEquals(raced.value, None)
+//    s.tick(1.second)
+//    assertEquals(raced.value, Some(Success(Left(1))))
+//    assert(secondCanceled.isCanceled, "secondCanceled.isCanceled")
+//  }
+//
+//  test("race returns right when second wins and cancels first") { implicit s =>
+//    val firstCanceled = BooleanCancelable()
+//    val fa = CancelableFuture(CancelableFuture.never[Int], firstCanceled)
+//    val fb = CancelableFuture.delayedResult(1.second)(2)
+//    val raced = CancelableFuture.race(fa, fb)
+//
+//    assertEquals(raced.value, None)
+//    s.tick(1.second)
+//    assertEquals(raced.value, Some(Success(Right(2))))
+//    assert(firstCanceled.isCanceled, "firstCanceled.isCanceled")
+//  }
+//
+//  test("race propagates failure from winner and cancels loser") { implicit s =>
+//    val ex = DummyException("dummy")
+//    val secondCanceled = BooleanCancelable()
+//    val fa = CancelableFuture.delayedResult(1.second)(throw ex)
+//    val fb = CancelableFuture(CancelableFuture.never[Int], secondCanceled)
+//    val raced = CancelableFuture.race(fa, fb)
+//
+//    assertEquals(raced.value, None)
+//    s.tick(1.second)
+//    assertEquals(raced.value, Some(Failure(ex)))
+//    assert(secondCanceled.isCanceled, "secondCanceled.isCanceled")
+//  }
+//
+//  test("race cancel cancels both participants") { implicit s =>
+//    val firstCanceled = BooleanCancelable()
+//    val secondCanceled = BooleanCancelable()
+//    val fa = CancelableFuture(CancelableFuture.never[Int], firstCanceled)
+//    val fb = CancelableFuture(CancelableFuture.never[Int], secondCanceled)
+//    val raced = CancelableFuture.race(fa, fb)
+//
+//    raced.cancel()
+//    assert(firstCanceled.isCanceled, "firstCanceled.isCanceled")
+//    assert(secondCanceled.isCanceled, "secondCanceled.isCanceled")
+//  }
+//
+//  test("timeout returns success when source finishes in time") { implicit s =>
+//    val fa = CancelableFuture.delayedResult(1.second)(1).timeout(2.seconds)
+//
+//    assertEquals(fa.value, None)
+//    s.tick(1.second)
+//    assertEquals(fa.value, Some(Success(1)))
+//  }
+//
+//  test("timeout fails with TimeoutException and cancels source on timeout") { implicit s =>
+//    val sourceCanceled = BooleanCancelable()
+//    val source = CancelableFuture(CancelableFuture.never[Int], sourceCanceled)
+//    val timed = source.timeout(1.second)
+//
+//    assertEquals(timed.value, None)
+//    s.tick(1.second)
+//    val value = timed.value
+//    assert(value.exists(_.isFailure), "timed.value should be a failure")
+//    assert(value.exists(_.failed.get.isInstanceOf[TimeoutException]), "failure should be TimeoutException")
+//    assert(sourceCanceled.isCanceled, "sourceCanceled.isCanceled")
+//  }
+//
+//  test("timeout with infinite duration keeps original cancelable future") { implicit s =>
+//    val sourceCanceled = BooleanCancelable()
+//    val source = CancelableFuture(CancelableFuture.never[Int], sourceCanceled)
+//    val timed = source.timeout(Duration.Inf)
+//
+//    assertEquals(timed, source)
+//    timed.cancel()
+//    assert(sourceCanceled.isCanceled, "sourceCanceled.isCanceled")
+//  }
+
 }

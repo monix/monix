@@ -38,12 +38,12 @@ final class IterantSwitchIfEmptySuite extends BaseTestSuite {
     assertEquals(target.toListL.value(), backupStream.toListL.value())
   }
 
-  testScheduler("Iterant.switchIfEmpty returns left stream on nonempty streams") { implicit s =>
+  test("Iterant.switchIfEmpty returns left stream on nonempty streams") { implicit s =>
     assertChoosesArg(Iterant[Coeval].of(1, 2, 3))
     assertChoosesArg(Iterant[Coeval].defer(Iterant[Coeval].of(1)))
   }
 
-  testScheduler("Iterant.switchIfEmpty propagates error from left stream") { implicit s =>
+  test("Iterant.switchIfEmpty propagates error from left stream") { implicit s =>
     val ex = DummyException("dummy")
     val source = Iterant[Coeval].raiseError[Int](ex).switchIfEmpty(backupStream)
     intercept[DummyException] {
@@ -53,7 +53,7 @@ final class IterantSwitchIfEmptySuite extends BaseTestSuite {
     ()
   }
 
-  testScheduler("Iterant.switchIfEmpty still executes left's earlyStop when switching") { implicit s =>
+  test("Iterant.switchIfEmpty still executes left's earlyStop when switching") { implicit s =>
     val cancelable = BooleanCancelable()
     val left = emptyInts.guarantee(Coeval { cancelable.cancel() })
 
@@ -62,7 +62,7 @@ final class IterantSwitchIfEmptySuite extends BaseTestSuite {
     assert(cancelable.isCanceled)
   }
 
-  testScheduler("Iterant.switchIfEmpty does not evaluate other stream effects when not switching") { implicit s =>
+  test("Iterant.switchIfEmpty does not evaluate other stream effects when not switching") { implicit s =>
     val cancelable = BooleanCancelable()
     val right = emptyInts.guarantee(Coeval { cancelable.cancel() })
 
@@ -71,11 +71,11 @@ final class IterantSwitchIfEmptySuite extends BaseTestSuite {
     assert(!cancelable.isCanceled)
   }
 
-  testScheduler("Iterant.switchIfEmpty chooses fallback for Halt with no errors") { implicit s =>
+  test("Iterant.switchIfEmpty chooses fallback for Halt with no errors") { implicit s =>
     assertChoosesFallback(Iterant[Coeval].haltS(None))
   }
 
-  testScheduler("Iterant.switchIfEmpty chooses fallback for empty cursors") { implicit s =>
+  test("Iterant.switchIfEmpty chooses fallback for empty cursors") { implicit s =>
     assertChoosesFallback(
       Iterant[Coeval].nextCursorS(
         EmptyCursor,
@@ -84,7 +84,7 @@ final class IterantSwitchIfEmptySuite extends BaseTestSuite {
     )
   }
 
-  testScheduler("Iterant.switchIfEmpty chooses fallback for empty batches") { implicit s =>
+  test("Iterant.switchIfEmpty chooses fallback for empty batches") { implicit s =>
     assertChoosesFallback(
       Iterant[Coeval].nextBatchS(
         EmptyBatch,
@@ -93,7 +93,7 @@ final class IterantSwitchIfEmptySuite extends BaseTestSuite {
     )
   }
 
-  testScheduler("Iterant.switchIfEmpty consistent with toListL.isEmpty") { implicit s =>
+  test("Iterant.switchIfEmpty consistent with toListL.isEmpty") { implicit s =>
     check2 { (left: Iterant[Coeval, Int], right: Iterant[Coeval, Int]) =>
       val target = left.toListL.flatMap { list =>
         if (list.nonEmpty) Coeval.pure(list)
@@ -105,7 +105,7 @@ final class IterantSwitchIfEmptySuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("Iterant.switchIfEmpty can handle broken batches") { implicit s =>
+  test("Iterant.switchIfEmpty can handle broken batches") { implicit s =>
     val dummy = DummyException("dummy")
     val iterant = Iterant[Coeval].nextBatchS(
       ThrowExceptionBatch[Int](dummy),

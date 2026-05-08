@@ -34,7 +34,7 @@ class IterableAsObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should be left with no pending tasks")
   }
 
-  testScheduler("first execution is sync") { implicit s =>
+  test("first execution is sync") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -54,7 +54,7 @@ class IterableAsObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(sum, 15)
   }
 
-  testScheduler("should do synchronous execution in batches") { implicit s =>
+  test("should do synchronous execution in batches") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -78,7 +78,7 @@ class IterableAsObservableSuite extends monix.reactive.BaseTestSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("fromIterable should do back-pressure") { implicit s =>
+  test("fromIterable should do back-pressure") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -111,7 +111,7 @@ class IterableAsObservableSuite extends monix.reactive.BaseTestSuite {
     s.tick(50.millis); assertEquals(sum, 15)
   }
 
-  testScheduler("fromIterable should do empty iterables synchronously") { implicit s =>
+  test("fromIterable should do empty iterables synchronously") { implicit s =>
     var wasCompleted = false
 
     Observable
@@ -125,7 +125,7 @@ class IterableAsObservableSuite extends monix.reactive.BaseTestSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("fromIterable should stop streaming on Stop") { implicit s =>
+  test("fromIterable should stop streaming on Stop") { implicit s =>
     var wasCompleted = false
     var sum = 0
 
@@ -145,7 +145,7 @@ class IterableAsObservableSuite extends monix.reactive.BaseTestSuite {
     assert(!wasCompleted)
   }
 
-  testScheduler("fromIterable should protect against broken iterable.next, synchronous version") { implicit s =>
+  test("fromIterable should protect against broken iterable.next, synchronous version") { implicit s =>
     var sum = 0
     var errorThrown: Throwable = null
 
@@ -184,7 +184,7 @@ class IterableAsObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  testScheduler("fromIterable should protect against broken iterable.next, asynchronous version") { implicit s =>
+  test("fromIterable should protect against broken iterable.next, asynchronous version") { implicit s =>
     var sum = 0
     var errorThrown: Throwable = null
 
@@ -220,7 +220,7 @@ class IterableAsObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  testScheduler("fromIterable should protect against broken iterable.hasNext, synchronous version") { implicit s =>
+  test("fromIterable should protect against broken iterable.hasNext, synchronous version") { implicit s =>
     var sum = 0
     var errorThrown: Throwable = null
 
@@ -252,7 +252,7 @@ class IterableAsObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  testScheduler("fromIterable should protect against broken iterable.hasNext, asynchronous version") { implicit s =>
+  test("fromIterable should protect against broken iterable.hasNext, asynchronous version") { implicit s =>
     var sum = 0
     var errorThrown: Throwable = null
 
@@ -284,7 +284,7 @@ class IterableAsObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  testScheduler("fromIterable should protect against broken iterable.hasNext, when iterable is empty") { implicit s =>
+  test("fromIterable should protect against broken iterable.hasNext, when iterable is empty") { implicit s =>
     var errorThrown: Throwable = null
 
     val iterable = new Iterable[Int] {
@@ -309,7 +309,7 @@ class IterableAsObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(errorThrown, DummyException("dummy"))
   }
 
-  testScheduler("fromIterable should be cancelable") { implicit s =>
+  test("fromIterable should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 

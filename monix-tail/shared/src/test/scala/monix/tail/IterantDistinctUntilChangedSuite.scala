@@ -24,7 +24,7 @@ import monix.execution.exceptions.DummyException
 import scala.util.Failure
 
 final class IterantDistinctUntilChangedSuite extends BaseTestSuite {
-  testScheduler("suppresses duplicates") { implicit s =>
+  test("suppresses duplicates") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val expected =
         if (list.isEmpty) Nil
@@ -38,7 +38,7 @@ final class IterantDistinctUntilChangedSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("suppresses duplicates by key") { implicit s =>
+  test("suppresses duplicates by key") { implicit s =>
     check3 { (list: List[Int], idx: Int, f: Int => Int) =>
       val expected =
         if (list.isEmpty) Nil
@@ -54,7 +54,7 @@ final class IterantDistinctUntilChangedSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("protects against broken function") { implicit s =>
+  test("protects against broken function") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       var effect = 0
       val dummy = DummyException("dummy")
@@ -70,7 +70,7 @@ final class IterantDistinctUntilChangedSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("protects against broken cursors as first node") { implicit s =>
+  test("protects against broken cursors as first node") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -85,7 +85,7 @@ final class IterantDistinctUntilChangedSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("protects against broken cursors as second node") { implicit s =>
+  test("protects against broken cursors as second node") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -102,7 +102,7 @@ final class IterantDistinctUntilChangedSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("protects against broken batches as first node") { implicit s =>
+  test("protects against broken batches as first node") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 
@@ -117,7 +117,7 @@ final class IterantDistinctUntilChangedSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("protects against broken batches as second node") { implicit s =>
+  test("protects against broken batches as second node") { implicit s =>
     var effect = 0
     val dummy = DummyException("dummy")
 

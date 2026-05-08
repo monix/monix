@@ -30,7 +30,7 @@ import scala.concurrent.duration._
 import scala.util.Success
 
 class BracketObservableSuite extends monix.reactive.BaseTestSuite {
-  testScheduler("simple bracket") { implicit s =>
+  test("simple bracket") { implicit s =>
     val rs = new Semaphore()
 
     val f = Observable
@@ -49,7 +49,7 @@ class BracketObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(Some(1))))
   }
 
-  testScheduler("inner brackets") { implicit s =>
+  test("inner brackets") { implicit s =>
     val rs = new Semaphore()
 
     val acquire = Observable.fromTask(rs.acquire)
@@ -73,7 +73,7 @@ class BracketObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(f.value, Some(Success(Some(1))))
   }
 
-  testScheduler("bracket should be cancelable") { implicit s =>
+  test("bracket should be cancelable") { implicit s =>
     val rs = new Semaphore()
     var wasCanceled = false
 
@@ -106,7 +106,7 @@ class BracketObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "tasks.isEmpty")
   }
 
-  testScheduler("bracket should not be cancelable in its acquire") { implicit s =>
+  test("bracket should not be cancelable in its acquire") { implicit s =>
     for (_ <- 0 until 1000) {
       val task = for {
         start    <- Deferred.uncancelable[Task, Unit]
@@ -132,7 +132,7 @@ class BracketObservableSuite extends monix.reactive.BaseTestSuite {
     }
   }
 
-  testScheduler("bracket use is not evaluated on cancel") { implicit sc =>
+  test("bracket use is not evaluated on cancel") { implicit sc =>
     import scala.concurrent.duration._
     var use = false
     var release = false

@@ -37,7 +37,7 @@ class ProfunctorSubjectSuite extends BaseSubjectSuite {
     Some(Sample(s, expectedElems.sum))
   }
 
-  testScheduler("should protect against user-code in left mapping function") { implicit s =>
+  test("should protect against user-code in left mapping function") { implicit s =>
     val dummy = new RuntimeException("dummy")
     val subject = BehaviorSubject[String]("10").dimap[Int, Int](_ => throw dummy)(_.toInt)
     var received = 0
@@ -64,7 +64,7 @@ class ProfunctorSubjectSuite extends BaseSubjectSuite {
     assertEquals(errorThrown, dummy)
   }
 
-  testScheduler("should protect against user-code in right mapping function") { implicit s =>
+  test("should protect against user-code in right mapping function") { implicit s =>
     val dummy = new RuntimeException("dummy")
     val subject = BehaviorSubject[String]("10").dimap[Int, Int](_.toString)(_ => throw dummy)
     var received = 0
@@ -93,7 +93,7 @@ class ProfunctorSubjectSuite extends BaseSubjectSuite {
     assertEquals(errorThrown, dummy)
   }
 
-  testScheduler("should work synchronously for synchronous subscribers") { implicit s =>
+  test("should work synchronously for synchronous subscribers") { implicit s =>
     val subject = BehaviorSubject[String]("10").dimap[Int, Int](_.toString)(_.toInt)
     var received = 0
     var wasCompleted = 0
@@ -119,7 +119,7 @@ class ProfunctorSubjectSuite extends BaseSubjectSuite {
     assertEquals(wasCompleted, 10)
   }
 
-  testScheduler("should work with asynchronous subscribers") { implicit s =>
+  test("should work with asynchronous subscribers") { implicit s =>
     val subject = BehaviorSubject[String]("10").dimap[Int, Int](_.toString)(_.toInt)
     var received = 0
     var wasCompleted = 0
@@ -148,7 +148,7 @@ class ProfunctorSubjectSuite extends BaseSubjectSuite {
     assertEquals(wasCompleted, 10)
   }
 
-  testScheduler("subscribe after complete should complete immediately") { implicit s =>
+  test("subscribe after complete should complete immediately") { implicit s =>
     val subject = BehaviorSubject[String]("10").dimap[Int, Int](_.toString)(_.toInt)
     var received = 0
     subject.onComplete()
@@ -164,7 +164,7 @@ class ProfunctorSubjectSuite extends BaseSubjectSuite {
     assertEquals(received, 10)
   }
 
-  testScheduler("onError should terminate current and future subscribers") { implicit s =>
+  test("onError should terminate current and future subscribers") { implicit s =>
     val subject = BehaviorSubject[String]("10").dimap[Int, Int](_.toString)(_.toInt)
     val dummy = DummyException("dummy")
     var elemsReceived = 0
@@ -197,7 +197,7 @@ class ProfunctorSubjectSuite extends BaseSubjectSuite {
     assertEquals(errorsReceived, 11)
   }
 
-  testScheduler("can stop streaming while connecting") { implicit s =>
+  test("can stop streaming while connecting") { implicit s =>
     val subject = BehaviorSubject[String]("10").dimap[Int, Int](_.toString)(_.toInt)
 
     val future1 = subject.runAsyncGetFirst
@@ -212,7 +212,7 @@ class ProfunctorSubjectSuite extends BaseSubjectSuite {
     assertEquals(subject.size, 0)
   }
 
-  testScheduler("unsubscribe after onComplete") { implicit s =>
+  test("unsubscribe after onComplete") { implicit s =>
     var result: Int = 0
     val subject = BehaviorSubject[String]("0").dimap[Int, Int](_.toString)(_.toInt)
     val c = subject.subscribe { e =>

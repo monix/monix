@@ -29,7 +29,7 @@ class NowObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "Scheduler should be left with no pending tasks")
   }
 
-  testScheduler("should emit one value synchronously") { implicit s =>
+  test("should emit one value synchronously") { implicit s =>
     var received = 0
     var completed = false
 
@@ -52,7 +52,7 @@ class NowObservableSuite extends monix.reactive.BaseTestSuite {
     assert(completed)
   }
 
-  testScheduler("should not do back-pressure on onComplete") { implicit s =>
+  test("should not do back-pressure on onComplete") { implicit s =>
     val p = Promise[Continue.type]()
     var onCompleteCalled = false
     var received = 0
@@ -80,7 +80,7 @@ class NowObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(received, 2)
   }
 
-  testScheduler("should still send onComplete even if canceled synchronously") { implicit s =>
+  test("should still send onComplete even if canceled synchronously") { implicit s =>
     var onCompleteCalled = false
     Observable
       .now(1)
@@ -94,7 +94,7 @@ class NowObservableSuite extends monix.reactive.BaseTestSuite {
     assert(onCompleteCalled)
   }
 
-  testScheduler("should still send onComplete if canceled asynchronously") { implicit s =>
+  test("should still send onComplete if canceled asynchronously") { implicit s =>
     val p = Promise[Ack]()
     var onCompleteCalled = false
 

@@ -26,7 +26,7 @@ import monix.tail.batches.Batch
 import scala.util.Failure
 
 final class IterantReduceSuite extends BaseTestSuite {
-  testScheduler("reduce is consistent with foldLeft") { implicit s =>
+  test("reduce is consistent with foldLeft") { implicit s =>
     check2 { (stream: Iterant[Coeval, Int], op: (Int, Int) => Int) =>
       val received = stream.reduceL(op)
       val expected = stream.foldLeftL(Option.empty[Int])((acc, e) => Some(acc.fold(e)(s => op(s, e))))
@@ -34,7 +34,7 @@ final class IterantReduceSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("maxL is consistent with List.max") { implicit s =>
+  test("maxL is consistent with List.max") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
       val expect = if (list.isEmpty) None else Some(list.max)
@@ -42,7 +42,7 @@ final class IterantReduceSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("maxByL is consistent with List.maxBy") { implicit s =>
+  test("maxByL is consistent with List.maxBy") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
       val expect = if (list.isEmpty) None else Some(list.maxBy(v => Math.pow(v.toDouble, 2)))
@@ -50,7 +50,7 @@ final class IterantReduceSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("minL is consistent with List.min") { implicit s =>
+  test("minL is consistent with List.min") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
       val expect = if (list.isEmpty) None else Some(list.min)
@@ -58,7 +58,7 @@ final class IterantReduceSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("minByL is consistent with List.minBy") { implicit s =>
+  test("minByL is consistent with List.minBy") { implicit s =>
     check2 { (list: List[Int], idx: Int) =>
       val stream = arbitraryListToIterant[Coeval, Int](list, idx, allowErrors = false)
       val expect = if (list.isEmpty) None else Some(list.minBy(v => Math.pow(v.toDouble, 2)))
@@ -66,7 +66,7 @@ final class IterantReduceSuite extends BaseTestSuite {
     }
   }
 
-  testScheduler("protects against broken cursor, as first node") { implicit s =>
+  test("protects against broken cursor, as first node") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -80,7 +80,7 @@ final class IterantReduceSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("protects against broken cursor, as second node") { implicit s =>
+  test("protects against broken cursor, as second node") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -97,7 +97,7 @@ final class IterantReduceSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("protects against broken batch, as first node") { implicit s =>
+  test("protects against broken batch, as first node") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -111,7 +111,7 @@ final class IterantReduceSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("protects against broken batch, as second node") { implicit s =>
+  test("protects against broken batch, as second node") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -128,7 +128,7 @@ final class IterantReduceSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("protects against broken op") { implicit s =>
+  test("protects against broken op") { implicit s =>
     val dummy = DummyException("dummy")
     var effect = 0
 
@@ -142,7 +142,7 @@ final class IterantReduceSuite extends BaseTestSuite {
     assertEquals(effect, 1)
   }
 
-  testScheduler("resources are released for failing `rest` on Next node") { implicit s =>
+  test("resources are released for failing `rest` on Next node") { implicit s =>
     var effect = 0
 
     def stop(i: Int): Coeval[Unit] = Coeval { effect += i }
@@ -155,7 +155,7 @@ final class IterantReduceSuite extends BaseTestSuite {
     assertEquals(effect, 6)
   }
 
-  testScheduler("resources are released for failing `rest` on NextBatch node") { implicit s =>
+  test("resources are released for failing `rest` on NextBatch node") { implicit s =>
     var effect = 0
 
     def stop(i: Int): Coeval[Unit] = Coeval { effect += i }
@@ -168,7 +168,7 @@ final class IterantReduceSuite extends BaseTestSuite {
     assertEquals(effect, 6)
   }
 
-  testScheduler("reduceL handles Scope's release before the rest of the stream") { implicit s =>
+  test("reduceL handles Scope's release before the rest of the stream") { implicit s =>
     val triggered = Atomic(false)
     val fail = DummyException("fail")
 
@@ -191,7 +191,7 @@ final class IterantReduceSuite extends BaseTestSuite {
     assertEquals(stream.reduceL(_ + _).value(), Some(1))
   }
 
-  testScheduler("reduceL handles Scope's release after use is finished") { implicit s =>
+  test("reduceL handles Scope's release after use is finished") { implicit s =>
     val triggered = Atomic(false)
     val fail = DummyException("fail")
 

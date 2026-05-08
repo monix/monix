@@ -31,7 +31,7 @@ class EvalOnceObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should work") { implicit s =>
+  test("should work") { implicit s =>
     var wasCompleted = 0
     var received = 0
 
@@ -65,7 +65,7 @@ class EvalOnceObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(received, 2)
   }
 
-  testScheduler("should not work") { implicit s =>
+  test("should not work") { implicit s =>
     var received = 0
     var errors = 0
 

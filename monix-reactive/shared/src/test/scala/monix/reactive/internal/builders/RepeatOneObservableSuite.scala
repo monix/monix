@@ -30,7 +30,7 @@ class RepeatOneObservableSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("first execution is synchronous") { implicit s =>
+  test("first execution is synchronous") { implicit s =>
     var received = 0
     Observable.repeat(1).take(1L).subscribe { x =>
       received += x; Continue
@@ -38,7 +38,7 @@ class RepeatOneObservableSuite extends monix.reactive.BaseTestSuite {
     assertEquals(received, 1)
   }
 
-  testScheduler("should do synchronous execution in batches") { implicit s =>
+  test("should do synchronous execution in batches") { implicit s =>
     var received = 0
     Observable.repeat(1).take(Platform.recommendedBatchSize.toLong * 2).subscribe { x =>
       received += 1; Continue
@@ -51,7 +51,7 @@ class RepeatOneObservableSuite extends monix.reactive.BaseTestSuite {
     ()
   }
 
-  testScheduler("repeatOne should be cancelable") { implicit s =>
+  test("repeatOne should be cancelable") { implicit s =>
     var wasCompleted = false
     var sum = 0
 

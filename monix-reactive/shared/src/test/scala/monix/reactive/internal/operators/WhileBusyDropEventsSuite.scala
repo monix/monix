@@ -31,14 +31,14 @@ class WhileBusyDropEventsSuite extends monix.reactive.BaseTestSuite {
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should not drop events for synchronous observers") { implicit s =>
+  test("should not drop events for synchronous observers") { implicit s =>
     val f = Observable.range(0, 1000).whileBusyDropEvents.sum.runAsyncGetFirst
     s.tick()
 
     assertEquals(f.value, Some(Success(Some(999 * 500))))
   }
 
-  testScheduler("should drop events for busy observers") { implicit s =>
+  test("should drop events for busy observers") { implicit s =>
     val source = PublishSubject[Long]()
     val p = Promise[Continue.type]()
     var received = 0L
@@ -71,7 +71,7 @@ class WhileBusyDropEventsSuite extends monix.reactive.BaseTestSuite {
     assertEquals(received, (100 until 200).sum.toLong + 1)
   }
 
-  testScheduler("onComplete should not apply back-pressure") { implicit s =>
+  test("onComplete should not apply back-pressure") { implicit s =>
     val source = PublishSubject[Long]()
     val p = Promise[Continue.type]()
     var received = 0L
@@ -103,7 +103,7 @@ class WhileBusyDropEventsSuite extends monix.reactive.BaseTestSuite {
     assertEquals(received, 1)
   }
 
-  testScheduler("onError should not apply back-pressure") { implicit s =>
+  test("onError should not apply back-pressure") { implicit s =>
     val source = PublishSubject[Long]()
     val p = Promise[Continue.type]()
     var received = 0L

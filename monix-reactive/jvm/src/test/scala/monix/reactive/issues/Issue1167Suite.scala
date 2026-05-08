@@ -33,14 +33,14 @@ class Issue1167Suite extends monix.reactive.BaseTestSuite {
     assertEquals(received, Right(()))
   }
 
-  testScheduler("zip2 of different sizes should terminate [issue #1167]") { _ =>
+  test("zip2 of different sizes should terminate [issue #1167]") { _ =>
     val obs1 = Observable(1, 2, 3)
     val obs2 = Observable(1, 2, 3, 4)
 
     testIssue1167(Observable.zip2(obs1, obs2))
   }
 
-  testScheduler("zip3 of different sizes should terminate [issue #1167]") { _ =>
+  test("zip3 of different sizes should terminate [issue #1167]") { _ =>
     val obs1 = Observable(1, 2, 3)
     val obs2 = Observable(1, 2, 3, 4)
     val obs3 = Observable(1, 2, 3, 4)
@@ -48,7 +48,7 @@ class Issue1167Suite extends monix.reactive.BaseTestSuite {
     testIssue1167(Observable.zip3(obs1, obs2, obs3))
   }
 
-  testScheduler("zip4 of different sizes should terminate [issue #1167]") { _ =>
+  test("zip4 of different sizes should terminate [issue #1167]") { _ =>
     val obs1 = Observable(1, 2, 3)
     val obs2 = Observable(1, 2, 3, 4)
     val obs3 = Observable(1, 2, 3, 4)
@@ -57,7 +57,7 @@ class Issue1167Suite extends monix.reactive.BaseTestSuite {
     testIssue1167(Observable.zip4(obs1, obs2, obs3, obs4))
   }
 
-  testScheduler("zip5 of different sizes should terminate [issue #1167]") { _ =>
+  test("zip5 of different sizes should terminate [issue #1167]") { _ =>
     val obs1 = Observable(1, 2, 3)
     val obs2 = Observable(1, 2, 3, 4)
     val obs3 = Observable(1, 2, 3, 4)
@@ -67,7 +67,7 @@ class Issue1167Suite extends monix.reactive.BaseTestSuite {
     testIssue1167(Observable.zip5(obs1, obs2, obs3, obs4, obs5))
   }
 
-  testScheduler("zip6 of different sizes should terminate [issue #1167]") { _ =>
+  test("zip6 of different sizes should terminate [issue #1167]") { _ =>
     val obs1 = Observable(1, 2, 3)
     val obs2 = Observable(1, 2, 3, 4)
     val obs3 = Observable(1, 2, 3, 4)
@@ -78,7 +78,7 @@ class Issue1167Suite extends monix.reactive.BaseTestSuite {
     testIssue1167(Observable.zip6(obs1, obs2, obs3, obs4, obs5, obs6))
   }
 
-  testScheduler("zipList of different sizes should terminate [issue #1167]") { _ =>
+  test("zipList of different sizes should terminate [issue #1167]") { _ =>
     val obs1 = Observable(1, 2, 3)
     val obs2 = Observable(1, 2, 3, 4)
     val obs3 = Observable(1, 2, 3, 4)
@@ -87,7 +87,7 @@ class Issue1167Suite extends monix.reactive.BaseTestSuite {
     testIssue1167(Observable.zipList(obs1, obs2, obs3, obs4))
   }
 
-  testScheduler("zip2 + prepend should work properly [issue #1164]") { _ =>
+  test("zip2 + prepend should work properly [issue #1164]") { _ =>
     implicit val s: Scheduler = Scheduler.global
 
     val obs1 = 0 +: Observable(1, 2, 3)
@@ -98,7 +98,7 @@ class Issue1167Suite extends monix.reactive.BaseTestSuite {
     assertEquals(received, List((0, 0), (1, 1), (2, 2), (3, 3)))
   }
 
-  testScheduler("zip3 + prepend should work properly [issue #1164]") { _ =>
+  test("zip3 + prepend should work properly [issue #1164]") { _ =>
     implicit val s: Scheduler = Scheduler.global
 
     val obs1 = 0 +: Observable(1, 2, 3)
@@ -110,7 +110,7 @@ class Issue1167Suite extends monix.reactive.BaseTestSuite {
     assertEquals(received, List((0, 0, 0), (1, 1, 1), (2, 2, 2), (3, 3, 3)))
   }
 
-  testScheduler("zip4 + prepend should work properly [issue #1164]") { _ =>
+  test("zip4 + prepend should work properly [issue #1164]") { _ =>
     implicit val s: Scheduler = Scheduler.global
 
     val obs1 = 0 +: Observable(1, 2, 3)
@@ -124,7 +124,7 @@ class Issue1167Suite extends monix.reactive.BaseTestSuite {
     assertEquals(received, List((0, 0, 0, 0), (1, 1, 1, 1), (2, 2, 2, 2), (3, 3, 3, 3)))
   }
 
-  testScheduler("zip5 + prepend should work properly [issue #1164]") { _ =>
+  test("zip5 + prepend should work properly [issue #1164]") { _ =>
     implicit val s: Scheduler = Scheduler.global
 
     val obs1 = 0 +: Observable(1, 2, 3)
@@ -139,7 +139,7 @@ class Issue1167Suite extends monix.reactive.BaseTestSuite {
     assertEquals(received, List((0, 0, 0, 0, 0), (1, 1, 1, 1, 1), (2, 2, 2, 2, 2), (3, 3, 3, 3, 3)))
   }
 
-  testScheduler("zip6 + prepend should work properly [issue #1164]") { _ =>
+  test("zip6 + prepend should work properly [issue #1164]") { _ =>
     implicit val s: Scheduler = Scheduler.global
 
     val obs1 = 0 +: Observable(1, 2, 3)
@@ -155,7 +155,7 @@ class Issue1167Suite extends monix.reactive.BaseTestSuite {
     assertEquals(received, List((0, 0, 0, 0, 0, 0), (1, 1, 1, 1, 1, 1), (2, 2, 2, 2, 2, 2), (3, 3, 3, 3, 3, 3)))
   }
 
-  testScheduler("zipList + prepend should work properly [issue #1164]") { _ =>
+  test("zipList + prepend should work properly [issue #1164]") { _ =>
     implicit val s: Scheduler = Scheduler.global
 
     val obs1 = 0 +: Observable(1, 2, 3)

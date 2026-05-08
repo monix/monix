@@ -31,7 +31,7 @@ class WhileBusyDropEventsAndSignalOverflowSuite extends monix.reactive.BaseTestS
     assert(s.state.tasks.isEmpty, "TestScheduler should have no pending tasks")
   }
 
-  testScheduler("should not drop events for synchronous observers") { implicit s =>
+  test("should not drop events for synchronous observers") { implicit s =>
     val f = Observable
       .range(0, 1000)
       .whileBusyDropEventsAndSignal(x => x)
@@ -42,7 +42,7 @@ class WhileBusyDropEventsAndSignalOverflowSuite extends monix.reactive.BaseTestS
     assertEquals(f.value, Some(Success(Some(999 * 500))))
   }
 
-  testScheduler("should drop events for busy observers") { implicit s =>
+  test("should drop events for busy observers") { implicit s =>
     val source = PublishSubject[Long]()
     val p = Promise[Continue.type]()
     var received = 0L
@@ -79,7 +79,7 @@ class WhileBusyDropEventsAndSignalOverflowSuite extends monix.reactive.BaseTestS
     assertEquals(received, 102L + 1)
   }
 
-  testScheduler("should send number of dropped events when onComplete") { implicit s =>
+  test("should send number of dropped events when onComplete") { implicit s =>
     val source = PublishSubject[Long]()
     val p = Promise[Continue.type]()
     var received = 0L

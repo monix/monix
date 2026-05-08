@@ -25,7 +25,7 @@ import scala.util.Success
 class PublishSelectorSuite extends monix.reactive.BaseTestSuite {
   implicit val os: OverflowStrategy[Nothing] = OverflowStrategy.Default
 
-  testScheduler("publishSelector sanity test") { implicit s =>
+  test("publishSelector sanity test") { implicit s =>
     val isStarted = Atomic(0)
     val f = Observable
       .range(0, 1000)
@@ -41,7 +41,7 @@ class PublishSelectorSuite extends monix.reactive.BaseTestSuite {
     assertEquals(isStarted.get(), 1)
   }
 
-  testScheduler("treating Stop event") { implicit s =>
+  test("treating Stop event") { implicit s =>
     val isStarted = Atomic(0)
     val isCanceled = Atomic(false)
 

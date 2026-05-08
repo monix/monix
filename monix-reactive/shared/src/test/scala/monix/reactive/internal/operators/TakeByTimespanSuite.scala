@@ -64,7 +64,7 @@ class TakeByTimespanSuite extends BaseOperatorSuite {
     Seq(Sample(s, 0, 0, 0.seconds, 0.seconds))
   }
 
-  testScheduler("should complete even if no element was emitted") { implicit s =>
+  test("should complete even if no element was emitted") { implicit s =>
     var wasCompleted = false
 
     Observable.never
@@ -81,7 +81,7 @@ class TakeByTimespanSuite extends BaseOperatorSuite {
     assert(wasCompleted)
   }
 
-  testScheduler("should cancel if downstream cancels") { implicit s =>
+  test("should cancel if downstream cancels") { implicit s =>
     var received = 0
 
     Observable

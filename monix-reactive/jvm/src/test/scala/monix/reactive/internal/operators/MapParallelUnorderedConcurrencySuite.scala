@@ -24,7 +24,7 @@ import monix.eval.Task
 import monix.reactive.{ BaseConcurrencySuite, Observable }
 
 class MapParallelUnorderedConcurrencySuite extends BaseConcurrencySuite {
-  testService("mapParallelUnordered works concurrently") { implicit s =>
+  test("mapParallelUnordered works concurrently") { implicit s =>
     check2 { (list: List[Int], rnd: Int) =>
       val parallelism = {
         val abs = math.abs(rnd)

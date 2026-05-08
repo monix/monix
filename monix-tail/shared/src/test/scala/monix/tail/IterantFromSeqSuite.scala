@@ -23,21 +23,21 @@ import monix.eval.Task
 import scala.collection.mutable.ListBuffer
 
 final class IterantFromSeqSuite extends BaseTestSuite {
-  testScheduler("Iterant[Task].fromSeq(vector)") { implicit s =>
+  test("Iterant[Task].fromSeq(vector)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromSeq(list.toVector).toListL
       result <-> Task.now(list)
     }
   }
 
-  testScheduler("Iterant[Task].fromSeq(list)") { implicit s =>
+  test("Iterant[Task].fromSeq(list)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromSeq(list).toListL
       result <-> Task.now(list)
     }
   }
 
-  testScheduler("Iterant[Task].fromSeq(iterable)") { implicit s =>
+  test("Iterant[Task].fromSeq(iterable)") { implicit s =>
     check1 { (list: List[Int]) =>
       val result = Iterant[Task].fromSeq(ListBuffer(list*).toSeq).toListL
       result <-> Task.now(list)

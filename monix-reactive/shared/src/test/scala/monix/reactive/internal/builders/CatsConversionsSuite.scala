@@ -23,25 +23,25 @@ import monix.reactive.{ BaseTestSuite, Observable }
 import scala.util.Success
 
 class CatsConversionsSuite extends monix.reactive.BaseTestSuite {
-  testScheduler("from(Eval.now)") { implicit s =>
+  test("from(Eval.now)") { implicit s =>
     val obs = Observable.from(Eval.now(10))
     val f = obs.lastOrElseL(0).runToFuture
     assertEquals(f.value, Some(Success(10)))
   }
 
-  testScheduler("from(Eval.always)") { implicit s =>
+  test("from(Eval.always)") { implicit s =>
     val obs = Observable.from(Eval.always(10))
     val f = obs.lastOrElseL(0).runToFuture
     assertEquals(f.value, Some(Success(10)))
   }
 
-  testScheduler("fromEffect(IO)") { implicit s =>
+  test("fromEffect(IO)") { implicit s =>
     val obs = Observable.fromTaskLike(IO(10))
     val f = obs.lastOrElseL(0).runToFuture
     assertEquals(f.value, Some(Success(10)))
   }
 
-  testScheduler("fromIO") { implicit s =>
+  test("fromIO") { implicit s =>
     val obs = Observable.from(IO(10))
     val f = obs.lastOrElseL(0).runToFuture
     assertEquals(f.value, Some(Success(10)))

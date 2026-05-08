@@ -27,7 +27,7 @@ import scala.concurrent.{ Future, Promise }
 import scala.util.Random
 
 class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
-  testService("should not lose events, test 1") { implicit s =>
+  test("should not lose events, test 1") { implicit s =>
     var number = 0
     val completed = new CountDownLatch(1)
 
@@ -54,7 +54,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     assertEquals(number, 100000)
   }
 
-  testService("should not lose events, test 2") { implicit s =>
+  test("should not lose events, test 2") { implicit s =>
     var number = 0
     val completed = new CountDownLatch(1)
 
@@ -86,7 +86,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     assertEquals(number, 10000)
   }
 
-  testService("should not lose events with async subscriber from one publisher") { implicit s =>
+  test("should not lose events with async subscriber from one publisher") { implicit s =>
     // Repeating because of possible problems
     for (_ <- 0 until 100) {
       val completed = new CountDownLatch(1)
@@ -132,7 +132,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     }
   }
 
-  testService("should trigger overflow when over capacity") { implicit s =>
+  test("should trigger overflow when over capacity") { implicit s =>
     val errorCaught = new CountDownLatch(1)
     val receivedLatch = new CountDownLatch(5)
     val promise = Promise[Ack]()
@@ -180,7 +180,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     assert(errorCaught.await(15, TimeUnit.MINUTES), "errorCaught.await should have succeeded")
   }
 
-  testService("should send onError when empty") { implicit s =>
+  test("should send onError when empty") { implicit s =>
     val latch = new CountDownLatch(1)
     val buffer = BufferedSubscriber[Int](
       new Subscriber[Int] {
@@ -203,7 +203,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     assertEquals(r, Stop)
   }
 
-  testService("should send onError when in flight") { implicit s =>
+  test("should send onError when in flight") { implicit s =>
     val latch = new CountDownLatch(1)
     val buffer = BufferedSubscriber[Int](
       new Subscriber[Int] {
@@ -223,7 +223,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
-  testService("should send onError when at capacity") { implicit s =>
+  test("should send onError when at capacity") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
 
@@ -251,7 +251,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
-  testService("should send onComplete when empty") { implicit s =>
+  test("should send onComplete when empty") { implicit s =>
     val latch = new CountDownLatch(1)
     val buffer = BufferedSubscriber[Int](
       new Subscriber[Int] {
@@ -267,7 +267,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
-  testService("should send onComplete without back-pressure") { implicit s =>
+  test("should send onComplete without back-pressure") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
     val buffer = BufferedSubscriber[Int](
@@ -285,7 +285,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
-  testService("should send onComplete when at capacity") { implicit s =>
+  test("should send onComplete when at capacity") { implicit s =>
     val latch = new CountDownLatch(1)
     val promise = Promise[Ack]()
     val buffer = BufferedSubscriber[Int](
@@ -310,7 +310,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
   }
 
-  testService("should do onComplete only after all the queue was drained") { implicit s =>
+  test("should do onComplete only after all the queue was drained") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue.type]()
@@ -336,7 +336,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     assertEquals(sum, (0 until 9999).sum)
   }
 
-  testService("should do onComplete only after all the queue was drained, test2") { implicit s =>
+  test("should do onComplete only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
 
@@ -360,7 +360,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     assertEquals(sum, (0 until 9999).sum)
   }
 
-  testService("should do onError only after the queue was drained") { implicit s =>
+  test("should do onError only after the queue was drained") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
     val startConsuming = Promise[Continue.type]()
@@ -386,7 +386,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
-  testService("should do onError only after all the queue was drained, test2") { implicit s =>
+  test("should do onError only after all the queue was drained, test2") { implicit s =>
     var sum = 0L
     val complete = new CountDownLatch(1)
 

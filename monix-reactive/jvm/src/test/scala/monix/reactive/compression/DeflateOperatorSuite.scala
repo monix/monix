@@ -30,7 +30,7 @@ class DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
   implicit val scheduler: Scheduler =
     Scheduler.computation(parallelism = 4, name = "compression-tests", daemonic = true)
 
-  testSchedulerAsync("deflate empty bytes") { _ =>
+  test("deflate empty bytes") { _ =>
     Observable
       .fromIterable(List.empty)
       .transform(deflate(bufferSize = 100))
@@ -43,7 +43,7 @@ class DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
       )
       .runToFuture
   }
-  testSchedulerAsync("deflates same as JDK") { _ =>
+  test("deflates same as JDK") { _ =>
     Observable
       .now(longText)
       .transform(deflate(256))
@@ -51,7 +51,7 @@ class DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
       .map(list => assertEquals(list.flatten, jdkDeflate(longText, new Deflater(-1, false)).toList))
       .runToFuture
   }
-  testSchedulerAsync("deflates same as JDK, nowrap") { _ =>
+  test("deflates same as JDK, nowrap") { _ =>
     Observable
       .now(longText)
       .transform(deflate(256, noWrap = true))
@@ -59,7 +59,7 @@ class DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
       .map(list => assertEquals(list.flatten, jdkDeflate(longText, new Deflater(-1, true)).toList))
       .runToFuture
   }
-  testSchedulerAsync("deflates same as JDK, small buffer") { _ =>
+  test("deflates same as JDK, small buffer") { _ =>
     Observable
       .now(longText)
       .transform(deflate(1))
@@ -67,7 +67,7 @@ class DeflateOperatorSuite extends BaseOperatorSuite with DeflateTestUtils {
       .map(list => assertEquals(list.flatten, jdkDeflate(longText, new Deflater(-1, false)).toList))
       .runToFuture
   }
-  testSchedulerAsync("deflates same as JDK, nowrap, small buffer ") { _ =>
+  test("deflates same as JDK, nowrap, small buffer ") { _ =>
     Observable
       .now(longText)
       .transform(deflate(1, noWrap = true))
