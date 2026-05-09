@@ -18,13 +18,18 @@
 package monix.catnap
 
 import cats.effect.{ ContextShift, IO }
-import monix.execution.TestSchedulerSuite
+import monix.execution.MUnitFixtureSuite
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
 import scala.util.Success
 
-class TestSchedulerEffectSuite extends TestSchedulerSuite {
+class TestSchedulerEffectSuite extends MUnitFixtureSuite[TestScheduler] {
+  def setup(): TestScheduler = TestScheduler()
+
+  def tearDown(s: TestScheduler): Unit =
+    assertEquals(clue(s.state.tasks.isEmpty), true, clue("should not have tasks left to execute"))
+
   test("clock.monotonic") { s =>
     val clock = SchedulerEffect.clock[IO](s)
     val fetch = clock.monotonic(MILLISECONDS)

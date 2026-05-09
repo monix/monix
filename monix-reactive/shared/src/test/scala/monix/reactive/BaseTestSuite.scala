@@ -19,7 +19,7 @@ package monix.reactive
 
 import cats.Eq
 import cats.Monoid
-import monix.execution.TestSchedulerSuite
+import monix.execution.MUnitFixtureSuite
 import munit.Location
 import munit.DisciplineSuite
 import monix.eval.Task
@@ -34,7 +34,12 @@ import org.typelevel.discipline.Laws
 
 import scala.concurrent.duration._
 
-trait BaseTestSuite extends TestSchedulerSuite with ArbitraryInstances {
+trait BaseTestSuite extends MUnitFixtureSuite[TestScheduler] with ArbitraryInstances {
+  def setup(): TestScheduler = TestScheduler()
+
+  def tearDown(s: TestScheduler): Unit =
+    assertEquals(clue(s.state.tasks.isEmpty), true, clue("should not have tasks left to execute"))
+
   def check(prop: Prop): Unit = {
     val result = org.scalacheck.Test.check(scalaCheckTestParameters, prop)
     assert(result.passed, clue(result.toString))

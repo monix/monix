@@ -19,13 +19,18 @@ package monix.catnap
 
 import cats.effect.{ ContextShift, IO }
 import cats.implicits._
-import monix.execution.TestSchedulerSuite
+import monix.execution.MUnitFixtureSuite
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
 import scala.concurrent.{ ExecutionContext, Promise }
 import scala.util.{ Random, Success }
 
-class SemaphoreSuite extends TestSchedulerSuite {
+class SemaphoreSuite extends MUnitFixtureSuite[TestScheduler] {
+  def setup(): TestScheduler = TestScheduler()
+
+  def tearDown(s: TestScheduler): Unit =
+    assertEquals(clue(s.state.tasks.isEmpty), true, clue("should not have tasks left to execute"))
+
   implicit def contextShift(implicit ec: ExecutionContext): ContextShift[IO] =
     IO.contextShift(ec)
 

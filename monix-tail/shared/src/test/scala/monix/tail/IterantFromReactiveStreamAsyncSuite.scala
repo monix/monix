@@ -18,6 +18,7 @@
 package monix.tail
 
 import monix.eval.Task
+import monix.execution.MUnitFixtureSuite
 import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.DummyException
@@ -26,7 +27,15 @@ import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 
 import scala.concurrent.{ Future, Promise }
 
-final class IterantFromReactiveStreamAsyncSuite extends BaseTestSuite {
+final class IterantFromReactiveStreamAsyncSuite extends MUnitFixtureSuite[Scheduler] {
+  def setup(): Scheduler = {
+    import monix.execution.Scheduler.Implicits.global
+
+    global
+  }
+
+  def tearDown(env: Scheduler): Unit = ()
+
   def testRangeConsumptionWithAsyncTasks(request: Int, eagerBuffer: Boolean, async: Boolean)(implicit sc: Scheduler) = {
     def test() = {
       val count = if (async || Platform.isJS) 1000 else 5000

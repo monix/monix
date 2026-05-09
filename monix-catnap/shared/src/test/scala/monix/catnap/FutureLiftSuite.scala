@@ -19,14 +19,18 @@ package monix.catnap
 
 import cats.effect.{ Async, ContextShift, IO }
 import monix.catnap.syntax._
-import monix.execution.TestSchedulerSuite
 import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.TestScheduler
-import monix.execution.{ Cancelable, CancelableFuture }
+import monix.execution.{ Cancelable, CancelableFuture, MUnitFixtureSuite }
 import scala.concurrent.{ Future, Promise }
 import scala.util.{ Failure, Success }
 
-class FutureLiftSuite extends TestSchedulerSuite {
+class FutureLiftSuite extends MUnitFixtureSuite[TestScheduler] {
+  def setup(): TestScheduler = TestScheduler()
+
+  def tearDown(s: TestScheduler): Unit =
+    assertEquals(clue(s.state.tasks.isEmpty), true, clue("should not have tasks left to execute"))
+
   implicit def contextShift(implicit ec: TestScheduler): ContextShift[IO] =
     SchedulerEffect.contextShift[IO](ec)(IO.ioEffect)
 

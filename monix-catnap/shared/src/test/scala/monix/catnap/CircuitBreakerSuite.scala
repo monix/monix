@@ -20,14 +20,19 @@ package monix.catnap
 import cats.effect._
 import cats.implicits._
 import monix.catnap.CircuitBreaker.{ Closed, Open }
-import monix.execution.TestSchedulerSuite
+import monix.execution.MUnitFixtureSuite
 import monix.execution.exceptions.{ DummyException, ExecutionRejectedException }
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-class CircuitBreakerSuite extends TestSchedulerSuite {
+class CircuitBreakerSuite extends MUnitFixtureSuite[TestScheduler] {
+  def setup(): TestScheduler = TestScheduler()
+
+  def tearDown(s: TestScheduler): Unit =
+    assertEquals(clue(s.state.tasks.isEmpty), true, clue("should not have tasks left to execute"))
+
   implicit def timer(implicit ec: TestScheduler): Timer[IO] =
     SchedulerEffect.timerLiftIO[IO](ec)
 

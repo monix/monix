@@ -18,7 +18,9 @@
 package tracing
 
 import monix.eval.tracing.TaskTrace
-import monix.eval.{ BaseTestSuite, Task }
+import monix.eval.Task
+import monix.execution.MUnitFixtureSuite
+import monix.execution.Scheduler
 
 import scala.util.control.NoStackTrace
 import cats.syntax.all._
@@ -26,7 +28,14 @@ import cats.syntax.all._
 /**
   * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
   */
-class TracingSuite extends BaseTestSuite {
+class TracingSuite extends MUnitFixtureSuite[Scheduler] {
+  def setup(): Scheduler = {
+    import monix.execution.Scheduler.Implicits.global
+
+    global
+  }
+
+  def tearDown(env: Scheduler): Unit = ()
 
   def traced[A](io: Task[A]): Task[TaskTrace] =
     io.flatMap(_ => Task.trace)

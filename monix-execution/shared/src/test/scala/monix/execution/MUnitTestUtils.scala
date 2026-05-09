@@ -18,7 +18,6 @@
 package monix.execution
 
 import monix.execution.schedulers.SchedulerService
-import monix.execution.schedulers.TestScheduler
 import munit.Compare
 import munit.FunSuite
 import munit.Location
@@ -103,28 +102,6 @@ trait MUnitFixtureSuite[A] extends MUnitFunSuite {
           throw e
       }
     }
-}
-
-/** Replaces minitest.TestSuite[TestScheduler] with MUnit-friendly helpers.
-  * Creates a fresh TestScheduler per test and asserts no pending tasks remain after each test.
-  */
-trait TestSchedulerSuite extends MUnitFixtureSuite[TestScheduler] {
-
-  /** Creates a fresh TestScheduler for each test. */
-  def createTestScheduler(): TestScheduler = TestScheduler()
-
-  override def setup(): TestScheduler = createTestScheduler()
-
-  override def tearDown(s: TestScheduler): Unit = assertNoRemainingTasks(s)
-
-  /** Verify no remaining tasks on scheduler. Calls assertEquals for MUnit diff diagnostics. */
-  def assertNoRemainingTasks(s: TestScheduler): Unit = {
-    assertEquals(
-      clue(s.state.tasks.isEmpty),
-      true,
-      clue("should not have tasks left to execute")
-    )
-  }
 }
 
 trait SchedulerServiceSuite extends MUnitFixtureSuite[SchedulerService] {

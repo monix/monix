@@ -17,14 +17,17 @@
 
 package monix.eval
 
-import monix.execution.TestSchedulerSuite
+import monix.execution.MUnitFixtureSuite
 import munit.Location
 import monix.execution.internal.Platform
+import monix.execution.schedulers.TestScheduler
 import org.scalacheck.{ Arbitrary, Prop, Test }
 
-abstract class BaseTestSuite extends TestSchedulerSuite with ArbitraryInstances {
-  // TestSchedulerSuite provides createTestScheduler() and assertNoRemainingTasks()
-  // Use test("name") { implicit s => ... } in leaf suites
+abstract class BaseTestSuite extends MUnitFixtureSuite[TestScheduler] with ArbitraryInstances {
+  def setup(): TestScheduler = TestScheduler()
+
+  def tearDown(s: TestScheduler): Unit =
+    assertEquals(clue(s.state.tasks.isEmpty), true, clue("should not have tasks left to execute"))
 
   override def scalaCheckTestParameters: Test.Parameters =
     super.scalaCheckTestParameters
