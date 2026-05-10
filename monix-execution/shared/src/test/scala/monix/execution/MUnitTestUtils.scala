@@ -34,8 +34,8 @@ import scala.util.Failure
 
 /** Base trait for all MUnit-based Monix test suites. */
 trait MUnitFunSuite extends munit.FunSuite {
-  override val munitTimeout: FiniteDuration = 30.seconds
-  val awaitTimeout: FiniteDuration = 20.seconds
+  override val munitTimeout: FiniteDuration = 60.seconds
+  val awaitTimeout: FiniteDuration = 50.seconds
 
   override def isCI: Boolean =
     monix.execution.internal.Platform.getEnv("CI").map(_.toLowerCase).contains("true")

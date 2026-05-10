@@ -168,7 +168,7 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
 
         def onNext(elem: Int) = {
           started.countDown()
-          require(elem > previous, s"current $elem > previous $previous")
+          assert(elem > previous, s"current $elem > previous $previous")
           previous = elem
           received += 1
           promise.future

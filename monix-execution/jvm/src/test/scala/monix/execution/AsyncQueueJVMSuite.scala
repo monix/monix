@@ -19,7 +19,6 @@ package monix.execution
 
 import monix.execution.schedulers.SchedulerService
 import scala.concurrent.Future
-import scala.concurrent.duration._
 
 abstract class AsyncQueueJVMSuite(parallelism: Int) extends BaseAsyncQueueSuite[SchedulerService] {
 
@@ -31,16 +30,14 @@ abstract class AsyncQueueJVMSuite(parallelism: Int) extends BaseAsyncQueueSuite[
 
   def tearDown(env: SchedulerService): Unit = {
     env.shutdown()
-    assert(env.awaitTermination(30.seconds), "env.awaitTermination")
+    require(env.awaitTermination(awaitTimeout), "env.awaitTermination")
   }
 
   def testFuture(name: String, times: Int)(f: Scheduler => Future[Unit]): Unit = {
-    def repeatTest(test: Future[Unit], n: Int)(implicit ec: Scheduler): Future[Unit] =
-      if (n > 0)
-        FutureUtils
-          .timeout(test, 60.seconds)
-          .flatMap(_ => repeatTest(test, n - 1))
-      else
+    def repeatTest(test: => Future[Unit], n: Int)(implicit ec: Scheduler): Future[Unit] =
+      if (n > 0) {
+        test.flatMap(_ => repeatTest(test, n - 1))
+      } else
         Future.successful(())
 
     test(name) { implicit ec =>

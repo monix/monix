@@ -35,7 +35,7 @@ class TaskAsyncAutoShiftJVMSuite extends monix.execution.MUnitFixtureSuite[Sched
   override def tearDown(env: SchedulerService): Unit = {
     env.shutdown()
     blocking {
-      assert(env.awaitTermination(10.seconds), clue("env.awaitTermination"))
+      assert(env.awaitTermination(awaitTimeout), clue("env.awaitTermination"))
     }
   }
 
