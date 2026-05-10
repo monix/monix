@@ -322,12 +322,7 @@ class CallbackSafetyJVMSuite extends MUnitFixtureSuite[SchedulerService] with Te
       }
     }
 
-    await(latchWorkersStart)
-    await(latchWorkersFinished)
-  }
-
-  def await(latch: CountDownLatch): Unit = {
-    val seconds = 10
-    assert(latch.await(seconds.toLong, TimeUnit.SECONDS), s"latch.await($seconds seconds)")
+    await(latchWorkersStart, "latchWorkersStart")
+    await(latchWorkersFinished, "latchWorkersFinished")
   }
 }

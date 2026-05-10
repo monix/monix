@@ -29,6 +29,8 @@ import scala.concurrent.{ Await, Future, Promise }
 import scala.util.Random
 
 class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
+  override val munitTimeout = 30.seconds
+
   test("merge test should work") { implicit s =>
     val num = 100000
     val source = Observable.repeat(1L).take(num.toLong)
@@ -69,7 +71,7 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
     for (i <- 0 until 100000) buffer.onNext(i)
     buffer.onComplete()
 
-    assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
+    await(completed, "completed")
     assertEquals(number, 100000)
   }
 
@@ -102,7 +104,7 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
       else buffer.onComplete()
 
     loop(10000)
-    assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
+    await(completed, "completed")
     assertEquals(number, 10000)
   }
 
@@ -146,7 +148,7 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
       for (i <- 1 to total.toInt) { buffer.onNext(i.toLong); () }
       buffer.onComplete()
 
-      assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
+      await(completed, "completed")
       assertEquals(received.toLong, total)
       assertEquals(sum, total * (total + 1) / 2)
     }
@@ -159,6 +161,7 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
       val started = new CountDownLatch(1)
       val completed = new CountDownLatch(1)
       val promise = Promise[Continue.type]()
+      @volatile var errorThrown: Throwable = null
 
       val underlying = new Observer[Int] {
         private var previous = 0
@@ -172,7 +175,8 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
         }
 
         def onError(ex: Throwable): Unit = {
-          s.reportFailure(ex)
+          errorThrown = ex
+          completed.countDown()
         }
 
         def onComplete() = {
@@ -183,9 +187,10 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
       val buffer = DropNewBufferedSubscriber.simple(Subscriber(underlying, s), 8)
       for (i <- 1 until 100) buffer.onNext(i)
       buffer.onComplete()
-
       promise.success(Continue)
-      assert(completed.await(15, TimeUnit.MINUTES), "wasCompleted.await should have succeeded")
+
+      await(completed, "completed")
+      if (errorThrown != null) throw errorThrown
       assert(received <= 10, s"received $received <= 10")
     }
   }
@@ -207,7 +212,7 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
     )
 
     buffer.onError(new RuntimeException("dummy"))
-    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
+    await(latch)
 
     val r = buffer.onNext(1)
     assertEquals(r, Stop)
@@ -230,7 +235,7 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
 
     buffer.onNext(1)
     buffer.onError(new RuntimeException("dummy"))
-    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
+    await(latch)
   }
 
   test("should send onError when at capacity") { implicit s =>
@@ -258,7 +263,7 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
     buffer.onError(DummyException("dummy"))
 
     promise.success(Continue)
-    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
+    await(latch)
   }
 
   test("should send onComplete when empty") { implicit s =>
@@ -274,7 +279,7 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
     )
 
     buffer.onComplete()
-    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
+    await(latch)
   }
 
   test("should send onComplete when in flight") { implicit s =>
@@ -317,7 +322,7 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
     assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
 
     promise.success(Continue)
-    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
+    await(latch)
   }
 
   test("should do onComplete only after all the queue was drained") { implicit s =>
@@ -342,7 +347,7 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
     buffer.onComplete()
     startConsuming.success(Continue)
 
-    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
+    await(complete, "complete")
     assertEquals(sum, (0 until 9999).sum)
   }
 
@@ -366,7 +371,7 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
     (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
 
-    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
+    await(complete, "complete")
     assertEquals(sum, (0 until 9999).sum)
   }
 
@@ -392,7 +397,7 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
-    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
+    await(complete, "complete")
     assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
@@ -417,7 +422,7 @@ class OverflowStrategyDropNewConcurrencySuite extends BaseConcurrencySuite {
     (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onError(new RuntimeException)
 
-    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
+    await(complete, "complete")
     assertEquals(sum, (0 until 9999).sum.toLong)
   }
 }

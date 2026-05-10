@@ -17,13 +17,20 @@
 
 package monix.reactive.observers
 
-import java.util.concurrent.{ CountDownLatch, TimeUnit }
 import monix.execution.Ack
-import monix.execution.Ack.{ Continue, Stop }
-import monix.execution.exceptions.{ BufferOverflowException, DummyException }
+import monix.execution.Ack.Continue
+import monix.execution.Ack.Stop
+import monix.execution.exceptions.BufferOverflowException
+import monix.execution.exceptions.DummyException
 import monix.reactive.OverflowStrategy.Fail
-import monix.reactive.{ BaseConcurrencySuite, Observer }
-import scala.concurrent.{ Future, Promise }
+import monix.reactive.BaseConcurrencySuite
+import monix.reactive.Observer
+
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.*
+import scala.concurrent.Future
+import scala.concurrent.Promise
 import scala.util.Random
 
 class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
@@ -50,7 +57,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     for (i <- 0 until 100000) buffer.onNext(i)
     buffer.onComplete()
 
-    assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
+    await(completed, "completed")
     assertEquals(number, 100000)
   }
 
@@ -82,7 +89,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
         buffer.onComplete()
 
     loop(10000)
-    assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
+    await(completed, "completed")
     assertEquals(number, 10000)
   }
 
@@ -126,7 +133,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
       for (i <- 1 to total.toInt) { buffer.onNext(i.toLong); () }
       buffer.onComplete()
 
-      assert(completed.await(15, TimeUnit.MINUTES), "completed.await should have succeeded")
+      await(completed, "completed")
       assertEquals(received.toLong, total)
       assertEquals(sum, total * (total + 1) / 2)
     }
@@ -136,6 +143,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     val errorCaught = new CountDownLatch(1)
     val receivedLatch = new CountDownLatch(5)
     val promise = Promise[Ack]()
+    @volatile var errorThrown: Throwable = null
 
     val underlying = new Observer[Int] {
       var received = 0
@@ -153,7 +161,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
       }
 
       def onError(ex: Throwable) = {
-        assert(ex.isInstanceOf[BufferOverflowException], s"Exception $ex is not a buffer overflow error")
+        errorThrown = ex
         errorCaught.countDown()
       }
 
@@ -170,14 +178,15 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     assertEquals(buffer.onNext(4), Continue)
     assertEquals(buffer.onNext(5), Continue)
 
-    assert(receivedLatch.await(15, TimeUnit.MINUTES), "receivedLatch.await should have succeeded")
+    await(receivedLatch, "receivedLatch")
     assert(!errorCaught.await(2, TimeUnit.SECONDS), "errorCaught.await should have failed")
 
     buffer.onNext(6)
     for (_ <- 0 until 100) buffer.onNext(7)
 
     promise.success(Continue)
-    assert(errorCaught.await(15, TimeUnit.MINUTES), "errorCaught.await should have succeeded")
+    await(errorCaught, "errorCaught")
+    assert(errorThrown.isInstanceOf[BufferOverflowException], s"Exception $errorThrown is not a buffer overflow error")
   }
 
   test("should send onError when empty") { implicit s =>
@@ -197,7 +206,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     )
 
     buffer.onError(new RuntimeException("dummy"))
-    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
+    await(latch)
 
     val r = buffer.onNext(1)
     assertEquals(r, Stop)
@@ -220,7 +229,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
 
     buffer.onNext(1)
     buffer.onError(new RuntimeException("dummy"))
-    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
+    await(latch)
   }
 
   test("should send onError when at capacity") { implicit s =>
@@ -248,7 +257,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     buffer.onError(DummyException("dummy"))
 
     promise.success(Continue)
-    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
+    await(latch)
   }
 
   test("should send onComplete when empty") { implicit s =>
@@ -264,7 +273,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     )
 
     buffer.onComplete()
-    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
+    await(latch)
   }
 
   test("should send onComplete without back-pressure") { implicit s =>
@@ -282,7 +291,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
 
     buffer.onNext(1)
     buffer.onComplete()
-    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
+    await(latch)
   }
 
   test("should send onComplete when at capacity") { implicit s =>
@@ -307,7 +316,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     assert(!latch.await(1, TimeUnit.SECONDS), "latch.await should have failed")
 
     promise.success(Continue)
-    assert(latch.await(15, TimeUnit.MINUTES), "latch.await should have succeeded")
+    await(latch)
   }
 
   test("should do onComplete only after all the queue was drained") { implicit s =>
@@ -332,7 +341,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     buffer.onComplete()
     startConsuming.success(Continue)
 
-    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
+    await(complete, "complete")
     assertEquals(sum, (0 until 9999).sum)
   }
 
@@ -356,7 +365,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onComplete()
 
-    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
+    await(complete, "complete")
     assertEquals(sum, (0 until 9999).sum)
   }
 
@@ -382,7 +391,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     buffer.onError(new RuntimeException)
     startConsuming.success(Continue)
 
-    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
+    await(complete, "complete")
     assertEquals(sum, (0 until 9999).sum.toLong)
   }
 
@@ -406,7 +415,7 @@ class OverflowStrategyFailConcurrencySuite extends BaseConcurrencySuite {
     (0 until 9999).foreach { x => buffer.onNext(x.toLong); () }
     buffer.onError(new RuntimeException)
 
-    assert(complete.await(15, TimeUnit.MINUTES), "complete.await should have succeeded")
+    await(complete, "complete")
     assertEquals(sum, (0 until 9999).sum.toLong)
   }
 }

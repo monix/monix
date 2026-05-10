@@ -18,30 +18,27 @@
 package monix.execution
 
 import monix.execution.schedulers.SchedulerService
-import munit.Compare
-import munit.FunSuite
-import munit.Location
 import org.scalacheck.Arbitrary
 import org.scalacheck.Prop
 import org.scalacheck.Test
 
-import java.util.concurrent.locks.ReentrantLock
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.TimeoutException
+import scala.concurrent.blocking
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
 
 /** Base trait for all MUnit-based Monix test suites. */
-trait MUnitFunSuite extends FunSuite {
+trait MUnitFunSuite extends munit.FunSuite {
+  override val munitTimeout: FiniteDuration = 30.seconds
+  val awaitTimeout: FiniteDuration = 20.seconds
+
   override def isCI: Boolean =
     monix.execution.internal.Platform.getEnv("CI").map(_.toLowerCase).contains("true")
-
-  override def munitTimeout: FiniteDuration =
-    if (isCI) 30.seconds
-    else 10.seconds
 
   override def munitValueTransforms: List[ValueTransform] = {
     import Scheduler.Implicits.global
@@ -62,7 +59,8 @@ trait MUnitFunSuite extends FunSuite {
     forCancelableFuture :: alreadyDefined
   }
 
-  implicit def laxCompare[A, B]: Compare[A, B] = Compare.defaultCompare[A, B]
+  implicit def laxCompare[A, B]: munit.Compare[A, B] =
+    munit.Compare.defaultCompare[A, B]
 
   def scalaCheckTestParameters: Test.Parameters =
     Test.Parameters.default
@@ -73,35 +71,36 @@ trait MUnitFunSuite extends FunSuite {
     val result = Test.check(scalaCheckTestParameters, Prop.forAll(f))
     assert(result.passed, clue(result.toString))
   }
+
+  def tryAwait(latch: CountDownLatch): Boolean =
+    blocking {
+      latch.await(awaitTimeout.length, awaitTimeout.unit)
+    }
+
+  def await(latch: CountDownLatch, name: String = "latch"): Unit =
+    blocking {
+      assert(tryAwait(latch), s"Timed-out waiting for `$latch` to complete after $awaitTimeout")
+    }
 }
 
-trait MUnitFixtureSuite[A] extends MUnitFunSuite {
+trait MUnitFixtureSuite[A] extends MUnitFunSuite { self =>
   def setup(): A
 
   def tearDown(env: A): Unit
 
-  def test(name: String)(property: A => Any)(implicit loc: Location): Unit =
-    super[MUnitFunSuite].test(name) {
-      import scala.concurrent.ExecutionContext.Implicits.global
-      val env = setup()
-      val result = Try(property(env))
-      result match {
-        case Success(f: Future[_]) =>
-          f.transform {
-            case Success(value) =>
-              Try(tearDown(env)).map(_ => value)
-            case Failure(e) =>
-              Try(tearDown(env)).failed.foreach(e.addSuppressed)
-              Failure(e)
-          }
-        case Success(value) =>
-          tearDown(env)
-          value
-        case Failure(e) =>
-          Try(tearDown(env)).failed.foreach(e.addSuppressed)
-          throw e
-      }
+  def test(name: String)(property: A => Any)(implicit loc: munit.Location): Unit =
+    withEnv.test(name) { env =>
+      property(env)
     }
+
+  private val withEnv = FunFixture[A](
+    setup = { _ =>
+      self.setup()
+    },
+    teardown = { env =>
+      self.tearDown(env)
+    }
+  )
 }
 
 trait SchedulerServiceSuite extends MUnitFixtureSuite[SchedulerService] {

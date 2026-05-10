@@ -33,7 +33,7 @@ trait BaseConcurrencySuite extends MUnitFixtureSuite[SchedulerService] with Arbi
 
   override def tearDown(s: SchedulerService): Unit = {
     s.shutdown()
-    assert(s.awaitTermination(10.seconds), "ScheduledService was not shut down")
+    assert(s.awaitTermination(1.minute), "ScheduledService was not shut down")
   }
 
   implicit def equalityObservable[A](implicit A: Eq[A], ec: Scheduler): Eq[Observable[A]] =

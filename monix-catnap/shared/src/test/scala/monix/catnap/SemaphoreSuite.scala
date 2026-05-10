@@ -22,6 +22,7 @@ import cats.implicits._
 import monix.execution.MUnitFixtureSuite
 import monix.execution.internal.Platform
 import monix.execution.schedulers.TestScheduler
+import scala.concurrent.duration._
 import scala.concurrent.{ ExecutionContext, Promise }
 import scala.util.{ Random, Success }
 

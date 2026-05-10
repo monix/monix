@@ -139,12 +139,7 @@ class TaskCallbackSafetyJVMSuite extends monix.execution.MUnitFunSuite with Test
       }
     }
 
-    await(latchWorkersStart)
-    await(latchWorkersFinished)
-  }
-
-  def await(latch: CountDownLatch): Unit = {
-    val seconds = 10
-    assert(latch.await(seconds.toLong, TimeUnit.SECONDS), clue(s"latch.await($seconds seconds)"))
+    await(latchWorkersStart, "latchWorkersStart")
+    await(latchWorkersFinished, "latchWorkersFinished")
   }
 }
