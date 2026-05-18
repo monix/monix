@@ -26,8 +26,7 @@ import org.scalacheck.Arbitrary
 object FeaturesSuite extends SimpleTestSuite with Checkers {
   implicit val arbFeatures: Arbitrary[Features] =
     Arbitrary(implicitly[Arbitrary[Long]].arbitrary.map(l => new Features(l.asInstanceOf[Flags])))
-  val allFlags =
-    (0 until 64).map(i => (1L << i).asInstanceOf[Flag])
+  val allFlags = (0 until 64).map(i => (1L << i).asInstanceOf[Flag])
 
   test("Features.intersect") {
     check2 { (f1: Features, f2: Features) =>

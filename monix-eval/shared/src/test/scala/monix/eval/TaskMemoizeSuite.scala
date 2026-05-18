@@ -682,9 +682,9 @@ object TaskMemoizeSuite extends BaseTestSuite {
     val i = AtomicInt(0)
 
     val t = for {
-      local <- TaskLocal(0)
-      ii    <- Task.evalAsync(i.incrementAndGet())
-      _     <- local.write(ii)
+      local  <- TaskLocal(0)
+      ii     <- Task.evalAsync(i.incrementAndGet())
+      _      <- local.write(ii)
       result <- Task.parZip2(
         memoizedTask.flatMap { _ =>
           local.read.executeAsync

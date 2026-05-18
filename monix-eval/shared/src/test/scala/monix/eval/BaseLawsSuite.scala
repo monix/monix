@@ -83,7 +83,7 @@ trait ArbitraryInstancesBase extends monix.execution.ArbitraryInstances {
   implicit def arbitraryCoeval[A](implicit A: Arbitrary[A]): Arbitrary[Coeval[A]] =
     Arbitrary {
       for {
-        a <- A.arbitrary
+        a      <- A.arbitrary
         coeval <- Gen.oneOf(
           Coeval.now(a),
           Coeval.evalOnce(a),

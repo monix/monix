@@ -28,8 +28,7 @@ import monix.execution.atomic.internal.{ BoxedInt, Factory }
 final class AtomicShort private (private val ref: BoxedInt) extends AtomicNumber[Short] {
   private val mask = 255 + 255 * 256
 
-  def get(): Short =
-    (ref.volatileGet() & mask).asInstanceOf[Short]
+  def get(): Short = (ref.volatileGet() & mask).asInstanceOf[Short]
 
   def set(update: Short): Unit =
     ref.volatileSet(update.asInstanceOf[Int])
@@ -40,8 +39,7 @@ final class AtomicShort private (private val ref: BoxedInt) extends AtomicNumber
   def compareAndSet(expect: Short, update: Short): Boolean =
     ref.compareAndSet(expect.asInstanceOf[Int], update.asInstanceOf[Int])
 
-  def getAndSet(update: Short): Short =
-    (ref.getAndSet(update.asInstanceOf[Int]) & mask).asInstanceOf[Short]
+  def getAndSet(update: Short): Short = (ref.getAndSet(update.asInstanceOf[Int]) & mask).asInstanceOf[Short]
 
   def increment(v: Int = 1): Unit = {
     ref.getAndAdd(v)
@@ -53,28 +51,22 @@ final class AtomicShort private (private val ref: BoxedInt) extends AtomicNumber
     ()
   }
 
-  def incrementAndGet(v: Int = 1): Short =
-    ((ref.getAndAdd(v) + v) & mask).asInstanceOf[Short]
+  def incrementAndGet(v: Int = 1): Short = ((ref.getAndAdd(v) + v) & mask).asInstanceOf[Short]
 
-  def addAndGet(v: Short): Short =
-    ((ref.getAndAdd(v.asInstanceOf[Int]) + v) & mask).asInstanceOf[Short]
+  def addAndGet(v: Short): Short = ((ref.getAndAdd(v.asInstanceOf[Int]) + v) & mask).asInstanceOf[Short]
 
-  def getAndIncrement(v: Int = 1): Short =
-    (ref.getAndAdd(v) & mask).asInstanceOf[Short]
+  def getAndIncrement(v: Int = 1): Short = (ref.getAndAdd(v) & mask).asInstanceOf[Short]
 
-  def getAndAdd(v: Short): Short =
-    (ref.getAndAdd(v.asInstanceOf[Int]) & mask).asInstanceOf[Short]
+  def getAndAdd(v: Short): Short = (ref.getAndAdd(v.asInstanceOf[Int]) & mask).asInstanceOf[Short]
 
   def subtract(v: Short): Unit = {
     ref.getAndAdd(-v.asInstanceOf[Int])
     ()
   }
 
-  def subtractAndGet(v: Short): Short =
-    ((ref.getAndAdd(-v.asInstanceOf[Int]) - v) & mask).asInstanceOf[Short]
+  def subtractAndGet(v: Short): Short = ((ref.getAndAdd(-v.asInstanceOf[Int]) - v) & mask).asInstanceOf[Short]
 
-  def getAndSubtract(v: Short): Short =
-    (ref.getAndAdd(-v.asInstanceOf[Int]) & mask).asInstanceOf[Short]
+  def getAndSubtract(v: Short): Short = (ref.getAndAdd(-v.asInstanceOf[Int]) & mask).asInstanceOf[Short]
 
   def decrement(v: Int = 1): Unit = increment(-v)
   def decrementAndGet(v: Int = 1): Short = incrementAndGet(-v)

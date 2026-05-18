@@ -100,7 +100,7 @@ object TaskLocalJVMSuite extends SimpleTestSuite {
     implicit val s = monix.execution.Scheduler.Implicits.global
     val t = for {
       local <- TaskLocal(0)
-      _ <- TaskLocal.isolate {
+      _     <- TaskLocal.isolate {
         for {
           _ <- local.write(1)
           _ <- TaskLocal.isolate(local.write(2))

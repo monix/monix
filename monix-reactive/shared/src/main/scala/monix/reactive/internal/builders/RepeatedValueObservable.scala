@@ -36,8 +36,9 @@ private[reactive] final class RepeatedValueObservable[A](initialDelay: FiniteDur
     if (initialDelay.length <= 0)
       r.run()
     else {
-      task := subscriber.scheduler
-        .scheduleOnce(initialDelay.length, initialDelay.unit, r)
+      task :=
+        subscriber.scheduler
+          .scheduleOnce(initialDelay.length, initialDelay.unit, r)
     }
 
     task

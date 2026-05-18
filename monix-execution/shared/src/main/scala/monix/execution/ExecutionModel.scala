@@ -129,8 +129,7 @@ object ExecutionModel {
     val recommendedBatchSize: Int = math.nextPowerOf2(batchSize)
     val batchedExecutionModulus: Int = recommendedBatchSize - 1
 
-    def nextFrameIndex(current: Int): Int =
-      (current + 1) & batchedExecutionModulus
+    def nextFrameIndex(current: Int): Int = (current + 1) & batchedExecutionModulus
   }
 
   /** Extension methods for [[ExecutionModel]]. */

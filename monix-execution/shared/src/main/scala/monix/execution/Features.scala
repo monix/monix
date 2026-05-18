@@ -54,8 +54,7 @@ final class Features(val flags: Flags) extends AnyVal with Serializable {
     new Features((flags | feature).asInstanceOf[Flags])
 
   /** Tests if a given feature is in the set. */
-  def contains(feature: Flag): Boolean =
-    (flags & feature) != (0L).asInstanceOf[Flag]
+  def contains(feature: Flag): Boolean = (flags & feature) != (0L).asInstanceOf[Flag]
 
   override def toString: String =
     s"Features($flags)"

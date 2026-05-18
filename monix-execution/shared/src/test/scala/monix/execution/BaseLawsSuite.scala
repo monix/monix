@@ -80,7 +80,7 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
   implicit def arbitraryCancelableFuture[A](implicit A: Arbitrary[A], ec: Scheduler): Arbitrary[CancelableFuture[A]] =
     Arbitrary {
       for {
-        a <- A.arbitrary
+        a      <- A.arbitrary
         future <- Gen.oneOf(
           CancelableFuture.pure(a),
           CancelableFuture.raiseError(DummyException(a.toString)),

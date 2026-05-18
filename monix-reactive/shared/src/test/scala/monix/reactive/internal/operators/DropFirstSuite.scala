@@ -30,8 +30,7 @@ object DropFirstSuite extends BaseOperatorSuite {
     }
   }
 
-  def sum(sourceCount: Int): Long =
-    (1 until sourceCount * 2).drop(sourceCount - 1).sum.toLong
+  def sum(sourceCount: Int): Long = (1 until sourceCount * 2).drop(sourceCount - 1).sum.toLong
 
   def count(sourceCount: Int) =
     sourceCount

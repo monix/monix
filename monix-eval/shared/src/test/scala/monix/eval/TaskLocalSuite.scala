@@ -196,7 +196,7 @@ object TaskLocalSuite extends SimpleTestSuite {
   testAsync("TaskLocal should work with bracket") {
     val t = for {
       local <- TaskLocal(0)
-      _ <- Task.unit.executeAsync
+      _     <- Task.unit.executeAsync
         .guarantee(local.write(10))
       value <- local.read
       _     <- Task.eval(assertEquals(value, 10))
@@ -225,7 +225,7 @@ object TaskLocalSuite extends SimpleTestSuite {
       local  <- TaskLocal(0)
       unsafe <- local.local
       _      <- local.write(1)
-      _ <- Task.deferFutureAction { implicit ec =>
+      _      <- Task.deferFutureAction { implicit ec =>
         Future {
           assertEquals(unsafe.get, 1)
         }.map { _ =>

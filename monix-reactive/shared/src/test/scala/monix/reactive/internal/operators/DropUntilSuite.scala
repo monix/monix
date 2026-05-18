@@ -29,8 +29,7 @@ object DropUntilSuite extends BaseOperatorSuite {
   val waitFirst = 2500.millis
   val waitNext = 500.millis
 
-  def sum(sourceCount: Int) =
-    (0 until sourceCount).map(_ + 5).sum
+  def sum(sourceCount: Int) = (0 until sourceCount).map(_ + 5).sum
   def count(sourceCount: Int) =
     sourceCount
 

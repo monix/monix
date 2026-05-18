@@ -64,14 +64,16 @@ object InflateOperatorSuite extends BaseDecompressionSuite with DeflateTestUtils
 
   override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[InflateOperatorSuite.Sample] =
     Some {
-      val o = (Observable
-        .repeatEval(jdkDeflate(longText, new Deflater(-1, true)))
-        .take(sourceCount.toLong)
-        .transform(inflate(noWrap = true)) ++ Observable
-        .repeatEval(longText) // corrupted payload
-        .transform(inflate(noWrap = true)))
-        .map(_ => 1L)
-        .onErrorFallbackTo(Observable.raiseError(ex))
+      val o =
+        (Observable
+          .repeatEval(jdkDeflate(longText, new Deflater(-1, true)))
+          .take(sourceCount.toLong)
+          .transform(inflate(noWrap = true)) ++
+          Observable
+            .repeatEval(longText) // corrupted payload
+            .transform(inflate(noWrap = true)))
+          .map(_ => 1L)
+          .onErrorFallbackTo(Observable.raiseError(ex))
       Sample(o, sourceCount + 1, sourceCount + 1, Zero, Zero)
     }
 

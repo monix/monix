@@ -125,9 +125,8 @@ final class OrderedCancelable private (initial: Cancelable) extends AssignableCa
 
       case current @ Active(_, currentOrder) =>
         val sameSign = (currentOrder < 0) ^ (order >= 0)
-        val isOrdered =
-          (sameSign && currentOrder <= order) ||
-            (currentOrder >= 0L && order < 0L) // takes overflow into account
+        val isOrdered = (sameSign && currentOrder <= order) ||
+          (currentOrder >= 0L && order < 0L) // takes overflow into account
 
         if (!isOrdered) this
         else {

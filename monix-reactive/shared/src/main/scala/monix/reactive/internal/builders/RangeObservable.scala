@@ -89,6 +89,7 @@ private[reactive] final class RangeObservable(from: Long, until: Long, step: Lon
   }
 
   private def isNextInRange(from: Long, nextFrom: Long, until: Long, step: Long): Boolean = {
-    (step > 0 && nextFrom < until && nextFrom > from) || (step < 0 && nextFrom > until && nextFrom < from)
+    (step > 0 && nextFrom < until && nextFrom > from) ||
+    (step < 0 && nextFrom > until && nextFrom < from)
   }
 }

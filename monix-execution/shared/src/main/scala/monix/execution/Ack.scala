@@ -107,8 +107,7 @@ object Ack {
     /** Returns `true` if self is a direct reference to
       * `Continue` or `Stop`, `false` otherwise.
       */
-    def isSynchronous: Boolean =
-      (source eq Continue) || (source eq Stop)
+    def isSynchronous: Boolean = (source eq Continue) || (source eq Stop)
 
     /** Executes the given `callback` on `Continue`.
       *

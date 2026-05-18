@@ -43,8 +43,7 @@ object CombineLatestListSuite extends BaseOperatorSuite {
 
   override def cancelableObservables(): Seq[Sample] = {
     val sample1 = {
-      val sources =
-        (0 until NumberOfObservables).map(_ => Observable.range(0, 10).delayOnNext(1.second))
+      val sources = (0 until NumberOfObservables).map(_ => Observable.range(0, 10).delayOnNext(1.second))
       Observable.combineLatestList(sources*).map { seq =>
         seq.sum
       }

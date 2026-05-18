@@ -94,14 +94,16 @@ object GunzipOperatorSuite extends BaseDecompressionSuite with GzipTestsUtils {
 
   override def brokenUserCodeObservable(sourceCount: Int, ex: Throwable): Option[GunzipOperatorSuite.Sample] =
     Some {
-      val o = (Observable
-        .repeatEval(jdkGzip(longText, syncFlush = false))
-        .take(sourceCount.toLong)
-        .transform(gunzip()) ++ Observable
-        .repeatEval(longText) // corrupted payload
-        .transform(gunzip()))
-        .map(_ => 1L)
-        .onErrorFallbackTo(Observable.raiseError(ex))
+      val o =
+        (Observable
+          .repeatEval(jdkGzip(longText, syncFlush = false))
+          .take(sourceCount.toLong)
+          .transform(gunzip()) ++
+          Observable
+            .repeatEval(longText) // corrupted payload
+            .transform(gunzip()))
+          .map(_ => 1L)
+          .onErrorFallbackTo(Observable.raiseError(ex))
       Sample(o, sourceCount + 1, sourceCount + 1, Zero, Zero)
     }
 

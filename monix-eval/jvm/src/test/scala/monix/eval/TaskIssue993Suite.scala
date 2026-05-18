@@ -52,7 +52,7 @@ object TaskIssue993Suite extends SimpleTestSuite {
         r1 <- Task(Local.isolate {
           local.bind(100)(local.get)
         })
-        _ <- Task.shift
+        _  <- Task.shift
         r2 <- Task(Local.isolate {
           local.bind(200)(local.get)
         })

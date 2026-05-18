@@ -28,8 +28,7 @@ import monix.execution.atomic.internal.{ BoxedInt, Factory }
 final class AtomicChar private (private val ref: BoxedInt) extends AtomicNumber[Char] {
   private val mask = 255 + 255 * 256
 
-  def get(): Char =
-    (ref.volatileGet() & mask).asInstanceOf[Char]
+  def get(): Char = (ref.volatileGet() & mask).asInstanceOf[Char]
 
   def set(update: Char): Unit =
     ref.volatileSet(update.asInstanceOf[Int])
@@ -40,8 +39,7 @@ final class AtomicChar private (private val ref: BoxedInt) extends AtomicNumber[
   def compareAndSet(expect: Char, update: Char): Boolean =
     ref.compareAndSet(expect.asInstanceOf[Int], update.asInstanceOf[Int])
 
-  def getAndSet(update: Char): Char =
-    (ref.getAndSet(update.asInstanceOf[Int]) & mask).asInstanceOf[Char]
+  def getAndSet(update: Char): Char = (ref.getAndSet(update.asInstanceOf[Int]) & mask).asInstanceOf[Char]
 
   def increment(v: Int = 1): Unit = {
     ref.getAndAdd(v)
@@ -53,28 +51,22 @@ final class AtomicChar private (private val ref: BoxedInt) extends AtomicNumber[
     ()
   }
 
-  def incrementAndGet(v: Int = 1): Char =
-    ((ref.getAndAdd(v) + v) & mask).asInstanceOf[Char]
+  def incrementAndGet(v: Int = 1): Char = ((ref.getAndAdd(v) + v) & mask).asInstanceOf[Char]
 
-  def addAndGet(v: Char): Char =
-    ((ref.getAndAdd(v.asInstanceOf[Int]) + v) & mask).asInstanceOf[Char]
+  def addAndGet(v: Char): Char = ((ref.getAndAdd(v.asInstanceOf[Int]) + v) & mask).asInstanceOf[Char]
 
-  def getAndIncrement(v: Int = 1): Char =
-    (ref.getAndAdd(v.asInstanceOf[Int]) & mask).asInstanceOf[Char]
+  def getAndIncrement(v: Int = 1): Char = (ref.getAndAdd(v.asInstanceOf[Int]) & mask).asInstanceOf[Char]
 
-  def getAndAdd(v: Char): Char =
-    (ref.getAndAdd(v.asInstanceOf[Int]) & mask).asInstanceOf[Char]
+  def getAndAdd(v: Char): Char = (ref.getAndAdd(v.asInstanceOf[Int]) & mask).asInstanceOf[Char]
 
   def subtract(v: Char): Unit = {
     ref.getAndAdd(-v.asInstanceOf[Int])
     ()
   }
 
-  def subtractAndGet(v: Char): Char =
-    ((ref.getAndAdd(-v.asInstanceOf[Int]) - v) & mask).asInstanceOf[Char]
+  def subtractAndGet(v: Char): Char = ((ref.getAndAdd(-v.asInstanceOf[Int]) - v) & mask).asInstanceOf[Char]
 
-  def getAndSubtract(v: Char): Char =
-    (ref.getAndAdd(-v.asInstanceOf[Int]) & mask).asInstanceOf[Char]
+  def getAndSubtract(v: Char): Char = (ref.getAndAdd(-v.asInstanceOf[Int]) & mask).asInstanceOf[Char]
 
   def decrement(v: Int = 1): Unit = increment(-v)
   def decrementAndGet(v: Int = 1): Char = incrementAndGet(-v)

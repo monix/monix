@@ -27,8 +27,7 @@ object DropByTimespanSuite extends BaseOperatorSuite {
 
   def brokenUserCodeObservable(sourceCount: Int, ex: Throwable) = None
 
-  def sum(sourceCount: Int) =
-    (0 until sourceCount).map(_ + 5).sum
+  def sum(sourceCount: Int) = (0 until sourceCount).map(_ + 5).sum
   def count(sourceCount: Int) =
     sourceCount
 

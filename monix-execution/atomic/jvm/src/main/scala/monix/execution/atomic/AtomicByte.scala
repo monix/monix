@@ -29,8 +29,7 @@ final class AtomicByte private (private val ref: BoxedInt) extends AtomicNumber[
 
   private val mask = 255
 
-  def get(): Byte =
-    (ref.volatileGet() & mask).asInstanceOf[Byte]
+  def get(): Byte = (ref.volatileGet() & mask).asInstanceOf[Byte]
 
   def set(update: Byte): Unit =
     ref.volatileSet(update.asInstanceOf[Int])
@@ -41,8 +40,7 @@ final class AtomicByte private (private val ref: BoxedInt) extends AtomicNumber[
   def compareAndSet(expect: Byte, update: Byte): Boolean =
     ref.compareAndSet(expect.asInstanceOf[Int], update.asInstanceOf[Int])
 
-  def getAndSet(update: Byte): Byte =
-    (ref.getAndSet(update.asInstanceOf[Int]) & mask).asInstanceOf[Byte]
+  def getAndSet(update: Byte): Byte = (ref.getAndSet(update.asInstanceOf[Int]) & mask).asInstanceOf[Byte]
 
   def increment(v: Int = 1): Unit = {
     ref.getAndAdd(v.asInstanceOf[Int])
@@ -54,28 +52,22 @@ final class AtomicByte private (private val ref: BoxedInt) extends AtomicNumber[
     ()
   }
 
-  def incrementAndGet(v: Int = 1): Byte =
-    ((ref.getAndAdd(v.asInstanceOf[Int]) + v) & mask).asInstanceOf[Byte]
+  def incrementAndGet(v: Int = 1): Byte = ((ref.getAndAdd(v.asInstanceOf[Int]) + v) & mask).asInstanceOf[Byte]
 
-  def addAndGet(v: Byte): Byte =
-    ((ref.getAndAdd(v.asInstanceOf[Int]) + v) & mask).asInstanceOf[Byte]
+  def addAndGet(v: Byte): Byte = ((ref.getAndAdd(v.asInstanceOf[Int]) + v) & mask).asInstanceOf[Byte]
 
-  def getAndIncrement(v: Int = 1): Byte =
-    (ref.getAndAdd(v.asInstanceOf[Int]) & mask).asInstanceOf[Byte]
+  def getAndIncrement(v: Int = 1): Byte = (ref.getAndAdd(v.asInstanceOf[Int]) & mask).asInstanceOf[Byte]
 
-  def getAndAdd(v: Byte): Byte =
-    (ref.getAndAdd(v.asInstanceOf[Int]) & mask).asInstanceOf[Byte]
+  def getAndAdd(v: Byte): Byte = (ref.getAndAdd(v.asInstanceOf[Int]) & mask).asInstanceOf[Byte]
 
   def subtract(v: Byte): Unit = {
     ref.getAndAdd(-v.asInstanceOf[Int])
     ()
   }
 
-  def subtractAndGet(v: Byte): Byte =
-    ((ref.getAndAdd(-v.asInstanceOf[Int]) - v) & mask).asInstanceOf[Byte]
+  def subtractAndGet(v: Byte): Byte = ((ref.getAndAdd(-v.asInstanceOf[Int]) - v) & mask).asInstanceOf[Byte]
 
-  def getAndSubtract(v: Byte): Byte =
-    (ref.getAndAdd(-v.asInstanceOf[Int]) & mask).asInstanceOf[Byte]
+  def getAndSubtract(v: Byte): Byte = (ref.getAndAdd(-v.asInstanceOf[Int]) & mask).asInstanceOf[Byte]
 
   def decrement(v: Int = 1): Unit = increment(-v)
   def decrementAndGet(v: Int = 1): Byte = incrementAndGet(-v)

@@ -120,7 +120,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
       val await = for {
         fiber <- Task.parSequenceUnordered(tasks).map(_.sum).start
         _     <- awaitSubscribers(subject, CONCURRENT_TASKS)
-        _ <- Task {
+        _     <- Task {
           subject.onNext(2)
           subject.onComplete()
         }
