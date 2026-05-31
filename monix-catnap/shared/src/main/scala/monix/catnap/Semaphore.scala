@@ -17,7 +17,7 @@
 
 package monix.catnap
 
-import cats.effect.{ Async, CancelToken, Concurrent, ContextShift }
+import cats.effect.{ Async, CancelToken, Concurrent }
 import monix.catnap.internal.AsyncUtils
 import monix.execution.Callback
 import monix.execution.annotations.{ UnsafeBecauseImpure, UnsafeProtocol }
@@ -70,7 +70,7 @@ final class Semaphore[F[_]] private (provisioned: Long, ps: PaddingStrategy)(
   implicit
   F: OrElse[Concurrent[F], Async[F]],
   cs: ContextShift[F]
-) extends cats.effect.concurrent.Semaphore[F] {
+) extends cats.effect.std.Semaphore[F] {
 
   private val F0: Async[F] = F.unify
 
@@ -233,9 +233,7 @@ object Semaphore {
     */
   def apply[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(
     implicit
-    F: OrElse[Concurrent[F], Async[F]],
-    cs: ContextShift[F]
-  ): F[Semaphore[F]] = {
+    F: OrElse[Concurrent[F], Async[F]]): F[Semaphore[F]] = {
 
     F.unify.delay(new Semaphore[F](provisioned, ps))
   }
@@ -260,9 +258,7 @@ object Semaphore {
   @UnsafeBecauseImpure
   def unsafe[F[_]](provisioned: Long, ps: PaddingStrategy = NoPadding)(
     implicit
-    F: OrElse[Concurrent[F], Async[F]],
-    cs: ContextShift[F]
-  ): Semaphore[F] =
+    F: OrElse[Concurrent[F], Async[F]]): Semaphore[F] =
     new Semaphore[F](provisioned, ps)
 
   implicit final class DeprecatedExtensions[F[_]](val source: Semaphore[F]) extends AnyVal {
