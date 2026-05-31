@@ -46,7 +46,7 @@ addCommandAlias(
 
 val cats_Version              = "2.13.0"
 val catsEffect_Version        = "2.5.5"
-val fs2_Version               = "2.5.11"
+val fs2_Version               = "3.13.0"
 val jcTools_Version           = "4.0.6"
 val reactiveStreams_Version   = "1.0.4"
 val macrotaskExecutor_Version = "1.1.1"
@@ -784,7 +784,7 @@ lazy val reactiveTests = project
   .settings(
     libraryDependencies ++= Seq(
       reactiveStreamsTCKLib % Test,
-      "org.scalatestplus"  %% "testng-7-5" % "3.2.12.0" % Test,
+      "org.scalatestplus"  %% "testng-7-5" % "3.2.17.0" % Test,
     )
   )
 
@@ -846,10 +846,10 @@ lazy val benchmarksPrev = project
     scalaVersion := benchmarksScalaVersions.value.head,
     crossScalaVersions := benchmarksScalaVersions.value,
     libraryDependencies ++= Seq(
-      "io.monix"          %% "monix"       % "3.3.0",
-      "dev.zio"           %% "zio-streams" % "1.0.0",
+      "io.monix"          %% "monix"       % "3.4.1",
+      "dev.zio"           %% "zio-streams" % "2.1.26",
       "co.fs2"            %% "fs2-core"    % fs2_Version,
-      "com.typesafe.akka" %% "akka-stream" % "2.6.9"
+      "com.typesafe.akka" %% "akka-stream" % "2.8.8"
     )
   )
 
@@ -868,8 +868,8 @@ lazy val benchmarksNext = project
     scalaVersion := benchmarksScalaVersions.value.head,
     crossScalaVersions := benchmarksScalaVersions.value,
     libraryDependencies ++= Seq(
-      "dev.zio"           %% "zio-streams" % "1.0.0",
+      "dev.zio"           %% "zio-streams" % "2.1.26",
       "co.fs2"            %% "fs2-core"    % fs2_Version,
-      "com.typesafe.akka" %% "akka-stream" % "2.6.9"
+      "com.typesafe.akka" %% "akka-stream" % "2.8.8"
     )
   )
