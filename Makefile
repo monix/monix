@@ -1,3 +1,7 @@
+.PHONY: check-all
+check-all:
+	./sbt ci-all
+
 dependency-updates:
 	@mkdir -p ~/.sbt/1.0/plugins && \
 	( test -f ~/.sbt/1.0/plugins/sbt-updates.sbt || echo 'addSbtPlugin("com.timushev.sbt" % "sbt-updates" % "0.6.4")' > ~/.sbt/1.0/plugins/sbt-updates.sbt ) && \
