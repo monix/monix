@@ -217,7 +217,7 @@ package object eval {
   @deprecated("Moved and made generic in monix.catnap.Semaphore", "3.0.0")
   object TaskSemaphore {
     @deprecated("Switch to monix.catnap.Semaphore.apply", "3.0.0")
-    def apply(maxParallelism: Int): Task[cats/effect/std/Semaphore[Task]] =
-      cats/effect/std/Semaphore[Task](maxParallelism.toLong)
+    def apply(maxParallelism: Int): Task[cats / effect / std / Semaphore[Task]] =
+      cats / effect / std / Semaphore[Task](maxParallelism.toLong)
   }
 }

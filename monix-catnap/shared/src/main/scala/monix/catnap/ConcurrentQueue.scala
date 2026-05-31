@@ -454,8 +454,8 @@ object ConcurrentQueue {
     */
   @UnsafeProtocol
   def withConfig[F[_], A](capacity: BufferCapacity, channelType: ChannelType)(
-    implicit
-    F: Concurrent[F]): F[ConcurrentQueue[F, A]] = {
+    implicit F: Concurrent[F]
+  ): F[ConcurrentQueue[F, A]] = {
 
     F.delay(unsafe(capacity, channelType))
   }
@@ -481,8 +481,8 @@ object ConcurrentQueue {
   @UnsafeProtocol
   @UnsafeBecauseImpure
   def unsafe[F[_], A](capacity: BufferCapacity, channelType: ChannelType = MPMC)(
-    implicit
-    F: Concurrent[F]): ConcurrentQueue[F, A] = {
+    implicit F: Concurrent[F]
+  ): ConcurrentQueue[F, A] = {
 
     new ConcurrentQueue[F, A](capacity, channelType)(F, cs)
   }
