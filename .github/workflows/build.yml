@@ -9,15 +9,15 @@ on:
 
 jobs:
   jvm-tests:
-    name: JVM / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
+    name: JVM / scala ${{ matrix.scala.version }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
         java: [ 17, 21 ]
-        # WARN: build.sbt depends on this key path, as scalaVersion and
-        # crossScalaVersions is determined from it
-        scala: [ 2.13.18, 3.3.7 ]
+        scala:
+          - { version: "2.13", command: "scala-213" }
+          - { version: "3", command: "scala-3" }
 
     env:
       CI: true
@@ -55,28 +55,26 @@ jobs:
       - name: sbt ci-jvm
         run: ./.github/scripts/exec-sbt-command
         env:
-          SCALA_VERSION: ${{ matrix.scala }}
+          SCALA_COMMAND: ${{ matrix.scala.command }}
           PLATFORM: ${{ matrix.java }}
           SBT_COMMAND: ci-jvm
 
       - name: sbt reactiveTests/test
         run: ./.github/scripts/exec-sbt-command
         env:
-          SCALA_VERSION: ${{ matrix.scala }}
+          SCALA_COMMAND: ${{ matrix.scala.command }}
           PLATFORM: ${{ matrix.java }}
           SBT_COMMAND: "reactiveTests/test"
 
   js-tests:
-    name: JS / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
+    name: JS / scala ${{ matrix.scala.version }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
-        # WARN: build.sbt depends on this key path, as scalaVersion and
-        # crossScalaVersions is determined from it
         include:
-          - { java: 17, scala: 2.13.18 }
-          - { java: 17, scala: 3.3.7 }
+          - { java: 17, scala: { version: "2.13", command: "scala-213" } }
+          - { java: 17, scala: { version: "3", command: "scala-3" } }
 
     env:
       CI: true
@@ -120,12 +118,12 @@ jobs:
         run: |
           ./.github/scripts/exec-sbt-command
         env:
-          SCALA_VERSION: ${{ matrix.scala }}
+          SCALA_COMMAND: ${{ matrix.scala.command }}
           PLATFORM: ${{ matrix.java }}
           SBT_COMMAND: ci-js
 
   mima:
-    name: Mima / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
+    name: Mima / scala ${{ matrix.scala.version }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-22.04
 
     env:
@@ -135,8 +133,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { java: 17, scala: 2.13.18 }
-          - { java: 17, scala: 3.3.7 }
+          - { java: 17, scala: { version: "2.13", command: "scala-213" } }
+          - { java: 17, scala: { version: "3", command: "scala-3" } }
 
     steps:
       - uses: actions/checkout@v6
@@ -172,11 +170,11 @@ jobs:
         run: |
           ./.github/scripts/exec-sbt-command
         env:
-          SCALA_VERSION: ${{ matrix.scala }}
+          SCALA_COMMAND: ${{ matrix.scala.command }}
           SBT_COMMAND: mimaReportBinaryIssues
 
   unidoc:
-    name: Unidoc / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
+    name: Unidoc / scala ${{ matrix.scala.version }}, jdk ${{ matrix.java }}
     runs-on: ubuntu-22.04
 
     env:
@@ -186,8 +184,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { java: 17, scala: 2.13.18 }
-          - { java: 17, scala: 3.3.7 }
+          - { java: 17, scala: { version: "2.13", command: "scala-213" } }
+          - { java: 17, scala: { version: "3", command: "scala-3" } }
 
     steps:
       - uses: actions/checkout@v6
@@ -223,7 +221,7 @@ jobs:
         run: |
           ./.github/scripts/exec-sbt-command
         env:
-          SCALA_VERSION: ${{ matrix.scala }}
+          SCALA_COMMAND: ${{ matrix.scala.command }}
           SBT_COMMAND: unidoc
 
   all_tests:
