@@ -5,10 +5,12 @@ import com.typesafe.tools.mima.core.ProblemFilter
 import org.typelevel.scalacoptions.ScalacOptions
 import xerial.sbt.Sonatype.sonatypeCentralHost
 
-import scala.collection.immutable.SortedSet
 import MonixBuildUtils._
 
 ThisBuild / useConsoleForROGit := true
+
+val scala213Version = "2.13.18"
+val scala3Version   = "3.3.7"
 
 val benchmarkProjects = List(
   "benchmarks"
@@ -38,6 +40,14 @@ addCommandAlias(
 addCommandAlias(
   "ci-release",
   ";+publishSigned ;sonatypeBundleRelease"
+)
+addCommandAlias(
+  "scala-213",
+  s"++$scala213Version"
+)
+addCommandAlias(
+  "scala-3",
+  s"++$scala3Version"
 )
 
 // ------------------------------------------------------------------------------------------------
@@ -143,11 +153,6 @@ lazy val testDependencies = Seq(
 lazy val gitHubTreeTagOrHash =
   settingKey[String]("Identifies GitHub's version tag or commit sha")
 
-val crossScalaVersionsFromBuildYaml =
-  settingKey[SortedSet[MonixScalaVersion]](
-    "Scala versions set in .github/workflows/build.yml as scala_version_XXX"
-  )
-
 lazy val publishStableMonixVersion =
   settingKey[Boolean]("If it should publish stable versions to Sonatype staging repository, instead of a snapshot")
 
@@ -176,10 +181,8 @@ lazy val isCI = {
 
 lazy val sharedSettings = pgpSettings ++ Def.settings(
   organization := "io.monix",
-  // Value extracted from .github/workflows/build.yml
-  scalaVersion := crossScalaVersionsFromBuildYaml.value.flatMap(_.filterPrefix("2.13.")).head.value,
-  // Value extracted from .github/workflows/build.yml
-  crossScalaVersions := crossScalaVersionsFromBuildYaml.value.toIndexedSeq.map(_.value),
+  scalaVersion := scala213Version,
+  crossScalaVersions := Seq(scala213Version, scala3Version),
   gitHubTreeTagOrHash := {
     val ver = s"v${version.value}"
     if (isSnapshot.value)
@@ -520,13 +523,6 @@ lazy val monix = project
   .aggregate(coreJVM, coreJS)
   .settings(unidocSettings)
   .settings(
-    //
-    // Reads Scala versions from build.yml
-    Global / crossScalaVersionsFromBuildYaml := {
-      val manifest = (ThisBuild / baseDirectory).value / ".github" / "workflows" / "build.yml"
-      scalaVersionsFromBuildYaml(manifest)
-    },
-    //
     // Tries restricting concurrency when running tests
     // https://www.scala-sbt.org/1.x/docs/Parallel-Execution.html
     Global / concurrentRestrictions += Tags.limit(Tags.Test, 1),
@@ -824,9 +820,8 @@ lazy val tracingTests = project
 
 lazy val benchmarksScalaVersions =
   Def.setting {
-    crossScalaVersionsFromBuildYaml.value.toIndexedSeq
-      .filter(v => !v.value.startsWith("3."))
-      .map(_.value)
+    crossScalaVersions.value
+      .filterNot(_.startsWith("3."))
   }
 
 lazy val benchmarks = project
