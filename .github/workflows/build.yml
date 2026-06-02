@@ -10,7 +10,7 @@ on:
 jobs:
   jvm-tests:
     name: JVM / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -68,7 +68,7 @@ jobs:
 
   js-tests:
     name: JS / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -114,7 +114,7 @@ jobs:
       - name: Setup NodeJS
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
 
       - name: sbt ci-js
         run: |
@@ -126,7 +126,7 @@ jobs:
 
   mima:
     name: Mima / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     env:
       CI: true
@@ -177,7 +177,7 @@ jobs:
 
   unidoc:
     name: Unidoc / scala ${{ matrix.scala }}, jdk ${{ matrix.java }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     env:
       CI: true
@@ -230,7 +230,7 @@ jobs:
     name: All Tests
     if: always()
     needs: [ jvm-tests, js-tests, mima, unidoc ]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
     - name: Validate required tests
       uses: re-actors/alls-green@release/v1
