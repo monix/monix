@@ -24,10 +24,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - name: Setup JDK
+        uses: actions/setup-java@v5
         with:
-          java-version: "${{ matrix.java }}"
           distribution: temurin
+          java-version: "${{ matrix.java }}"
+          cache: sbt
+
+      - uses: sbt/setup-sbt@v1
 
       - name: Cache ivy2
         uses: actions/cache@v5
@@ -79,10 +83,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - name: Setup JDK
+        uses: actions/setup-java@v5
         with:
-          java-version: "${{ matrix.java }}"
           distribution: temurin
+          java-version: "${{ matrix.java }}"
+          cache: sbt
+
+      - uses: sbt/setup-sbt@v1
 
       - name: Cache ivy2
         uses: actions/cache@v5
@@ -132,10 +140,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - name: Setup JDK
+        uses: actions/setup-java@v5
         with:
-          java-version: "${{ matrix.java }}"
           distribution: temurin
+          java-version: "${{ matrix.java }}"
+          cache: sbt
+
+      - uses: sbt/setup-sbt@v1
 
       - name: Cache ivy2
         uses: actions/cache@v5
@@ -179,10 +191,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-java@v5
+      - name: Setup JDK
+        uses: actions/setup-java@v5
         with:
-          java-version: "${{ matrix.java }}"
           distribution: temurin
+          java-version: "${{ matrix.java }}"
+          cache: sbt
+
+      - uses: sbt/setup-sbt@v1
 
       - name: Cache ivy2
         uses: actions/cache@v5
