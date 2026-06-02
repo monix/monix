@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,16 +22,12 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
-import cats.effect.IO
-import cats.implicits._
 import monix.eval.Task
 import org.openjdk.jmh.annotations._
-import cats.effect.implicits._
-import zio.ZIO
 
 import scala.concurrent.Future
 
-/** To do comparative benchmarks between versions:
+/** To run this benchmark:
   *
   *     benchmarks/run-benchmark TaskSequenceBenchmark
   *
@@ -65,27 +61,6 @@ class TaskSequenceBenchmark {
   val parallelism: Int = 10
 
   @Benchmark
-  def catsSequence(): Long = {
-    val tasks = (0 until count).map(_ => IO(1)).toList
-    val result = tasks.sequence.map(_.sum.toLong)
-    result.unsafeRunSync()
-  }
-
-  @Benchmark
-  def catsParSequence(): Long = {
-    val tasks = (0 until count).map(_ => IO(1)).toList
-    val result = tasks.parSequence.map(_.sum.toLong)
-    result.unsafeRunSync()
-  }
-
-  @Benchmark
-  def catsParSequenceN(): Long = {
-    val tasks = (0 until count).map(_ => IO(1)).toList
-    val result = tasks.parSequenceN(parallelism.toLong).map(_.sum.toLong)
-    result.unsafeRunSync()
-  }
-
-  @Benchmark
   def monixSequence(): Long = {
     val tasks = (0 until count).map(_ => Task.eval(1)).toList
     val result = Task.sequence(tasks).map(_.sum.toLong)
@@ -111,27 +86,6 @@ class TaskSequenceBenchmark {
     val tasks = (0 until count).map(_ => Task.eval(1)).toList
     val result = Task.parSequenceN(parallelism)(tasks).map(_.sum.toLong)
     result.runSyncUnsafe()
-  }
-
-  @Benchmark
-  def zioSequence(): Long = {
-    val tasks = (0 until count).map(_ => ZIO.effectTotal(1)).toList
-    val result = ZIO.collectAll(tasks).map(_.sum.toLong)
-    zioUntracedRuntime.unsafeRun(result)
-  }
-
-  @Benchmark
-  def zioParSequence(): Long = {
-    val tasks = (0 until count).map(_ => ZIO.effectTotal(1)).toList
-    val result = ZIO.collectAllPar(tasks).map(_.sum.toLong)
-    zioUntracedRuntime.unsafeRun(result)
-  }
-
-  @Benchmark
-  def zioParSequenceN(): Long = {
-    val tasks = (0 until count).map(_ => ZIO.effectTotal(1)).toList
-    val result = ZIO.collectAllParN(parallelism)(tasks).map(_.sum.toLong)
-    zioUntracedRuntime.unsafeRun(result)
   }
 
   @Benchmark

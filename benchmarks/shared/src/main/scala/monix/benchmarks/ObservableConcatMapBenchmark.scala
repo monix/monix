@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +27,7 @@ import org.openjdk.jmh.annotations._
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Promise }
 
-/** To do comparative benchmarks between versions:
+/** To run this benchmark:
   *
   *     benchmarks/run-benchmark ObservableConcatMapBenchmark
   *
@@ -76,7 +76,7 @@ class ObservableConcatMapBenchmark {
 
   def sum(stream: Observable[Long]): Long = {
     val p = Promise[Long]()
-    stream.unsafeSubscribeFn(new Subscriber.Sync[Long] {
+    val cancelable = stream.unsafeSubscribeFn(new Subscriber.Sync[Long] {
       val scheduler = global
       private var sum: Long = 0
 
@@ -95,6 +95,8 @@ class ObservableConcatMapBenchmark {
         Continue
       }
     })
-    Await.result(p.future, Duration.Inf)
+    val result = Await.result(p.future, Duration.Inf)
+    cancelable.cancel()
+    result
   }
 }

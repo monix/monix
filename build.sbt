@@ -11,8 +11,7 @@ import MonixBuildUtils._
 ThisBuild / useConsoleForROGit := true
 
 val benchmarkProjects = List(
-  "benchmarksPrev",
-  "benchmarksNext"
+  "benchmarks"
 ).map(_ + "/compile").mkString(" ;")
 
 val jvmTests = List(
@@ -46,7 +45,6 @@ addCommandAlias(
 
 val cats_Version              = "2.13.0"
 val catsEffect_Version        = "2.5.5"
-val fs2_Version               = "2.5.11"
 val jcTools_Version           = "4.0.6"
 val reactiveStreams_Version   = "1.0.4"
 val macrotaskExecutor_Version = "1.1.1"
@@ -823,7 +821,7 @@ lazy val tracingTests = project
   )
 
 // --------------------------------------------
-// monix-benchmarks-{prev,next} (not published)
+// monix-benchmarks (not published)
 
 lazy val benchmarksScalaVersions =
   Def.setting {
@@ -832,33 +830,12 @@ lazy val benchmarksScalaVersions =
       .map(_.value)
   }
 
-lazy val benchmarksPrev = project
-  .in(file("benchmarks/vprev"))
+lazy val benchmarks = project
+  .in(file("benchmarks"))
   .enablePlugins(JmhPlugin)
   .configure(
     monixSubModule(
-      "monix-benchmarks-prev",
-      publishArtifacts = false
-    )
-  )
-  .settings(
-    // Disable Scala 3 (Dotty)
-    scalaVersion := benchmarksScalaVersions.value.head,
-    crossScalaVersions := benchmarksScalaVersions.value,
-    libraryDependencies ++= Seq(
-      "io.monix"          %% "monix"       % "3.3.0",
-      "dev.zio"           %% "zio-streams" % "1.0.0",
-      "co.fs2"            %% "fs2-core"    % fs2_Version,
-      "com.typesafe.akka" %% "akka-stream" % "2.6.9"
-    )
-  )
-
-lazy val benchmarksNext = project
-  .in(file("benchmarks/vnext"))
-  .enablePlugins(JmhPlugin)
-  .configure(
-    monixSubModule(
-      projectName      = "monix-benchmarks-next",
+      projectName      = "monix-benchmarks",
       publishArtifacts = false
     )
   )
@@ -867,9 +844,8 @@ lazy val benchmarksNext = project
     // Disable Scala 3 (Dotty)
     scalaVersion := benchmarksScalaVersions.value.head,
     crossScalaVersions := benchmarksScalaVersions.value,
-    libraryDependencies ++= Seq(
-      "dev.zio"           %% "zio-streams" % "1.0.0",
-      "co.fs2"            %% "fs2-core"    % fs2_Version,
-      "com.typesafe.akka" %% "akka-stream" % "2.6.9"
+    Compile / unmanagedSourceDirectories ++= Seq(
+      baseDirectory.value / "shared" / "src" / "main" / "scala",
+      baseDirectory.value / "src" / "main" / "scala"
     )
   )

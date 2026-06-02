@@ -6,10 +6,10 @@ def exec(cmd)
 end
 
 unless ARGV[0]
-    $stderr.puts "ERROR: Benchmark name missing!"
-    puts
-    puts "Example: project/run-benchmark CoevalFlatMapLongLoopBenchmark"
-    exit 1
+  $stderr.puts "ERROR: Benchmark name missing!"
+  puts
+  puts "Example: benchmarks/run-benchmark CoevalFlatMapLongLoopBenchmark"
+  exit 1
 end
 
 Dir.chdir(File.absolute_path(File.join(File.dirname(__FILE__), "..")))
@@ -18,5 +18,4 @@ name = ARGV[0]
 date = Time.now.strftime("%Y-%m-%d")
 
 exec("mkdir -p benchmarks/results/#{date}")
-exec("sbt benchmarksNext/clean 'benchmarksNext/jmh:run -o ../results/#{date}/#{name}-Next.txt  -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.#{name}'")
-exec("sbt benchmarksPrev/clean 'benchmarksPrev/jmh:run -o ../results/#{date}/#{name}-Prev.txt  -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.#{name}'")
+exec("sbt benchmarks/clean 'benchmarks/jmh:run -o results/#{date}/#{name}.txt  -i 10 -wi 10 -f 2 -t 1 monix.benchmarks.#{name}'")

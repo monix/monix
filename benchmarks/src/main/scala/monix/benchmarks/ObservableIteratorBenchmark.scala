@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,7 +29,7 @@ import scala.collection.immutable.IndexedSeq
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, Promise }
 
-/** To do comparative benchmarks between versions:
+/** To run this benchmark:
   *
   *     benchmarks/run-benchmark ChunkedMapFilterSumBenchmark
   *
@@ -84,7 +84,7 @@ class ObservableIteratorBenchmark {
 
   def sum(stream: Observable[Int]): Int = {
     val p = Promise[Int]()
-    stream.unsafeSubscribeFn(new Subscriber.Sync[Int] {
+    val cancelable = stream.unsafeSubscribeFn(new Subscriber.Sync[Int] {
       val scheduler = benchmarks.scheduler
       private var sum: Int = 0
 
@@ -97,7 +97,9 @@ class ObservableIteratorBenchmark {
         Continue
       }
     })
-    Await.result(p.future, Duration.Inf)
+    val result = Await.result(p.future, Duration.Inf)
+    cancelable.cancel()
+    result
   }
 
   def sumIntScala(seq: Iterable[Int]): Int = {

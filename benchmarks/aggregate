@@ -8,33 +8,25 @@ end
 
 results = {}
 Dir["#{dir}/*.txt"].each do |f|
-  if File.basename(f) =~ /([^-]+)[-](Prev|Next)\.txt$/
+  if File.basename(f) =~ /([^.]+)\.txt$/
     suite = $1
-    ver = $2
     txt = File.read(f)
 
     txt.scan(/(#{suite}\.\S+).*?thrpt\s+\d+\s+(\d+\.\d+)/).each do |line|
       name = line[0]
-      results[suite] ||= {}
-      results[suite][name] ||= {}
-      results[suite][name][ver] = line[1]
+      results[name] = line[1]
     end
   end
 end
 
 max_length = 0
-results.keys.each do |suite|
-  results[suite].keys.each do |name|
-    max_length = name.length if max_length < name.length
-  end
+results.keys.each do |name|
+  max_length = name.length if max_length < name.length
 end
 
-results.keys.sort.each do |suite|
-  results[suite].keys.sort.each do |name|
-    puts sprintf(
-      "| %-#{max_length+1}s | %11s | %11s |",
-      name,
-      results[suite][name]["Prev"],
-      results[suite][name]["Next"])
-  end
+results.keys.sort.each do |name|
+  puts sprintf(
+    "| %-#{max_length+1}s | %11s |",
+    name,
+    results[name])
 end
