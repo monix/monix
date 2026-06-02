@@ -777,7 +777,7 @@ lazy val reactiveTests = project
   .settings(
     libraryDependencies ++= Seq(
       reactiveStreamsTCKLib % Test,
-      "org.scalatestplus"  %% "testng-7-5" % "3.2.12.0" % Test,
+      "org.scalatestplus"  %% "testng-7-5" % "3.2.17.0" % Test,
     )
   )
 
