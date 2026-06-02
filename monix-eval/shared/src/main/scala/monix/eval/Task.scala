@@ -4845,6 +4845,7 @@ object Task extends TaskInstancesLevel1 {
   }
 
   /** Used as optimization by [[Task.redeem]]. */
+  @unused
   private final class Redeem[A, B](fe: Throwable => B, fs: A => B) extends StackFrame[A, Task[B]] {
     def apply(a: A): Task[B] = new Now(fs(a))
     def recover(e: Throwable): Task[B] = new Now(fe(e))

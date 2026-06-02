@@ -17,7 +17,7 @@ jobs:
         java: [ 17, 21 ]
         # WARN: build.sbt depends on this key path, as scalaVersion and
         # crossScalaVersions is determined from it
-        scala: [ 2.13.18, 3.8.3 ]
+        scala: [ 2.13.18, 3.3.7 ]
 
     env:
       CI: true
@@ -76,7 +76,7 @@ jobs:
         # crossScalaVersions is determined from it
         include:
           - { java: 17, scala: 2.13.18 }
-          - { java: 17, scala: 3.8.3 }
+          - { java: 17, scala: 3.3.7 }
 
     env:
       CI: true
@@ -136,7 +136,7 @@ jobs:
       matrix:
         include:
           - { java: 17, scala: 2.13.18 }
-          - { java: 17, scala: 3.8.3 }
+          - { java: 17, scala: 3.3.7 }
 
     steps:
       - uses: actions/checkout@v6
@@ -187,7 +187,7 @@ jobs:
       matrix:
         include:
           - { java: 17, scala: 2.13.18 }
-          - { java: 17, scala: 3.8.3 }
+          - { java: 17, scala: 3.3.7 }
 
     steps:
       - uses: actions/checkout@v6
