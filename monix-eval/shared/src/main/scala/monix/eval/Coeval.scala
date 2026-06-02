@@ -28,6 +28,7 @@ import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.compat.BuildFrom
 import monix.execution.compat.internal.newBuilder
 
+import scala.annotation.unused
 import scala.annotation.unchecked.{ uncheckedVariance => uV }
 import scala.collection.mutable
 import scala.util.control.NonFatal
@@ -1612,6 +1613,7 @@ object Coeval extends CoevalInstancesLevel0 {
   }
 
   /** Used as optimization by [[Coeval.redeem]]. */
+  @unused
   private final class Redeem[A, B](fe: Throwable => B, fs: A => B) extends StackFrame[A, Coeval[B]] {
 
     def apply(a: A): Coeval[B] = Coeval.Now(fs(a))

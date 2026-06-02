@@ -27,7 +27,7 @@ import monix.reactive.Consumer
 import monix.reactive.internal.consumers.LoadBalanceConsumer.IndexedSubscriber
 import monix.reactive.observers.Subscriber
 
-import scala.annotation.tailrec
+import scala.annotation.{ tailrec, unused }
 import scala.collection.immutable.{ BitSet, Queue }
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{ Future, Promise }
@@ -294,6 +294,7 @@ private[reactive] object LoadBalanceConsumer {
     */
   private[reactive] final case class IndexedSubscriber[-In](id: Int, out: Subscriber[In])
 
+  @unused
   private final class AsyncQueue[In](initialQueue: Queue[IndexedSubscriber[In]], parallelism: Int) {
 
     private val stateRef = {

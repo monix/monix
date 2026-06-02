@@ -25,6 +25,7 @@ import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.internal.GenericSemaphore
 import monix.execution.internal.GenericSemaphore.Listener
+import scala.annotation.unused
 import scala.concurrent.Promise
 
 /** The `Semaphore` is an asynchronous semaphore implementation that
@@ -277,6 +278,7 @@ object Semaphore {
     def greenLight[A](fa: F[A]): F[A] = source.withPermit(fa)
   }
 
+  @unused
   private final class Impl[F[_]](provisioned: Long, ps: PaddingStrategy)(
     implicit
     F: OrElse[Concurrent[F], Async[F]],

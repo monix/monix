@@ -20,6 +20,7 @@ package monix.execution
 import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, UncaughtErrorException }
 import monix.execution.schedulers.{ TrampolineExecutionContext, TrampolinedRunnable }
 import monix.execution.compat.uninitialized
+import scala.annotation.unused
 import scala.concurrent.{ ExecutionContext, Promise }
 import scala.util.control.NonFatal
 import scala.util.{ Failure, Success, Try }
@@ -491,10 +492,12 @@ object Callback {
     }
   }
 
+  @unused
   private final class Contramap[-E, -A, -B](underlying: Callback[E, A], f: B => A) extends Callback[E, B] {
     def onSuccess(value: B): Unit =
       underlying.onSuccess(f(value))
     def onError(error: E): Unit =
       underlying.onError(error)
   }
+
 }
