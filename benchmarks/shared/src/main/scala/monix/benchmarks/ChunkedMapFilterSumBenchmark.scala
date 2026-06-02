@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,21 +17,17 @@
 
 package monix.benchmarks
 
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.{ Keep, Sink => AkkaSink, Source => AkkaSource }
-import fs2.{ Stream => FS2Stream }
 import monix.benchmarks
 import monix.execution.Ack.Continue
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 import org.openjdk.jmh.annotations._
-import zio.stream.{ Stream => ZStream }
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, Promise }
 
-/** To do comparative benchmarks between versions:
+/** To run this benchmark:
   *
   *     benchmarks/run-benchmark ChunkedMapFilterSumBenchmark
   *
@@ -60,24 +56,12 @@ class ChunkedMapFilterSumBenchmark {
   var allElementsVector: Vector[Int] = _
 
   var chunks: IndexedSeq[Array[Int]] = _
-  var fs2Chunks: IndexedSeq[fs2.Chunk[Int]] = _
-  var zioChunks: IndexedSeq[zio.Chunk[Int]] = _
 
   @Setup
   def setup(): Unit = {
     chunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
-    fs2Chunks = chunks.map(fs2.Chunk.array[Int])
-    zioChunks = chunks.map(zio.Chunk.fromArray[Int])
     allElements = chunks.flatten
     allElementsVector = allElements.toVector
-  }
-
-  implicit val system = ActorSystem("benchmarks", defaultExecutionContext = Some(scheduler))
-
-  @TearDown
-  def shutdown(): Unit = {
-    system.terminate()
-    ()
   }
 
   @Benchmark
@@ -117,42 +101,9 @@ class ChunkedMapFilterSumBenchmark {
     sum
   }
 
-  @Benchmark
-  def fs2Stream(): Int = {
-    val stream = FS2Stream(fs2Chunks*)
-      .flatMap(FS2Stream.chunk)
-      .map(_ + 1)
-      .filter(_ % 2 == 0)
-      .compile
-      .fold(0)(_ + _)
-
-    stream
-  }
-
-  @Benchmark
-  def zioStream(): Int = {
-    val stream = ZStream
-      .fromChunks(zioChunks*)
-      .map(_ + 1)
-      .filter(_ % 2 == 0)
-      .runSum
-
-    zioUntracedRuntime.unsafeRun(stream)
-  }
-
-  @Benchmark
-  def akkaStream(): Long = {
-    val stream = AkkaSource(allElements)
-      .map(_ + 1)
-      .filter(_ % 2 == 0)
-      .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
-
-    Await.result(stream.run(), Duration.Inf)
-  }
-
   def sum(stream: Observable[Int]): Int = {
     val p = Promise[Int]()
-    stream.unsafeSubscribeFn(new Subscriber.Sync[Int] {
+    val cancelable = stream.unsafeSubscribeFn(new Subscriber.Sync[Int] {
       val scheduler = benchmarks.scheduler
       private var sum: Int = 0
 
@@ -165,6 +116,8 @@ class ChunkedMapFilterSumBenchmark {
         Continue
       }
     })
-    Await.result(p.future, Duration.Inf)
+    val result = Await.result(p.future, Duration.Inf)
+    cancelable.cancel()
+    result
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,18 +17,11 @@
 
 package monix.benchmarks
 
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.{ Keep, RunnableGraph, Sink => AkkaSink, Source => AkkaSource }
-import fs2.{ Stream => FS2Stream }
 import monix.eval.{ Task => MonixTask }
 import monix.reactive.{ Observable => MonixObservable }
 import org.openjdk.jmh.annotations._
-import zio.stream.{ Stream => ZStream }
-import zio.{ Chunk, UIO }
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, Future }
 
 /**
   * Benchmark designed to execute these operations:
@@ -61,8 +54,6 @@ import scala.concurrent.{ Await, Future }
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class ChunkedEvalFilterMapSumBenchmark {
-  implicit val system = ActorSystem("benchmarks", defaultExecutionContext = Some(scheduler))
-
   @Param(Array("1000"))
   var chunkCount: Int = _
 
@@ -74,47 +65,12 @@ class ChunkedEvalFilterMapSumBenchmark {
 
   var allElements: IndexedSeq[Int] = _
   var chunks: IndexedSeq[Array[Int]] = _
-  var fs2Chunks: IndexedSeq[fs2.Chunk[Int]] = _
-  var zioChunks: IndexedSeq[zio.Chunk[Int]] = _
 
   @Setup
   def setup(): Unit = {
     chunks = (1 to chunkCount).map(i => Array.fill(chunkSize)(i))
-    fs2Chunks = chunks.map(fs2.Chunk.array[Int])
-    zioChunks = chunks.map(zio.Chunk.fromArray[Int])
     allElements = chunks.flatten
     expectedSum = allElements.map(_.toLong).sum
-  }
-
-  @TearDown
-  def shutdown(): Unit = {
-    system.terminate()
-    ()
-  }
-
-  @Benchmark
-  def fs2Stream = {
-    val stream = FS2Stream(allElements*)
-      .chunkN(chunkSize)
-      .evalMap[MonixTask, Int](chunk => MonixTask(sumIntScala(chunk.iterator)))
-      .filter(_ > 0)
-      .map(_.toLong)
-      .compile
-      .fold(0L)(_ + _)
-
-    testResult(stream.runSyncUnsafe())
-  }
-
-  @Benchmark
-  def fs2StreamPreChunked = {
-    val stream = FS2Stream(fs2Chunks*)
-      .evalMap[MonixTask, Int](chunk => MonixTask(sumIntScala(chunk.iterator)))
-      .filter(_ > 0)
-      .map(_.toLong)
-      .compile
-      .fold(0L)(_ + _)
-
-    testResult(stream.runSyncUnsafe())
   }
 
   @Benchmark
@@ -140,45 +96,6 @@ class ChunkedEvalFilterMapSumBenchmark {
       .foldLeftL(0L)(_ + _)
 
     testResult(stream.runSyncUnsafe())
-  }
-
-  // On 1.0.0, ZIO doesn't iterate iterable so we can't test sliding window
-  @Benchmark
-  def zioStreamPreChunked = {
-    val stream = ZStream
-      .fromChunks(zioChunks*)
-      .mapChunksM(chunk => UIO(Chunk.single(sumIntScala(chunk))))
-      .filter(_ > 0)
-      .map(_.toLong)
-      .fold(0L)(_ + _)
-
-    testResult(zioUntracedRuntime.unsafeRun(stream))
-  }
-
-  @Benchmark
-  def akkaStreams = {
-    val stream: RunnableGraph[Future[Long]] =
-      AkkaSource(allElements)
-        .sliding(chunkSize, chunkSize)
-        .mapAsync(1)(seq => Future(sumIntScala(seq))(monix.execution.schedulers.TrampolineExecutionContext.immediate))
-        .filter(_ > 0)
-        .map(_.toLong)
-        .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
-
-    testResult(Await.result(stream.run(), Duration.Inf))
-  }
-
-  @Benchmark
-  def akkaStreamsPreChunked = {
-    val stream: RunnableGraph[Future[Long]] =
-      AkkaSource(chunks)
-        .mapAsync(1)(seq => Future(sumIntScala(seq))(monix.execution.schedulers.TrampolineExecutionContext.immediate))
-        .filter(_ > 0)
-        .map(_.toLong)
-        .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
-
-    testResult(Await.result(stream.run(), Duration.Inf))
-
   }
 
   def testResult(r: Long): Long = {

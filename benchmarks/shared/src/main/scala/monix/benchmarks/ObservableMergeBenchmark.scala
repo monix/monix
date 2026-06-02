@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,20 +19,11 @@ package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.{ Keep, Sink => AkkaSink, Source => AkkaSource }
-import fs2.{ Stream => FS2Stream }
 import monix.eval.{ Task => MonixTask }
 import monix.reactive.Observable
 import org.openjdk.jmh.annotations._
-import zio.ZIO
-import zio.stream.{ Stream => ZStream }
 
-import scala.concurrent.{ Await, Future }
-import scala.concurrent.duration.Duration
-import scala.util.Try
-
-/** To do comparative benchmarks between versions:
+/** To run this benchmark:
   *
   *     benchmarks/run-benchmark ObservableMergeBenchmark
   *
@@ -53,14 +44,6 @@ class ObservableMergeBenchmark {
   @Param(Array("100", "1000"))
   var streams: Int = _
 
-  implicit val system = ActorSystem("benchmarks", defaultExecutionContext = Some(scheduler))
-
-  @TearDown
-  def shutdown(): Unit = {
-    system.terminate()
-    ()
-  }
-
   @Benchmark
   def monixObservable() = {
     Observable
@@ -68,36 +51,5 @@ class ObservableMergeBenchmark {
       .mergeMap(i => Observable.fromTask(MonixTask.eval(i)))
       .completedL
       .runSyncUnsafe()
-  }
-
-  @Benchmark
-  def fs2Stream() = {
-    FS2Stream
-      .emits(0 until streams)
-      .map(i => FS2Stream.eval(MonixTask.eval(i)))
-      .covary[monix.eval.Task]
-      .parJoinUnbounded
-      .compile
-      .drain
-      .runSyncUnsafe()
-  }
-
-  @Benchmark
-  def zioStream() = {
-    val stream = ZStream
-      .fromIterable(0 until streams)
-      .flatMapPar(Int.MaxValue)(i => ZStream.fromEffect(ZIO.apply(i)))
-      .runDrain
-
-    zioUntracedRuntime.unsafeRun(stream)
-  }
-
-  @Benchmark
-  def akkaStream(): Long = {
-    val stream = AkkaSource(0 until streams)
-      .flatMapMerge(Int.MaxValue, i => AkkaSource.lazyFuture(() => Future.fromTry(Try(i))))
-      .toMat(AkkaSink.fold(0L)(_ + _))(Keep.right)
-
-    Await.result(stream.run(), Duration.Inf)
   }
 }

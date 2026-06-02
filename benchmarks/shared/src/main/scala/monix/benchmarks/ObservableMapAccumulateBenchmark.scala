@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,12 +19,10 @@ package monix.benchmarks
 
 import java.util.concurrent.TimeUnit
 
-import fs2.{ Stream => FS2Stream }
 import monix.reactive.Observable
 import org.openjdk.jmh.annotations._
-import zio.stream.{ Stream => ZStream }
 
-/** To do comparative benchmarks between versions:
+/** To run this benchmark:
   *
   *     benchmarks/run-benchmark ObservableMapAccumulateBenchmark
   *
@@ -58,30 +56,4 @@ class ObservableMapAccumulateBenchmark {
       .runSyncUnsafe()
   }
 
-  @Benchmark
-  def fs2Stream() = {
-    FS2Stream
-      .emits(0 until n)
-      .mapAccumulate(0) {
-        case (acc, i) =>
-          val added = acc + i
-          (added, added)
-      }
-      .compile
-      .drain
-  }
-
-  @Benchmark
-  def zioStream() = {
-    val stream = ZStream
-      .fromIterable(0 until n)
-      .mapAccum(0) {
-        case (acc, i) =>
-          val added = acc + i
-          (added, added)
-      }
-      .runDrain
-
-    zioUntracedRuntime.unsafeRun(stream)
-  }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2021 by The Monix Project Developers.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ import org.openjdk.jmh.annotations._
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, Future }
 
-/** To do comparative benchmarks between versions:
+/** To run this benchmark:
   *
   *     benchmarks/run-benchmark AsyncQueueBenchmark
   *
@@ -73,7 +73,6 @@ class AsyncQueueBenchmark {
   def test(producers: Int, workers: Int, channelType: ChannelType): Long = {
     val capacity = BufferCapacity.Bounded(1024)
     val queue = AsyncQueue.withConfig[Int](capacity, channelType = channelType)
-    val workers = 1
 
     def producer(n: Int): Future[Long] =
       if (n > 0)
