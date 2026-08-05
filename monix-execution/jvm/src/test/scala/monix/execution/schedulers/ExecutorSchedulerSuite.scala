@@ -23,19 +23,26 @@ import monix.execution.ExecutionModel.{ AlwaysAsyncExecution, Default as Default
 import monix.execution.atomic.Atomic
 import monix.execution.cancelables.SingleAssignCancelable
 import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.ExecutorSchedulerSuite.{ TaskRunPeriod, TestException, TestFatalError }
+import monix.execution.schedulers.ExecutorSchedulerSuite.{
+  TaskRunPeriod,
+  TestException,
+  TestFatalError,
+  TestInterruption
+}
 import monix.execution.{ Cancelable, Scheduler, UncaughtExceptionReporter }
 
 import scala.concurrent.duration.*
-import scala.concurrent.{ blocking, Await, Promise }
+import scala.concurrent.{ blocking, Await, Future, Promise }
 
 abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self =>
   private val recordingReporter = Atomic(new RecordingReporter)
   private val unexpectedFailure = Atomic(null: Throwable)
+  private val immediateEC = TrampolineExecutionContext.immediate
 
   protected val testsReporter: UncaughtExceptionReporter =
     UncaughtExceptionReporter { failure =>
-      if ((failure ne TestException) && (failure ne TestFatalError)) unexpectedFailure.set(failure)
+      if ((failure ne TestException) && (failure ne TestFatalError) && (failure ne TestInterruption))
+        unexpectedFailure.set(failure)
       recordingReporter.get().reportFailure(failure)
     }
 
@@ -216,6 +223,33 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
     )
   }
 
+  test("reports an interruption raised by the task on scheduleOnce") { scheduler =>
+    assertScheduledFailureReported(
+      scheduleFailure = failure => scheduler.scheduleOnce(1.milli)(throw failure),
+      failure = TestInterruption
+    )
+  }
+
+  test("reports a scheduled failure once after withUncaughtExceptionReporter") { scheduler =>
+    val installed = recordingReporter.get()
+    val swapped = new RecordingReporter
+    val schedule = scheduler.withUncaughtExceptionReporter(swapped).scheduleOnce(1.milli)(throw TestFatalError)
+
+    try {
+      // Which of the two reporters receives it depends on whether the scheduled methods pick the swap up
+      val reportedAnywhere = Future.firstCompletedOf(List(installed.firstFailure, swapped.firstFailure))(immediateEC)
+      assertEquals(Await.result(reportedAnywhere, 15.seconds), TestFatalError)
+
+      intercept[TimeoutException] {
+        Await.result(installed.firstFailure.zip(swapped.firstFailure), TaskRunPeriod * 5)
+      }
+      assert(
+        !installed.receivedSecondFailure && !swapped.receivedSecondFailure,
+        "The failure was reported to the same reporter twice"
+      )
+    } finally schedule.cancel()
+  }
+
   test("does not report the interruption of cancelling a running scheduleOnce") { scheduler =>
     val started = new CountDownLatch(1)
     val blocked = new CountDownLatch(1)
@@ -296,6 +330,7 @@ abstract class ExecutorSchedulerSuite extends TestSuite[SchedulerService] { self
 object ExecutorSchedulerSuite {
   private val TestException = DummyException("dummy")
   private val TestFatalError = new LinkageError("dummy-fatal")
+  private val TestInterruption = new InterruptedException("dummy-interruption")
 
   private val TaskRunPeriod = 10.millis
 }
