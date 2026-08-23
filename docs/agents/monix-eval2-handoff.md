@@ -4,7 +4,7 @@ Date: 2026-08-23
 
 ## Scope
 
-`monix-eval2` is an experimental `IO` implementation for Cats Effect 3. The main sbt
+`monix-eval2` is an experimental `Task` implementation for Cats Effect 3. The main sbt
 project is `eval2JVM`; `eval2JS` exercises the same shared implementation on Scala.js.
 It is separate from the existing Cats Effect 2-based `monix-eval` and `Task`.
 
@@ -37,40 +37,40 @@ Last results:
 
 ## Source map
 
-- `monix-eval2/shared/src/main/scala/monix/eval/IO.scala`
-  - Public `IO` algebra and constructors.
+- `monix-eval2/shared/src/main/scala/monix/eval/Task.scala`
+  - Public `Task` algebra and constructors.
   - Visitor interface and node tags.
-  - Unsafe runners and Cats Effect `Async[IO]` instance export.
-- `monix-eval2/shared/src/main/scala/monix/eval/internal/IOFiber.scala`
+  - Unsafe runners and Cats Effect `Async[Task]` instance export.
+- `monix-eval2/shared/src/main/scala/monix/eval/internal/TaskFiber.scala`
   - Run-loop, cancellation masks, finalizer traversal, fiber lifecycle, join, and the
     atomic scheduling protocol.
-- `monix-eval2/shared/src/main/scala/monix/eval/internal/IORestartCallback.scala`
+- `monix-eval2/shared/src/main/scala/monix/eval/internal/TaskRestartCallback.scala`
   - Reusable async callback used to publish success/error nodes back to a fiber.
-- `monix-eval2/shared/src/main/scala/monix/eval/internal/IOCallbackIndirection.scala`
+- `monix-eval2/shared/src/main/scala/monix/eval/internal/TaskCallbackIndirection.scala`
   - `AsyncCont` callback/`get` handshake when either side can arrive first.
-- `monix-eval2/shared/src/main/scala/monix/eval/internal/IOCallStack.scala`
+- `monix-eval2/shared/src/main/scala/monix/eval/internal/TaskCallStack.scala`
   - Compact continuation stack with frame tags for binds, error handlers, and
     cancellation finalizers.
 - `monix-eval2/shared/src/main/scala/monix/eval/internal/StackFrame.scala`
   - Mapping/error-recovery frame abstractions retained in the experiment; they are not
     currently referenced by the eval2 runtime.
-- `monix-eval2/shared/src/main/scala/monix/eval/instances/CatsAsyncForIO.scala`
+- `monix-eval2/shared/src/main/scala/monix/eval/instances/CatsAsyncForTask.scala`
   - Cats Effect 3 `Async`, `Temporal`, `Spawn`, and `Sync` operations implemented in
-    terms of the local `IO` algebra.
-- `monix-eval2/shared/src/test/scala/monix/eval/IOAsyncLawsSuite.scala`
-  - Official Cats Effect `AsyncTests[IO]` integration.
-- `monix-eval2/shared/src/test/scala/monix/eval/IOSimpleTest.scala`
+  terms of the local `Task` algebra.
+- `monix-eval2/shared/src/test/scala/monix/eval/TaskAsyncLawsSuite.scala`
+  - Official Cats Effect `AsyncTests[Task]` integration.
+- `monix-eval2/shared/src/test/scala/monix/eval/TaskSimpleTest.scala`
   - Deterministic behavior, async, cancellation, race, scheduler, and finalizer tests.
-- `monix-eval2/jvm/src/test/scala/monix/eval/IOCallbackSafetyJVMSuite.scala`
+- `monix-eval2/jvm/src/test/scala/monix/eval/TaskCallbackSafetyJVMSuite.scala`
   - Repeated real-thread contention tests.
 
-## IO representation and interpretation
+## Task representation and interpretation
 
-Constructors and combinators create lazy nodes. `IOFiber` interprets them with a
+Constructors and combinators create lazy nodes. `TaskFiber` interprets them with a
 visitor. `Pure`, `RaiseError`, and `FlatMap` use direct tag dispatch in the hot path;
 the remaining nodes use visitor dispatch.
 
-`IO.delay` is currently encoded with a bind instead of a dedicated delay node. Bind,
+`Task.delay` is currently encoded with a bind instead of a dedicated delay node. Bind,
 error-handler, uncancelable-body, and `AsyncCont` functions are evaluated by the
 run-loop, and thrown `NonFatal` exceptions are converted into `RaiseError` nodes.
 
@@ -86,7 +86,7 @@ linked continuation object for each frame.
 
 ## Fiber ownership and atomic state
 
-`IOFiber` contains no `synchronized`, monitor, or `@volatile` state. It directly
+`TaskFiber` contains no `synchronized`, monitor, or `@volatile` state. It directly
 declares one reference-valued Monix `Atomic`, `stateRef`; on the JVM this is backed by
 Monix's `AtomicAny`/atomic-reference implementation.
 
@@ -94,13 +94,13 @@ The shared state is immutable:
 
 ```scala
 Active(
-  listeners: List[Callback[Throwable, Outcome[IO, Throwable, A]]],
+  listeners: List[Callback[Throwable, Outcome[Task, Throwable, A]]],
   runActive: Boolean,
   isCanceled: Boolean,
-  pendingRef: IO[Any]
+  pendingRef: Task[Any]
 )
 
-Finished(outcome: Outcome[IO, Throwable, A])
+Finished(outcome: Outcome[Task, Throwable, A])
 ```
 
 The non-atomic interpreter fields (`currentRef`, continuation stack, restart callback,
@@ -160,28 +160,28 @@ retries against the inactive state, claims the fiber, and schedules it itself.
 
 ## Async callback paths
 
-`AsyncSimple` uses `IORestartCallback`. Registration may signal synchronously or later:
+`AsyncSimple` uses `TaskRestartCallback`. Registration may signal synchronously or later:
 
 - a callback delivered while a run is active publishes a pending node which that run
   consumes unless completion or unmasked cancellation wins;
 - a callback delivered while the fiber is inactive claims it and submits a run;
 
-Public `IO.async` and `IO.async0` wrap registration with `Callback.safe` and
+Public `Task.async` and `Task.async0` wrap registration with `Callback.safe` and
 `protectRegistration`:
 
 - only the first callback result is accepted;
 - a registration exception before a result becomes the effect error;
 - an exception thrown after a result preserves the result and is reported.
 
-A raw internal `AsyncSimple` registration exception reaching `IORestartCallback` is
+A raw internal `AsyncSimple` registration exception reaching `TaskRestartCallback` is
 reported as an API contract violation; that lower-level path does not synthesize an
 effect result.
 
-`AsyncCont` uses `IOCallbackIndirection`. Its atomic states are `Init`, `Waiting`,
+`AsyncCont` uses `TaskCallbackIndirection`. Its atomic states are `Init`, `Waiting`,
 `Success`, and `Failure`; this supports callback-before-`get` and `get`-before-callback
 without blocking.
 
-`CatsAsyncForIO` builds `cede`, `sleep`, `racePair`, and `evalOn` from these primitives.
+`CatsAsyncForTask` builds `cede`, `sleep`, `racePair`, and `evalOn` from these primitives.
 In particular:
 
 - `cede` submits the continuation to the current scheduler;
@@ -195,14 +195,14 @@ In particular:
 
 ### Cats Effect laws
 
-`IOAsyncLawsSuite` runs:
+`TaskAsyncLawsSuite` runs:
 
 ```scala
-AsyncTests[IO].async[Int, Int, Int](10.millis)
+AsyncTests[Task].async[Int, Int, Int](10.millis)
 ```
 
 The suite supplies `Eq` instances, generators, and `TestScheduler`-based unsafe runners.
-The `Async[IO]` instance supplies the `Ref` and `Deferred` implementations exercised by
+The `Async[Task]` instance supplies the `Ref` and `Deferred` implementations exercised by
 the laws. The recursive effect generator excludes the `racePair`-labeled recursive
 case; the `AsyncTests` race and `racePair` laws themselves still execute.
 
@@ -232,7 +232,7 @@ test uses the global scheduler and a callback scheduled after one real second.
 
 ### JVM contention tests
 
-`IOCallbackSafetyJVMSuite` follows the established Monix `Task` callback-stress style.
+`TaskCallbackSafetyJVMSuite` follows the established Monix `Task` callback-stress style.
 The callback patterns use 10 workers; the join race uses 10 joiners plus one completion
 racer; the cancellation/completion race uses two racers. The suite uses 1,000
 repetitions locally, reduced to 100 repetitions in CI. It covers:

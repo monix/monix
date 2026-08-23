@@ -25,22 +25,22 @@ import monix.execution.schedulers.TestScheduler
 import java.util.concurrent.TimeUnit
 import scala.util.{Failure, Success}
 
-object IOSimpleTest extends SimpleTestSuite {
-  def testEffect(name: String)(f: => IO[Unit]): Unit =
+object TaskSimpleTest extends SimpleTestSuite {
+  def testEffect(name: String)(f: => Task[Unit]): Unit =
     testAsync(name)(f.unsafeRunToFuture())
 
   testEffect("handleErrorWith recovers from failure") {
     val dummy = new RuntimeException("dummy")
 
-    IO.raiseError[Int](dummy)
-      .handleErrorWith(error => IO.pure(if (error eq dummy) 42 else 0))
+    Task.raiseError[Int](dummy)
+      .handleErrorWith(error => Task.pure(if (error eq dummy) 42 else 0))
       .map(value => assertEquals(value, 42))
   }
 
   test("async registration exceptions become effect errors") {
     implicit val scheduler: TestScheduler = TestScheduler()
     val dummy = new RuntimeException("dummy")
-    val result = IO.async0[Int]((_, _) => throw dummy).unsafeRunToFuture()
+    val result = Task.async0[Int]((_, _) => throw dummy).unsafeRunToFuture()
 
     scheduler.tick()
 
@@ -51,13 +51,13 @@ object IOSimpleTest extends SimpleTestSuite {
   test("async is stack safe in synchronous flatMap loops") {
     implicit val scheduler: TestScheduler = TestScheduler()
 
-    def signal(n: Int): IO[Int] =
-      IO.async(callback => callback.onSuccess(n))
+    def signal(n: Int): Task[Int] =
+      Task.async(callback => callback.onSuccess(n))
 
-    def loop(n: Int, acc: Int): IO[Int] =
+    def loop(n: Int, acc: Int): Task[Int] =
       signal(n).flatMap { value =>
         if (value > 0) loop(value - 1, acc + 1)
-        else IO.pure(acc)
+        else Task.pure(acc)
       }
 
     val result = loop(10000, 0).unsafeRunToFuture()
@@ -69,15 +69,15 @@ object IOSimpleTest extends SimpleTestSuite {
   test("async0 is stack safe in scheduled flatMap loops") {
     implicit val scheduler: TestScheduler = TestScheduler()
 
-    def signal(n: Int): IO[Int] =
-      IO.async0 { (s, callback) =>
+    def signal(n: Int): Task[Int] =
+      Task.async0 { (s, callback) =>
         s.execute(() => callback.onSuccess(n))
       }
 
-    def loop(n: Int, acc: Int): IO[Int] =
+    def loop(n: Int, acc: Int): Task[Int] =
       signal(n).flatMap { value =>
         if (value > 0) loop(value - 1, acc + 1)
-        else IO.pure(acc)
+        else Task.pure(acc)
       }
 
     val result = loop(10000, 0).unsafeRunToFuture()
@@ -91,7 +91,7 @@ object IOSimpleTest extends SimpleTestSuite {
     var firstAccepted = false
     var secondAccepted = true
 
-    val result = IO
+    val result = Task
       .async[Int] { callback =>
         firstAccepted = callback.tryOnSuccess(42)
         secondAccepted = callback.tryOnSuccess(43)
@@ -111,10 +111,10 @@ object IOSimpleTest extends SimpleTestSuite {
     var finalizerRuns = 0
     var finishFinalizer: () => Unit = null
 
-    val started = IO.never
+    val started = Task.never
       .onCancel {
-        IO.delay { finalizerRuns += 1 }.flatMap { _ =>
-          IO.async[Unit] { callback =>
+        Task.delay { finalizerRuns += 1 }.flatMap { _ =>
+          Task.async[Unit] { callback =>
             finishFinalizer = () => callback.onSuccess(())
           }
         }
@@ -144,13 +144,13 @@ object IOSimpleTest extends SimpleTestSuite {
   test("racePair leaves the losing fiber running") {
     implicit val scheduler: TestScheduler =
       TestScheduler(ExecutionModel.AlwaysAsyncExecution)
-    val F = Async[IO]
+    val F = Async[Task]
     var loserCanceled = false
 
     val result = F
       .racePair(
-        IO.pure(42),
-        IO.never[Unit].onCancel(IO.delay { loserCanceled = true })
+        Task.pure(42),
+        Task.never[Unit].onCancel(Task.delay { loserCanceled = true })
       )
       .unsafeRunToFuture()
 
@@ -175,8 +175,8 @@ object IOSimpleTest extends SimpleTestSuite {
     implicit val scheduler: TestScheduler =
       TestScheduler(ExecutionModel.AlwaysAsyncExecution)
 
-    val result = Async[IO].cede
-      .flatMap(_ => IO.pure(42))
+    val result = Async[Task].cede
+      .flatMap(_ => Task.pure(42))
       .unsafeRunToFuture()
 
     assertEquals(result.value, None)
@@ -195,16 +195,16 @@ object IOSimpleTest extends SimpleTestSuite {
     var targetRan = false
     var sourceContinuationRan = false
 
-    val result = Async[IO]
+    val result = Async[Task]
       .evalOn(
-        IO.delay {
+        Task.delay {
           targetRan = true
           21
         },
         target
       )
       .flatMap { value =>
-        IO.delay {
+        Task.delay {
           sourceContinuationRan = true
           value * 2
         }
@@ -228,22 +228,22 @@ object IOSimpleTest extends SimpleTestSuite {
   test("canceling suspended async runs all finalizers in order") {
     implicit val scheduler: TestScheduler =
       TestScheduler(ExecutionModel.AlwaysAsyncExecution)
-    val F = Async[IO]
+    val F = Async[Task]
     var results = List.empty[Int]
 
     val body = F.async[Nothing] { _ =>
-      IO.pure(Some(IO.delay { results ::= 3 }))
+      Task.pure(Some(Task.delay { results ::= 3 }))
     }
     val started = body
-      .onCancel(IO.delay { results ::= 2 })
-      .onCancel(IO.delay { results ::= 1 })
+      .onCancel(Task.delay { results ::= 2 })
+      .onCancel(Task.delay { results ::= 1 })
       .start
       .unsafeRunToFuture()
 
     scheduler.tick()
 
     val canceled = started.value.get.get.cancel
-      .flatMap(_ => IO.delay(results))
+      .flatMap(_ => Task.delay(results))
       .unsafeRunToFuture()
 
     scheduler.tick()
@@ -254,7 +254,7 @@ object IOSimpleTest extends SimpleTestSuite {
   test("async registration exceptions after a result are reported") {
     implicit val scheduler: TestScheduler = TestScheduler()
     val dummy = new RuntimeException("dummy")
-    val result = IO
+    val result = Task
       .async0[Int] { (_, callback) =>
         callback.onSuccess(42)
         throw dummy
@@ -270,7 +270,7 @@ object IOSimpleTest extends SimpleTestSuite {
   test("cont body exceptions become effect errors") {
     implicit val scheduler: TestScheduler = TestScheduler()
     val dummy = new RuntimeException("dummy")
-    val result = IO
+    val result = Task
       .cont0[Int, Int]((_, _, _) => throw dummy)
       .unsafeRunToFuture()
 
@@ -283,8 +283,8 @@ object IOSimpleTest extends SimpleTestSuite {
   test("cancel runs an onCancel finalizer") {
     implicit val scheduler: TestScheduler = TestScheduler()
     var finalizerRuns = 0
-    val future = IO.never
-      .onCancel(IO.delay(finalizerRuns += 1))
+    val future = Task.never
+      .onCancel(Task.delay(finalizerRuns += 1))
       .unsafeRunToFuture()
 
     scheduler.tick()
@@ -297,15 +297,15 @@ object IOSimpleTest extends SimpleTestSuite {
   test("uncancelable defers cancellation until a polled region") {
     implicit val scheduler: TestScheduler = TestScheduler()
     var events = List.empty[String]
-    val future = IO
+    val future = Task
       .uncancelable { poll =>
-        IO.delay(events :+= "before")
-          .flatMap(_ => IO.canceled)
-          .flatMap(_ => IO.delay(events :+= "masked"))
-          .flatMap(_ => poll(IO.canceled))
-          .flatMap(_ => IO.delay(events :+= "after"))
+        Task.delay(events :+= "before")
+          .flatMap(_ => Task.canceled)
+          .flatMap(_ => Task.delay(events :+= "masked"))
+          .flatMap(_ => poll(Task.canceled))
+          .flatMap(_ => Task.delay(events :+= "after"))
       }
-      .onCancel(IO.delay(events :+= "finalizer"))
+      .onCancel(Task.delay(events :+= "finalizer"))
       .unsafeRunToFuture()
 
     scheduler.tick()
@@ -315,11 +315,11 @@ object IOSimpleTest extends SimpleTestSuite {
   }
 
   testEffect("start exposes a successful outcome through join") {
-    IO.pure(42).start.flatMap(_.join).flatMap {
+    Task.pure(42).start.flatMap(_.join).flatMap {
       case Outcome.Succeeded(result) =>
         result.map(value => assertEquals(value, 42))
       case outcome =>
-        IO.delay(fail(s"unexpected outcome: $outcome"))
+        Task.delay(fail(s"unexpected outcome: $outcome"))
     }
   }
 
@@ -327,8 +327,8 @@ object IOSimpleTest extends SimpleTestSuite {
     implicit val scheduler: TestScheduler = TestScheduler(ExecutionModel.AlwaysAsyncExecution)
     var finalized = false
 
-    val started = IO.never
-      .onCancel(IO.delay { finalized = true })
+    val started = Task.never
+      .onCancel(Task.delay { finalized = true })
       .start
       .unsafeRunToFuture()
 
@@ -337,7 +337,7 @@ object IOSimpleTest extends SimpleTestSuite {
     assert(started.value.exists(_.isSuccess))
     val fiber = started.value.get.get
     val result = fiber.cancel
-      .flatMap(_ => IO.delay(assert(finalized)))
+      .flatMap(_ => Task.delay(assert(finalized)))
       .flatMap(_ => fiber.join)
       .map(outcome => assert(outcome.isCanceled))
       .unsafeRunToFuture()
@@ -350,8 +350,8 @@ object IOSimpleTest extends SimpleTestSuite {
   test("uncancelable async suspension cannot be awakened by cancellation") {
     implicit val scheduler: TestScheduler = TestScheduler()
 
-    val started = IO
-      .uncancelable(_ => IO.never[Unit])
+    val started = Task
+      .uncancelable(_ => Task.never[Unit])
       .start
       .unsafeRunToFuture()
 
@@ -370,13 +370,13 @@ object IOSimpleTest extends SimpleTestSuite {
     implicit val scheduler: TestScheduler = TestScheduler()
     var resume: () => Unit = null
     var finalized = false
-    val started = IO
+    val started = Task
       .uncancelable { _ =>
-        IO.async0[Unit] { (_, callback) =>
+        Task.async0[Unit] { (_, callback) =>
           resume = () => callback.onSuccess(())
         }
       }
-      .onCancel(IO.delay { finalized = true })
+      .onCancel(Task.delay { finalized = true })
       .start
       .unsafeRunToFuture()
 
@@ -399,29 +399,29 @@ object IOSimpleTest extends SimpleTestSuite {
   }
 
   testEffect("Cats Effect Async instance evaluates IO") {
-    val F = Async[IO]
+    val F = Async[Task]
 
     F.flatMap(F.delay(21))(value => F.pure(assertEquals(value * 2, 42)))
   }
 
   testEffect("simple flatMap") {
     for {
-      x1 <- IO.pure(1)
-      x2 <- IO.pure(2)
-      x3 <- IO.pure(3)
-      x4 <- IO.async0[Int] { (sc, cb) =>
+      x1 <- Task.pure(1)
+      x2 <- Task.pure(2)
+      x3 <- Task.pure(3)
+      x4 <- Task.async0[Int] { (sc, cb) =>
         sc.execute(() => cb.onSuccess(4))
       }
-      x5 <- IO.delay(5)
-      x6 <- IO.cont0[Int, Int] { (sc, cb, get) =>
-        IO.delay {
+      x5 <- Task.delay(5)
+      x6 <- Task.cont0[Int, Int] { (sc, cb, get) =>
+        Task.delay {
           sc.scheduleOnce(1, TimeUnit.SECONDS, () => cb.onSuccess(3 + 3))
         }.flatMap { _ =>
           get
         }
       }
-      x7 <- IO.delay(7)
-      x8 <- IO.cont0[Int, Int] { (sc, cb, get) =>
+      x7 <- Task.delay(7)
+      x8 <- Task.cont0[Int, Int] { (sc, cb, get) =>
         cb.onSuccess(8)
         get
       }

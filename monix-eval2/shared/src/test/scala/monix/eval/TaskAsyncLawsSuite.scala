@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-object IOAsyncLawsSuite extends BaseLawsSuite {
+object TaskAsyncLawsSuite extends BaseLawsSuite {
   private implicit val scheduler: TestScheduler = TestScheduler()
 
   implicit lazy val arbitraryFiniteDuration: Arbitrary[FiniteDuration] =
@@ -50,35 +50,35 @@ object IOAsyncLawsSuite extends BaseLawsSuite {
   implicit val arbitraryExecutionContext: Arbitrary[ExecutionContext] =
     Arbitrary(Gen.const(scheduler))
 
-  implicit def cogenIO[A]: Cogen[IO[A]] =
+  implicit def cogenIO[A]: Cogen[Task[A]] =
     Cogen[Unit].contramap(_ => ())
 
-  private val asyncGenerators = new AsyncGenerators[IO] {
-    override implicit val F: Async[IO] = IO.catsEffectAsyncForIO
+  private val asyncGenerators = new AsyncGenerators[Task] {
+    override implicit val F: Async[Task] = Task.catsEffectAsyncForTask
     override implicit val arbitraryE: Arbitrary[Throwable] = arbitraryThrowable
     override implicit val cogenE: Cogen[Throwable] = cogenForThrowable
     override protected implicit val arbitraryFD: Arbitrary[FiniteDuration] = arbitraryFiniteDuration
     override protected implicit val arbitraryEC: Arbitrary[ExecutionContext] = arbitraryExecutionContext
-    override protected implicit val cogenFU: Cogen[IO[Unit]] = cogenIO[Unit]
+    override protected implicit val cogenFU: Cogen[Task[Unit]] = cogenIO[Unit]
 
-    override def recursiveGen[B: Arbitrary: Cogen](deeper: GenK[IO]) =
+    override def recursiveGen[B: Arbitrary: Cogen](deeper: GenK[Task]) =
       super.recursiveGen[B](deeper).filterNot(_._1 == "racePair")
   }
 
-  implicit def arbitraryIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]] =
+  implicit def arbitraryIO[A: Arbitrary: Cogen]: Arbitrary[Task[A]] =
     Arbitrary(asyncGenerators.generators[A])
 
   implicit val eqExecutionContext: Eq[ExecutionContext] =
     Eq.fromUniversalEquals
 
-  implicit def eqOutcome[A: Eq]: Eq[Outcome[IO, Throwable, A]] =
+  implicit def eqOutcome[A: Eq]: Eq[Outcome[Task, Throwable, A]] =
     Eq.instance {
-      case (Outcome.Succeeded(left), Outcome.Succeeded(right)) => Eq[IO[A]].eqv(left, right)
+      case (Outcome.Succeeded(left), Outcome.Succeeded(right)) => Eq[Task[A]].eqv(left, right)
       case (Outcome.Errored(left), Outcome.Errored(right)) => Eq[Throwable].eqv(left, right)
       case (left, right) => left.isCanceled && right.isCanceled
     }
 
-  implicit def eqIO[A: Eq]: Eq[IO[A]] =
+  implicit def eqIO[A: Eq]: Eq[Task[A]] =
     Eq.instance { (left, right) =>
       unsafeRunPair(left, right) match {
         case (Some(Right(a)), Some(Right(b))) => Eq[A].eqv(a, b)
@@ -88,9 +88,9 @@ object IOAsyncLawsSuite extends BaseLawsSuite {
       }
     }
 
-  implicit val orderIOFiniteDuration: Order[IO[FiniteDuration]] =
-    new Order[IO[FiniteDuration]] {
-      override def compare(left: IO[FiniteDuration], right: IO[FiniteDuration]): Int =
+  implicit val orderTaskFiniteDuration: Order[Task[FiniteDuration]] =
+    new Order[Task[FiniteDuration]] {
+      override def compare(left: Task[FiniteDuration], right: Task[FiniteDuration]): Int =
         unsafeRunPair(left, right) match {
           case (Some(Right(a)), Some(Right(b))) => a.compare(b)
           case (Some(Right(_)), _) => 1
@@ -108,13 +108,13 @@ object IOAsyncLawsSuite extends BaseLawsSuite {
       override def inverse(value: FiniteDuration): FiniteDuration = -value
     }
 
-  implicit val isomorphisms: SemigroupalTests.Isomorphisms[IO] =
-    SemigroupalTests.Isomorphisms.invariant[IO]
+  implicit val isomorphisms: SemigroupalTests.Isomorphisms[Task] =
+    SemigroupalTests.Isomorphisms.invariant[Task]
 
-  implicit val executeBoolean: IO[Boolean] => Prop =
+  implicit val executeBoolean: Task[Boolean] => Prop =
     value => Prop(unsafeRun(value).contains(Right(true)))
 
-  private val asyncRuleSet = AsyncTests[IO].async[Int, Int, Int](10.millis)
+  private val asyncRuleSet = AsyncTests[Task].async[Int, Int, Int](10.millis)
 
   test("Async[IO] law set is non-empty") {
     assert(asyncRuleSet.all.properties.nonEmpty)
@@ -122,7 +122,7 @@ object IOAsyncLawsSuite extends BaseLawsSuite {
 
   checkAll("Async[IO]", asyncRuleSet)
 
-  private def unsafeRun[A](source: IO[A]): Option[Either[Throwable, A]] = {
+  private def unsafeRun[A](source: Task[A]): Option[Either[Throwable, A]] = {
     var result = Option.empty[Either[Throwable, A]]
     source.unsafeRunAsync(new Callback[Throwable, A] {
       override def onSuccess(value: A): Unit = result = Some(Right(value))
@@ -133,8 +133,8 @@ object IOAsyncLawsSuite extends BaseLawsSuite {
   }
 
   private def unsafeRunPair[A](
-    left: IO[A],
-    right: IO[A]
+    left: Task[A],
+    right: Task[A]
   ): (Option[Either[Throwable, A]], Option[Either[Throwable, A]]) = {
     var leftResult = Option.empty[Either[Throwable, A]]
     var rightResult = Option.empty[Either[Throwable, A]]

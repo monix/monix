@@ -18,26 +18,26 @@
 package monix.eval
 package internal
 
-/** Type-erased continuation stack owned by one [[IOFiber]].
+/** Type-erased continuation stack owned by one [[TaskFiber]].
   *
   * References and tags are kept in parallel arrays to avoid allocating a frame for
   * every bind, error handler, or cancellation finalizer. The fiber run-loop is
   * serialized, therefore this stack needs no synchronization of its own.
   */
-private[internal] final class IOCallStack(initialCapacity: Int) {
+private[internal] final class TaskCallStack(initialCapacity: Int) {
   private[this] var refs = new Array[AnyRef](initialCapacity)
   private[this] var tags = new Array[Int](initialCapacity)
   private[this] var capacity = initialCapacity
   private[this] var size = 0
 
-  def findAndPopNextFlatMap(): Any => IO[Any] =
-    findAndPop(IOCallStack.FlatMapTag).asInstanceOf[Any => IO[Any]]
+  def findAndPopNextFlatMap(): Any => Task[Any] =
+    findAndPop(TaskCallStack.FlatMapTag).asInstanceOf[Any => Task[Any]]
 
-  def findAndPopNextHandleError(): Throwable => IO[Any] =
-    findAndPop(IOCallStack.HandleErrorTag).asInstanceOf[Throwable => IO[Any]]
+  def findAndPopNextHandleError(): Throwable => Task[Any] =
+    findAndPop(TaskCallStack.HandleErrorTag).asInstanceOf[Throwable => Task[Any]]
 
-  def findAndPopNextOnCancel(): IO[Unit] =
-    findAndPop(IOCallStack.OnCancelTag).asInstanceOf[IO[Unit]]
+  def findAndPopNextOnCancel(): Task[Unit] =
+    findAndPop(TaskCallStack.OnCancelTag).asInstanceOf[Task[Unit]]
 
   private def findAndPop(tag: Int): AnyRef = {
     // Each outcome searches only for a frame which can handle it. Frames for the
@@ -82,17 +82,17 @@ private[internal] final class IOCallStack(initialCapacity: Int) {
     tags(index) = tag
   }
 
-  def pushFlatMap(f: Any => IO[Any]): Unit =
-    push(f, IOCallStack.FlatMapTag)
+  def pushFlatMap(f: Any => Task[Any]): Unit =
+    push(f, TaskCallStack.FlatMapTag)
 
-  def pushHandleError(f: Throwable => IO[Any]): Unit =
-    push(f, IOCallStack.HandleErrorTag)
+  def pushHandleError(f: Throwable => Task[Any]): Unit =
+    push(f, TaskCallStack.HandleErrorTag)
 
-  def pushOnCancel(f: IO[Unit]): Unit =
-    push(f, IOCallStack.OnCancelTag)
+  def pushOnCancel(f: Task[Unit]): Unit =
+    push(f, TaskCallStack.OnCancelTag)
 }
 
-private[internal] object IOCallStack {
+private[internal] object TaskCallStack {
   final val FlatMapTag = 0
   final val HandleErrorTag = 1
   final val OnCancelTag = 2

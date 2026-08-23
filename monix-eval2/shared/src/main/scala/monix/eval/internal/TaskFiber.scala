@@ -19,14 +19,14 @@ package monix.eval
 package internal
 
 import cats.effect.kernel.{ Fiber, Outcome, Poll }
-import monix.eval.IO.RaiseError
-import monix.eval.internal.IOFiber.*
+import monix.eval.Task.RaiseError
+import monix.eval.internal.TaskFiber.*
 import monix.execution.{ Callback, Scheduler }
 import monix.execution.atomic.Atomic
 import scala.annotation.{ switch, tailrec }
 import scala.util.control.NonFatal
 
-/** Runtime interpreter and Cats Effect fiber handle for [[IO]].
+/** Runtime interpreter and Cats Effect fiber handle for [[Task]].
   *
   * At most one `run()` invocation evaluates the interpreter. Asynchronous callbacks
   * and cancellation requests never run it directly; they publish immutable snapshots
@@ -34,19 +34,19 @@ import scala.util.control.NonFatal
   * schedule the next run, so interpreter fields are accessed only while that ownership
   * is held, without intrinsic locking.
   */
-private[eval] final class IOFiber[A] private[eval] (
-  source: IO[A],
+private[eval] final class TaskFiber[A] private[eval] (
+  source: Task[A],
   cb: Callback[Throwable, A],
-  initCallStack: IOCallStack = null,
+  initCallStack: TaskCallStack = null,
   initIsCancelled: Boolean = false
 )(implicit
   scheduler: Scheduler
-) extends Fiber[IO, Throwable, A] with IO.Visitor[Any, Control] with Runnable {
+) extends Fiber[Task, Throwable, A] with Task.Visitor[Any, Control] with Runnable {
   // These interpreter fields are read and written only by the run-loop. A state CAS
   // publishes callback results before a later run installs them in `currentRef`.
   private[this] var currentRef: Current = source
-  private[this] var callStackRef: IOCallStack = initCallStack
-  private[this] var _restartCallback: IORestartCallback = _
+  private[this] var callStackRef: TaskCallStack = initCallStack
+  private[this] var _restartCallback: TaskRestartCallback = _
 
   // The run-loop owns mask updates. An inactive canceler may read the depth only after
   // its CAS has acquired the scheduling claim.
@@ -61,35 +61,35 @@ private[eval] final class IOFiber[A] private[eval] (
   )
 
   @inline
-  private def callStack: IOCallStack = {
+  private def callStack: TaskCallStack = {
     // Allocate on the first frame push or outcome search, keeping fiber construction
     // independent of the continuation-stack representation.
-    if (callStackRef eq null) callStackRef = new IOCallStack(8)
+    if (callStackRef eq null) callStackRef = new TaskCallStack(8)
     callStackRef
   }
 
-  override def visit(ref: IO.Pure[Any]): Control =
+  override def visit(ref: Task.Pure[Any]): Control =
     processUnboxedValue(ref.a.asInstanceOf[AnyRef])
 
-  override def visit[S](ref: IO.FlatMap[S, Any]): Control = {
-    callStack.pushFlatMap(ref.f.asInstanceOf[Any => IO[Any]])
+  override def visit[S](ref: Task.FlatMap[S, Any]): Control = {
+    callStack.pushFlatMap(ref.f.asInstanceOf[Any => Task[Any]])
     currentRef = ref.source
     Continue
   }
 
-  override def visit[S](ref: IO.HandleErrorWith[S, Any]): Control = {
+  override def visit[S](ref: Task.HandleErrorWith[S, Any]): Control = {
     callStack.pushHandleError(ref.f)
     currentRef = ref.source
     Continue
   }
 
-  override def visit(ref: IO.OnCancel[Any]): Control = {
+  override def visit(ref: Task.OnCancel[Any]): Control = {
     callStack.pushOnCancel(ref.onCancel)
     currentRef = ref.source
     Continue
   }
 
-  override def visit(ref: IO.RaiseError): Control = {
+  override def visit(ref: Task.RaiseError): Control = {
     val err = ref.e
     // Error propagation discards binds and cancellation finalizers until the next
     // matching handler. No handler means this is the fiber's terminal error.
@@ -112,34 +112,34 @@ private[eval] final class IOFiber[A] private[eval] (
     }
   }
 
-  override def visit(ref: IO.AsyncSimple[Any]): Control = {
+  override def visit(ref: Task.AsyncSimple[Any]): Control = {
     // A callback arriving while `runActive` is true is stored in `pendingRef`. One
     // arriving after the run-loop stops schedules it again.
     restartCallback().start(ref)
     Break
   }
 
-  override def visit[S](ref: IO.AsyncCont[S, Any]): Control = {
+  override def visit[S](ref: Task.AsyncCont[S, Any]): Control = {
     // `callback` and `get` may be used in either order. The indirection retains the
     // first side until the other arrives.
-    val callback = new IOCallbackIndirection[Throwable, S]
-    val get = IO.AsyncSimple[S]((_, waiting) => callback.register(waiting))
+    val callback = new TaskCallbackIndirection[Throwable, S]
+    val get = Task.AsyncSimple[S]((_, waiting) => callback.register(waiting))
     // Constructing the continuation result may throw. Move a `NonFatal` into the
     // ordinary `IO` error channel.
     try currentRef = ref.cont(scheduler, callback, get)
     catch {
       case error if NonFatal(error) =>
-        currentRef = IO.RaiseError(error)
+        currentRef = Task.RaiseError(error)
     }
     Continue
   }
 
-  override def visit(ref: IO.Cancelled.type): Control = {
+  override def visit(ref: Task.Cancelled.type): Control = {
     markCanceled()
     if (maskDepth > 0) {
       // Keep the cancellation flag pending. Leaving the mask, or entering a matching
       // poll region, will turn it back into a `Cancelled` node.
-      currentRef = IO.Pure(())
+      currentRef = Task.Pure(())
       Continue
     } else
       callStack.findAndPopNextOnCancel() match {
@@ -154,11 +154,11 @@ private[eval] final class IOFiber[A] private[eval] (
           // Finalizers are masked and run in LIFO order. Their errors are reported;
           // cancellation continues after the reporter returns normally.
           maskDepth += 1
-          def continueCancellation(): IO[Nothing] = {
+          def continueCancellation(): Task[Nothing] = {
             maskDepth -= 1
-            IO.Cancelled
+            Task.Cancelled
           }
-          currentRef = IO.HandleErrorWith(
+          currentRef = Task.HandleErrorWith(
             onCancel.flatMap(_ => continueCancellation()),
             error => {
               scheduler.reportFailure(error)
@@ -169,15 +169,15 @@ private[eval] final class IOFiber[A] private[eval] (
       }
   }
 
-  override def visit(ref: IO.Uncancelable[Any]): Control = {
+  override def visit(ref: Task.Uncancelable[Any]): Control = {
     val previous = maskDepth
     maskDepth += 1
     val id = maskDepth
     // Poll records this fiber and the current nesting level. Applying it on another
     // fiber, or while a different level is current, cannot lower that mask.
-    val poll = new Poll[IO] {
-      def apply[B](fa: IO[B]): IO[B] =
-        IO.PollRegion(fa, id, IOFiber.this)
+    val poll = new Poll[Task] {
+      def apply[B](fa: Task[B]): Task[B] =
+        Task.PollRegion(fa, id, TaskFiber.this)
     }
 
     try {
@@ -187,18 +187,18 @@ private[eval] final class IOFiber[A] private[eval] (
         // The body function runs during interpretation. Restore the mask before
         // moving its exception into the IO error channel.
         maskDepth = previous
-        currentRef = IO.RaiseError(e)
+        currentRef = Task.RaiseError(e)
     }
     Continue
   }
 
-  override def visit(ref: IO.PollRegion[Any]): Control = {
+  override def visit(ref: Task.PollRegion[Any]): Control = {
     if ((ref.owner eq this) && maskDepth == ref.id) {
       // Lower one matching mask level, then restore it on both success and error.
       val previous = maskDepth
       maskDepth -= 1
       if (isCancellationRequested && maskDepth == 0)
-        currentRef = IO.Cancelled
+        currentRef = Task.Cancelled
       else
         currentRef = restoreMask(ref.source, previous)
     } else {
@@ -208,12 +208,12 @@ private[eval] final class IOFiber[A] private[eval] (
     Continue
   }
 
-  override def visit[S](ref: IO.Start[S]): Control = {
+  override def visit[S](ref: Task.Start[S]): Control = {
     // Successful child values are observed through `join`, so the root callback can
     // ignore success. `Callback.empty` still reports a child error.
-    val child = new IOFiber[S](ref.source, Callback.empty)(scheduler)
+    val child = new TaskFiber[S](ref.source, Callback.empty)(scheduler)
     scheduler.execute(child)
-    currentRef = IO.Pure(child)
+    currentRef = Task.Pure(child)
     Continue
   }
 
@@ -265,18 +265,18 @@ private[eval] final class IOFiber[A] private[eval] (
         // `OnCancel` or `Uncancelable` node whose dynamic state is not installed yet.
         stateRef.get() match {
           case Active(_, _, isCanceled, _) =>
-            if (isCanceled && maskDepth == 0 && (currentRef ne IO.Cancelled))
-              currentRef = IO.Cancelled
+            if (isCanceled && maskDepth == 0 && (currentRef ne Task.Cancelled))
+              currentRef = Task.Cancelled
 
             // Pure, error, and bind dominate normal execution, so the hot path avoids
             // virtual visitor dispatch for their tags.
             (currentRef.tag: @switch) match {
               case 0 =>
-                continue = visit(currentRef.asInstanceOf[IO.Pure[AnyRef]])
+                continue = visit(currentRef.asInstanceOf[Task.Pure[AnyRef]])
               case 1 =>
-                continue = visit(currentRef.asInstanceOf[IO.RaiseError])
+                continue = visit(currentRef.asInstanceOf[Task.RaiseError])
               case 2 =>
-                continue = visit(currentRef.asInstanceOf[IO.FlatMap[Any, Any]])
+                continue = visit(currentRef.asInstanceOf[Task.FlatMap[Any, Any]])
               case _ =>
                 continue = currentRef.accept(this)
             }
@@ -292,9 +292,9 @@ private[eval] final class IOFiber[A] private[eval] (
     * Waiting is uncancelable: completion of `Fiber.cancel` means the remaining
     * registered finalizers have finished, not merely that a flag was set.
     */
-  override def cancel: IO[Unit] =
-    IO.uncancelable { _ =>
-      IO.delay(scheduler.execute(() => requestCancel())).flatMap(_ => join.map(_ => ()))
+  override def cancel: Task[Unit] =
+    Task.uncancelable { _ =>
+      Task.delay(scheduler.execute(() => requestCancel())).flatMap(_ => join.map(_ => ()))
     }
 
   /** Suspends until the atomic result state is terminal. The CAS loop in
@@ -302,8 +302,8 @@ private[eval] final class IOFiber[A] private[eval] (
     * Registration has no removal token, so the target retains a canceled joiner's
     * callback until the target itself completes.
     */
-  override def join: IO[Outcome[IO, Throwable, A]] =
-    IO.AsyncSimple((_, callback) => registerJoin(callback))
+  override def join: Task[Outcome[Task, Throwable, A]] =
+    Task.AsyncSimple((_, callback) => registerJoin(callback))
 
   private def processUnboxedValue(unboxedRef: AnyRef): Control = {
     // Success discards error and cancellation frames until the next bind. Finding no
@@ -311,7 +311,7 @@ private[eval] final class IOFiber[A] private[eval] (
     callStack.findAndPopNextFlatMap() match {
       case null =>
         val value = unboxedRef.asInstanceOf[A]
-        complete(Outcome.Succeeded(IO.Pure(value)))
+        complete(Outcome.Succeeded(Task.Pure(value)))
         cb.onSuccess(value)
         Break
       case bind =>
@@ -321,37 +321,37 @@ private[eval] final class IOFiber[A] private[eval] (
           currentRef = bind(unboxedRef)
         } catch {
           case ex if NonFatal(ex) =>
-            currentRef = IO.RaiseError(ex)
+            currentRef = Task.RaiseError(ex)
         }
         Continue
     }
   }
 
-  private def restartCallback(): IORestartCallback = {
+  private def restartCallback(): TaskRestartCallback = {
     if (_restartCallback == null)
-      _restartCallback = new IORestartCallback(this, scheduler)
+      _restartCallback = new TaskRestartCallback(this, scheduler)
     _restartCallback
   }
 
   /** Restores a prior cancellation depth on both success and error. A cancellation
     * recorded while masked takes precedence as soon as restoration exposes depth 0.
     */
-  private def restoreMask(source: IO[Any], previous: Int): IO[Any] =
-    IO.HandleErrorWith(
-      IO.FlatMap[Any, Any](
+  private def restoreMask(source: Task[Any], previous: Int): Task[Any] =
+    Task.HandleErrorWith(
+      Task.FlatMap[Any, Any](
         source,
         value => {
           maskDepth = previous
-          if (isCancellationRequested && maskDepth == 0) IO.Cancelled else IO.Pure(value)
+          if (isCancellationRequested && maskDepth == 0) Task.Cancelled else Task.Pure(value)
         }
       ),
       error => {
         maskDepth = previous
-        if (isCancellationRequested && maskDepth == 0) IO.Cancelled else IO.RaiseError(error)
+        if (isCancellationRequested && maskDepth == 0) Task.Cancelled else Task.RaiseError(error)
       }
     )
 
-  private def complete(outcome: Outcome[IO, Throwable, A]): Unit = {
+  private def complete(outcome: Outcome[Task, Throwable, A]): Unit = {
     // Only the successful CAS can finish the fiber. Listener notification starts
     // after publication, and reversing restores registration order.
     // Terminal success and error call this before signaling the unsafe-run callback.
@@ -370,7 +370,7 @@ private[eval] final class IOFiber[A] private[eval] (
     loop()
   }
 
-  private def registerJoin(callback: Callback[Throwable, Outcome[IO, Throwable, A]]): Unit = {
+  private def registerJoin(callback: Callback[Throwable, Outcome[Task, Throwable, A]]): Unit = {
     // A registration either adds its callback while the state is `Active`, so
     // `complete` sees it, or observes `Finished` and receives the outcome immediately.
     @tailrec def loop(): Unit =
@@ -447,7 +447,7 @@ private[eval] final class IOFiber[A] private[eval] (
         if (isCanceled && maskDepth == 0) {
           val update = current.copy(pendingRef = null)
           if (stateRef.compareAndSet(current, update)) {
-            currentRef = IO.Cancelled
+            currentRef = Task.Cancelled
             true
           } else {
             selectNextRun()
@@ -483,8 +483,8 @@ private[eval] final class IOFiber[A] private[eval] (
     }
 }
 
-object IOFiber {
-  private type Current = IO[Any]
+object TaskFiber {
+  private type Current = Task[Any]
 
   private type Control = Boolean
   private final val Continue: Control = true
@@ -507,13 +507,13 @@ object IOFiber {
   private sealed trait FiberState[A]
 
   private final case class Active[A](
-    listeners: List[Callback[Throwable, Outcome[IO, Throwable, A]]],
+    listeners: List[Callback[Throwable, Outcome[Task, Throwable, A]]],
     runActive: Boolean,
     isCanceled: Boolean,
     pendingRef: Current
   ) extends FiberState[A]
 
   private final case class Finished[A](
-    outcome: Outcome[IO, Throwable, A]
+    outcome: Outcome[Task, Throwable, A]
   ) extends FiberState[A]
 }

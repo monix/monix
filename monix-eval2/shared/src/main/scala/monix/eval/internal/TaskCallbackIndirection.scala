@@ -35,8 +35,8 @@ import scala.annotation.tailrec
   * signals harmless. A second concurrent signal observes a terminal state and is
   * ignored.
   */
-final class IOCallbackIndirection[E, A] extends Callback[E, A] {
-  import IOCallbackIndirection._
+final class TaskCallbackIndirection[E, A] extends Callback[E, A] {
+  import TaskCallbackIndirection._
 
   private[this] val atomic = Atomic(Init: State[E, A])
 
@@ -86,7 +86,7 @@ final class IOCallbackIndirection[E, A] extends Callback[E, A] {
     signalLoop(isSuccess = false, e, Failure(e))
 }
 
-object IOCallbackIndirection {
+object TaskCallbackIndirection {
   private sealed trait State[+E, +A]
   private case object Init extends State[Nothing, Nothing]
   private final case class Waiting[E, A](cb: Callback[E, A]) extends State[E, A]

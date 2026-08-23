@@ -19,95 +19,95 @@ package monix.eval.instances
 
 import cats.arrow.FunctionK
 import cats.effect.kernel.{ Async, Cont, Deferred, Fiber, Outcome, Poll, Ref, Sync }
-import monix.eval.IO
+import monix.eval.Task
 import monix.execution.Scheduler
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
-/** Cats Effect 3 `Async` instance backed by the [[IO]] run-loop.
+/** Cats Effect 3 `Async` instance backed by the [[Task]] run-loop.
   *
   * Primitive operations construct `IO` nodes. Operations such as `cede`, `sleep`,
   * and `racePair` use `AsyncCont` when callback signaling can happen before or after
   * its `get` effect starts. Setup which creates a cancel token is masked, then exposes
   * its wait through `Poll`.
   */
-private[eval] final class CatsAsyncForIO extends Async[IO] {
-  override def pure[A](a: A): IO[A] =
-    IO.pure(a)
+private[eval] final class CatsAsyncForTask extends Async[Task] {
+  override def pure[A](a: A): Task[A] =
+    Task.pure(a)
 
-  override def flatMap[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
+  override def flatMap[A, B](fa: Task[A])(f: A => Task[B]): Task[B] =
     fa.flatMap(f)
 
-  override def tailRecM[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
-    IO.defer {
+  override def tailRecM[A, B](a: A)(f: A => Task[Either[A, B]]): Task[B] =
+    Task.defer {
       f(a).flatMap {
         case Left(next) => tailRecM(next)(f)
-        case Right(value) => IO.pure(value)
+        case Right(value) => Task.pure(value)
       }
     }
 
-  override def raiseError[A](e: Throwable): IO[A] =
-    IO.raiseError(e)
+  override def raiseError[A](e: Throwable): Task[A] =
+    Task.raiseError(e)
 
-  override def handleErrorWith[A](fa: IO[A])(f: Throwable => IO[A]): IO[A] =
+  override def handleErrorWith[A](fa: Task[A])(f: Throwable => Task[A]): Task[A] =
     fa.handleErrorWith(f)
 
-  override def forceR[A, B](fa: IO[A])(fb: IO[B]): IO[B] =
-    fa.map(_ => ()).handleErrorWith(_ => IO.pure(())).flatMap(_ => fb)
+  override def forceR[A, B](fa: Task[A])(fb: Task[B]): Task[B] =
+    fa.map(_ => ()).handleErrorWith(_ => Task.pure(())).flatMap(_ => fb)
 
-  override def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
-    IO.uncancelable(body)
+  override def uncancelable[A](body: Poll[Task] => Task[A]): Task[A] =
+    Task.uncancelable(body)
 
-  override val canceled: IO[Unit] =
-    IO.canceled
+  override val canceled: Task[Unit] =
+    Task.canceled
 
-  override def onCancel[A](fa: IO[A], fin: IO[Unit]): IO[A] =
+  override def onCancel[A](fa: Task[A], fin: Task[Unit]): Task[A] =
     fa.onCancel(fin)
 
-  override def start[A](fa: IO[A]): IO[Fiber[IO, Throwable, A]] =
+  override def start[A](fa: Task[A]): Task[Fiber[Task, Throwable, A]] =
     fa.start
 
-  override def ref[A](a: A): IO[Ref[IO, A]] =
+  override def ref[A](a: A): Task[Ref[Task, A]] =
     // These constructors allocate immediately, so delaying them invokes the
     // constructor during every IO evaluation rather than during IO construction.
-    IO.delay(Ref.unsafe[IO, A](a)(this))
+    Task.delay(Ref.unsafe[Task, A](a)(this))
 
-  override def deferred[A]: IO[Deferred[IO, A]] =
-    IO.delay(Deferred.unsafe[IO, A](this))
+  override def deferred[A]: Task[Deferred[Task, A]] =
+    Task.delay(Deferred.unsafe[Task, A](this))
 
-  override def never[A]: IO[A] =
-    IO.never
+  override def never[A]: Task[A] =
+    Task.never
 
-  override val cede: IO[Unit] =
+  override val cede: Task[Unit] =
     // Submit the signal to the current scheduler. The callback indirection also
     // covers a scheduler which invokes it before `get` starts.
-    IO.cont0[Unit, Unit] { (scheduler, callback, get) =>
+    Task.cont0[Unit, Unit] { (scheduler, callback, get) =>
       scheduler.execute(() => callback.onSuccess(()))
       get
     }
 
   override def racePair[A, B](
-    fa: IO[A],
-    fb: IO[B]
-  ): IO[Either[(Outcome[IO, Throwable, A], Fiber[IO, Throwable, B]),
-    (Fiber[IO, Throwable, A], Outcome[IO, Throwable, B])]] = {
-    type Result = Either[(Outcome[IO, Throwable, A], Fiber[IO, Throwable, B]),
-      (Fiber[IO, Throwable, A], Outcome[IO, Throwable, B])]
+    fa: Task[A],
+    fb: Task[B]
+  ): Task[Either[(Outcome[Task, Throwable, A], Fiber[Task, Throwable, B]),
+    (Fiber[Task, Throwable, A], Outcome[Task, Throwable, B])]] = {
+    type Result = Either[(Outcome[Task, Throwable, A], Fiber[Task, Throwable, B]),
+      (Fiber[Task, Throwable, A], Outcome[Task, Throwable, B])]
 
     // Starting both children is masked, so cancellation cannot interrupt the setup.
     uncancelable { poll =>
       start(fa).flatMap { fiberA =>
         start(fb).flatMap { fiberB =>
-          val await = IO.cont0[Result, Result] { (scheduler, callback, get) =>
+          val await = Task.cont0[Result, Result] { (scheduler, callback, get) =>
             // Both observers race to signal one continuation. Its atomic state keeps
             // the first outcome and ignores the second signal.
             fiberA.join
-              .flatMap(outcome => IO.delay(callback.onSuccess(Left((outcome, fiberB)))))
+              .flatMap(outcome => Task.delay(callback.onSuccess(Left((outcome, fiberB)))))
               .unsafeRunAndForget()(scheduler)
             fiberB.join
-              .flatMap(outcome => IO.delay(callback.onSuccess(Right((fiberA, outcome)))))
+              .flatMap(outcome => Task.delay(callback.onSuccess(Right((fiberA, outcome)))))
               .unsafeRunAndForget()(scheduler)
             // The observer for the other child is not canceled after a winner. It
             // remains joined and its eventual second signal is ignored.
@@ -122,33 +122,33 @@ private[eval] final class CatsAsyncForIO extends Async[IO] {
     }
   }
 
-  override def monotonic: IO[FiniteDuration] =
+  override def monotonic: Task[FiniteDuration] =
     readScheduler(scheduler => FiniteDuration(scheduler.clockMonotonic(TimeUnit.NANOSECONDS), TimeUnit.NANOSECONDS))
 
-  override def realTime: IO[FiniteDuration] =
+  override def realTime: Task[FiniteDuration] =
     readScheduler(scheduler => FiniteDuration(scheduler.clockRealTime(TimeUnit.MICROSECONDS), TimeUnit.MICROSECONDS))
 
-  override protected def sleep(time: FiniteDuration): IO[Unit] =
+  override protected def sleep(time: FiniteDuration): Task[Unit] =
     if (time.length <= 0) cede
     else
       // Timer installation is masked, while `get` is polled. This prevents a race in
       // which cancellation occurs after scheduling but before its token is attached.
       uncancelable { poll =>
-        IO.cont0[Unit, Unit] { (scheduler, callback, get) =>
+        Task.cont0[Unit, Unit] { (scheduler, callback, get) =>
           val cancelable = scheduler.scheduleOnce(time)(callback.onSuccess(()))
-          poll(get).onCancel(IO.delay(cancelable.cancel()))
+          poll(get).onCancel(Task.delay(cancelable.cancel()))
         }
       }
 
-  override def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
+  override def suspend[A](hint: Sync.Type)(thunk: => A): Task[A] =
     // IO has one delayed-evaluation encoding; `Sync.Type` is an optimization hint only.
-    IO.delay(thunk)
+    Task.delay(thunk)
 
-  override def evalOn[A](fa: IO[A], ec: ExecutionContext): IO[A] =
+  override def evalOn[A](fa: Task[A], ec: ExecutionContext): Task[A] =
     // The source runs as a child on `target`, but completion resumes this continuation
     // on its original scheduler. Masking covers child startup and cancel-token setup.
     uncancelable { poll =>
-      IO.cont0[A, A] { (_, callback, get) =>
+      Task.cont0[A, A] { (_, callback, get) =>
         // Preserve an existing `Scheduler`, including its clock and execution model;
         // adapt only a plain `ExecutionContext`.
         val target = ec match {
@@ -160,23 +160,23 @@ private[eval] final class CatsAsyncForIO extends Async[IO] {
       }
     }
 
-  override def executionContext: IO[ExecutionContext] =
+  override def executionContext: Task[ExecutionContext] =
     readScheduler(identity)
 
-  override def cont[K, R](body: Cont[IO, K, R]): IO[R] =
+  override def cont[K, R](body: Cont[Task, K, R]): Task[R] =
     // Cats Effect's `Either` callback is adapted to Monix's two-channel `Callback`.
     // `get` already belongs to `IO`, therefore `lift` is the identity.
-    IO.cont0[K, R] { (_, callback, get) =>
+    Task.cont0[K, R] { (_, callback, get) =>
       val resume: Either[Throwable, K] => Unit = {
         case Right(value) => callback.onSuccess(value)
         case Left(error) => callback.onError(error)
       }
-      val lift = FunctionK.id[IO]
-      body.apply[IO](this)(resume, get, lift)
+      val lift = FunctionK.id[Task]
+      body.apply[Task](this)(resume, get, lift)
     }
 
-  private def readScheduler[A](f: Scheduler => A): IO[A] =
+  private def readScheduler[A](f: Scheduler => A): Task[A] =
     // `cont0` exposes the interpreter's current Scheduler. No callback handshake is
     // needed here; the returned delayed node performs the actual read.
-    IO.cont0[A, A]((scheduler, _, _) => IO.delay(f(scheduler)))
+    Task.cont0[A, A]((scheduler, _, _) => Task.delay(f(scheduler)))
 }

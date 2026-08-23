@@ -18,7 +18,7 @@
 package monix.eval
 package internal
 
-import monix.eval.IO.AsyncSimple.{ AsyncTrampolined, BoundaryPolicy }
+import monix.eval.Task.AsyncSimple.{ AsyncTrampolined, BoundaryPolicy }
 import monix.execution.exceptions.APIContractViolationException
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{ Callback, Scheduler }
@@ -26,16 +26,16 @@ import scala.util.control.NonFatal
 
 /** Reusable callback which transports an asynchronous result back into one fiber.
   *
-  * An [[IO.AsyncSimple]] can request a boundary both before registration and after
+  * An [[Task.AsyncSimple]] can request a boundary both before registration and after
   * callback delivery. This object implements those choices without allocating a
   * fresh callback and runnable set for every suspension.
   *
   * N.B. the mutable transport fields rely on the callback contract that only one
   * result wins. Scheduling their consumer publishes those writes to the scheduler
-  * thread; actual run-loop serialization is handled by [[IOFiber.continueWithRef]].
+  * thread; actual run-loop serialization is handled by [[TaskFiber.continueWithRef]].
   */
-private[internal] class IORestartCallback(
-  fiber: IOFiber[_],
+private[internal] class TaskRestartCallback(
+  fiber: TaskFiber[_],
   scheduler: Scheduler,
 ) extends Callback[Throwable, Any] {
   self =>
@@ -51,7 +51,7 @@ private[internal] class IORestartCallback(
 
   // Carries registration across a boundary-before transition. It is cleared before
   // invoking registration because a synchronous callback can re-enter this object.
-  private[this] var task: IO.AsyncSimple[_] = _
+  private[this] var task: Task.AsyncSimple[_] = _
 
   // Cached because one fiber can cross many asynchronous boundaries in its lifetime.
   private[this] var _startWithAsyncShifted: Runnable = _
@@ -59,9 +59,9 @@ private[internal] class IORestartCallback(
   private[this] var _signalValueShiftedRef: Runnable = _
   private[this] var _signalValueTrampolinedRef: TrampolinedRunnable = _
 
-  final def start(task: IO.AsyncSimple[_]): Unit = {
+  final def start(task: Task.AsyncSimple[_]): Unit = {
     this.boundaryAfterPolicy = task.boundaryAfter
-    if (task.boundaryBefore == IO.AsyncSimple.Synchronous) {
+    if (task.boundaryBefore == Task.AsyncSimple.Synchronous) {
       safeStart(task)
     } else {
       // Batching schedulers distinguish a plain `Runnable` wrapper from a directly
@@ -81,18 +81,18 @@ private[internal] class IORestartCallback(
     // its next `AsyncSimple` node.
     self.boundaryAfterPolicy = AsyncTrampolined
 
-    if (boundaryAfterPolicy == IO.AsyncSimple.Synchronous) {
+    if (boundaryAfterPolicy == Task.AsyncSimple.Synchronous) {
       if (hasValue)
-        fiber.continueWithRef(IO.Pure(value))
+        fiber.continueWithRef(Task.Pure(value))
       else
-        fiber.continueWithRef(IO.RaiseError(error))
+        fiber.continueWithRef(Task.RaiseError(error))
     } else {
       // Result transport is separated from run-loop resumption. The boundary policy
       // selects how work is submitted; the Scheduler still decides where it runs.
       self.transportedHasValue = hasValue
       self.transportedValue = value
       self.transportedError = error
-      if (boundaryAfterPolicy == IO.AsyncSimple.AsyncShifted)
+      if (boundaryAfterPolicy == Task.AsyncSimple.AsyncShifted)
         scheduler.execute(signalValueShifted())
       else
         scheduler.execute(signalValueTrampolined())
@@ -104,7 +104,7 @@ private[internal] class IORestartCallback(
   override final def onError(e: Throwable): Unit =
     onSuccessOrError(hasValue = false, null, e)
 
-  private final def safeStart(task: IO.AsyncSimple[_]): Unit =
+  private final def safeStart(task: Task.AsyncSimple[_]): Unit =
     try {
       task.register(scheduler, this)
     } catch {
@@ -143,11 +143,11 @@ private[internal] class IORestartCallback(
         val value = self.transportedValue
         self.transportedHasValue = false
         self.transportedValue = null
-        fiber.continueWithRef(IO.Pure(value))
+        fiber.continueWithRef(Task.Pure(value))
       } else {
         val error = self.transportedError
         self.transportedError = null
-        fiber.continueWithRef(IO.RaiseError(error))
+        fiber.continueWithRef(Task.RaiseError(error))
       }
   }
 

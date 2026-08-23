@@ -28,7 +28,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
 
-object IOCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
+object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
   val WORKERS = 10
   val RETRIES = if (!isCI) 1000 else 100
 
@@ -40,7 +40,7 @@ object IOCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
       for (_ <- 0 until RETRIES) {
         val accepted = new AtomicInteger(0)
         val completed = new CountDownLatch(1)
-        val result = IO
+        val result = Task
           .async[Int] { callback =>
             runConcurrently(scheduler) {
               if (callback.tryOnSuccess(42))
@@ -73,7 +73,7 @@ object IOCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
         val completed = new CountDownLatch(1)
         val accepted = new AtomicInteger(0)
 
-        val result = IO
+        val result = Task
           .async[Int] { callback =>
             for (_ <- 0 until WORKERS) {
               scheduler.execute { () =>
@@ -115,7 +115,7 @@ object IOCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
         val registered = new CountDownLatch(1)
         val resume = new AtomicReference[Callback[Throwable, Int]]()
         val fiber = Await.result(
-          IO
+          Task
             .async[Int] { callback =>
               resume.set(callback)
               registered.countDown()
@@ -178,12 +178,12 @@ object IOCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
         val resume = new AtomicReference[Callback[Throwable, Int]]()
         val finalizerRuns = new LongAdder()
         val fiber = Await.result(
-          IO
+          Task
             .async[Int] { callback =>
               resume.set(callback)
               registered.countDown()
             }
-            .onCancel(IO.delay(finalizerRuns.increment()))
+            .onCancel(Task.delay(finalizerRuns.increment()))
             .start
             .unsafeRunToFuture(),
           10.seconds
