@@ -3,7 +3,6 @@ import sbt.{ Def, Global, Tags }
 import com.github.sbt.git.SbtGit.GitKeys.useConsoleForROGit
 import com.typesafe.tools.mima.core.ProblemFilter
 import org.typelevel.scalacoptions.ScalacOptions
-import xerial.sbt.Sonatype.sonatypeCentralHost
 
 import MonixBuildUtils._
 
@@ -39,7 +38,11 @@ addCommandAlias(
 )
 addCommandAlias(
   "ci-release",
-  ";+publishSigned ;sonatypeBundleRelease"
+  ";clean ;+publishSigned ;sonaRelease"
+)
+addCommandAlias(
+  "ci-snapshot",
+  ";clean ;+publishSigned"
 )
 addCommandAlias(
   "scala-213",
@@ -154,7 +157,7 @@ lazy val gitHubTreeTagOrHash =
   settingKey[String]("Identifies GitHub's version tag or commit sha")
 
 lazy val publishStableMonixVersion =
-  settingKey[Boolean]("If it should publish stable versions to Sonatype staging repository, instead of a snapshot")
+  settingKey[Boolean]("If it should publish a stable version through the Central Portal, instead of a snapshot")
 
 lazy val pgpSettings = {
   val withHex = sys.env.get("PGP_KEY_HEX").filter(_.nonEmpty) match {
@@ -234,6 +237,7 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
 
   // Turning off fatal warnings for doc generation
   Compile / doc / tpolecatExcludeOptions ++= ScalacOptions.defaultConsoleExclude,
+  Compile / doc / scalacOptions -= "-Xfatal-warnings",
 
   // Turn off annoyances in tests
   Test / tpolecatExcludeOptions ++= {
@@ -281,18 +285,19 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
 
-  // -- Settings meant for deployment on central.sonatype.com
-  ThisBuild / sonatypeCredentialHost := sonatypeCentralHost,
-  ThisBuild / publishTo := sonatypePublishToBundle.value,
+  // Settings for deployment through the Sonatype Central Portal
+  ThisBuild / publishTo := {
+    val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
+    if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
+    else localStaging.value
+  },
   ThisBuild / isSnapshot := {
     !isVersionStable.value || !publishStableMonixVersion.value
   },
   ThisBuild / dynverSonatypeSnapshots := !(isVersionStable.value && publishStableMonixVersion.value),
-  ThisBuild / sonatypeProfileName := organization.value,
-  sonatypeSessionName := s"[sbt-sonatype] ${name.value}-${version.value}",
   publishMavenStyle := true,
   Test / publishArtifact := false,
-  pomIncludeRepository := { _ => false }, // removes optional dependencies
+  pomIncludeRepository := { _ => false },
 
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
   homepage := Some(url("https://monix.io")),

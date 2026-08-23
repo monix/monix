@@ -1,5 +1,6 @@
 addSbtPlugin("org.scala-js"       % "sbt-scalajs"             % "1.21.0")
 addSbtPlugin("com.github.sbt"     % "sbt-unidoc"              % "0.6.1")
+addSbtPlugin("com.eed3si9n"       % "sbt-salad-days"          % "0.2.0")
 addSbtPlugin("pl.project13.scala" % "sbt-jmh"                 % "0.4.8")
 addSbtPlugin("com.typesafe"       % "sbt-mima-plugin"         % "1.1.5")
 addSbtPlugin("com.github.sbt"     % "sbt-header"              % "5.11.0")
@@ -10,7 +11,6 @@ addSbtPlugin("net.bzzt"           % "sbt-reproducible-builds" % "0.32")
 addSbtPlugin("org.typelevel"      % "sbt-tpolecat"            % "0.5.5")
 addSbtPlugin("com.github.sbt"     % "sbt-dynver"              % "5.1.1")
 addSbtPlugin("com.github.sbt"     % "sbt-git"                 % "2.1.0")
-addSbtPlugin("org.xerial.sbt"     % "sbt-sonatype"            % "3.12.2")
 addSbtPlugin("com.github.sbt"     % "sbt-pgp"                 % "2.3.1")
 
 libraryDependencies += "org.typelevel" %% "scalac-options" % "0.1.11"

@@ -10,6 +10,11 @@ Breaking changes:
 - Scala `3` is upgraded to `3.3.7`.
 - Legacy `sun.misc.Unsafe`-based internals were removed in favor of JDK `VarHandle`-based implementations.
 
+Build and release changes:
+
+- Maven Central publishing now uses sbt's native Central Portal support.
+- Published Scaladoc JARs omit bundled fonts and Inkuire assets to reduce their size.
+
 This release was made possible by the work and feedback of:
 
 - Alexandru Nedelcu (@alexandru)
