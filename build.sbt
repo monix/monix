@@ -672,7 +672,7 @@ lazy val catnapJS = project
   .dependsOn(executionJS % "compile->compile; test->test")
 
 // --------------------------------------------
-// monix-catnap
+// monix-eval
 
 lazy val evalProfile =
   crossModule(
@@ -695,6 +695,37 @@ lazy val evalJS = project
   .configure(evalProfile.js)
   .dependsOn(executionJS % "compile->compile; test->test")
   .dependsOn(catnapJS)
+
+// --------------------------------------------
+// monix-eval2
+
+lazy val eval2Profile =
+  crossModule(
+    projectName      = "monix-eval2",
+    withMimaChecks   = None,
+    publishArtifacts = true,
+    crossSettings    = Seq(
+      description :=
+        "Experimental Cats Effect 3 IO implementation for Monix.",
+      libraryDependencies ++= Seq(
+        "org.typelevel" %%% "cats-effect-kernel"          % "3.7.0",
+        "org.typelevel" %% "scalac-compat-annotation"     % "0.1.4" % Provided,
+        "org.typelevel" %%% "cats-effect"                 % "3.7.0" % Test,
+        "org.typelevel" %%% "cats-effect-laws"            % "3.7.0" % Test,
+        "org.typelevel" %%% "cats-effect-kernel-testkit" % "3.7.0" % Test
+      )
+    ),
+  )
+
+lazy val eval2JVM = project
+  .in(file("monix-eval2/jvm"))
+  .configure(eval2Profile.jvm)
+  .dependsOn(executionJVM % "compile->compile; test->test")
+
+lazy val eval2JS = project
+  .in(file("monix-eval2/js"))
+  .configure(eval2Profile.js)
+  .dependsOn(executionJS % "compile->compile; test->test")
 
 // --------------------------------------------
 // monix-tail

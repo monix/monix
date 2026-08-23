@@ -13,3 +13,7 @@ This file contains mandatory rules for AI agents (Copilot, Claude, Cursor, etc.)
     - We fix warnings, we don't ignore them.
 - Use package imports, instead of fully qualified names.
 - Make an effort to write idiomatic, yet performant Scala code.
+
+## Tooling
+
+- When using `sbt` using in client mode with `sbt --client`
