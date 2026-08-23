@@ -4,17 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       ref_to_publish:
-        description: 'Ref (branch or tag)'
+        description: 'Git ref. Stable releases require refs/tags/vX.Y.Z'
         required: true
-        default: 'refs/heads/main'
       stable_version:
-        description: 'Stable version? (true=staging, false=snapshot)'
+        description: 'Publish a stable release'
         required: true
-        default: "true"
+        type: boolean
+        default: true
 
 jobs:
   publish:
-    name: Publish to Sonatype (Request)
+    name: Publish to Maven Central
 
     runs-on: ubuntu-latest
     steps:
@@ -42,4 +42,4 @@ jobs:
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           PUBLISH_STABLE_VERSION: ${{ github.event.inputs.stable_version }}
-          GITHUB_REF: ${{ github.event.inputs.ref_to_publish }}
+          RELEASE_REF: ${{ github.event.inputs.ref_to_publish }}

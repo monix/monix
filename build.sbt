@@ -1,13 +1,9 @@
 import sbt.Keys.version
 import sbt.{ Def, Global, Tags }
-import com.github.sbt.git.SbtGit.GitKeys.useConsoleForROGit
 import com.typesafe.tools.mima.core.ProblemFilter
 import org.typelevel.scalacoptions.ScalacOptions
-import xerial.sbt.Sonatype.sonatypeCentralHost
 
 import MonixBuildUtils._
-
-ThisBuild / useConsoleForROGit := true
 
 val scala213Version = "2.13.18"
 val scala3Version   = "3.3.7"
@@ -39,7 +35,11 @@ addCommandAlias(
 )
 addCommandAlias(
   "ci-release",
-  ";+publishSigned ;sonatypeBundleRelease"
+  ";clean ;+publishSigned ;sonaRelease"
+)
+addCommandAlias(
+  "ci-snapshot",
+  ";clean ;+publishSigned"
 )
 addCommandAlias(
   "scala-213",
@@ -150,11 +150,8 @@ lazy val testDependencies = Seq(
 // Shared settings
 
 /** For building correct links to source in documentation. */
-lazy val gitHubTreeTagOrHash =
-  settingKey[String]("Identifies GitHub's version tag or commit sha")
-
-lazy val publishStableMonixVersion =
-  settingKey[Boolean]("If it should publish stable versions to Sonatype staging repository, instead of a snapshot")
+lazy val gitHubTreeRef =
+  settingKey[String]("Identifies the GitHub tree used for source links")
 
 lazy val pgpSettings = {
   val withHex = sys.env.get("PGP_KEY_HEX").filter(_.nonEmpty) match {
@@ -183,13 +180,7 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   organization := "io.monix",
   scalaVersion := scala213Version,
   crossScalaVersions := Seq(scala213Version, scala3Version),
-  gitHubTreeTagOrHash := {
-    val ver = s"v${version.value}"
-    if (isSnapshot.value)
-      git.gitHeadCommit.value.getOrElse(ver)
-    else
-      ver
-  },
+  gitHubTreeRef := (if (isSnapshot.value) "main" else s"v${version.value}"),
 
   // Enable this to debug warnings...
   Compile / scalacOptions ++= {
@@ -234,6 +225,7 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
 
   // Turning off fatal warnings for doc generation
   Compile / doc / tpolecatExcludeOptions ++= ScalacOptions.defaultConsoleExclude,
+  Compile / doc / scalacOptions -= "-Xfatal-warnings",
 
   // Turn off annoyances in tests
   Test / tpolecatExcludeOptions ++= {
@@ -281,18 +273,15 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
 
-  // -- Settings meant for deployment on central.sonatype.com
-  ThisBuild / sonatypeCredentialHost := sonatypeCentralHost,
-  ThisBuild / publishTo := sonatypePublishToBundle.value,
-  ThisBuild / isSnapshot := {
-    !isVersionStable.value || !publishStableMonixVersion.value
+  // Settings for deployment through the Sonatype Central Portal
+  ThisBuild / publishTo := {
+    val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
+    if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
+    else localStaging.value
   },
-  ThisBuild / dynverSonatypeSnapshots := !(isVersionStable.value && publishStableMonixVersion.value),
-  ThisBuild / sonatypeProfileName := organization.value,
-  sonatypeSessionName := s"[sbt-sonatype] ${name.value}-${version.value}",
   publishMavenStyle := true,
   Test / publishArtifact := false,
-  pomIncludeRepository := { _ => false }, // removes optional dependencies
+  pomIncludeRepository := { _ => false },
 
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
   homepage := Some(url("https://monix.io")),
@@ -411,7 +400,7 @@ lazy val unidocSettings = Seq(
   ScalaUnidoc / unidoc / scalacOptions ++=
     Opts.doc.title(s"Monix"),
   ScalaUnidoc / unidoc / scalacOptions ++=
-    Opts.doc.sourceUrl(s"https://github.com/monix/monix/tree/${gitHubTreeTagOrHash.value}€{FILE_PATH}.scala"),
+    Opts.doc.sourceUrl(s"https://github.com/monix/monix/tree/${gitHubTreeRef.value}€{FILE_PATH}.scala"),
   ScalaUnidoc / unidoc / scalacOptions ++=
     Seq("-doc-root-content", file("rootdoc.txt").getAbsolutePath),
   ScalaUnidoc / unidoc / scalacOptions ++=
@@ -425,7 +414,7 @@ lazy val sharedJSSettings = Seq(
       Seq()
     else {
       val l = (LocalRootProject / baseDirectory).value.toURI.toString
-      val g = s"https://raw.githubusercontent.com/monix/monix/${gitHubTreeTagOrHash.value}/"
+      val g = s"https://raw.githubusercontent.com/monix/monix/${gitHubTreeRef.value}/"
       Seq(
         // Use globally accessible (rather than local) source paths in JS source maps
         s"-P:scalajs:mapSourceURI:$l->$g",
@@ -527,17 +516,10 @@ lazy val monix = project
     // https://www.scala-sbt.org/1.x/docs/Parallel-Execution.html
     Global / concurrentRestrictions += Tags.limit(Tags.Test, 1),
     //
-    // Used in CI when publishing artifacts to Sonatype
-    Global / publishStableMonixVersion := {
-      sys.env
-        .get("PUBLISH_STABLE_VERSION")
-        .exists(v => v == "true" || v == "1" || v == "yes")
-    },
-    //
     // Settings for build.sbt management
     Global / onChangedBuildSource := ReloadOnSourceChanges,
     Global / excludeLintKeys ++= Set(
-      Compile / gitHubTreeTagOrHash,
+      Compile / gitHubTreeRef,
       Compile / coverageExcludedFiles
     ),
     // https://github.com/lightbend/mima/pull/289
