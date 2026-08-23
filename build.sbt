@@ -8,7 +8,7 @@ import MonixBuildUtils._
 ThisBuild / versionScheme := Some("semver-spec")
 
 val scala213Version = "2.13.18"
-val scala3Version   = "3.3.7"
+val scala3Version   = "3.3.8"
 
 val benchmarkProjects = List(
   "benchmarks"
@@ -57,7 +57,7 @@ addCommandAlias(
 
 val cats_Version              = "2.13.0"
 val catsEffect_Version        = "2.5.5"
-val jcTools_Version           = "4.0.6"
+val jcTools_Version           = "4.0.7"
 val reactiveStreams_Version   = "1.0.4"
 val macrotaskExecutor_Version = "1.1.1"
 val minitest_Version          = "2.9.6"
