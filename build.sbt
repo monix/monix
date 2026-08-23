@@ -436,7 +436,7 @@ def mimaSettings(projectName: String, exclusions: Seq[ProblemFilter]) = Seq(
 // ------------------------------------------------------------------------------------------------
 // Configuration profiles
 
-def baseSettingsAndPlugins(publishArtifacts: Boolean): Project ⇒ Project =
+def baseSettingsAndPlugins(publishArtifacts: Boolean): Project => Project =
   pr => {
     val withCoverage = sys.env.getOrElse("SBT_PROFILE", "") match {
       case "coverage" => pr
@@ -496,11 +496,11 @@ def crossModule(
       projectName      = projectName,
       publishArtifacts = publishArtifacts,
       withMimaChecks   = withMimaChecks
-    ).andThen(_.settings(crossSettings: _*)),
+    ).andThen(_.settings(crossSettings *)),
     js = jsProfile(
       projectName      = projectName,
       publishArtifacts = publishArtifacts
-    ).andThen(_.settings(crossSettings: _*))
+    ).andThen(_.settings(crossSettings *))
   )
 }
 
@@ -781,7 +781,7 @@ lazy val tracingTests = project
   .dependsOn(evalJVM % "compile->compile; test->test")
   .configs(FullTracingTest)
   .settings(testFrameworks := Seq(new TestFramework("minitest.runner.Framework")))
-  .settings(inConfig(FullTracingTest)(Defaults.testSettings): _*)
+  .settings(inConfig(FullTracingTest)(Defaults.testSettings))
   .settings(
     FullTracingTest / unmanagedSourceDirectories += {
       baseDirectory.value.getParentFile / "src" / "fulltracing" / "scala"
