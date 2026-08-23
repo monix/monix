@@ -22,6 +22,7 @@ import monix.execution.internal.forkJoin.DynamicWorkerThreadFactory
 import monix.execution.internal.forkJoin.StandardWorkerThreadFactory
 import monix.execution.internal.InterceptRunnable
 import monix.execution.internal.Platform
+import monix.execution.internal.ReportingScheduling
 import monix.execution.internal.ScheduledExecutors
 import monix.execution.Cancelable
 import monix.execution.UncaughtExceptionReporter
@@ -197,18 +198,6 @@ object ExecutorScheduler {
     override val features: Features
   ) extends ExecutorScheduler(executor, r) {
 
-    @deprecated("Provided for backwards compatibility", "3.0.0")
-    def this(
-      scheduler: ScheduledExecutorService,
-      executor: ExecutorService,
-      r: UncaughtExceptionReporter,
-      executionModel: ExecModel
-    ) = {
-      // $COVERAGE-OFF$
-      this(scheduler, executor, r, executionModel, Features.empty)
-      // $COVERAGE-ON$
-    }
-
     override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable =
       ScheduledExecutors.scheduleOnce(this, scheduler)(initialDelay, unit, r)
 
@@ -219,47 +208,54 @@ object ExecutorScheduler {
       new FromSimpleExecutor(scheduler, executor, r, executionModel, features)
   }
 
-  /** Converts a Java `ScheduledExecutorService`. */
+  /** Converts a Java `ScheduledExecutorService`, which does both the timing and the execution.
+    *
+    * Delayed and periodic tasks report their own failures, unless the executor is an `AdaptedThreadPoolExecutor`,
+    * which reports them itself.
+    */
   private final class FromScheduledExecutor(
-    s: ScheduledExecutorService,
-    r: UncaughtExceptionReporter,
+    override val executor: ScheduledExecutorService,
+    reporter: UncaughtExceptionReporter,
     override val executionModel: ExecModel,
     override val features: Features
-  ) extends ExecutorScheduler(s, r) {
+  ) extends ExecutorScheduler(executor, reporter) with ReportingScheduling {
 
-    @deprecated("Provided for backwards compatibility", "3.0.0")
-    def this(scheduler: ScheduledExecutorService, r: UncaughtExceptionReporter, executionModel: ExecModel) = {
-      // $COVERAGE-OFF$
-      this(scheduler, r, executionModel, Features.empty)
-      // $COVERAGE-ON$
+    // An `AdaptedThreadPoolExecutor` reports the failures of its tasks itself; wrapping them would surface a
+    // fatal one twice - once from the wrapper, once from `afterExecute` after the re-throw
+    override protected val reporterRef: UncaughtExceptionReporter = executor match {
+      case _: AdaptedThreadPoolExecutor => null
+      case _ => reporter
     }
-
-    override def executor: ScheduledExecutorService = s
 
     def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
       if (initialDelay <= 0) {
         execute(r)
         Cancelable.empty
       } else {
-        val task = s.schedule(r, initialDelay, unit)
-        Cancelable(() => { task.cancel(true); () })
+        // The task reports its own failure, because `executor.schedule` captures it in a future no one inspects
+        schedule(r) { runnable =>
+          val task = executor.schedule(runnable, initialDelay, unit)
+          Cancelable(() => { task.cancel(true); () })
+        }
       }
     }
 
-    override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
-      val task = s.scheduleWithFixedDelay(r, initialDelay, delay, unit)
-      Cancelable(() => { task.cancel(false); () })
-    }
+    override def scheduleWithFixedDelay(initialDelay: Long, delay: Long, unit: TimeUnit, r: Runnable): Cancelable =
+      schedulePeriodically(r) { runnable =>
+        val task = executor.scheduleWithFixedDelay(runnable, initialDelay, delay, unit)
+        Cancelable(() => { task.cancel(false); () })
+      }
 
-    override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable = {
-      val task = s.scheduleAtFixedRate(r, initialDelay, period, unit)
-      Cancelable(() => { task.cancel(false); () })
-    }
+    override def scheduleAtFixedRate(initialDelay: Long, period: Long, unit: TimeUnit, r: Runnable): Cancelable =
+      schedulePeriodically(r) { runnable =>
+        val task = executor.scheduleAtFixedRate(runnable, initialDelay, period, unit)
+        Cancelable(() => { task.cancel(false); () })
+      }
 
     override def withExecutionModel(em: ExecModel): SchedulerService =
-      new FromScheduledExecutor(s, r, em, features)
+      new FromScheduledExecutor(executor, reporter, em, features)
 
     override def withUncaughtExceptionReporter(r: UncaughtExceptionReporter): SchedulerService =
-      new FromScheduledExecutor(s, r, executionModel, features)
+      new FromScheduledExecutor(executor, r, executionModel, features)
   }
 }

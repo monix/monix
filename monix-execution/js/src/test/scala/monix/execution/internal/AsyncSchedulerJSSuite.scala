@@ -19,13 +19,18 @@ package monix.execution.internal
 
 import minitest.TestSuite
 import monix.execution.cancelables.SingleAssignCancelable
+import monix.execution.exceptions.DummyException
 import monix.execution.schedulers.AsyncScheduler
-import monix.execution.{ ExecutionModel, Scheduler, TestUtils }
+import monix.execution.{ Cancelable, ExecutionModel, FutureUtils, Scheduler, TestUtils, UncaughtExceptionReporter }
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
-import scala.concurrent.Promise
+import scala.concurrent.{ Future, Promise }
 import scala.concurrent.duration._
 
 object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
+  private val TaskRunPeriod = 20.millis
+
+  private val silentReporter = UncaughtExceptionReporter(_ => ())
+
   def setup() = AsyncScheduler(MacrotaskExecutor, ExecutionModel.Default)
   def tearDown(env: Scheduler): Unit = ()
 
@@ -119,5 +124,44 @@ object AsyncSchedulerJSSuite extends TestSuite[Scheduler] with TestUtils {
     val t1 = System.nanoTime()
     val t2 = s.clockMonotonic(NANOSECONDS)
     assert(t2 >= t1, "t2 >= t1")
+  }
+
+  testAsync("scheduleAtFixedRate stops after a failure") { _ =>
+    assertStopsAfterFailure { (scheduler, failure) =>
+      scheduler.scheduleAtFixedRate(Duration.Zero, TaskRunPeriod)(failure.run())
+    }
+  }
+
+  testAsync("scheduleWithFixedDelay stops after a failure") { _ =>
+    assertStopsAfterFailure { (scheduler, failure) =>
+      scheduler.scheduleWithFixedDelay(Duration.Zero, TaskRunPeriod)(failure.run())
+    }
+  }
+
+  /** Tests the documented contract (stopping after failure) of
+   * [[monix.execution.Scheduler.scheduleAtFixedRate(initialDelay:Long* Scheduler.scheduleAtFixedRate]], and
+   * [[monix.execution.Scheduler.scheduleWithFixedDelay(initialDelay:Long* Scheduler.scheduleWithFixedDelay]].
+   */
+  private def assertStopsAfterFailure(scheduleFailure: (Scheduler, Runnable) => Cancelable): Future[Unit] = {
+    implicit val scheduler: Scheduler = AsyncScheduler(MacrotaskExecutor, ExecutionModel.Default, silentReporter)
+    val executed = Promise[Unit]()
+    var executions = 0
+
+    val schedule = scheduleFailure(
+      scheduler,
+      () => {
+        executions += 1
+        val _ = executed.trySuccess(())
+        throw DummyException("dummy")
+      }
+    )
+
+    for {
+      _ <- executed.future
+      _ <- FutureUtils.delayedResult(TaskRunPeriod * 5)(())
+    } yield {
+      schedule.cancel()
+      assertEquals(executions, 1)
+    }
   }
 }

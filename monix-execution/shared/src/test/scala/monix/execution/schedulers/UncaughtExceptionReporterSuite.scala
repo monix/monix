@@ -17,35 +17,101 @@
 
 package monix.execution.schedulers
 
-import scala.concurrent.{ ExecutionContext, Promise }
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration._
-import minitest.TestSuite
-import monix.execution.{ ExecutionModel, FutureUtils, Scheduler, UncaughtExceptionReporter }
+import minitest.SimpleTestSuite
+import monix.execution.{ Cancelable, ExecutionModel, FutureUtils, Scheduler, UncaughtExceptionReporter }
 
-class UncaughtExceptionReporterBaseSuite extends TestSuite[Promise[Throwable]] {
-  protected val immediateEC = TrampolineExecutionContext.immediate
+class UncaughtExceptionReporterBaseSuite extends SimpleTestSuite {
+  protected val immediateEC: TrampolineExecutionContext = TrampolineExecutionContext.immediate
 
   object Dummy extends Throwable
   private val throwRunnable: Runnable = () => throw Dummy
 
-  def setup() = Promise[Throwable]()
+  private val taskPeriod = 10.millis
 
-  def tearDown(env: Promise[Throwable]): Unit = ()
-  private def reporter(p: Promise[Throwable]) = UncaughtExceptionReporter { t =>
-    p.success(t)
-    ()
+  def testReports(name: String)(createScheduler: UncaughtExceptionReporter => Scheduler): Unit = {
+    testAsync(name) {
+      testFailureReportedOnce(createScheduler) { (scheduler, runnable) =>
+        scheduler.execute(runnable)
+        Cancelable.empty
+      }
+    }
+
+    testAsync(name + " + scheduleOnce") {
+      testFailureReportedOnce(createScheduler) { (scheduler, runnable) =>
+        scheduler.scheduleOnce(1.milli)(runnable.run())
+      }
+    }
+
+    testAsync(name + " + scheduleAtFixedRate") {
+      testFailureReportedOnce(createScheduler) { (scheduler, runnable) =>
+        scheduler.scheduleAtFixedRate(0.millis, taskPeriod)(runnable.run())
+      }
+    }
+
+    testAsync(name + " + scheduleWithFixedDelay") {
+      testFailureReportedOnce(createScheduler) { (scheduler, runnable) =>
+        scheduler.scheduleWithFixedDelay(0.millis, taskPeriod)(runnable.run())
+      }
+    }
+
+    testAsync(name + ".withUncaughtExceptionReporter") {
+      val initialReporter = new RecordingReporter
+      val newReporter = new RecordingReporter
+
+      withScheduler(createScheduler, initialReporter) { original =>
+        original.withUncaughtExceptionReporter(newReporter).execute(throwRunnable)
+
+        assertReportedOnce(newReporter)
+          .map(_ => assert(!initialReporter.receivedFirstFailure, "The replaced reporter received a failure"))(
+            immediateEC
+          )
+      }
+    }
   }
 
-  def testReports(name: String)(f: UncaughtExceptionReporter => Scheduler) = {
-    testAsync(name) { p =>
-      f(reporter(p)).execute(throwRunnable)
-      FutureUtils.timeout(p.future.collect { case Dummy => }(immediateEC), 500.millis)(Scheduler.global)
-    }
+  private def testFailureReportedOnce(
+    createScheduler: UncaughtExceptionReporter => Scheduler
+  )(
+    schedule: (Scheduler, Runnable) => Cancelable
+  ): Future[Unit] = {
+    val reporter = new RecordingReporter
 
-    testAsync(name + ".withUncaughtExceptionReporter") { p =>
-      f(UncaughtExceptionReporter.default).withUncaughtExceptionReporter(reporter(p)).execute(throwRunnable)
-      FutureUtils.timeout(p.future.collect { case Dummy => }(immediateEC), 500.millis)(Scheduler.global)
+    withScheduler(createScheduler, reporter) { scheduler =>
+      val task = schedule(scheduler, throwRunnable)
+
+      assertReportedOnce(reporter)
+        .transform { result => task.cancel(); result }(immediateEC)
     }
+  }
+
+  /** Runs `runOnScheduler` against a fresh scheduler, shutting it down once the assertions are done so that the pools
+    * these tests create do not pile up. Schedulers with nothing to shut down are left alone.
+    */
+  private def withScheduler(
+    createScheduler: UncaughtExceptionReporter => Scheduler,
+    reporter: UncaughtExceptionReporter
+  )(
+    runOnScheduler: Scheduler => Future[Unit]
+  ): Future[Unit] = {
+    val scheduler = createScheduler(reporter)
+    runOnScheduler(scheduler).transform { result =>
+      scheduler match {
+        case service: SchedulerService => service.shutdown()
+        case _ => ()
+      }
+      result
+    }(immediateEC)
+  }
+
+  private def assertReportedOnce(reporter: RecordingReporter): Future[Unit] = {
+    implicit val ec: ExecutionContext = immediateEC
+
+    for {
+      _ <- FutureUtils.timeout(reporter.firstFailure.collect { case Dummy => }, 15.seconds)(Scheduler.global)
+      _ <- FutureUtils.delayedResult(taskPeriod * 5)(())(Scheduler.global)
+    } yield assert(!reporter.receivedSecondFailure, "The failure was reported more than once")
   }
 }
 
@@ -55,5 +121,4 @@ object UncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSuite
   testReports("Scheduler(ExecutionContext, _)")(Scheduler(ExecutionContext.global, _))
   testReports("trampoline(Scheduler(_, ExecModel))")(r => Scheduler.trampoline(Scheduler(r, ExecutionModel.Default)))
   testReports("TracingScheduler(Scheduler(_, ExecModel))")(r => TracingScheduler(Scheduler(r, ExecutionModel.Default)))
-
 }

@@ -161,7 +161,10 @@ object MimaFilters {
       exclude[IncompatibleMethTypeProblem](
         "monix.execution.schedulers.TrampolineExecutionContext#JVMOptimalTrampoline.startLoop"
       ),
-      exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TrampolineExecutionContext.this")
+      exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TrampolineExecutionContext.this"),
+      // Deprecated auxiliary constructors of the private `ExecutorScheduler` subclasses
+      exclude[DirectMissingMethodProblem]("monix.execution.schedulers.ExecutorScheduler#FromSimpleExecutor.this"),
+      exclude[DirectMissingMethodProblem]("monix.execution.schedulers.ExecutorScheduler#FromScheduledExecutor.this")
     )
 
     lazy val all: Seq[ProblemFilter] =
