@@ -7,7 +7,7 @@ on:
         description: 'Git ref. Stable releases require refs/tags/vX.Y.Z'
         required: true
       stable_version:
-        description: 'Publish a stable release'
+        description: 'Stable release (version must not end in -SNAPSHOT)'
         required: true
         type: boolean
         default: true

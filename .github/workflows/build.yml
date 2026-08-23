@@ -234,36 +234,3 @@ jobs:
       uses: re-actors/alls-green@release/v1
       with:
         jobs: ${{ toJSON(needs) }}
-
-  publish-snapshot:
-    name: Publish snapshot
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [ all_tests ]
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 100
-
-      - name: Setup JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: sbt
-
-      - uses: sbt/setup-sbt@v1
-
-      - name: Publish signed snapshot
-        run: .github/scripts/release
-        env:
-          PGP_KEY_HEX: ${{ secrets.PGP_KEY_HEX }}
-          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
-          PGP_SECRET: ${{ secrets.PGP_SECRET }}
-          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
-          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
-          PUBLISH_STABLE_VERSION: "false"
-          RELEASE_REF: ${{ github.ref }}

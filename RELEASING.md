@@ -13,9 +13,9 @@ The signing key's public key must be available from a [key server supported by C
 
 ## Snapshots
 
-Set the version in `version.sbt`. Development versions must end in `-SNAPSHOT`; the current version is `3.5.0-SNAPSHOT`.
+Set the version in `version.sbt`. Development versions must end in `-SNAPSHOT`.
 
-Every successful push to `main` runs `ci-snapshot`. The task cross-publishes signed artifacts directly to Central's snapshot repository under the version from `version.sbt`.
+Run the `manual-publish` workflow with the ref to publish and disable `stable_version`. The workflow runs `ci-snapshot`, which cross-publishes signed artifacts directly to Central's snapshot repository under the version from `version.sbt`.
 
 Snapshot publishing must be enabled for the `io.monix` namespace in the [Central Portal](https://central.sonatype.com/).
 
