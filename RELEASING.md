@@ -1,50 +1,26 @@
 # Releasing Monix
 
-Monix uses `sbt-dynver`. A stable version comes from an annotated `vX.Y.Z` Git tag. Other refs produce snapshot versions.
+## GitHub Actions secrets
 
-## One-time setup before the next release
+Publishing requires these repository secrets:
 
-Do not publish until the following work is complete:
+- `SONATYPE_USERNAME` and `SONATYPE_PASSWORD` contain the generated username and password from a [Central Portal user token](https://central.sonatype.com/usertoken). They are not the Central Portal login credentials.
+- `PGP_KEY_HEX` identifies the signing key.
+- `PGP_SECRET` contains the base64-encoded private key.
+- `PGP_PASSPHRASE` contains the private key's passphrase.
 
-- Sign in to the [Central Portal](https://central.sonatype.com/) with the existing OSSRH account. Confirm that the account can publish the `io.monix` namespace and migrate the namespace if Sonatype still lists it under OSSRH.
-- Generate a [Central Portal user token](https://central.sonatype.com/usertoken). Store its generated username and password in the `SONATYPE_USERNAME` and `SONATYPE_PASSWORD` GitHub Actions secrets. Do not use the Portal login password.
-- Replace the release signing key. The private key with fingerprint `2837 FA5C 4BA6 692A B71F 6009 F376 6EF5 3E70 15B9`, used to sign Monix 3.4.1, was committed to this repository. Deleting the current copy does not remove it from Git history. Treat the key as compromised, revoke it after preparing a replacement, and publish the replacement public key to a [key server supported by Central](https://central.sonatype.org/publish/requirements/gpg/#distributing-your-public-key).
-- Update `PGP_KEY_HEX`, `PGP_SECRET`, and `PGP_PASSPHRASE` in GitHub Actions for the replacement key. `PGP_SECRET` must contain the base64-encoded private key.
-- If snapshots will be published, enable snapshot publishing for `io.monix` in the Central Portal.
+The signing key's public key must be available from a [key server supported by Central](https://central.sonatype.org/publish/requirements/gpg/#distributing-your-public-key).
 
-The old OSSRH credentials and account password do not work with the Central Portal publishing API.
+## Snapshots
 
-## Prepare a stable release
+Set the version in `version.sbt`. Development versions must end in `-SNAPSHOT`; the current version is `3.5.0-SNAPSHOT`.
 
-1. Finish `CHANGES.md` and confirm the intended version.
-2. Run the full build:
+Every successful push to `main` runs `ci-snapshot`. The task cross-publishes signed artifacts directly to Central's snapshot repository under the version from `version.sbt`.
 
-   ```bash
-   sbt ci-all
-   ```
+Snapshot publishing must be enabled for the `io.monix` namespace in the [Central Portal](https://central.sonatype.com/).
 
-3. Package one cross-built Scaladoc artifact as a publishing check:
+## Stable releases
 
-   ```bash
-   sbt "+coreJVM/Compile/packageDoc"
-   ```
+Set the release version in `version.sbt` without the `-SNAPSHOT` suffix. Run the `manual-publish` workflow with `ref_to_publish` set to the full tag ref, such as `refs/tags/v3.5.0`, and enable `stable_version`.
 
-4. Create and push an annotated tag on the release commit:
-
-   ```bash
-   git tag -a vX.Y.Z -m "Monix X.Y.Z"
-   git push origin vX.Y.Z
-   ```
-
-5. Wait for the tag's `build` workflow to pass.
-6. Run the `manual-publish` workflow with `ref_to_publish` set to `refs/tags/vX.Y.Z` and `stable_version` enabled.
-7. Check the deployment in the [Central Portal](https://central.sonatype.com/publishing/deployments). The workflow uses automatic publication, so a successful run should reach the `PUBLISHED` state without a manual Portal action.
-8. Confirm the artifacts under [`io.monix` on Maven Central](https://repo1.maven.org/maven2/io/monix/).
-
-The release task runs `clean`, cross-publishes signed artifacts to sbt's local staging directory, uploads one bundle, and waits for Central to publish it. Central releases are immutable. Do not reuse a version.
-
-## Publish a snapshot
-
-Run the `manual-publish` workflow with a branch or commit ref and disable `stable_version`. Snapshots publish directly to Central's snapshot repository and do not create a Portal deployment.
-
-Central removes snapshots after 90 days. Snapshot publishing must be enabled for the namespace before the workflow runs.
+The workflow runs `ci-release`, which cross-publishes signed artifacts, uploads the bundle to the Central Portal, and requests automatic publication.
