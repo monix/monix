@@ -355,20 +355,24 @@ object ForkJoinSchedulerSuite extends ExecutorSchedulerSuite {
 
   test("integrates with Scala's BlockContext") { scheduler =>
     val threadsCount = 100
-    val latch = new CountDownLatch(100)
+    val started = new CountDownLatch(threadsCount)
+    val completed = new CountDownLatch(threadsCount)
     val finish = new CountDownLatch(1)
 
     for (_ <- 0 until threadsCount)
       scheduler.execute { () =>
-        blocking {
-          latch.countDown()
-          finish.await(15, TimeUnit.MINUTES)
-          ()
-        }
+        try
+          blocking {
+            started.countDown()
+            finish.await(15, TimeUnit.MINUTES)
+            ()
+          }
+        finally completed.countDown()
       }
 
-    assert(latch.await(15, TimeUnit.MINUTES), "latch.await")
+    assert(started.await(15, TimeUnit.MINUTES), "started.await")
     finish.countDown()
+    assert(completed.await(15, TimeUnit.MINUTES), "completed.await")
   }
 }
 
