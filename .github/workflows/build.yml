@@ -23,7 +23,7 @@ jobs:
       CI: true
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup JDK
         uses: actions/setup-java@v5
         with:
@@ -34,20 +34,20 @@ jobs:
       - uses: sbt/setup-sbt@v1
 
       - name: Cache ivy2
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
@@ -80,7 +80,7 @@ jobs:
       CI: true
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup JDK
         uses: actions/setup-java@v5
         with:
@@ -91,26 +91,26 @@ jobs:
       - uses: sbt/setup-sbt@v1
 
       - name: Cache ivy2
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Setup NodeJS
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -137,7 +137,7 @@ jobs:
           - { java: 17, scala: { version: "3", command: "scala-3" } }
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup JDK
         uses: actions/setup-java@v5
         with:
@@ -148,20 +148,20 @@ jobs:
       - uses: sbt/setup-sbt@v1
 
       - name: Cache ivy2
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
@@ -188,7 +188,7 @@ jobs:
           - { java: 17, scala: { version: "3", command: "scala-3" } }
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup JDK
         uses: actions/setup-java@v5
         with:
@@ -199,20 +199,20 @@ jobs:
       - uses: sbt/setup-sbt@v1
 
       - name: Cache ivy2
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.ivy2/cache
           key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache coursier (linux)
         if: contains(runner.os, 'linux')
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/coursier/v1
           key: ${{ runner.os }}-sbt-coursier-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Cache sbt
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
