@@ -9,14 +9,22 @@ on:
 jobs:
   renovate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+
+      - name: Create automation token
+        id: automation-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.AUTOMATION_APP_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
 
       - name: Renovate
-        uses: renovatebot/github-action@v46.1.14
+        uses: renovatebot/github-action@v46.2.2
         with:
-          configurationFile: .github/renovate-config.js
-          token: ${{ secrets.RENOVATE_TOKEN }}
+          token: ${{ steps.automation-token.outputs.token }}
         # env:
         #   LOG_LEVEL: debug
