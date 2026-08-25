@@ -31,6 +31,12 @@ module.exports = {
       allowedVersions: "/^\\d+(?:\\.\\d+)+$/",
     },
     {
+      description: "Keep sbt on the 1.x line (2.x is not yet supported)",
+      matchManagers: ["sbt"],
+      matchPackageNames: ["org.scala-sbt:sbt"],
+      allowedVersions: "/^1\\.\\d+\\.\\d+$/",
+    },
+    {
       description: "Keep Cats Effect on the 2.x line",
       matchManagers: ["sbt"],
       matchPackagePrefixes: ["org.typelevel:cats-effect"],
