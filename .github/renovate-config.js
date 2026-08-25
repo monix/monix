@@ -1,7 +1,6 @@
 module.exports = {
   platform: "github",
   repositories: ["monix/monix"],
-  gitAuthor: "Renovate Bot <renovate@monix.org>",
   branchPrefix: "renovate/",
   onboarding: false,
   requireConfig: "optional",
@@ -32,10 +31,29 @@ module.exports = {
       allowedVersions: "/^\\d+(?:\\.\\d+)+$/",
     },
     {
+      description: "Keep sbt on the 1.x line (2.x is not yet supported)",
+      matchManagers: ["sbt"],
+      matchPackageNames: ["org.scala-sbt:sbt"],
+      allowedVersions: "/^1\\.\\d+\\.\\d+$/",
+    },
+    {
       description: "Keep Cats Effect on the 2.x line",
       matchManagers: ["sbt"],
       matchPackagePrefixes: ["org.typelevel:cats-effect"],
       allowedVersions: "/^2\\.\\d+\\.\\d+$/",
+    },
+    {
+      description: "Keep Scala 2 on the 2.13.x line",
+      matchManagers: ["sbt"],
+      matchPackageNames: ["org.scala-lang:scala-library"],
+      allowedVersions: "/^2\\.13\\.\\d+$/",
+    },
+    {
+      description: "Ignore derived Scala binary versions",
+      matchManagers: ["sbt"],
+      matchPackageNames: ["org.scala-lang:scala-library"],
+      matchCurrentValue: "/^\\d+\\.\\d+$/",
+      enabled: false,
     },
     {
       description: "Keep Scala on the 3.8.x line",

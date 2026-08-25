@@ -40,7 +40,7 @@ jobs:
 
       - name: Create automation token
         id: automation-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.AUTOMATION_APP_ID }}
           private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
@@ -74,4 +74,5 @@ jobs:
           model: opencode-go/deepseek-v4-flash
           mentions: "@opencode,@oc,/opencode,/oc"
           prompt: "${{ github.event_name == 'issues' && format('{0}: {1}', github.event.issue.title, github.event.issue.body) || '' }}"
+          share: false
           use_github_token: true

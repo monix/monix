@@ -43,7 +43,7 @@ Use these settings:
 
 - Disable webhooks.
 - Allow installation only on the owning account.
-- Install the app only on `monix/newtypes`.
+- Install the app only on `monix/monix`.
 - Grant `Members: read-only` as an organization permission.
 - Grant these repository permissions:
   - `Administration: read-only`
