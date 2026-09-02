@@ -23,7 +23,7 @@ jobs:
           private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
 
       - name: Renovate
-        uses: renovatebot/github-action@v46.2.2
+        uses: renovatebot/github-action@v46.2.4
         with:
           configurationFile: .github/renovate-config.js
           token: ${{ steps.automation-token.outputs.token }}

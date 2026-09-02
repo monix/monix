@@ -33,7 +33,7 @@ module.exports = {
     {
       description: "Keep sbt on the 1.x line (2.x is not yet supported)",
       matchManagers: ["sbt"],
-      matchPackageNames: ["org.scala-sbt:sbt"],
+      matchPackageNames: ["org.scala-sbt:sbt", "sbt/sbt"],
       allowedVersions: "/^1\\.\\d+\\.\\d+$/",
     },
     {
