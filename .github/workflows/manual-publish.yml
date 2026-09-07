@@ -24,7 +24,7 @@ jobs:
           ref: ${{ github.event.inputs.ref_to_publish }}
 
       - name: Setup JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 17
