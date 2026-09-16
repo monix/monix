@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2022 Monix Contributors.
+ * Copyright (c) 2014-2026 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +25,7 @@ import monix.execution.Scheduler
 import monix.execution.atomic.{ Atomic, AtomicAny }
 import monix.execution.atomic.PaddingStrategy.LeftRight128
 import monix.execution.compat.internal.toIterator
+import monix.execution.internal.Platform
 
 import scala.util.control.NonFatal
 import scala.annotation.tailrec
@@ -124,7 +125,7 @@ private[eval] object TaskParSequenceUnordered {
         // cancelables one by one in our `CompositeCancelable` is
         // expensive, so we do it at the end
         val allCancelables = ListBuffer.empty[CancelToken[Task]]
-        val batchSize = s.executionModel.recommendedBatchSize
+        val batchSize = Platform.recommendedBatchSize
         val cursor = toIterator(in)
 
         var continue = true
