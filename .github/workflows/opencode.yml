@@ -55,7 +55,7 @@ jobs:
 
       - uses: actions/setup-java@v6
         with:
-          java-version: "21"
+          java-version: "26"
           distribution: temurin
       - uses: sbt/setup-sbt@v1
 

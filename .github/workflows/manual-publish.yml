@@ -27,7 +27,7 @@ jobs:
         uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 26
           cache: sbt
 
       - uses: sbt/setup-sbt@v1
