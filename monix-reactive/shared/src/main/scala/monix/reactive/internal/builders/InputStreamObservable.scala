@@ -145,7 +145,11 @@ private[reactive] final class InputStreamObservable(in: InputStream, chunkSize: 
     if (nTotalBytesRead >= buffer.length) nTotalBytesRead
     else {
       val nBytesRead = in.read(buffer, nTotalBytesRead, buffer.length - nTotalBytesRead)
-      if (nBytesRead >= 0) fillBuffer(in, buffer, nTotalBytesRead + nBytesRead)
+      val newTotalBytesRead = nTotalBytesRead + nBytesRead
+      if (nBytesRead >= 0 && newTotalBytesRead < buffer.length && in.available() > 0)
+        fillBuffer(in, buffer, newTotalBytesRead)
+      else if (nBytesRead >= 0)
+        newTotalBytesRead
       else { // stream has ended
         if (nTotalBytesRead <= 0)
           nBytesRead // no more bytes (-1 via InputStream.read contract) available, end the observable
