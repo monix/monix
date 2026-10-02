@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2022 Monix Contributors.
+ * Copyright (c) 2014-2026 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +20,7 @@ package monix.reactive.subjects
 import cats.arrow.Profunctor
 import monix.execution.Scheduler
 import monix.execution.cancelables.SingleAssignCancelable
+import monix.execution.internal.Platform
 import monix.reactive.instances.CatsProfunctorForSubject
 import monix.reactive.observers.Subscriber
 import monix.reactive.{ Observable, Observer }
@@ -48,7 +49,7 @@ abstract class Subject[I, +O] extends Observable[O] with Observer[I] { self =>
   def size: Int
 
   final def toReactiveProcessor[U >: O](implicit s: Scheduler): RProcessor[I, U] =
-    toReactiveProcessor(s.executionModel.recommendedBatchSize)
+    toReactiveProcessor(Platform.recommendedBatchSize)
   final def toReactiveProcessor[U >: O](bufferSize: Int)(implicit s: Scheduler): RProcessor[I, U] =
     Subject.toReactiveProcessor(this, bufferSize)
 }
