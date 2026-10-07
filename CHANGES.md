@@ -1,3 +1,26 @@
+## Version 3.5.1 (October 7, 2026)
+
+This is a bug-fixing release for the 3.5.x series.
+
+Fixes:
+
+- `Observable.fromInputStream` and `Observable.fromInputStreamUnsafe` now emit a chunk as soon as no more bytes are currently available from the underlying `InputStream`, instead of blocking until the buffer fills up (#1479, #2082).
+- The Reactive Streams bridges (`Observer.toReactiveSubscriber`, `Subscriber.toReactiveSubscriber`, `Subject.toReactiveProcessor`) and `Task.parSequenceUnordered` now derive their buffer and batching sizes from `Platform.recommendedBatchSize` instead of the scheduler's `ExecutionModel#recommendedBatchSize`, which is effectively unbounded for `ExecutionModel.SynchronousExecution` and resulted in unbounded buffers with no backpressure (#1670, #2081).
+
+Build and publishing:
+
+- Automatic snapshot releases from `main` were disabled; publishing now happens by triggering the `manual-publish` workflow.
+- The build was updated to sbt `1.13.0`, with sbt plugin updates such as Scala.js `1.22.0` and sbt-mima `1.2.1`; runtime dependencies are unchanged.
+
+This release was made possible by the work and feedback of:
+
+- Alexandru Nedelcu (@alexandru)
+- Jakub Pinowski (@Pinioo)
+- Kamil Podsiadło (@kpodsiad)
+- Kenji Yoshida (@xuwei-k)
+- Roman Janusz (@ghik)
+- Tomasz Godzik (@tgodzik)
+
 ## Version 3.5.0 (August 24, 2026)
 
 This is the first Monix release since 3.4.1. It updates the supported runtime and Scala versions and includes several concurrency and scheduler fixes.
