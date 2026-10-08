@@ -184,6 +184,7 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   crossScalaVersions := Seq(scala213Version, scala3Version),
   gitHubTreeRef := (if (isSnapshot.value) "main" else s"v${version.value}"),
 
+  javacOptions ++= Seq("-source", "17", "-target", "17"),
   // Enable this to debug warnings...
   Compile / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
