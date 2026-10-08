@@ -26,6 +26,11 @@ module.exports = {
       },
     },
     {
+      description: "Do not update JDK versions in workflows",
+      matchDatasources: ["java-version"],
+      enabled: false,
+    },
+    {
       description: "Only use stable dotted numeric JVM dependency versions",
       matchManagers: ["sbt"],
       allowedVersions: "/^\\d+(?:\\.\\d+)+$/",

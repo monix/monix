@@ -2,9 +2,9 @@
 
 This is a bug-fixing release for the 3.5.x series.
 
-Build and publishing:
+Fixes:
 
-- Java sources are now compiled with `-source` and `-target` set to `17`, so published artifacts no longer require the JDK used for the build (#2086).
+- Monix `3.5.1` failed on any JDK older than `27`, including the supported minimum of `17`, with `UnsupportedClassVersionError` (class file version `71.0`), because the Java classes in its artifacts were compiled for JDK `27`, the version used by the release workflow; Java sources are now compiled with `-source` and `-target` set to `17` (#2085, #2086).
 
 This release was made possible by the work and feedback of:
 
