@@ -1,3 +1,16 @@
+## Version 3.5.2 (October 8, 2026)
+
+This is a bug-fixing release for the 3.5.x series.
+
+Build and publishing:
+
+- Java sources are now compiled with `-source` and `-target` set to `17`, so published artifacts no longer require the JDK used for the build (#2086).
+
+This release was made possible by the work and feedback of:
+
+- Alexandru Nedelcu (@alexandru)
+- Kenji Yoshida (@xuwei-k)
+
 ## Version 3.5.1 (October 7, 2026)
 
 This is a bug-fixing release for the 3.5.x series.
