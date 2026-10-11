@@ -184,6 +184,14 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   crossScalaVersions := Seq(scala213Version, scala3Version),
   gitHubTreeRef := (if (isSnapshot.value) "main" else s"v${version.value}"),
 
+  scalacOptions += "-release:17",
+  scalacOptions ++= {
+    if (scalaVersion.value.startsWith("3.3.")) {
+      Seq("-Yfuture-lazy-vals")
+    } else {
+      Nil
+    }
+  },
   javacOptions ++= Seq("-source", "17", "-target", "17"),
   // Enable this to debug warnings...
   Compile / scalacOptions ++= {
