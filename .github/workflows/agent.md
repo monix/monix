@@ -74,6 +74,13 @@ safe-outputs:
   threat-detection: false
   add-comment:
     max: 2
+  close-issue:
+    max: 1
+    target: triggering
+    state-reason: [completed, not_planned]
+  close-pull-request:
+    max: 1
+    target: triggering
   create-pull-request:
     max: 1
     draft: true
@@ -138,6 +145,16 @@ fork pull request does not require pushing to that fork.
 
 For a request about an existing inline comment, reply to that review comment.
 Use ordinary issue or pull request comments for other answers.
+
+## Closure requests
+
+When the maintainer explicitly requests closure, use `close-issue` or
+`close-pull-request` for the triggering item. For conditional requests such as
+"close if fixed", verify the condition first. Explain the result in one comment;
+do not close unrelated items, close a pull request merely because a review found
+problems, or merge a pull request.
+When closing an item, include the explanation in the closure tool's body instead
+of posting an additional comment.
 
 ## Implementation requests
 
