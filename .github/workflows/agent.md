@@ -27,6 +27,16 @@ engine:
       "settings": {"defaultThinkingLevel": "high"},
       "model": {"api": "openai-completions", "maxTokens": 16384}
     }
+models:
+  providers:
+    openai:
+      models:
+        deepseek-flash:
+          cost:
+            # Peak USD per token; conservative for off-peak traffic.
+            input: "3e-7"
+            output: "1.2e-6"
+            cache_read: "6e-9"
 network:
   allowed:
     - defaults
