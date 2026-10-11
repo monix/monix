@@ -31,8 +31,7 @@ The signing key's public key must be available from a [key server supported by C
 
 ### Create GitHub App
 
-Renovate and OpenCode authenticate as the `Monix Bot` GitHub App so
-their pull requests, comments, commits, and pushes are not attributed to a
+Renovate and the agent authenticate as the `Monix Bot` GitHub App rather than a
 personal account.
 
 Create an organization-owned GitHub App at:
@@ -69,3 +68,26 @@ Actions values under **Settings > Secrets and variables > Actions**:
 The workflows exchange these values for a repository-scoped installation token
 using `actions/create-github-app-token`. The token expires after one hour and
 the action revokes it when the job finishes.
+
+### Agent workflow
+
+Pi uses DeepSeek's API and the Monix Bot credentials above. Add the repository
+Actions secret `DEEPSEEK_API_KEY`.
+
+Users with write access or higher can start an issue or PR conversation comment
+with `/agent`, followed by a request:
+
+```text
+/agent Please take care of this issue, but pin the JDK version to 21.
+/agent Please review this PR, especially cancellation and binary compatibility.
+```
+
+The agent can review contributor PRs, but cannot push to their forks. On fork PRs,
+use a conversation comment, not an inline comment.
+
+Edit `.github/workflows/agent.md`, then regenerate the lock file with
+[gh-aw v0.91.7](https://github.com/github/gh-aw/releases/tag/v0.91.7):
+
+```bash
+gh aw compile agent --strict --validate
+```
