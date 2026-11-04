@@ -55,14 +55,26 @@ private[internal] final class TaskRestartCallback(
 
   private def signal(result: Task[Any]): Unit =
     if (boundaryAfter == AsyncSimple.Synchronous)
-      fiber.continueWithRef(result, this)
+      resume(result)
     else {
       val delivery = new TrampolinedRunnable {
-        def run(): Unit = fiber.continueWithRef(result, TaskRestartCallback.this)
+        def run(): Unit = resume(result)
       }
-      if (boundaryAfter == AsyncSimple.AsyncShifted)
-        scheduler.execute(() => delivery.run())
-      else
-        scheduler.execute(delivery)
+      try {
+        if (boundaryAfter == AsyncSimple.AsyncShifted)
+          scheduler.execute(() => delivery.run())
+        else
+          scheduler.execute(delivery)
+      } catch {
+        case NonFatal(error) => scheduler.reportFailure(error)
+      }
+    }
+
+  private def resume(result: Task[Any]): Unit =
+    try fiber.continueWithRef(result, this)
+    catch {
+      // A producer may be notifying several consumers (for example, Deferred).
+      // Failure to schedule this fiber must not interrupt the producer's fan-out.
+      case NonFatal(error) => scheduler.reportFailure(error)
     }
 }

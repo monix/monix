@@ -162,8 +162,7 @@ object TaskRuntimeRegressionSuite extends SimpleTestSuite {
     var completed = false
 
     def loop(remaining: Int): Task[Unit] =
-      if (remaining == 0) Task.delay { completed = true }
-      else Task.defer(loop(remaining - 1))
+      if (remaining == 0) Task.delay { completed = true } else Task.defer(loop(remaining - 1))
 
     val result = loop(10000).unsafeRunToFuture()
 

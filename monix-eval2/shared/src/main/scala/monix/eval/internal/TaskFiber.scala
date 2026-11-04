@@ -25,6 +25,7 @@ import monix.execution.{ Callback, Scheduler }
 import monix.execution.atomic.Atomic
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.eval.Task.AsyncSimple
+import java.util.concurrent.RejectedExecutionException
 import scala.annotation.{ switch, tailrec }
 import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
@@ -261,8 +262,13 @@ private[eval] final class TaskFiber[A] private[eval] (
       Callback.empty(scheduler),
       initExecutionContext = executionContext
     )(scheduler)
-    scheduler.execute(child)
-    currentRef = Task.Pure(child)
+    try {
+      scheduler.execute(child)
+      currentRef = Task.Pure(child)
+    } catch {
+      case error: RejectedExecutionException =>
+        currentRef = Task.RaiseError(error)
+    }
     Continue
   }
 
@@ -328,7 +334,9 @@ private[eval] final class TaskFiber[A] private[eval] (
   override def run(): Unit = {
     // The initial run and explicit scheduler yields already own `currentRef`. Async
     // wake-ups first claim the callback or cancellation published in `stateRef`.
-    var remaining = scheduler.executionModel.recommendedBatchSize
+    val runScheduler = scheduler
+    val runContext = executionContext
+    var remaining = runScheduler.executionModel.recommendedBatchSize
     var runAgain =
       if (resumeCurrent) {
         resumeCurrent = false
@@ -374,17 +382,34 @@ private[eval] final class TaskFiber[A] private[eval] (
         val policy = reschedule
         reschedule = AsyncSimple.Synchronous
         resumeCurrent = true
-        if (policy == AsyncSimple.AsyncTrampolined) {
-          if (trampolinedRun eq null)
-            trampolinedRun = new TrampolinedRunnable {
-              def run(): Unit = TaskFiber.this.run()
-            }
-          scheduler.execute(trampolinedRun)
-        } else
-          scheduler.execute(this)
-        return
-      }
-      runAgain = selectNextRun()
+        try {
+          if (policy == AsyncSimple.AsyncTrampolined) {
+            if (trampolinedRun eq null)
+              trampolinedRun = new TrampolinedRunnable {
+                def run(): Unit = TaskFiber.this.run()
+              }
+            scheduler.execute(trampolinedRun)
+          } else
+            scheduler.execute(this)
+          return
+        } catch {
+          case error: RejectedExecutionException =>
+            // Rejection means no run was accepted, so this invocation still owns
+            // the interpreter. Propagate the failure from the context which is
+            // actually running, allowing enclosing handlers and finalizers to run.
+            // If its own queue rejected the yield, finish recovery in this run;
+            // retrying that queue at each batch could replace cleanup with errors.
+            remaining =
+              if (scheduler eq runScheduler) Int.MaxValue
+              else runScheduler.executionModel.recommendedBatchSize
+            scheduler = runScheduler
+            executionContext = runContext
+            resumeCurrent = false
+            asyncRegistrationReady = false
+            currentRef = Task.RaiseError(error)
+        }
+      } else
+        runAgain = selectNextRun()
     }
   }
 
@@ -461,14 +486,18 @@ private[eval] final class TaskFiber[A] private[eval] (
     // Only the successful CAS can finish the fiber. Listener notification starts
     // after publication, and reversing restores registration order.
     // Terminal success and error call this before signaling the unsafe-run callback.
-    // Listener invocation is unguarded; a throwing listener stops later notifications.
+    // Each listener is isolated: failure to resume one joiner must not prevent other
+    // joiners or the unsafe-run callback from observing this terminal outcome.
     @tailrec def loop(): Unit =
       stateRef.get() match {
         case current @ Active(listeners, _, _, _, _) =>
           if (stateRef.compareAndSet(current, Finished(outcome))) {
             currentRef = null
             callStackRef = null
-            listeners.reverse.foreach(_.onSuccess(outcome))
+            listeners.reverse.foreach { listener =>
+              try listener.onSuccess(outcome)
+              catch { case NonFatal(error) => scheduler.reportFailure(error) }
+            }
           } else
             loop()
         case Finished(_) =>

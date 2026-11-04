@@ -2,6 +2,89 @@
 
 Date: 2026-08-23
 
+## Concurrency audit follow-up (2026-11-04)
+
+Audit baseline: `HEAD 5a5979a991cf2efebc7c9fab2638e86f96d1793f`; the worktree was clean
+at the start of the audit.
+
+### Standards
+
+No new locks or warning suppressions were introduced. `TaskFiber` retains its single
+atomic ownership protocol.
+
+### Spec
+
+#### 1. [High] Rejected run-loop handoff could strand an active fiber
+
+**Location:** `monix-eval2/shared/src/main/scala/monix/eval/internal/TaskFiber.scala:257-272,334-414`.
+
+A rejected scheduler submission could leave run-loop ownership active without a runnable.
+A rejected child `Start` submission could also leave the parent pending without running
+its finalizer. Rejected child submission now becomes an error in the parent, and the child
+does not run. Rejected run-loop handoff restores the prior scheduler and execution context
+before recovery. Recovery also avoids repeatedly resubmitting error and finalizer work to
+the same rejecting queue.
+
+#### 2. [High] Callback failures could interrupt join and `Deferred` notification
+
+**Location:** `monix-eval2/shared/src/main/scala/monix/eval/internal/TaskRestartCallback.scala:56-79`;
+`monix-eval2/shared/src/main/scala/monix/eval/internal/TaskFiber.scala:485-508`.
+
+A rejected callback resumption could escape into sequential `Deferred.complete` waiter
+notification after the value was published, preventing later healthy waiters from
+resuming. Callback delivery now reports non-fatal scheduling failures to its scheduler.
+Fiber completion catches failures from each join listener and continues notifying the
+remaining listeners.
+
+Five deterministic regressions are in
+`monix-eval2/shared/src/test/scala/monix/eval/TaskCancellationAdversarialSuite.scala`:
+rejected joiner, rejected `Deferred` waiter, rejected `evalOn` shift, and rejected batch
+resubmission, plus rejected child submission with parent finalization. Two JVM contention
+scenarios are in
+`monix-eval2/jvm/src/test/scala/monix/eval/TaskMaskedContentionJVMSuite.scala`. They race
+a masked callback with four cancelers while a gated finalizer is pending, and exercise
+both same-scheduler and cross-scheduler `evalOn` paths. The suite runs 1,000 local rounds
+and 100 rounds in CI.
+
+### Scope and limits
+
+The rejection path assumes `RejectedExecutionException` means the runnable was not
+accepted, and scheduler reporters return normally. Callback isolation does not make a
+receiver runnable when its own executor refuses resumption; it keeps that failure from
+blocking healthy consumers and producers.
+
+A captured-`Poll` cancellation-finalizer probe against Cats Effect 3.7.1 skipped the
+finalizer. This case remains ambiguous, so no masking change was made. The probe source
+and logs are under `/tmp/codex/eval2-concurrency-audit`; they are not production tests.
+No lost-wakeup failure was observed in the tested races with functioning schedulers.
+This is not proof of race freedom.
+
+### Sources
+
+- User concurrency requirements and the prior handoff in this document. Read.
+- Repository standards in `AGENTS.md` and `CONTRIBUTING.md`. Read.
+- Legacy rejection and callback conventions in
+  `monix-eval/jvm/src/test/scala/monix/eval/TaskRejectedExecutionSuite.scala` and
+  `monix-eval/shared/src/main/scala/monix/eval/internal/TaskCreate.scala`. Read.
+- Cats Effect 3.7.1 [`Deferred.scala`](https://github.com/typelevel/cats-effect/blob/v3.7.1/kernel/shared/src/main/scala/cats/effect/kernel/Deferred.scala),
+  [`IOFiber.scala`](https://github.com/typelevel/cats-effect/blob/v3.7.1/core/shared/src/main/scala/cats/effect/IOFiber.scala),
+  [`MonadCancel.scala`](https://github.com/typelevel/cats-effect/blob/v3.7.1/kernel/shared/src/main/scala/cats/effect/kernel/MonadCancel.scala),
+  [`GenSpawn.scala`](https://github.com/typelevel/cats-effect/blob/v3.7.1/kernel/shared/src/main/scala/cats/effect/kernel/GenSpawn.scala),
+  [`CallbackStack.scala`](https://github.com/typelevel/cats-effect/blob/v3.7.1/core/jvm-native/src/main/scala/cats/effect/CallbackStack.scala),
+  and the corresponding `DeferredSuite`, `IOSuite`, and `CallbackStackSuite`. Read.
+
+### Verification
+
+| Command | Result |
+| --- | --- |
+| `sbt --client '+eval2JVM/test'` | 161/161 passed on Scala 2.13.18 and 3.3.7 |
+| `sbt --client '+eval2JS/test'` | 152/152 passed on Scala 2.13.18 and 3.3.7 |
+| `sbt --client scalafmtCheckAll` | Passed |
+| `git diff --check` | Passed |
+
+The focused regression suites passed 7/7. `HEAD` remains
+`5a5979a991cf2efebc7c9fab2638e86f96d1793f`; the index is empty.
+
 ## Review follow-up (2026-11-04)
 
 ## Standards
