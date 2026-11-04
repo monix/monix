@@ -23,7 +23,10 @@ import monix.eval.Task.RaiseError
 import monix.eval.internal.TaskFiber.*
 import monix.execution.{ Callback, Scheduler }
 import monix.execution.atomic.Atomic
+import monix.execution.schedulers.TrampolinedRunnable
+import monix.eval.Task.AsyncSimple
 import scala.annotation.{ switch, tailrec }
+import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
 
 /** Runtime interpreter and Cats Effect fiber handle for [[Task]].
@@ -38,38 +41,66 @@ private[eval] final class TaskFiber[A] private[eval] (
   source: Task[A],
   cb: Callback[Throwable, A],
   initCallStack: TaskCallStack = null,
-  initIsCancelled: Boolean = false
+  initIsCancelled: Boolean = false,
+  initExecutionContext: ExecutionContext = null
 )(implicit
-  scheduler: Scheduler
+  initialScheduler: Scheduler
 ) extends Fiber[Task, Throwable, A] with Task.Visitor[Any, Control] with Runnable {
   // These interpreter fields are read and written only by the run-loop. A state CAS
   // publishes callback results before a later run installs them in `currentRef`.
   private[this] var currentRef: Current = source
   private[this] var callStackRef: TaskCallStack = initCallStack
-  private[this] var _restartCallback: TaskRestartCallback = _
+  private[this] var scheduler: Scheduler = initialScheduler
+  // A Scheduler adapter supplies clocks and batching, but Async.executionContext
+  // must expose the exact context supplied to evalOn, including in child fibers.
+  private[this] var executionContext: ExecutionContext =
+    if (initExecutionContext eq null) initialScheduler else initExecutionContext
+  private[this] var asyncRegistrationReady = false
+  private[this] var reschedule = AsyncSimple.Synchronous
+  private[this] var trampolinedRun: TrampolinedRunnable = _
 
   // The run-loop owns mask updates. An inactive canceler may read the depth only after
   // its CAS has acquired the scheduling claim.
   private[this] var maskDepth: Int = 0
-  private[this] var firstRun: Boolean = true
+  private[this] var resumeCurrent: Boolean = true
 
   // All state shared with callbacks, cancelers, and joiners lives in this one atomic
   // reference. CAS publication is also the happens-before boundary used when a run
   // moves between scheduler threads.
   private[this] val stateRef = Atomic(
-    Active[A](Nil, runActive = true, isCanceled = initIsCancelled, pendingRef = null): FiberState[A]
+    Active[A](
+      Nil,
+      runActive = true,
+      isCanceled = initIsCancelled,
+      pendingRef = null,
+      asyncCallback = null
+    ): FiberState[A]
   )
 
   @inline
   private def callStack: TaskCallStack = {
-    // Allocate on the first frame push or outcome search, keeping fiber construction
-    // independent of the continuation-stack representation.
+    // Allocate on the first frame push, so terminal fibers need no continuation stack.
     if (callStackRef eq null) callStackRef = new TaskCallStack(8)
     callStackRef
   }
 
   override def visit(ref: Task.Pure[Any]): Control =
-    processUnboxedValue(ref.a.asInstanceOf[AnyRef])
+    processUnboxedValue(ref.a)
+
+  override def visit(ref: Task.Delay[Any]): Control = {
+    try currentRef = Task.Pure(ref.thunk())
+    catch { case NonFatal(error) => currentRef = Task.RaiseError(error) }
+    Continue
+  }
+
+  override def visit(ref: Task.Defer[Any]): Control = {
+    try currentRef = ref.thunk()
+    catch { case NonFatal(error) => currentRef = Task.RaiseError(error) }
+    Continue
+  }
+
+  override def visit(ref: Task.ReadExecutionContext.type): Control =
+    processUnboxedValue(executionContext)
 
   override def visit[S](ref: Task.FlatMap[S, Any]): Control = {
     callStack.pushFlatMap(ref.f.asInstanceOf[Any => Task[Any]])
@@ -93,7 +124,8 @@ private[eval] final class TaskFiber[A] private[eval] (
     val err = ref.e
     // Error propagation discards binds and cancellation finalizers until the next
     // matching handler. No handler means this is the fiber's terminal error.
-    callStack.findAndPopNextHandleError() match {
+    val handler = if (callStackRef eq null) null else callStackRef.findAndPopNextHandleError()
+    handler match {
       case null =>
         complete(Outcome.Errored(err))
         cb.onError(err)
@@ -113,9 +145,17 @@ private[eval] final class TaskFiber[A] private[eval] (
   }
 
   override def visit(ref: Task.AsyncSimple[Any]): Control = {
-    // A callback arriving while `runActive` is true is stored in `pendingRef`. One
-    // arriving after the run-loop stops schedules it again.
-    restartCallback().start(ref)
+    if (!asyncRegistrationReady && ref.boundaryBefore != AsyncSimple.Synchronous) {
+      // Registration must run under interpreter ownership, including after a shift.
+      // Cancellation may abandon this node before the next run registers it.
+      asyncRegistrationReady = true
+      reschedule = ref.boundaryBefore
+    } else {
+      asyncRegistrationReady = false
+      val callback = new TaskRestartCallback(this, scheduler, ref.boundaryAfter)
+      installCallback(callback)
+      callback.start(ref)
+    }
     Break
   }
 
@@ -124,6 +164,7 @@ private[eval] final class TaskFiber[A] private[eval] (
     // first side until the other arrives.
     val callback = new TaskCallbackIndirection[Throwable, S]
     val get = Task.AsyncSimple[S]((_, waiting) => callback.register(waiting))
+      .onCancel(Task.delay(callback.clear()))
     // Constructing the continuation result may throw. Move a `NonFatal` into the
     // ordinary `IO` error channel.
     try currentRef = ref.cont(scheduler, callback, get)
@@ -141,8 +182,11 @@ private[eval] final class TaskFiber[A] private[eval] (
       // poll region, will turn it back into a `Cancelled` node.
       currentRef = Task.Pure(())
       Continue
-    } else
-      callStack.findAndPopNextOnCancel() match {
+    } else {
+      asyncRegistrationReady = false
+      installCallback(null)
+      val finalizer = if (callStackRef eq null) null else callStackRef.findAndPopNextOnCancel()
+      finalizer match {
         case null =>
           // No finalizers remain. Publishing the canceled outcome starts notifying
           // callers blocked in `Fiber.cancel` or `join`. The root callback has only
@@ -167,6 +211,7 @@ private[eval] final class TaskFiber[A] private[eval] (
           )
           Continue
       }
+    }
   }
 
   override def visit(ref: Task.Uncancelable[Any]): Control = {
@@ -211,10 +256,45 @@ private[eval] final class TaskFiber[A] private[eval] (
   override def visit[S](ref: Task.Start[S]): Control = {
     // Successful child values are observed through `join`, so the root callback can
     // ignore success. `Callback.empty` still reports a child error.
-    val child = new TaskFiber[S](ref.source, Callback.empty)(scheduler)
+    val child = new TaskFiber[S](
+      ref.source,
+      Callback.empty(scheduler),
+      initExecutionContext = executionContext
+    )(scheduler)
     scheduler.execute(child)
     currentRef = Task.Pure(child)
     Continue
+  }
+
+  override def visit(ref: Task.EvalOn[Any]): Control = {
+    if (ref.ec eq executionContext) {
+      currentRef = ref.source
+      Continue
+    } else {
+      val previous = scheduler
+      val previousContext = executionContext
+      // All three outcomes restore the context. Install the frames before yielding,
+      // so cancellation on the target also restores the enclosing context.
+      callStack.pushOnCancel(Task.ResumeOn(Task.pure(()), previous, previousContext))
+      callStack.pushHandleError(error => Task.ResumeOn(Task.RaiseError(error), previous, previousContext))
+      callStack.pushFlatMap(value => Task.ResumeOn(Task.Pure(value), previous, previousContext))
+      scheduler = ref.ec match {
+        case target: Scheduler => target
+        case ec => Scheduler(ec)
+      }
+      executionContext = ref.ec
+      currentRef = ref.source
+      reschedule = AsyncSimple.AsyncShifted
+      Break
+    }
+  }
+
+  override def visit(ref: Task.ResumeOn[Any]): Control = {
+    scheduler = ref.scheduler
+    executionContext = ref.executionContext
+    currentRef = ref.source
+    reschedule = AsyncSimple.AsyncShifted
+    Break
   }
 
   /** Publishes a callback result without allowing concurrent run-loop executions.
@@ -224,13 +304,13 @@ private[eval] final class TaskFiber[A] private[eval] (
     * the result before the current run relinquishes ownership. Completion or
     * cancellation may discard it. Contract-compliant async nodes produce one result.
     */
-  def continueWithRef(ref: Current): Unit = {
+  def continueWithRef(ref: Current, callback: TaskRestartCallback): Unit = {
     @tailrec def publish(): Boolean =
       stateRef.get() match {
         case Finished(_) =>
           false
-        case current @ Active(_, _, _, pendingRef) =>
-          if (pendingRef ne null)
+        case current @ Active(_, _, _, pendingRef, registered) =>
+          if ((registered ne callback) || (pendingRef ne null))
             false
           else {
             val schedule = !current.runActive
@@ -246,11 +326,12 @@ private[eval] final class TaskFiber[A] private[eval] (
   }
 
   override def run(): Unit = {
-    // The initial run already owns `source`. Later runs first claim the callback or
-    // cancellation wake-up published in `stateRef`.
+    // The initial run and explicit scheduler yields already own `currentRef`. Async
+    // wake-ups first claim the callback or cancellation published in `stateRef`.
+    var remaining = scheduler.executionModel.recommendedBatchSize
     var runAgain =
-      if (firstRun) {
-        firstRun = false
+      if (resumeCurrent) {
+        resumeCurrent = false
         true
       } else {
         selectNextRun()
@@ -259,12 +340,13 @@ private[eval] final class TaskFiber[A] private[eval] (
     while (runAgain) {
       var continue = Continue
       var active = true
-      while (continue && active) {
+      while (continue && active && remaining > 0) {
+        remaining -= 1
         // One atomic read covers both completion and cancellation for this dispatch.
         // If cancellation wins before a child first runs, the child does not enter an
         // `OnCancel` or `Uncancelable` node whose dynamic state is not installed yet.
         stateRef.get() match {
-          case Active(_, _, isCanceled, _) =>
+          case Active(_, _, isCanceled, _, _) =>
             if (isCanceled && maskDepth == 0 && (currentRef ne Task.Cancelled))
               currentRef = Task.Cancelled
 
@@ -284,17 +366,35 @@ private[eval] final class TaskFiber[A] private[eval] (
             active = false
         }
       }
+      // Bound synchronous work as well as async work. A queued canceler or sibling
+      // must get a turn even when this task never suspends by itself.
+      if (continue && active && remaining == 0)
+        reschedule = AsyncSimple.AsyncShifted
+      if (reschedule != AsyncSimple.Synchronous) {
+        val policy = reschedule
+        reschedule = AsyncSimple.Synchronous
+        resumeCurrent = true
+        if (policy == AsyncSimple.AsyncTrampolined) {
+          if (trampolinedRun eq null)
+            trampolinedRun = new TrampolinedRunnable {
+              def run(): Unit = TaskFiber.this.run()
+            }
+          scheduler.execute(trampolinedRun)
+        } else
+          scheduler.execute(this)
+        return
+      }
       runAgain = selectNextRun()
     }
   }
 
-  /** Requests cancellation on this fiber's scheduler and waits for its outcome.
+  /** Publishes cancellation atomically and waits for this fiber's outcome.
     * Waiting is uncancelable: completion of `Fiber.cancel` means the remaining
     * registered finalizers have finished, not merely that a flag was set.
     */
   override def cancel: Task[Unit] =
     Task.uncancelable { _ =>
-      Task.delay(scheduler.execute(() => requestCancel())).flatMap(_ => join.map(_ => ()))
+      Task.delay(requestCancel()).flatMap(_ => join.map(_ => ()))
     }
 
   /** Suspends until the atomic result state is terminal. The CAS loop in
@@ -305,10 +405,11 @@ private[eval] final class TaskFiber[A] private[eval] (
   override def join: Task[Outcome[Task, Throwable, A]] =
     Task.AsyncSimple((_, callback) => registerJoin(callback))
 
-  private def processUnboxedValue(unboxedRef: AnyRef): Control = {
+  private def processUnboxedValue(unboxedRef: Any): Control = {
     // Success discards error and cancellation frames until the next bind. Finding no
     // bind means this is the fiber's terminal value.
-    callStack.findAndPopNextFlatMap() match {
+    val nextBind = if (callStackRef eq null) null else callStackRef.findAndPopNextFlatMap()
+    nextBind match {
       case null =>
         val value = unboxedRef.asInstanceOf[A]
         complete(Outcome.Succeeded(Task.Pure(value)))
@@ -327,11 +428,16 @@ private[eval] final class TaskFiber[A] private[eval] (
     }
   }
 
-  private def restartCallback(): TaskRestartCallback = {
-    if (_restartCallback == null)
-      _restartCallback = new TaskRestartCallback(this, scheduler)
-    _restartCallback
-  }
+  @tailrec
+  private def installCallback(callback: TaskRestartCallback): Unit =
+    stateRef.get() match {
+      case current @ Active(_, _, _, _, _) =>
+        if ((current.asyncCallback ne callback) || (current.pendingRef ne null)) {
+          val update = current.copy(asyncCallback = callback, pendingRef = null)
+          if (!stateRef.compareAndSet(current, update)) installCallback(callback)
+        }
+      case Finished(_) => ()
+    }
 
   /** Restores a prior cancellation depth on both success and error. A cancellation
     * recorded while masked takes precedence as soon as restoration exposes depth 0.
@@ -358,10 +464,12 @@ private[eval] final class TaskFiber[A] private[eval] (
     // Listener invocation is unguarded; a throwing listener stops later notifications.
     @tailrec def loop(): Unit =
       stateRef.get() match {
-        case current @ Active(listeners, _, _, _) =>
-          if (stateRef.compareAndSet(current, Finished(outcome)))
+        case current @ Active(listeners, _, _, _, _) =>
+          if (stateRef.compareAndSet(current, Finished(outcome))) {
+            currentRef = null
+            callStackRef = null
             listeners.reverse.foreach(_.onSuccess(outcome))
-          else
+          } else
             loop()
         case Finished(_) =>
           ()
@@ -375,7 +483,7 @@ private[eval] final class TaskFiber[A] private[eval] (
     // `complete` sees it, or observes `Finished` and receives the outcome immediately.
     @tailrec def loop(): Unit =
       stateRef.get() match {
-        case current @ Active(listeners, _, _, _) =>
+        case current @ Active(listeners, _, _, _, _) =>
           if (!stateRef.compareAndSet(current, current.copy(listeners = callback :: listeners)))
             loop()
         case Finished(outcome) =>
@@ -389,7 +497,7 @@ private[eval] final class TaskFiber[A] private[eval] (
       stateRef.get() match {
         case Finished(_) =>
           false
-        case current @ Active(_, true, true, pendingRef) =>
+        case current @ Active(_, true, true, pendingRef, _) =>
           // A racing callback observed the canceler's scheduling claim and therefore
           // did not submit a run. Keep the claim and schedule that callback instead of
           // releasing it.
@@ -399,9 +507,9 @@ private[eval] final class TaskFiber[A] private[eval] (
             false
           else
             releaseMaskedClaim()
-        case Active(_, false, true, _) =>
+        case Active(_, false, true, _, _) =>
           false
-        case Active(_, _, false, _) =>
+        case Active(_, _, false, _, _) =>
           false
       }
 
@@ -409,12 +517,12 @@ private[eval] final class TaskFiber[A] private[eval] (
       stateRef.get() match {
         case Finished(_) =>
           false
-        case Active(_, _, true, _) =>
+        case Active(_, _, true, _, _) =>
           false
-        case current @ Active(_, true, false, _) =>
+        case current @ Active(_, true, false, _, _) =>
           if (stateRef.compareAndSet(current, current.copy(isCanceled = true))) false
           else publish()
-        case current @ Active(_, false, false, _) =>
+        case current @ Active(_, false, false, _, _) =>
           val update = current.copy(runActive = true, isCanceled = true)
           if (stateRef.compareAndSet(current, update)) {
             // The inactive-to-active CAS transfers access to the run-loop fields to
@@ -443,9 +551,9 @@ private[eval] final class TaskFiber[A] private[eval] (
     stateRef.get() match {
       case Finished(_) =>
         false
-      case current @ Active(_, _, isCanceled, pendingRef) =>
+      case current @ Active(_, _, isCanceled, pendingRef, _) =>
         if (isCanceled && maskDepth == 0) {
-          val update = current.copy(pendingRef = null)
+          val update = current.copy(pendingRef = null, asyncCallback = null)
           if (stateRef.compareAndSet(current, update)) {
             currentRef = Task.Cancelled
             true
@@ -453,7 +561,7 @@ private[eval] final class TaskFiber[A] private[eval] (
             selectNextRun()
           }
         } else if (pendingRef ne null) {
-          val update = current.copy(pendingRef = null)
+          val update = current.copy(pendingRef = null, asyncCallback = null)
           if (stateRef.compareAndSet(current, update)) {
             currentRef = pendingRef
             true
@@ -469,16 +577,16 @@ private[eval] final class TaskFiber[A] private[eval] (
   @tailrec
   private def markCanceled(): Unit =
     stateRef.get() match {
-      case current @ Active(_, _, false, _) =>
+      case current @ Active(_, _, false, _, _) =>
         if (!stateRef.compareAndSet(current, current.copy(isCanceled = true)))
           markCanceled()
-      case Active(_, _, true, _) | Finished(_) =>
+      case Active(_, _, true, _, _) | Finished(_) =>
         ()
     }
 
   private def isCancellationRequested: Boolean =
     stateRef.get() match {
-      case Active(_, _, isCanceled, _) => isCanceled
+      case Active(_, _, isCanceled, _, _) => isCanceled
       case Finished(_) => false
     }
 }
@@ -499,6 +607,7 @@ object TaskFiber {
     *     the decision whether one is needed;
     *   - `isCanceled` is monotonic and is interpreted when `maskDepth` permits;
     *   - `pendingRef` contains at most one callback result and implies `runActive`;
+    *   - `asyncCallback` identifies the only suspension allowed to publish a result;
     *   - `listeners` contains join callbacks in reverse registration order.
     *
     * `Finished` is terminal. Replacing an `Active` reference with `Finished` publishes
@@ -510,7 +619,8 @@ object TaskFiber {
     listeners: List[Callback[Throwable, Outcome[Task, Throwable, A]]],
     runActive: Boolean,
     isCanceled: Boolean,
-    pendingRef: Current
+    pendingRef: Current,
+    asyncCallback: TaskRestartCallback
   ) extends FiberState[A]
 
   private final case class Finished[A](

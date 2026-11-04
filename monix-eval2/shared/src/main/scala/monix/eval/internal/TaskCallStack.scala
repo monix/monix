@@ -45,30 +45,23 @@ private[internal] final class TaskCallStack(initialCapacity: Int) {
     // For example, an error skips binds and onCancel finalizers until it finds an
     // error handler.
     var found = false
+    var result: AnyRef = null
     while (!found && size > 0) {
       val index = size - 1
-      if (tags(index) == tag)
-        found = true
-      else
-        size -= 1
+      val ref = refs(index)
+      found = tags(index) == tag
+      refs(index) = null
+      size = index
+      if (found) result = ref
     }
-    if (!found) {
-      null
-    } else {
-      // Pop is logical: old array slots remain until a later push overwrites them or
-      // the complete stack is collected.
-      val ret = refs(size - 1)
-      size -= 1
-      ret
-    }
+    result
   }
 
   private def push(ref: AnyRef, tag: Int): Unit = {
     val index = size
-    size += 1
-    if (size == capacity) {
+    if (index == capacity) {
       // Both arrays describe one logical stack and must grow together.
-      capacity *= 2
+      capacity = if (capacity == 0) 1 else capacity * 2
 
       val newArrayRefs = new Array[AnyRef](capacity)
       System.arraycopy(refs, 0, newArrayRefs, 0, refs.length)
@@ -80,6 +73,7 @@ private[internal] final class TaskCallStack(initialCapacity: Int) {
     }
     refs(index) = ref
     tags(index) = tag
+    size = index + 1
   }
 
   def pushFlatMap(f: Any => Task[Any]): Unit =

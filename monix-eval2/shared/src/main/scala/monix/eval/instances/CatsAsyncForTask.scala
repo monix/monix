@@ -91,10 +91,14 @@ private[eval] final class CatsAsyncForTask extends Async[Task] {
   override def racePair[A, B](
     fa: Task[A],
     fb: Task[B]
-  ): Task[Either[(Outcome[Task, Throwable, A], Fiber[Task, Throwable, B]),
-    (Fiber[Task, Throwable, A], Outcome[Task, Throwable, B])]] = {
-    type Result = Either[(Outcome[Task, Throwable, A], Fiber[Task, Throwable, B]),
-      (Fiber[Task, Throwable, A], Outcome[Task, Throwable, B])]
+  ): Task[Either[
+    (Outcome[Task, Throwable, A], Fiber[Task, Throwable, B]),
+    (Fiber[Task, Throwable, A], Outcome[Task, Throwable, B])
+  ]] = {
+    type Result = Either[
+      (Outcome[Task, Throwable, A], Fiber[Task, Throwable, B]),
+      (Fiber[Task, Throwable, A], Outcome[Task, Throwable, B])
+    ]
 
     // Starting both children is masked, so cancellation cannot interrupt the setup.
     uncancelable { poll =>
@@ -116,7 +120,10 @@ private[eval] final class CatsAsyncForTask extends Async[Task] {
 
           // Only the wait is cancelable. Canceling it cancels both children and waits
           // for their finalizers before completing parent cancellation.
-          poll(await).onCancel(forceR(fiberA.cancel)(fiberB.cancel))
+          val cancelBoth = fiberA.cancel.start.flatMap { cancelA =>
+            forceR(fiberB.cancel)(cancelA.join.map(_ => ()))
+          }
+          poll(await).onCancel(cancelBoth)
         }
       }
     }
@@ -145,23 +152,10 @@ private[eval] final class CatsAsyncForTask extends Async[Task] {
     Task.delay(thunk)
 
   override def evalOn[A](fa: Task[A], ec: ExecutionContext): Task[A] =
-    // The source runs as a child on `target`, but completion resumes this continuation
-    // on its original scheduler. Masking covers child startup and cancel-token setup.
-    uncancelable { poll =>
-      Task.cont0[A, A] { (_, callback, get) =>
-        // Preserve an existing `Scheduler`, including its clock and execution model;
-        // adapt only a plain `ExecutionContext`.
-        val target = ec match {
-          case scheduler: Scheduler => scheduler
-          case _ => Scheduler(ec)
-        }
-        val cancel = fa.unsafeRunAsync(callback)(target)
-        poll(get).onCancel(cancel)
-      }
-    }
+    Task.EvalOn(fa, ec)
 
   override def executionContext: Task[ExecutionContext] =
-    readScheduler(identity)
+    Task.ReadExecutionContext
 
   override def cont[K, R](body: Cont[Task, K, R]): Task[R] =
     // Cats Effect's `Either` callback is adapted to Monix's two-channel `Callback`.

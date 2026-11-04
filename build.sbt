@@ -708,11 +708,11 @@ lazy val eval2Profile =
       description :=
         "Experimental Cats Effect 3 IO implementation for Monix.",
       libraryDependencies ++= Seq(
-        "org.typelevel" %%% "cats-effect-kernel"          % "3.7.0",
+        "org.typelevel" %%% "cats-effect-kernel"          % "3.7.1",
         "org.typelevel" %% "scalac-compat-annotation"     % "0.1.4" % Provided,
-        "org.typelevel" %%% "cats-effect"                 % "3.7.0" % Test,
-        "org.typelevel" %%% "cats-effect-laws"            % "3.7.0" % Test,
-        "org.typelevel" %%% "cats-effect-kernel-testkit" % "3.7.0" % Test
+        "org.typelevel" %%% "cats-effect"                 % "3.7.1" % Test,
+        "org.typelevel" %%% "cats-effect-laws"            % "3.7.1" % Test,
+        "org.typelevel" %%% "cats-effect-kernel-testkit" % "3.7.1" % Test
       )
     ),
   )

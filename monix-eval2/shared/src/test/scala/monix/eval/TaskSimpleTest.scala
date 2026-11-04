@@ -23,7 +23,7 @@ import monix.execution.ExecutionModel
 import monix.execution.Scheduler.Implicits.global
 import monix.execution.schedulers.TestScheduler
 import java.util.concurrent.TimeUnit
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 object TaskSimpleTest extends SimpleTestSuite {
   def testEffect(name: String)(f: => Task[Unit]): Unit =

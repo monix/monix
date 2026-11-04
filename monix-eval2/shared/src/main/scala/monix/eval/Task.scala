@@ -23,7 +23,7 @@ import monix.eval.instances.CatsAsyncForTask
 import monix.execution.{ Callback, Cancelable, CancelableFuture, Scheduler }
 
 import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.Promise
+import scala.concurrent.{ ExecutionContext, Promise }
 import scala.util.control.NonFatal
 
 /** A lazy description of an effect.
@@ -62,8 +62,9 @@ sealed abstract class Task[+A] {
     fiber.cancel
   }
 
-  def unsafeRunAndForget()(implicit s: Scheduler): Unit =
-    unsafeRunAsync(Callback.empty)
+  def unsafeRunAndForget()(implicit s: Scheduler): Unit = {
+    val _ = unsafeRunAsync(Callback.empty)
+  }
 
   /** Starts this IO and exposes its success/error channel as a `CancelableFuture`.
     * Future cancellation evaluates the fiber's effectful cancel token in a separate
@@ -85,22 +86,10 @@ object Task {
   def pure[A](a: A): Task[A] = Pure(a)
 
   def delay[A](thunk: => A): Task[A] =
-    // Encoding delay as a bind keeps thunk evaluation inside the ordinary run-loop
-    // exception boundary, without requiring a dedicated algebra node.
-    FlatMap[Unit, A](
-      Pure(()),
-      _ => {
-        try
-          Pure(thunk)
-        catch {
-          case NonFatal(e) =>
-            RaiseError(e)
-        }
-      }
-    )
+    Delay(() => thunk)
 
   def defer[A](thunk: => Task[A]): Task[A] =
-    delay(thunk).flatMap(identity)
+    Defer(() => thunk)
 
   def raiseError[A](e: Throwable): Task[A] =
     RaiseError(e)
@@ -192,13 +181,15 @@ object Task {
   /** An asynchronous registration together with its run-loop boundary policy.
     *
     * `boundaryBefore` controls how registration starts; `boundaryAfter` controls
-    * how its callback re-enters the fiber. [[internal.IORestartCallback]] interprets
-    * both policies and is reused across successive asynchronous nodes.
+    * how its callback re-enters the fiber. Registration runs under fiber ownership;
+    * each suspension has its own [[internal.TaskRestartCallback]].
+    * The fiber schedules inactive resumptions and yields at batch boundaries, so
+    * registration and callback publication need no additional boundary by default.
     */
   private[eval] final case class AsyncSimple[+A](
     register: (Scheduler, Callback[Throwable, A]) => Unit,
-    boundaryBefore: AsyncSimple.BoundaryPolicy = AsyncSimple.AsyncShifted,
-    boundaryAfter: AsyncSimple.BoundaryPolicy = AsyncSimple.AsyncTrampolined,
+    boundaryBefore: AsyncSimple.BoundaryPolicy = AsyncSimple.Synchronous,
+    boundaryAfter: AsyncSimple.BoundaryPolicy = AsyncSimple.Synchronous,
   ) extends Task[A] {
     def tag: Byte = AsyncSimple.TAG
     def accept[AA >: A, R](visitor: Visitor[AA, R]): R = visitor.visit(this)
@@ -270,6 +261,36 @@ object Task {
     final val TAG: Byte = 10
   }
 
+  private[eval] final case class EvalOn[+A](source: Task[A], ec: ExecutionContext) extends Task[A] {
+    def tag: Byte = 11
+    def accept[AA >: A, R](visitor: Visitor[AA, R]): R = visitor.visit(this)
+  }
+
+  /** Restores a context without opening another scoped `evalOn` region. */
+  private[eval] final case class ResumeOn[+A](
+    source: Task[A],
+    scheduler: Scheduler,
+    executionContext: ExecutionContext
+  ) extends Task[A] {
+    def tag: Byte = 12
+    def accept[AA >: A, R](visitor: Visitor[AA, R]): R = visitor.visit(this)
+  }
+
+  private[eval] final case class Delay[+A](thunk: () => A) extends Task[A] {
+    def tag: Byte = 13
+    def accept[AA >: A, R](visitor: Visitor[AA, R]): R = visitor.visit(this)
+  }
+
+  private[eval] final case class Defer[+A](thunk: () => Task[A]) extends Task[A] {
+    def tag: Byte = 14
+    def accept[AA >: A, R](visitor: Visitor[AA, R]): R = visitor.visit(this)
+  }
+
+  private[eval] case object ReadExecutionContext extends Task[ExecutionContext] {
+    def tag: Byte = 15
+    def accept[AA >: ExecutionContext, R](visitor: Visitor[AA, R]): R = visitor.visit(this)
+  }
+
   /** Visitor used by the runtime. Tags let the hot run-loop dispatch selected nodes
     * directly while retaining typed handlers for the remaining nodes.
     */
@@ -285,5 +306,10 @@ object Task {
     def visit(ref: Uncancelable[A]): R
     def visit(ref: PollRegion[A]): R
     def visit[S](ref: Start[S]): R
+    def visit(ref: EvalOn[A]): R
+    def visit(ref: ResumeOn[A]): R
+    def visit(ref: Delay[A]): R
+    def visit(ref: Defer[A]): R
+    def visit(ref: ReadExecutionContext.type): R
   }
 }

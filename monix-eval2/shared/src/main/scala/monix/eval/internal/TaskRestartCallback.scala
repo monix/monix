@@ -18,158 +18,51 @@
 package monix.eval
 package internal
 
-import monix.eval.Task.AsyncSimple.{ AsyncTrampolined, BoundaryPolicy }
+import monix.eval.Task.AsyncSimple
 import monix.execution.exceptions.APIContractViolationException
 import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{ Callback, Scheduler }
 import scala.util.control.NonFatal
 
-/** Reusable callback which transports an asynchronous result back into one fiber.
+/** A callback belongs to exactly one async suspension.
   *
-  * An [[Task.AsyncSimple]] can request a boundary both before registration and after
-  * callback delivery. This object implements those choices without allocating a
-  * fresh callback and runnable set for every suspension.
-  *
-  * N.B. the mutable transport fields rely on the callback contract that only one
-  * result wins. Scheduling their consumer publishes those writes to the scheduler
-  * thread; actual run-loop serialization is handled by [[TaskFiber.continueWithRef]].
+  * The fiber checks this object's identity before accepting a result. Cancellation
+  * can therefore abandon an operation while its callback is still in flight,
+  * without letting that callback resume a later cancellation finalizer.
   */
-private[internal] class TaskRestartCallback(
+private[internal] final class TaskRestartCallback(
   fiber: TaskFiber[_],
   scheduler: Scheduler,
+  boundaryAfter: AsyncSimple.BoundaryPolicy
 ) extends Callback[Throwable, Any] {
-  self =>
-
-  // Set for the current async node in `start`, then consumed and reset by its signal.
-  private[this] var boundaryAfterPolicy: BoundaryPolicy = AsyncTrampolined
-
-  // Written immediately before scheduling result delivery. The scheduled runnable
-  // clears the payload before re-entering the fiber, both for GC and safe reuse.
-  private[this] var transportedHasValue: Boolean = false
-  private[this] var transportedValue: Any = _
-  private[this] var transportedError: Throwable = _
-
-  // Carries registration across a boundary-before transition. It is cleared before
-  // invoking registration because a synchronous callback can re-enter this object.
-  private[this] var task: Task.AsyncSimple[_] = _
-
-  // Cached because one fiber can cross many asynchronous boundaries in its lifetime.
-  private[this] var _startWithAsyncShifted: Runnable = _
-  private[this] var _startWithAsyncTrampolined: Runnable = _
-  private[this] var _signalValueShiftedRef: Runnable = _
-  private[this] var _signalValueTrampolinedRef: TrampolinedRunnable = _
-
-  final def start(task: Task.AsyncSimple[_]): Unit = {
-    this.boundaryAfterPolicy = task.boundaryAfter
-    if (task.boundaryBefore == Task.AsyncSimple.Synchronous) {
-      safeStart(task)
-    } else {
-      // Batching schedulers distinguish a plain `Runnable` wrapper from a directly
-      // scheduled `TrampolinedRunnable`. Keep this mapping together with the boundary
-      // constants interpreted here.
-      this.task = task
-      if (task.boundaryBefore == AsyncTrampolined)
-        scheduler.execute(startWithAsyncShifted())
-      else
-        scheduler.execute(startWithAsyncTrampolined())
-    }
-  }
-
-  private final def onSuccessOrError(hasValue: Boolean, value: Any, error: Throwable): Unit = {
-    val boundaryAfterPolicy = self.boundaryAfterPolicy
-    // Reset before publishing the result because the fiber reuses this callback for
-    // its next `AsyncSimple` node.
-    self.boundaryAfterPolicy = AsyncTrampolined
-
-    if (boundaryAfterPolicy == Task.AsyncSimple.Synchronous) {
-      if (hasValue)
-        fiber.continueWithRef(Task.Pure(value))
-      else
-        fiber.continueWithRef(Task.RaiseError(error))
-    } else {
-      // Result transport is separated from run-loop resumption. The boundary policy
-      // selects how work is submitted; the Scheduler still decides where it runs.
-      self.transportedHasValue = hasValue
-      self.transportedValue = value
-      self.transportedError = error
-      if (boundaryAfterPolicy == Task.AsyncSimple.AsyncShifted)
-        scheduler.execute(signalValueShifted())
-      else
-        scheduler.execute(signalValueTrampolined())
-    }
-  }
-  override final def onSuccess(value: Any): Unit =
-    onSuccessOrError(hasValue = true, value, null)
-
-  override final def onError(e: Throwable): Unit =
-    onSuccessOrError(hasValue = false, null, e)
-
-  private final def safeStart(task: Task.AsyncSimple[_]): Unit =
-    try {
-      task.register(scheduler, this)
-    } catch {
-      case ex if NonFatal(ex) =>
-        // Public async constructors normally turn registration throws into effect
-        // errors. Any NonFatal escaping this lower registration boundary is reported
-        // as an internal `AsyncSimple` contract violation. This catch does not
-        // synthesize another callback signal.
+  def start(task: AsyncSimple[_]): Unit =
+    try task.register(scheduler, this)
+    catch {
+      case NonFatal(error) =>
         scheduler.reportFailure(
           new APIContractViolationException(
-            "IO.AsyncSimple#start threw an unexpected exception, this is most likely a library bug",
-            ex
+            "Task.AsyncSimple#start threw an unexpected exception, this is most likely a library bug",
+            error
           )
         )
     }
 
-  private final def signalValueShifted(): Runnable = {
-    if (_signalValueShiftedRef == null) {
-      val trampolined = signalValueTrampolined()
-      _signalValueShiftedRef = () => trampolined.run()
-    }
-    _signalValueShiftedRef
-  }
+  override def onSuccess(value: Any): Unit =
+    signal(Task.Pure(value))
 
-  private final def signalValueTrampolined(): TrampolinedRunnable = {
-    if (_signalValueTrampolinedRef == null) {
-      _signalValueTrampolinedRef = new SignalValueTrampolinedRunnable
-    }
-    _signalValueTrampolinedRef
-  }
+  override def onError(error: Throwable): Unit =
+    signal(Task.RaiseError(error))
 
-  private final class SignalValueTrampolinedRunnable extends TrampolinedRunnable {
-    override def run(): Unit =
-      if (self.transportedHasValue) {
-        // Clear transport state before resuming because resumption may reuse it.
-        val value = self.transportedValue
-        self.transportedHasValue = false
-        self.transportedValue = null
-        fiber.continueWithRef(Task.Pure(value))
-      } else {
-        val error = self.transportedError
-        self.transportedError = null
-        fiber.continueWithRef(Task.RaiseError(error))
+  private def signal(result: Task[Any]): Unit =
+    if (boundaryAfter == AsyncSimple.Synchronous)
+      fiber.continueWithRef(result, this)
+    else {
+      val delivery = new TrampolinedRunnable {
+        def run(): Unit = fiber.continueWithRef(result, TaskRestartCallback.this)
       }
-  }
-
-  private final def startWithAsyncTrampolined(): Runnable = {
-    if (_startWithAsyncTrampolined == null)
-      _startWithAsyncTrampolined = new StartTrampolinedRunnable
-    _startWithAsyncTrampolined
-  }
-
-  private final def startWithAsyncShifted(): Runnable = {
-    if (_startWithAsyncShifted == null) {
-      val runnable = startWithAsyncTrampolined()
-      _startWithAsyncShifted = () => runnable.run()
+      if (boundaryAfter == AsyncSimple.AsyncShifted)
+        scheduler.execute(() => delivery.run())
+      else
+        scheduler.execute(delivery)
     }
-    _startWithAsyncShifted
-  }
-
-  private final class StartTrampolinedRunnable extends TrampolinedRunnable {
-    override def run(): Unit = {
-      val task = self.task
-      self.task = null
-      safeStart(task)
-    }
-  }
 }

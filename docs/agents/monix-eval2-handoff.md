@@ -2,6 +2,159 @@
 
 Date: 2026-08-23
 
+## Review follow-up (2026-11-04)
+
+## Standards
+
+No outstanding standards findings were identified. The review used repository rules
+in `AGENTS.md` and `CONTRIBUTING.md`, plus the code-reviewing skill's smell baseline.
+
+## Spec
+
+Cats Effect pins in eval2 moved from 3.7.0 to 3.7.1 in `build.sbt:711-715`. The shared
+Cats Effect 2 dependency remains unchanged. The Task algebra also gained dedicated
+`Delay` and `Defer` nodes in `Task.scala:88-92,279-287`. All seven findings below were
+addressed and verified.
+
+### 1. [High] Stale async callbacks could resume cancellation finalizers
+
+**Location:** `monix-eval2/shared/src/main/scala/monix/eval/internal/TaskFiber.scala:147-159,307-325`; `monix-eval2/shared/src/main/scala/monix/eval/internal/TaskRestartCallback.scala:27-67`
+
+An async callback from an abandoned suspension could publish into a later suspended
+cancellation finalizer, causing premature completion or corrupting its result. Each
+suspension now has a distinct callback identity in the same atomic `Active` snapshot.
+The fiber rejects stale callback identities, and registration runs under run-loop
+ownership. **Status: addressed and verified.**
+
+### 2. [High] `evalOn` could lose self-cancellation and `Poll` identity
+
+**Location:** `monix-eval2/shared/src/main/scala/monix/eval/internal/TaskFiber.scala:269-298`
+
+The child-based shift could make cancellation or a `Poll` token apply to a different
+fiber. `evalOn` now shifts the same fiber and restores its scheduler after success,
+error, or cancellation. **Status: addressed and verified.**
+
+### 3. [High] Sequential `racePair` cancellation could deadlock
+
+**Location:** `monix-eval2/shared/src/main/scala/monix/eval/instances/CatsAsyncForTask.scala:121-126`
+
+If child A's cancellation finalizer waits for child B to be canceled, awaiting A's
+cancellation before requesting B's cancellation can deadlock. The implementation now
+requests cancellation of both children concurrently and awaits both. **Status:
+addressed and verified.**
+
+### 4. [Medium] A canceled `Cont.get` prevented a later legal get
+
+**Location:** `monix-eval2/shared/src/main/scala/monix/eval/internal/TaskCallbackIndirection.scala:61-70`; `monix-eval2/shared/src/main/scala/monix/eval/internal/TaskFiber.scala:162-167`
+
+Cancellation left the continuation state in `Waiting`, so a later sequential `get`
+failed registration. The cancellation cleanup now resets `Waiting` to `Init`; an
+already delivered result remains available to the next get. **Status: addressed and
+verified.**
+
+### 5. [Medium] Unbounded synchronous work could starve other fibers
+
+**Location:** `monix-eval2/shared/src/main/scala/monix/eval/internal/TaskFiber.scala:328-389`
+
+On constrained schedulers, a computation that did not suspend could delay queued fibers
+and cancelers indefinitely. The run loop now yields after a bounded batch based on the
+scheduler's execution model. **Status: addressed and verified.**
+
+### 6. [Medium] Popped continuation frames retained captured references
+
+**Location:** `monix-eval2/shared/src/main/scala/monix/eval/internal/TaskCallStack.scala:42-57`; `monix-eval2/shared/src/main/scala/monix/eval/internal/TaskFiber.scala:460-471`
+
+Popped frames could retain captured objects until the array slots were overwritten or
+the fiber was collected. The stack now clears popped slots, and completion clears the
+fiber's interpreter references. **Status: addressed and verified.**
+
+### 7. [Medium] `evalOn` did not preserve a plain execution context's identity
+
+**Location:** `monix-eval2/shared/src/main/scala/monix/eval/internal/TaskFiber.scala:54-57,102-103,256-298`
+
+For a plain `ExecutionContext`, `evalOnLocalPure` requires
+`executionContext` to return the exact supplied context. The scheduler adapter was
+reported instead, and child fibers started inside `evalOn` inherited that wrapper. The
+implementation now retains the original context alongside its scheduler adapter and
+passes it to child fibers. **Status: addressed and verified.**
+
+The selected callback-boundary optimization makes the default `AsyncSimple`
+before/after policies `Synchronous`. Registration already runs under fiber ownership,
+and atomic callback publication prevents reentrant interpretation. A callback arriving
+after the fiber becomes inactive still schedules it on its owning scheduler. Explicit
+boundary policies remain available (`Task.scala:181-192`).
+
+Deterministic regression cases are in
+`monix-eval2/shared/src/test/scala/monix/eval/TaskContRegressionSuite.scala`,
+`monix-eval2/shared/src/test/scala/monix/eval/TaskRuntimeRegressionSuite.scala`, and
+`monix-eval2/shared/src/test/scala/monix/eval/internal/TaskCallStackSuite.scala`.
+JVM race regression cases are in
+`monix-eval2/jvm/src/test/scala/monix/eval/TaskCallbackSafetyJVMSuite.scala`.
+
+Final verification used these commands:
+
+| Command | Result |
+| --- | --- |
+| `sbt --client '+eval2JVM/test'` | 154/154 passed on each of Scala 2.13.18 and 3.3.7 |
+| `sbt --client '+eval2JS/test'` | 147/147 passed on each of Scala 2.13.18 and 3.3.7 |
+| `sbt --client scalafmtCheckAll` | Passed |
+| `git diff --check` | Passed |
+
+The temporary benchmark harness was removed from the build, the normal build was
+restored, and the final normal-source compile passed. No `Eval2PerfHarness` class
+remains in the project compile output.
+
+### Exploratory allocation measurements
+
+Measurements used 10,000 operations, at least 2 seconds and 15 warmups, 5 samples,
+Scala 2.13.18, JDK 21, and `TestScheduler`. The HEAD baseline was
+`a01a0de3a54217152c616343cb7fa0ea308829c6` plus only the temporary intentional
+discarded-token binding.
+
+| Workload | Median B/op, baseline → final |
+| --- | ---: |
+| pure / flatMap / delay | 188.27 → 151.03 |
+| synchronous public async | 247.60 → 251.92 |
+| start / join | 1929.65 → 1850.20 |
+| same-scheduler `evalOn` | 2377.65 → 116.49 |
+
+These are exploratory single-thread `TestScheduler` allocation results, not JMH or
+production-throughput measurements. Timing variance across profiles is substantial,
+so these results do not support a general speedup claim.
+
+### Remaining opportunities
+
+Canceled join listeners remain retained until the target fiber completes
+(`TaskFiber.scala:400-403`), and the losing `racePair` observer remains joined after a
+winner (`CatsAsyncForTask.scala:116-118`). These are documented existing behaviors, not
+new regressions. Real-executor and JMH benchmarks are still needed to measure
+performance under production-like scheduling and load.
+
+## Spec sources
+
+- User requirements from this session: Cats Effect 3 compatibility, performance,
+  non-blocking concurrency without `synchronized`, race safety, and maintainability;
+  plus the request to use the latest Cats Effect 3.x dependency. Read.
+- `docs/agents/monix-eval2-handoff.md` original 2026-08-23 handoff. Read.
+- Cats Effect 3.7.1 [`Async.scala`](https://github.com/typelevel/cats-effect/blob/v3.7.1/kernel/shared/src/main/scala/cats/effect/kernel/Async.scala),
+  [`Cont.scala`](https://github.com/typelevel/cats-effect/blob/v3.7.1/kernel/shared/src/main/scala/cats/effect/kernel/Cont.scala),
+  [`IOFiber.scala`](https://github.com/typelevel/cats-effect/blob/v3.7.1/core/shared/src/main/scala/cats/effect/IOFiber.scala),
+  and [`AsyncLaws.scala`](https://github.com/typelevel/cats-effect/blob/v3.7.1/laws/shared/src/main/scala/cats/effect/laws/AsyncLaws.scala). Read.
+- Cats Effect [v3.7.1 release](https://github.com/typelevel/cats-effect/releases/tag/v3.7.1)
+  and Maven Central metadata for
+  [`cats-effect-kernel_2.13`](https://repo.maven.apache.org/maven2/org/typelevel/cats-effect-kernel_2.13/maven-metadata.xml),
+  which report 3.7.1 as the latest stable release. Read.
+
+The URLs in the historical handoff below remain a reference inventory; they were not
+re-reviewed for this follow-up. No external issue or pull request was supplied.
+
+Review summary: 0 outstanding standards findings; 7 spec findings addressed and
+verified (3 High, 4 Medium). This is not an exhaustive proof of race freedom. The
+historical verification table below applies only to the original handoff snapshot.
+
+> **Historical snapshot (2026-08-23):** The original handoff content starts below and
+> is retained as recorded on that date.
+
 ## Scope
 
 `monix-eval2` is an experimental `Task` implementation for Cats Effect 3. The main sbt

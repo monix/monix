@@ -22,7 +22,7 @@ import java.util.concurrent.{ CountDownLatch, TimeUnit }
 
 import minitest.SimpleTestSuite
 import monix.execution.schedulers.SchedulerService
-import monix.execution.{ Callback, Scheduler, TestUtils }
+import monix.execution.{ Callback, Scheduler, TestUtils, UncaughtExceptionReporter }
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -226,6 +226,173 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
           assert(outcome.isSuccess)
           assertEquals(finalizerRuns.intValue(), 0)
         }
+      }
+    } finally {
+      scheduler.shutdown()
+      assert(scheduler.awaitTermination(10.seconds), "io.awaitTermination")
+    }
+  }
+
+  test("original async completion can race a suspended cancellation finalizer") {
+    val reportedFailure = new AtomicReference[Throwable]()
+    implicit val scheduler: SchedulerService =
+      Scheduler.io(
+        "io-finalizer-callback-race",
+        reporter = UncaughtExceptionReporter(error => reportedFailure.set(error))
+      )
+
+    try {
+      for (_ <- 0 until RETRIES) {
+        val originalRegistered = new CountDownLatch(1)
+        val finalizerRegistered = new CountDownLatch(1)
+        val originalResume = new AtomicReference[Callback[Throwable, Int]]()
+        val finalizerResume = new AtomicReference[Callback[Throwable, Unit]]()
+        val finalizerContinuations = new AtomicInteger(0)
+
+        val fiber = Await.result(
+          Task
+            .async[Int] { callback =>
+              originalResume.set(callback)
+              originalRegistered.countDown()
+            }
+            .onCancel(
+              Task
+                .async[Unit] { callback =>
+                  finalizerResume.set(callback)
+                  finalizerRegistered.countDown()
+                }
+                .flatMap(_ => Task.delay { finalizerContinuations.incrementAndGet(); () })
+            )
+            .start
+            .unsafeRunToFuture(),
+          10.seconds
+        )
+
+        await(originalRegistered)
+
+        val cancelCompleted = new CountDownLatch(1)
+        val cancelError = new AtomicReference[Throwable]()
+        fiber.cancel.unsafeRunToFuture().onComplete {
+          case Success(_) =>
+            cancelCompleted.countDown()
+          case Failure(error) =>
+            cancelError.set(error)
+            cancelCompleted.countDown()
+        }
+
+        await(finalizerRegistered)
+
+        val racersReady = new CountDownLatch(2)
+        val releaseRacers = new CountDownLatch(1)
+        val racersFinished = new CountDownLatch(2)
+        val acceptedOriginal = new AtomicInteger(0)
+        val acceptedFinalizer = new AtomicInteger(0)
+
+        scheduler.execute { () =>
+          racersReady.countDown()
+          await(releaseRacers)
+          try {
+            if (originalResume.get().tryOnSuccess(42)) {
+              val _ = acceptedOriginal.incrementAndGet()
+            }
+          } finally {
+            racersFinished.countDown()
+          }
+        }
+        scheduler.execute { () =>
+          racersReady.countDown()
+          await(releaseRacers)
+          try {
+            if (finalizerResume.get().tryOnSuccess(())) {
+              val _ = acceptedFinalizer.incrementAndGet()
+            }
+          } finally {
+            racersFinished.countDown()
+          }
+        }
+
+        await(racersReady)
+        releaseRacers.countDown()
+        await(racersFinished)
+        await(cancelCompleted)
+
+        assertEquals(acceptedOriginal.get(), 1)
+        assertEquals(acceptedFinalizer.get(), 1)
+        assertEquals(cancelError.get(), null)
+        assertEquals(finalizerContinuations.get(), 1)
+        assertEquals(reportedFailure.get(), null)
+      }
+    } finally {
+      scheduler.shutdown()
+      assert(scheduler.awaitTermination(10.seconds), "io.awaitTermination")
+    }
+  }
+
+  test("original async completion leaves a cancellation finalizer pending") {
+    val reportedFailure = new AtomicReference[Throwable]()
+    implicit val scheduler: SchedulerService =
+      Scheduler.singleThread(
+        "io-finalizer-callback-pending",
+        reporter = UncaughtExceptionReporter(error => reportedFailure.set(error))
+      )
+
+    try {
+      for (_ <- 0 until RETRIES) {
+        val originalRegistered = new CountDownLatch(1)
+        val finalizerRegistered = new CountDownLatch(1)
+        val originalResume = new AtomicReference[Callback[Throwable, Int]]()
+        val finalizerResume = new AtomicReference[Callback[Throwable, Unit]]()
+        val finalizerContinuations = new AtomicInteger(0)
+
+        val fiber = Await.result(
+          Task
+            .async[Int] { callback =>
+              originalResume.set(callback)
+              originalRegistered.countDown()
+            }
+            .onCancel(
+              Task
+                .async[Unit] { callback =>
+                  finalizerResume.set(callback)
+                  finalizerRegistered.countDown()
+                }
+                .flatMap(_ => Task.delay { finalizerContinuations.incrementAndGet(); () })
+            )
+            .start
+            .unsafeRunToFuture(),
+          10.seconds
+        )
+
+        await(originalRegistered)
+
+        val cancelCompleted = new CountDownLatch(1)
+        val cancelError = new AtomicReference[Throwable]()
+        fiber.cancel.unsafeRunToFuture().onComplete {
+          case Success(_) =>
+            cancelCompleted.countDown()
+          case Failure(error) =>
+            cancelError.set(error)
+            cancelCompleted.countDown()
+        }
+
+        await(finalizerRegistered)
+        assert(originalResume.get().tryOnSuccess(42))
+
+        // The signal is asynchronous. Two scheduler turns ensure its run-loop
+        // continuation has run before checking that the finalizer is still waiting.
+        val originalProcessed = new CountDownLatch(1)
+        scheduler.execute(() => scheduler.execute(() => originalProcessed.countDown()))
+        await(originalProcessed)
+
+        assertEquals(finalizerContinuations.get(), 0)
+        assertEquals(cancelCompleted.getCount, 1L)
+
+        assert(finalizerResume.get().tryOnSuccess(()))
+        await(cancelCompleted)
+
+        assertEquals(cancelError.get(), null)
+        assertEquals(finalizerContinuations.get(), 1)
+        assertEquals(reportedFailure.get(), null)
       }
     } finally {
       scheduler.shutdown()

@@ -51,11 +51,21 @@ final class TaskCallbackIndirection[E, A] extends Callback[E, A] {
       case Failure(e) =>
         cb.onError(e)
       case Waiting(_) =>
-        // `get` is a one-shot continuation; two simultaneous waiters would make
-        // ownership of the single result ambiguous.
+        // Only one `get` may wait at a time. A canceled wait clears this state
+        // before a later `get` is evaluated.
         throw new APIContractViolationException(
           s"${getClass.getSimpleName} was already registered"
         )
+    }
+
+  @tailrec
+  def clear(): Unit =
+    atomic.get() match {
+      case current @ Waiting(_) =>
+        if (!atomic.compareAndSet(current, Init))
+          clear()
+      case Init | Success(_) | Failure(_) =>
+        ()
     }
 
   @tailrec
