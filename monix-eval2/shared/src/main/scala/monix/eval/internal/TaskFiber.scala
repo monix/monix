@@ -21,7 +21,7 @@ package internal
 import cats.effect.kernel.{ Fiber, Outcome, Poll }
 import monix.eval.Task.RaiseError
 import monix.eval.internal.TaskFiber.*
-import monix.execution.{ Callback, Scheduler }
+import monix.execution.{ Callback, ExecutionModel, Scheduler }
 import monix.execution.atomic.Atomic
 import monix.execution.schedulers.TrampolineExecutionContext
 import java.util.concurrent.RejectedExecutionException
@@ -54,9 +54,6 @@ private[eval] final class TaskFiber[A] private[eval] (
   private[this] var executionContext: ExecutionContext =
     if (initExecutionContext eq null) initialScheduler else initExecutionContext
   private[this] var reschedule = false
-  private[this] val runLoop = new Runnable {
-    def run(): Unit = runOwned()
-  }
 
   // The run-loop owns mask updates. An inactive canceler may read the depth only after
   // its CAS has acquired the scheduling claim.
@@ -251,14 +248,10 @@ private[eval] final class TaskFiber[A] private[eval] (
       Callback.empty(scheduler),
       initExecutionContext = executionContext
     )(scheduler)
-    try {
-      scheduler.execute(child)
-      currentRef = Task.Pure(child)
-    } catch {
-      case error: RejectedExecutionException =>
-        currentRef = Task.RaiseError(error)
-    }
-    Continue
+    val callback = new TaskRestartCallback(this, scheduler)
+    installCallback(callback)
+    submit(scheduler, child, child, callback)
+    Break
   }
 
   override def visit(ref: Task.EvalOn[Any]): Control = {
@@ -285,11 +278,15 @@ private[eval] final class TaskFiber[A] private[eval] (
   }
 
   override def visit(ref: Task.ResumeOn[Any]): Control = {
-    scheduler = ref.scheduler
-    executionContext = ref.executionContext
     currentRef = ref.source
-    reschedule = true
-    Break
+    if ((scheduler eq ref.scheduler) && (executionContext eq ref.executionContext))
+      Continue
+    else {
+      scheduler = ref.scheduler
+      executionContext = ref.executionContext
+      reschedule = true
+      Break
+    }
   }
 
   /** Publishes a callback result without allowing concurrent run-loop executions.
@@ -316,21 +313,21 @@ private[eval] final class TaskFiber[A] private[eval] (
 
     // A scheduler may execute inline or through a trampoline, so submission happens
     // after the state transition rather than inside its CAS retry loop.
-    if (publish())
-      scheduler.execute(this)
+    if (publish()) {
+      val target = scheduler
+      submit(target, this, (), Callback.empty(target))
+    }
   }
 
   override def run(): Unit =
-    // Enter only after scheduler dispatch, preserving its thread selection. Inline
-    // schedulers can resubmit this fiber without nesting interpreter invocations.
-    TrampolineExecutionContext.immediate.execute(runLoop)
+    runLoop(scheduler.executionModel)
 
-  private def runOwned(): Unit = {
+  private def runLoop(executionModel: ExecutionModel): Unit = {
     // The initial run and explicit scheduler yields already own `currentRef`. Async
     // wake-ups first claim the callback or cancellation published in `stateRef`.
     val runScheduler = scheduler
     val runContext = executionContext
-    var remaining = runScheduler.executionModel.recommendedBatchSize
+    var remainingSteps = executionModel.recommendedBatchSize
     var runAgain =
       if (resumeCurrent) {
         resumeCurrent = false
@@ -342,8 +339,8 @@ private[eval] final class TaskFiber[A] private[eval] (
     while (runAgain) {
       var continue = Continue
       var active = true
-      while (continue && active && remaining > 0) {
-        remaining -= 1
+      while (continue && active && remainingSteps > 0) {
+        remainingSteps -= 1
         // One atomic read covers both completion and cancellation for this dispatch.
         // If cancellation wins before a child first runs, the child does not enter an
         // `OnCancel` or `Uncancelable` node whose dynamic state is not installed yet.
@@ -370,32 +367,47 @@ private[eval] final class TaskFiber[A] private[eval] (
       }
       // Bound synchronous work as well as async work. A queued canceler or sibling
       // must get a turn even when this task never suspends by itself.
-      if (continue && active && remaining == 0)
+      if (continue && active && remainingSteps == 0)
         reschedule = true
       if (reschedule) {
         reschedule = false
         resumeCurrent = true
-        try {
-          scheduler.execute(this)
-          return
-        } catch {
-          case error: RejectedExecutionException =>
-            // Rejection means no run was accepted, so this invocation still owns
-            // the interpreter. Propagate the failure from the context which is
-            // actually running, allowing enclosing handlers and finalizers to run.
-            // If its own queue rejected the yield, finish recovery in this run;
-            // retrying that queue at each batch could replace cleanup with errors.
-            remaining =
-              if (scheduler eq runScheduler) Int.MaxValue
-              else runScheduler.executionModel.recommendedBatchSize
-            scheduler = runScheduler
-            executionContext = runContext
-            resumeCurrent = false
-            currentRef = Task.RaiseError(error)
-        }
+        yieldToScheduler(runScheduler, runContext)
+        return
       } else
         runAgain = selectNextRun()
     }
+  }
+
+  private def yieldToScheduler(origin: Scheduler, originContext: ExecutionContext): Unit = {
+    val target = scheduler
+    // Trampoline submissions, not task bodies: an inline execution context may
+    // install scoped state around Runnable.run which user code must still observe.
+    // A queued submission retains the scheduling claim until the target accepts it.
+    TrampolineExecutionContext.immediate.execute(new Runnable {
+      def run(): Unit =
+        try target.execute(TaskFiber.this)
+        catch {
+          case error: RejectedExecutionException =>
+            // Rejection means no run was accepted. This submission still owns the
+            // interpreter, including when it outlives the run which queued it.
+            scheduler = origin
+            executionContext = originContext
+            currentRef = Task.RaiseError(error)
+            resumeCurrent = true
+            if (target eq origin)
+              runLoop(ExecutionModel.SynchronousExecution)
+            else {
+              // Re-enter the origin's execution scope for handlers and finalizers.
+              // If that queue also rejects, finish recovery on the current thread
+              // without repeatedly replacing cleanup work with submission errors.
+              try origin.execute(TaskFiber.this)
+              catch {
+                case _: RejectedExecutionException => runLoop(ExecutionModel.SynchronousExecution)
+              }
+            }
+        }
+    })
   }
 
   /** Publishes cancellation atomically and waits for this fiber's outcome.
@@ -404,7 +416,7 @@ private[eval] final class TaskFiber[A] private[eval] (
     */
   override def cancel: Task[Unit] =
     Task.uncancelable { _ =>
-      Task.delay(requestCancel()).flatMap(_ => join.map(_ => ()))
+      Task.AsyncSimple[Unit]((_, callback) => requestCancel(callback)).flatMap(_ => join.map(_ => ()))
     }
 
   /** Suspends until the atomic result state is terminal. The CAS loop in
@@ -506,7 +518,7 @@ private[eval] final class TaskFiber[A] private[eval] (
     loop()
   }
 
-  private def requestCancel(): Unit = {
+  private def requestCancel(callback: Callback[Throwable, Unit]): Unit = {
     @tailrec def releaseMaskedClaim(): Boolean =
       stateRef.get() match {
         case Finished(_) =>
@@ -551,7 +563,9 @@ private[eval] final class TaskFiber[A] private[eval] (
     // Submission stays outside the state transition because a scheduler may execute
     // inline or through a trampoline.
     if (publish())
-      scheduler.execute(this)
+      submit(scheduler, this, (), callback)
+    else
+      callback.onSuccess(())
   }
 
   /** Selects work published while the run-loop was active.
@@ -611,6 +625,27 @@ object TaskFiber {
   private type Control = Boolean
   private final val Continue: Control = true
   private final val Break: Control = false
+
+  /** Acknowledges submission separately from completion of the submitted fiber.
+    * The callback also receives rejection when a trampoline deferred the attempt.
+    */
+  private def submit[A](
+    scheduler: Scheduler,
+    runnable: Runnable,
+    accepted: A,
+    callback: Callback[Throwable, A]
+  ): Unit =
+    TrampolineExecutionContext.immediate.execute(new Runnable {
+      def run(): Unit = {
+        try scheduler.execute(runnable)
+        catch {
+          case error: RejectedExecutionException =>
+            callback.onError(error)
+            return
+        }
+        callback.onSuccess(accepted)
+      }
+    })
 
   /** Immutable state shared across the run-loop, async callbacks, cancelers, and
     * joiners.

@@ -267,6 +267,84 @@ object TaskCancellationAdversarialSuite extends SimpleTestSuite {
     assert(finalizerContext eq parentScheduler)
   }
 
+  test("target and origin resubmission rejection preserves the target error and finalizer") {
+    val sourceRejection = new RejectedExecutionException("origin rejected resubmission")
+    val targetRejection = new RejectedExecutionException("target rejected evalOn")
+    var sourceSubmissions = 0
+    var finalizerRuns = 0
+    var bodyRuns = 0
+    val sourceContext = new ExecutionContext {
+      override def execute(runnable: Runnable): Unit = {
+        sourceSubmissions += 1
+        if (sourceSubmissions == 1) runnable.run()
+        else throw sourceRejection
+      }
+
+      override def reportFailure(cause: Throwable): Unit = ()
+    }
+    val targetContext = new ExecutionContext {
+      override def execute(runnable: Runnable): Unit = throw targetRejection
+
+      override def reportFailure(cause: Throwable): Unit = ()
+    }
+    implicit val source: Scheduler = Scheduler(sourceContext, ExecutionModel.BatchedExecution(1024))
+    val targetScheduler = Scheduler(targetContext, ExecutionModel.SynchronousExecution)
+    val F = Async[Task]
+    val guarded = F.guarantee(
+      F.evalOn(Task.delay { bodyRuns += 1 }, targetScheduler),
+      F.executionContext.flatMap { _ =>
+        Task.delay { finalizerRuns += 1 }
+      }
+    )
+    val result = guarded.unsafeRunToFuture()
+
+    assert(
+      result.value.exists {
+        case Failure(error) => error eq targetRejection
+        case _ => false
+      },
+      s"result=${result.value}, sourceSubmissions=$sourceSubmissions"
+    )
+    assertEquals(sourceSubmissions, 2)
+    assertEquals(bodyRuns, 0)
+    assertEquals(finalizerRuns, 1)
+  }
+
+  test("a rejected cancellation submission reports its error without running the finalizer") {
+    implicit val source: TestScheduler = TestScheduler(ExecutionModel.AlwaysAsyncExecution)
+    val targetQueue = TestScheduler(ExecutionModel.AlwaysAsyncExecution)
+    val rejection = new RejectedExecutionException("target stopped before cancellation")
+    var rejectTarget = false
+    var registered = false
+    var finalizerRuns = 0
+    val targetContext = new ExecutionContext {
+      override def execute(runnable: Runnable): Unit =
+        if (rejectTarget) throw rejection
+        else targetQueue.execute(runnable)
+
+      override def reportFailure(cause: Throwable): Unit = targetQueue.reportFailure(cause)
+    }
+    val targetScheduler = Scheduler(targetContext, ExecutionModel.AlwaysAsyncExecution)
+    val F = Async[Task]
+    val suspended = Task.async[Unit] { _ => registered = true }
+      .onCancel(Task.delay { finalizerRuns += 1 })
+    val started = F.evalOn(suspended.start, targetScheduler).unsafeRunToFuture()
+    drainBoth(source, targetQueue)
+
+    assert(registered)
+    assert(started.value.exists(_.isSuccess))
+    val fiber = started.value.get.get
+    rejectTarget = true
+    val canceled = fiber.cancel.unsafeRunToFuture()
+    drainBoth(source, targetQueue)
+
+    assert(canceled.value.exists {
+      case Failure(error) => error eq rejection
+      case _ => false
+    })
+    assertEquals(finalizerRuns, 0)
+  }
+
   private def drain(scheduler: TestScheduler, maxSteps: Int = 256): Unit = {
     var steps = 0
     var hasWork = true

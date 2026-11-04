@@ -18,12 +18,20 @@
 package monix.eval
 
 import cats.effect.kernel.Async
-import java.util.concurrent.{ ConcurrentLinkedQueue, CountDownLatch, ExecutorService, Executors, ThreadFactory, TimeUnit }
+import java.util.concurrent.{
+  ConcurrentLinkedQueue,
+  CountDownLatch,
+  ExecutorService,
+  Executors,
+  ThreadFactory,
+  TimeUnit
+}
 import java.util.concurrent.atomic.AtomicReference
 import minitest.SimpleTestSuite
 import monix.execution.{ Callback, ExecutionModel, Scheduler }
 import scala.concurrent.{ Await, ExecutionContext }
 import scala.concurrent.duration._
+import scala.util.Failure
 
 object TaskAsyncResumeThreadJVMSuite extends SimpleTestSuite {
   test("a foreign async callback resumes on the evalOn scheduler") {
@@ -34,17 +42,10 @@ object TaskAsyncResumeThreadJVMSuite extends SimpleTestSuite {
     val targetExecutor = Executors.newSingleThreadExecutor(threadFactory("eval2-target", targetThread))
     val producerExecutor = Executors.newSingleThreadExecutor(threadFactory("eval2-producer", producerThread))
     val reportedErrors = new ConcurrentLinkedQueue[Throwable]()
-    def executorContext(executor: ExecutorService): ExecutionContext =
-      new ExecutionContext {
-        override def execute(runnable: Runnable): Unit = executor.execute(runnable)
-
-        override def reportFailure(cause: Throwable): Unit = {
-          val _ = reportedErrors.add(cause)
-        }
-      }
     implicit val source: Scheduler =
-      Scheduler(executorContext(sourceExecutor), ExecutionModel.AlwaysAsyncExecution)
-    val targetScheduler = Scheduler(executorContext(targetExecutor), ExecutionModel.BatchedExecution(1024))
+      Scheduler(executorContext(sourceExecutor, reportedErrors), ExecutionModel.AlwaysAsyncExecution)
+    val targetScheduler =
+      Scheduler(executorContext(targetExecutor, reportedErrors), ExecutionModel.BatchedExecution(1024))
     val registered = new CountDownLatch(1)
     val callback = new AtomicReference[Callback[Throwable, Int]]()
     val resumedThread = new AtomicReference[Thread]()
@@ -99,6 +100,65 @@ object TaskAsyncResumeThreadJVMSuite extends SimpleTestSuite {
     }
   }
 
+  test("evalOn observes target thread-local state and restores it after success") {
+    val local = new ThreadLocal[String]()
+    val reportedErrors = new ConcurrentLinkedQueue[Throwable]()
+    implicit val source: Scheduler =
+      Scheduler(inlineContext(reportedErrors), ExecutionModel.BatchedExecution(1024))
+    val targetScheduler = Scheduler(threadLocalContext(local, reportedErrors), ExecutionModel.SynchronousExecution)
+    local.set("source")
+    try {
+      val result = Async[Task].evalOn(Task.delay(local.get()), targetScheduler).unsafeRunToFuture()
+      val observed = Await.result(result, 5.seconds)
+
+      assertEquals(observed, "target")
+      assertEquals(local.get(), "source")
+      assert(reportedErrors.isEmpty)
+    } finally {
+      local.remove()
+    }
+  }
+
+  test("evalOn restores source thread-local state after an error finalizer") {
+    val local = new ThreadLocal[String]()
+    val reportedErrors = new ConcurrentLinkedQueue[Throwable]()
+    implicit val source: Scheduler =
+      Scheduler(inlineContext(reportedErrors), ExecutionModel.BatchedExecution(1024))
+    val targetScheduler = Scheduler(threadLocalContext(local, reportedErrors), ExecutionModel.SynchronousExecution)
+    var finalizerRuns = 0
+    val finalizerValue = new AtomicReference[String]()
+    val finalizerContext = new AtomicReference[ExecutionContext]()
+    val failure = new RuntimeException("evalOn body failure")
+    val F = Async[Task]
+    val guarded = F.guarantee(
+      Task.raiseError[Unit](failure),
+      F.executionContext.flatMap { ec =>
+        Task.delay {
+          finalizerValue.set(local.get())
+          finalizerContext.set(ec)
+          finalizerRuns += 1
+        }
+      }
+    )
+    local.set("source")
+    try {
+      val result = F.evalOn(guarded, targetScheduler).unsafeRunToFuture()
+      val _ = Await.ready(result, 5.seconds)
+
+      assert(result.value.exists {
+        case Failure(error) => error eq failure
+        case _ => false
+      })
+      assertEquals(finalizerValue.get(), "target")
+      assert(finalizerContext.get() eq targetScheduler)
+      assertEquals(finalizerRuns, 1)
+      assertEquals(local.get(), "source")
+      assert(reportedErrors.isEmpty)
+    } finally {
+      local.remove()
+    }
+  }
+
   private def threadFactory(name: String, ref: AtomicReference[Thread]): ThreadFactory =
     new ThreadFactory {
       override def newThread(runnable: Runnable): Thread = {
@@ -108,4 +168,46 @@ object TaskAsyncResumeThreadJVMSuite extends SimpleTestSuite {
         thread
       }
     }
+
+  private def executorContext(
+    executor: ExecutorService,
+    reportedErrors: ConcurrentLinkedQueue[Throwable]
+  ): ExecutionContext =
+    new ExecutionContext {
+      override def execute(runnable: Runnable): Unit = executor.execute(runnable)
+
+      override def reportFailure(cause: Throwable): Unit = {
+        val _ = reportedErrors.add(cause)
+      }
+    }
+
+  private def inlineContext(reportedErrors: ConcurrentLinkedQueue[Throwable]): ExecutionContext =
+    new ExecutionContext {
+      override def execute(runnable: Runnable): Unit = runnable.run()
+
+      override def reportFailure(cause: Throwable): Unit = {
+        val _ = reportedErrors.add(cause)
+      }
+    }
+
+  private def threadLocalContext(
+    local: ThreadLocal[String],
+    reportedErrors: ConcurrentLinkedQueue[Throwable]
+  ): ExecutionContext =
+    new ExecutionContext {
+      override def execute(runnable: Runnable): Unit = {
+        val previous = local.get()
+        local.set("target")
+        try runnable.run()
+        finally {
+          if (previous == null) local.remove()
+          else local.set(previous)
+        }
+      }
+
+      override def reportFailure(cause: Throwable): Unit = {
+        val _ = reportedErrors.add(cause)
+      }
+    }
+
 }

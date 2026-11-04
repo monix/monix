@@ -2,6 +2,96 @@
 
 Date: 2026-08-23
 
+## Fresh-context review follow-up (2026-11-04)
+
+The fresh reviewer examined commit `c2db1488` against `ee5f939c`, with no prior
+conversation context. The review found no standards issues and one specification
+issue. The implementation changes below address that finding.
+
+### Standards
+
+No findings introduced by `c2db1488`.
+
+### Spec
+
+#### 1. [Medium] Inline `evalOn` executes outside the target context's scope
+
+**Location at reviewed commit:**
+`monix-eval2/shared/src/main/scala/monix/eval/internal/TaskFiber.scala:323-326`.
+
+When an inline target execution context installs thread-local state around
+`Runnable.run()`, the run-entry trampoline queues the interpreter and returns before
+evaluating the effect. The target then restores its state. The trampoline subsequently
+evaluates the effect outside that scope, breaking contexts which install tracing or
+other thread-local state. Cats Effect's `evalOn` contract requires execution of the
+effect on the supplied context.
+
+A probe installed `"target"` in a `ThreadLocal[String]` in the target's execution wrapper
+and evaluated `evalOn(Task.delay(local.get()), target)`. Commit `c2db1488` returned
+`null`; the same runtime with direct interpreter entry returned `"target"`. Neither
+run reported scheduler errors.
+
+The repair trampolines scheduler submissions instead of task bodies. Accepted work
+executes inside its scheduler's wrapper. Child startup and cancellation acknowledge
+submission success or rejection before continuing; callback wakeups also use the
+submission trampoline. This bounds recursive internal submissions on inline schedulers.
+Deferred batch/context submissions own rejection recovery, re-entering the origin
+context when it accepts work and falling back to local recovery when it refuses.
+
+The atomic ownership protocol is unchanged, and no locks were added. Submission
+runnables are allocated per handoff.
+
+The readability pass keeps interpreter execution in `runLoop(executionModel)` and
+submission/rejection handling outside it. Recovery selects `SynchronousExecution`
+instead of passing a numeric limit. `Start` uses the existing suspension callback
+directly, without an intermediate task or registration closure. A context restoration
+which already matches the current scheduler and context continues without a handoff.
+That last simplification fixes a measured recovery failure: when target and origin
+both rejected, a redundant third submission replaced the target error with the origin
+error. The regression now requires two submissions, the original error, and exactly
+one finalizer execution.
+
+### Spec sources and verification
+
+Read: the user's concurrency, performance, maintainability, and Cats Effect 3
+requirements; `AGENTS.md`; `CONTRIBUTING.md`; the code-reviewing skill's smell baseline;
+this handoff; the changed implementation and tests; local
+`monix-execution/shared/src/main/scala/monix/execution/internal/Trampoline.scala:41-46,83-93`;
+and Cats Effect 3.7.1
+[`Async.scala`](https://github.com/typelevel/cats-effect/blob/v3.7.1/kernel/shared/src/main/scala/cats/effect/kernel/Async.scala#L174-L180),
+[`IO.scala`](https://github.com/typelevel/cats-effect/blob/v3.7.1/core/shared/src/main/scala/cats/effect/IO.scala#L375-L384),
+and [`IOFiber.scala`](https://github.com/typelevel/cats-effect/blob/v3.7.1/core/shared/src/main/scala/cats/effect/IOFiber.scala#L663-L694).
+Historical upstream references were not independently re-reviewed.
+
+| Check | Result |
+| --- | --- |
+| `sbt --client '+eval2JVM/test'` | 169/169 on Scala 2.13.18 and 3.3.7 |
+| `sbt --client '+eval2JS/test'` | 157/157 on Scala 2.13.18 and 3.3.7 |
+| Focused regressions and Cats Effect laws after removing benchmark overrides | 128/128 |
+| `sbt --client scalafmtCheckAll` | Passed |
+| `git diff --check` | Passed |
+
+A temporary real-executor harness compared the final runtime with `c2db1488` using
+fixed two-thread scheduler and producer executors. Three warmups and nine samples
+gave the following median sample durations; these are diagnostic measurements, not
+JMH results or per-operation latency guarantees.
+
+| Workload | `c2db1488` | Final runtime |
+| --- | ---: | ---: |
+| Pure/flatMap, 10,000 steps | 2.352 ms | 2.053 ms |
+| Async callbacks, 128 steps | 12.596 ms | 13.387 ms |
+| Start/join, 128 steps | 1.577 ms | 1.485 ms |
+
+The async samples showed a warmup trend. A bounded follow-up used 20 warmups and
+15 samples, measuring 14.292 ms for `c2db1488` and 13.856 ms for the final runtime.
+The ranges overlapped (13.697–15.692 ms and 13.715–14.412 ms respectively), so the
+results do not establish a speedup or a consistent regression. Temporary source
+overrides were removed before the final focused rerun. Logs and harnesses are under
+`/tmp/codex/eval2-concurrency-audit/`.
+
+The fresh reviewer also inspected the final repair and found no further concrete
+issue. `HEAD` remains `c2db1488f61af263dc8f9a953eaba513b95ae39b`; the index is empty.
+
 ## Independent review follow-up (2026-11-04)
 
 Review target: `monix-eval2` at baseline HEAD `ee5f939cab91dc0558f1696a069bb4117bf013db`.

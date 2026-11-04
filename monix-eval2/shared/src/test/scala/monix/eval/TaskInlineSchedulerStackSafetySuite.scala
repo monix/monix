@@ -19,6 +19,8 @@ package monix.eval
 
 import minitest.SimpleTestSuite
 import monix.execution.{ ExecutionModel, Scheduler }
+import cats.effect.kernel.{ Async, Outcome }
+import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.Success
 
@@ -40,6 +42,41 @@ object TaskInlineSchedulerStackSafetySuite extends SimpleTestSuite {
     val scheduler = Scheduler(ExecutionContext.parasitic, ExecutionModel.AlwaysAsyncExecution)
 
     assertCompletes(scheduler, "ExecutionContext.parasitic")
+  }
+
+  test("a long nested start chain runs on an inline synchronous scheduler") {
+    val inlineContext = new ExecutionContext {
+      override def execute(runnable: Runnable): Unit = runnable.run()
+
+      override def reportFailure(cause: Throwable): Unit = ()
+    }
+    val scheduler = Scheduler(inlineContext, ExecutionModel.SynchronousExecution)
+    val baseRuns = new AtomicInteger()
+    val F = Async[Task]
+    var task = Task.delay { val _ = baseRuns.incrementAndGet() }
+    var index = 0
+    while (index < depth) {
+      val previous = task
+      task = F.start(previous).flatMap(_.join).flatMap {
+        case Outcome.Succeeded(value) => value
+        case Outcome.Errored(error) => Task.raiseError(error)
+        case Outcome.Canceled() => Task.canceled
+      }
+      index += 1
+    }
+
+    var result: Future[Unit] = null
+    var overflow: StackOverflowError = null
+    try result = task.unsafeRunToFuture()(scheduler)
+    catch {
+      case error: StackOverflowError => overflow = error
+    }
+
+    assert(
+      overflow == null && result != null && result.value.contains(Success(())),
+      s"nested starts did not complete: overflow=$overflow, result=${if (result == null) null else result.value}"
+    )
+    assertEquals(baseRuns.get(), 1)
   }
 
   private def assertCompletes(scheduler: Scheduler, name: String): Unit = {
