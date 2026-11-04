@@ -23,8 +23,7 @@ import monix.eval.Task.RaiseError
 import monix.eval.internal.TaskFiber.*
 import monix.execution.{ Callback, Scheduler }
 import monix.execution.atomic.Atomic
-import monix.execution.schedulers.TrampolinedRunnable
-import monix.eval.Task.AsyncSimple
+import monix.execution.schedulers.TrampolineExecutionContext
 import java.util.concurrent.RejectedExecutionException
 import scala.annotation.{ switch, tailrec }
 import scala.concurrent.ExecutionContext
@@ -41,8 +40,6 @@ import scala.util.control.NonFatal
 private[eval] final class TaskFiber[A] private[eval] (
   source: Task[A],
   cb: Callback[Throwable, A],
-  initCallStack: TaskCallStack = null,
-  initIsCancelled: Boolean = false,
   initExecutionContext: ExecutionContext = null
 )(implicit
   initialScheduler: Scheduler
@@ -50,15 +47,16 @@ private[eval] final class TaskFiber[A] private[eval] (
   // These interpreter fields are read and written only by the run-loop. A state CAS
   // publishes callback results before a later run installs them in `currentRef`.
   private[this] var currentRef: Current = source
-  private[this] var callStackRef: TaskCallStack = initCallStack
+  private[this] var callStackRef: TaskCallStack = null
   private[this] var scheduler: Scheduler = initialScheduler
   // A Scheduler adapter supplies clocks and batching, but Async.executionContext
   // must expose the exact context supplied to evalOn, including in child fibers.
   private[this] var executionContext: ExecutionContext =
     if (initExecutionContext eq null) initialScheduler else initExecutionContext
-  private[this] var asyncRegistrationReady = false
-  private[this] var reschedule = AsyncSimple.Synchronous
-  private[this] var trampolinedRun: TrampolinedRunnable = _
+  private[this] var reschedule = false
+  private[this] val runLoop = new Runnable {
+    def run(): Unit = runOwned()
+  }
 
   // The run-loop owns mask updates. An inactive canceler may read the depth only after
   // its CAS has acquired the scheduling claim.
@@ -72,7 +70,7 @@ private[eval] final class TaskFiber[A] private[eval] (
     Active[A](
       Nil,
       runActive = true,
-      isCanceled = initIsCancelled,
+      isCanceled = false,
       pendingRef = null,
       asyncCallback = null
     ): FiberState[A]
@@ -146,17 +144,9 @@ private[eval] final class TaskFiber[A] private[eval] (
   }
 
   override def visit(ref: Task.AsyncSimple[Any]): Control = {
-    if (!asyncRegistrationReady && ref.boundaryBefore != AsyncSimple.Synchronous) {
-      // Registration must run under interpreter ownership, including after a shift.
-      // Cancellation may abandon this node before the next run registers it.
-      asyncRegistrationReady = true
-      reschedule = ref.boundaryBefore
-    } else {
-      asyncRegistrationReady = false
-      val callback = new TaskRestartCallback(this, scheduler, ref.boundaryAfter)
-      installCallback(callback)
-      callback.start(ref)
-    }
+    val callback = new TaskRestartCallback(this, scheduler)
+    installCallback(callback)
+    callback.start(ref)
     Break
   }
 
@@ -167,7 +157,7 @@ private[eval] final class TaskFiber[A] private[eval] (
     val get = Task.AsyncSimple[S]((_, waiting) => callback.register(waiting))
       .onCancel(Task.delay(callback.clear()))
     // Constructing the continuation result may throw. Move a `NonFatal` into the
-    // ordinary `IO` error channel.
+    // ordinary `Task` error channel.
     try currentRef = ref.cont(scheduler, callback, get)
     catch {
       case error if NonFatal(error) =>
@@ -184,7 +174,6 @@ private[eval] final class TaskFiber[A] private[eval] (
       currentRef = Task.Pure(())
       Continue
     } else {
-      asyncRegistrationReady = false
       installCallback(null)
       val finalizer = if (callStackRef eq null) null else callStackRef.findAndPopNextOnCancel()
       finalizer match {
@@ -231,7 +220,7 @@ private[eval] final class TaskFiber[A] private[eval] (
     } catch {
       case e if NonFatal(e) =>
         // The body function runs during interpretation. Restore the mask before
-        // moving its exception into the IO error channel.
+        // moving its exception into the Task error channel.
         maskDepth = previous
         currentRef = Task.RaiseError(e)
     }
@@ -290,7 +279,7 @@ private[eval] final class TaskFiber[A] private[eval] (
       }
       executionContext = ref.ec
       currentRef = ref.source
-      reschedule = AsyncSimple.AsyncShifted
+      reschedule = true
       Break
     }
   }
@@ -299,7 +288,7 @@ private[eval] final class TaskFiber[A] private[eval] (
     scheduler = ref.scheduler
     executionContext = ref.executionContext
     currentRef = ref.source
-    reschedule = AsyncSimple.AsyncShifted
+    reschedule = true
     Break
   }
 
@@ -331,7 +320,12 @@ private[eval] final class TaskFiber[A] private[eval] (
       scheduler.execute(this)
   }
 
-  override def run(): Unit = {
+  override def run(): Unit =
+    // Enter only after scheduler dispatch, preserving its thread selection. Inline
+    // schedulers can resubmit this fiber without nesting interpreter invocations.
+    TrampolineExecutionContext.immediate.execute(runLoop)
+
+  private def runOwned(): Unit = {
     // The initial run and explicit scheduler yields already own `currentRef`. Async
     // wake-ups first claim the callback or cancellation published in `stateRef`.
     val runScheduler = scheduler
@@ -377,20 +371,12 @@ private[eval] final class TaskFiber[A] private[eval] (
       // Bound synchronous work as well as async work. A queued canceler or sibling
       // must get a turn even when this task never suspends by itself.
       if (continue && active && remaining == 0)
-        reschedule = AsyncSimple.AsyncShifted
-      if (reschedule != AsyncSimple.Synchronous) {
-        val policy = reschedule
-        reschedule = AsyncSimple.Synchronous
+        reschedule = true
+      if (reschedule) {
+        reschedule = false
         resumeCurrent = true
         try {
-          if (policy == AsyncSimple.AsyncTrampolined) {
-            if (trampolinedRun eq null)
-              trampolinedRun = new TrampolinedRunnable {
-                def run(): Unit = TaskFiber.this.run()
-              }
-            scheduler.execute(trampolinedRun)
-          } else
-            scheduler.execute(this)
+          scheduler.execute(this)
           return
         } catch {
           case error: RejectedExecutionException =>
@@ -405,7 +391,6 @@ private[eval] final class TaskFiber[A] private[eval] (
             scheduler = runScheduler
             executionContext = runContext
             resumeCurrent = false
-            asyncRegistrationReady = false
             currentRef = Task.RaiseError(error)
         }
       } else

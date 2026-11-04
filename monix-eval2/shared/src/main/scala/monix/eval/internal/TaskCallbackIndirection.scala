@@ -40,6 +40,7 @@ final class TaskCallbackIndirection[E, A] extends Callback[E, A] {
 
   private[this] val atomic = Atomic(Init: State[E, A])
 
+  @tailrec
   def register(cb: Callback[E, A]): Unit =
     atomic.get() match {
       case current @ Init =>

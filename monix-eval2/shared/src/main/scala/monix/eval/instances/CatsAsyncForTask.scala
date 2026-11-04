@@ -28,7 +28,7 @@ import scala.concurrent.duration.FiniteDuration
 
 /** Cats Effect 3 `Async` instance backed by the [[Task]] run-loop.
   *
-  * Primitive operations construct `IO` nodes. Operations such as `cede`, `sleep`,
+  * Primitive operations construct `Task` nodes. Operations such as `cede`, `sleep`,
   * and `racePair` use `AsyncCont` when callback signaling can happen before or after
   * its `get` effect starts. Setup which creates a cancel token is masked, then exposes
   * its wait through `Poll`.
@@ -71,7 +71,7 @@ private[eval] final class CatsAsyncForTask extends Async[Task] {
 
   override def ref[A](a: A): Task[Ref[Task, A]] =
     // These constructors allocate immediately, so delaying them invokes the
-    // constructor during every IO evaluation rather than during IO construction.
+    // constructor during every Task evaluation rather than during Task construction.
     Task.delay(Ref.unsafe[Task, A](a)(this))
 
   override def deferred[A]: Task[Deferred[Task, A]] =
@@ -148,7 +148,7 @@ private[eval] final class CatsAsyncForTask extends Async[Task] {
       }
 
   override def suspend[A](hint: Sync.Type)(thunk: => A): Task[A] =
-    // IO has one delayed-evaluation encoding; `Sync.Type` is an optimization hint only.
+    // Task has one delayed-evaluation encoding; `Sync.Type` is an optimization hint only.
     Task.delay(thunk)
 
   override def evalOn[A](fa: Task[A], ec: ExecutionContext): Task[A] =
@@ -159,7 +159,7 @@ private[eval] final class CatsAsyncForTask extends Async[Task] {
 
   override def cont[K, R](body: Cont[Task, K, R]): Task[R] =
     // Cats Effect's `Either` callback is adapted to Monix's two-channel `Callback`.
-    // `get` already belongs to `IO`, therefore `lift` is the identity.
+    // `get` already belongs to `Task`, therefore `lift` is the identity.
     Task.cont0[K, R] { (_, callback, get) =>
       val resume: Either[Throwable, K] => Unit = {
         case Right(value) => callback.onSuccess(value)

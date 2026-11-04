@@ -20,7 +20,6 @@ package internal
 
 import monix.eval.Task.AsyncSimple
 import monix.execution.exceptions.APIContractViolationException
-import monix.execution.schedulers.TrampolinedRunnable
 import monix.execution.{ Callback, Scheduler }
 import scala.util.control.NonFatal
 
@@ -32,8 +31,7 @@ import scala.util.control.NonFatal
   */
 private[internal] final class TaskRestartCallback(
   fiber: TaskFiber[_],
-  scheduler: Scheduler,
-  boundaryAfter: AsyncSimple.BoundaryPolicy
+  scheduler: Scheduler
 ) extends Callback[Throwable, Any] {
   def start(task: AsyncSimple[_]): Unit =
     try task.register(scheduler, this)
@@ -54,23 +52,6 @@ private[internal] final class TaskRestartCallback(
     signal(Task.RaiseError(error))
 
   private def signal(result: Task[Any]): Unit =
-    if (boundaryAfter == AsyncSimple.Synchronous)
-      resume(result)
-    else {
-      val delivery = new TrampolinedRunnable {
-        def run(): Unit = resume(result)
-      }
-      try {
-        if (boundaryAfter == AsyncSimple.AsyncShifted)
-          scheduler.execute(() => delivery.run())
-        else
-          scheduler.execute(delivery)
-      } catch {
-        case NonFatal(error) => scheduler.reportFailure(error)
-      }
-    }
-
-  private def resume(result: Task[Any]): Unit =
     try fiber.continueWithRef(result, this)
     catch {
       // A producer may be notifying several consumers (for example, Deferred).

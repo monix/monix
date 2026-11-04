@@ -129,7 +129,7 @@ object TaskCancellationAdversarialSuite extends SimpleTestSuite {
     assert(
       completion.value.contains(Success(true)) && healthyWaiterCompleted,
       s"completion=${completion.value}, healthyWaiterCompleted=$healthyWaiterCompleted, " +
-      s"rejectingReporter=$reportedError"
+        s"rejectingReporter=$reportedError"
     )
     assertEquals(healthyWaiter.value, Some(Success(())))
     assert(reportedError.isInstanceOf[RejectedExecutionException])
@@ -260,7 +260,7 @@ object TaskCancellationAdversarialSuite extends SimpleTestSuite {
         case _ => false
       },
       s"result=${result.value}, childEntered=$childEntered, finalizerRuns=$finalizerRuns, " +
-      s"finalizerContext=$finalizerContext, submissions=$submissions"
+        s"finalizerContext=$finalizerContext, submissions=$submissions"
     )
     assert(!childEntered)
     assertEquals(finalizerRuns, 1)

@@ -30,7 +30,7 @@ import scala.util.control.NonFatal
   *
   * Constructors and combinators build a small set of nodes rather than evaluating
   * user code. The fiber run-loop owns traversal of those nodes, its continuation
-  * stack, and the cancellation mask. Asynchronous callbacks publish another `IO`
+  * stack, and the cancellation mask. Asynchronous callbacks publish another `Task`
   * node through the fiber's serialized resumption protocol.
   */
 sealed abstract class Task[+A] {
@@ -66,7 +66,7 @@ sealed abstract class Task[+A] {
     val _ = unsafeRunAsync(Callback.empty)
   }
 
-  /** Starts this IO and exposes its success/error channel as a `CancelableFuture`.
+  /** Starts this Task and exposes its success/error channel as a `CancelableFuture`.
     * Future cancellation evaluates the fiber's effectful cancel token in a separate
     * run. Fiber cancellation has no callback value, so the canceled future remains
     * incomplete.
@@ -178,30 +178,21 @@ object Task {
     final val TAG: Byte = 4
   }
 
-  /** An asynchronous registration together with its run-loop boundary policy.
+  /** An asynchronous registration performed under fiber ownership.
     *
-    * `boundaryBefore` controls how registration starts; `boundaryAfter` controls
-    * how its callback re-enters the fiber. Registration runs under fiber ownership;
-    * each suspension has its own [[internal.TaskRestartCallback]].
+    * Each suspension has its own [[internal.TaskRestartCallback]].
     * The fiber schedules inactive resumptions and yields at batch boundaries, so
-    * registration and callback publication need no additional boundary by default.
+    * registration and callback publication need no additional boundary.
     */
   private[eval] final case class AsyncSimple[+A](
-    register: (Scheduler, Callback[Throwable, A]) => Unit,
-    boundaryBefore: AsyncSimple.BoundaryPolicy = AsyncSimple.Synchronous,
-    boundaryAfter: AsyncSimple.BoundaryPolicy = AsyncSimple.Synchronous,
+    register: (Scheduler, Callback[Throwable, A]) => Unit
   ) extends Task[A] {
     def tag: Byte = AsyncSimple.TAG
     def accept[AA >: A, R](visitor: Visitor[AA, R]): R = visitor.visit(this)
   }
 
   private[eval] object AsyncSimple {
-    // Byte encoding keeps the policy in the node without another allocation.
-    type BoundaryPolicy = Byte
     final val TAG: Byte = 5
-    final val AsyncTrampolined: BoundaryPolicy = 0.toByte
-    final val AsyncShifted: BoundaryPolicy = 1.toByte
-    final val Synchronous: BoundaryPolicy = 2.toByte
   }
 
   /** Primitive continuation handshake used to implement Cats Effect `Async.cont`.

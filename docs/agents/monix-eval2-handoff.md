@@ -2,6 +2,80 @@
 
 Date: 2026-08-23
 
+## Independent review follow-up (2026-11-04)
+
+Review target: `monix-eval2` at baseline HEAD `ee5f939cab91dc0558f1696a069bb4117bf013db`.
+This section records the independent review dispositions and fixes in the current
+worktree. The review report remains at `monix-eval2-review.md`.
+
+### Standards
+
+All four low-severity findings were accepted and fixed:
+
+1. Deleted the unused `monix-eval2/shared/src/main/scala/monix/eval/internal/StackFrame.scala`.
+2. Removed the unused `TaskFiber` constructor parameters `initCallStack` and
+   `initIsCancelled`.
+3. Removed unreachable async boundary-policy machinery. No caller used non-synchronous
+   `AsyncSimple` policies; the run-loop's Boolean reschedule decision remains.
+4. Added `@tailrec` to `TaskCallbackIndirection.register`.
+
+### Spec
+
+1. **Async callback scheduling — rejected as stated.** A callback that finds a fiber
+   active publishes into its run loop without a scheduler submission. A callback that
+   finds it inactive schedules on the fiber's current execution context. Cats Effect 3.7.1
+   also schedules a fiber on its current context for that path. Making all resumptions
+   inline would risk `evalOn` context affinity. See pinned
+   [`IOFiber.scala`](https://github.com/typelevel/cats-effect/blob/v3.7.1/core/shared/src/main/scala/cats/effect/IOFiber.scala#L663-L694)
+   and
+   [`IO.scala`](https://github.com/typelevel/cats-effect/blob/v3.7.1/core/shared/src/main/scala/cats/effect/IO.scala#L375-L384).
+
+2. **Dedicated `Map` node — allocation concern accepted; implementation deferred.**
+   `map` currently creates a closure and encodes it as `flatMap` plus `Pure`. That is a
+   real representation cost. The reported approximate twofold runtime cost was not
+   measured in this implementation. Defer a `Map` node and continuation-frame change
+   until workload-specific allocation benchmarks establish its benefit.
+
+3. **Batch resubmission on inline execution contexts — reproduced and fixed.**
+   A 10,000-map chain on a direct inline execution context with
+   `AlwaysAsyncExecution` overflowed the stack; the same chain passed on
+   `ExecutionContext.parasitic`. The run-loop now uses the cached
+   `TrampolineExecutionContext.immediate` to enter its batch loop iteratively after
+   scheduler dispatch. This adds one cached `Runnable` per fiber and preserves scheduler
+   selection and batch yields. The throughput impact has not been benchmarked. The
+   focused adversarial suite passed 10/10; the strengthened affinity test passed 1/1 on
+   each Scala version.
+
+4. **Stale `IO` naming — fixed.** Changed implementation comments, law helper names,
+   and test labels to identify this implementation as `Task`.
+
+5. **`monix.eval.Task` classpath collision — accepted as an experiment constraint.**
+   Both eval2 and legacy eval publish this class name. This review leaves the package,
+   public API, and publication settings unchanged. Downstream users must select one
+   implementation on a classpath.
+
+### Sources and verification
+
+Sources read for this review: the user requirements in the conversation; `AGENTS.md`;
+`CONTRIBUTING.md`; `monix-eval2-review.md`; the runtime and its tests; and Cats Effect
+3.7.1 source. The scheduler and cancellation comparisons use pinned
+[`IOFiber.scala`](https://github.com/typelevel/cats-effect/blob/v3.7.1/core/shared/src/main/scala/cats/effect/IOFiber.scala#L1346-L1375)
+as well as the links above.
+
+Final verification:
+
+| Command or check | Result |
+| --- | --- |
+| `sbt --client '+eval2JVM/test'` | 164/164 on each of Scala 2.13.18 and 3.3.7 |
+| `sbt --client '+eval2JS/test'` | 154/154 on each of Scala 2.13.18 and 3.3.7 |
+| `TaskAsyncResumeThreadJVMSuite` | 1/1 on each Scala version |
+| `sbt --client scalafmtCheckAll` | Passed |
+| `git diff --check` | Passed |
+
+The full JVM matrix ran before the final test-only affinity strengthening; the
+strengthened suite was then rerun on both Scala versions. HEAD remains
+`ee5f939cab91dc0558f1696a069bb4117bf013db`, and the index is empty.
+
 ## Concurrency audit follow-up (2026-11-04)
 
 Audit baseline: `HEAD 5a5979a991cf2efebc7c9fab2638e86f96d1793f`; the worktree was clean
