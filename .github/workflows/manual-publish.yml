@@ -4,27 +4,27 @@ on:
   workflow_dispatch:
     inputs:
       ref_to_publish:
-        description: 'Ref (branch or tag)'
+        description: 'Git ref. Stable releases require refs/tags/vX.Y.Z'
         required: true
-        default: 'refs/heads/main'
       stable_version:
-        description: 'Stable version? (true=staging, false=snapshot)'
+        description: 'Stable release (version must not end in -SNAPSHOT)'
         required: true
-        default: "true"
+        type: boolean
+        default: true
 
 jobs:
   publish:
-    name: Publish to Sonatype (Request)
+    name: Publish to Maven Central
 
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 100
           ref: ${{ github.event.inputs.ref_to_publish }}
 
       - name: Setup JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 17
@@ -42,4 +42,4 @@ jobs:
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           PUBLISH_STABLE_VERSION: ${{ github.event.inputs.stable_version }}
-          GITHUB_REF: ${{ github.event.inputs.ref_to_publish }}
+          RELEASE_REF: ${{ github.event.inputs.ref_to_publish }}

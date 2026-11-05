@@ -245,6 +245,39 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
     assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
   }
 
+  test("fromInputStream emits available bytes without waiting to fill the chunk") {
+    implicit val s = TestScheduler()
+    val bytes = Array[Byte](1, 2, 3)
+    var readCount = 0
+    val in = new InputStream {
+      def read(): Int =
+        throw DummyException("unexpected single-byte read")
+
+      override def read(buffer: Array[Byte], offset: Int, length: Int): Int = {
+        readCount += 1
+        if (readCount == 1) {
+          Array.copy(bytes, 0, buffer, offset, bytes.length)
+          bytes.length
+        } else {
+          throw DummyException("unexpected blocking read")
+        }
+      }
+
+      override def available(): Int = 0
+    }
+
+    val result = Observable
+      .fromInputStreamUnsafe(in, bytes.length + 1)
+      .runAsyncGetFirst
+      .map(_.map(_.toList))
+
+    s.tick()
+
+    assertEquals(result.value, Some(Success(Some(bytes.toList))))
+    assertEquals(readCount, 1)
+    assert(s.state.tasks.isEmpty, "should be left with no pending tasks")
+  }
+
   test("fromInputStream fills the buffer up to 'chunkSize' if possible") {
     implicit val s = TestScheduler()
 
@@ -286,6 +319,7 @@ object InputStreamObservableSuite extends SimpleTestSuite with Checkers {
         read(b, 0, forcedReadSize)
       override def read(b: Array[Byte], off: Int, len: Int): Int =
         underlying.read(b, off, forcedReadSize.min(len))
+      override def available(): Int = underlying.available()
     }
   }
 

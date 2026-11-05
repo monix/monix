@@ -31,8 +31,8 @@ private[execution] class InterceptRunnable(r: Runnable, handler: UncaughtExcepti
 private[execution] object InterceptRunnable {
   def apply(r: Runnable, h: UncaughtExceptionReporter): Runnable = r match {
     case ir: InterceptRunnable => ir
+    case _ if h eq null => r
     case _: TrampolinedRunnable => new InterceptRunnable(r, h) with TrampolinedRunnable
-    case _ if h != null => new InterceptRunnable(r, h)
-    case _ => r
+    case _ => new InterceptRunnable(r, h)
   }
 }

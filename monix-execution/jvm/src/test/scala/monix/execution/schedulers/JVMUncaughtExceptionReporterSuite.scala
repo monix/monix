@@ -22,8 +22,11 @@ import java.util.concurrent.Executors
 
 import monix.execution.exceptions.DummyException
 
+import scala.concurrent.Promise
+
 object JVMUncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSuite {
   testReports("Scheduler(ExecutorService, _)")(Scheduler(Executors.newSingleThreadExecutor(), _))
+  testReports("Scheduler(ScheduledExecutorService, _)")(Scheduler(Executors.newSingleThreadScheduledExecutor(), _))
   testReports("Scheduler.io")(r => Scheduler.io(reporter = r))
   testReports("Scheduler.singleThread")(r => Scheduler.singleThread("test-single-thread", reporter = r))
   testReports("Scheduler.computation")(r => Scheduler.computation(reporter = r))
@@ -31,8 +34,9 @@ object JVMUncaughtExceptionReporterSuite extends UncaughtExceptionReporterBaseSu
   testReports("Scheduler.cached")(r => Scheduler.cached("test-cached", 1, 5, reporter = r))
   testReports("Scheduler.fixedPool")(r => Scheduler.fixedPool("test-fixed", 1, reporter = r))
 
-  testAsync("UncaughtExceptionReporter.asJava") { p =>
+  testAsync("UncaughtExceptionReporter.asJava") {
     import Scheduler.Implicits.global
+    val p = Promise[Throwable]()
 
     val e = DummyException("dummy")
     val r = UncaughtExceptionReporter { e => p.success(e); () }.asJava

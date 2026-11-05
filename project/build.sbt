@@ -1,4 +1,4 @@
-libraryDependencies += "org.yaml" % "snakeyaml" % "2.6"
+libraryDependencies += "org.yaml" % "snakeyaml" % "2.7"
 
 // Resolve version conflicts in build plugins
 ThisBuild / libraryDependencySchemes ++= Seq(

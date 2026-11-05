@@ -161,7 +161,10 @@ object MimaFilters {
       exclude[IncompatibleMethTypeProblem](
         "monix.execution.schedulers.TrampolineExecutionContext#JVMOptimalTrampoline.startLoop"
       ),
-      exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TrampolineExecutionContext.this")
+      exclude[IncompatibleMethTypeProblem]("monix.execution.schedulers.TrampolineExecutionContext.this"),
+      // Deprecated auxiliary constructors of the private `ExecutorScheduler` subclasses
+      exclude[DirectMissingMethodProblem]("monix.execution.schedulers.ExecutorScheduler#FromSimpleExecutor.this"),
+      exclude[DirectMissingMethodProblem]("monix.execution.schedulers.ExecutorScheduler#FromScheduledExecutor.this")
     )
 
     lazy val all: Seq[ProblemFilter] =
@@ -231,7 +234,9 @@ object MimaFilters {
   object MonixTail {
     lazy val changesFor_3_5_0: Seq[ProblemFilter] = Seq(
       exclude[DirectMissingMethodProblem]("monix.tail.internal.IterantZipMap#Loop.processOneASeqB"),
-      exclude[DirectMissingMethodProblem]("monix.tail.IterantBuilders#Apply.suspend$extension")
+      exclude[DirectMissingMethodProblem]("monix.tail.IterantBuilders#Apply.suspend$extension"),
+      // the 3.4.0 suspend(rest)(F) overload is now a private[deprecated] shim in IterantDeprecatedBuilders
+      exclude[MethodNoLongerCheckedProblem]("monix.tail.IterantBuilders#Apply.suspend"),
     )
 
     lazy val all: Seq[ProblemFilter] = Seq(changesFor_3_5_0).flatten
@@ -248,7 +253,9 @@ object MimaFilters {
     lazy val changesFor_3_5_0: Seq[ProblemFilter] = Seq(
       exclude[DirectMissingMethodProblem]("monix.reactive.subjects.ConcurrentSubject.async"),
       exclude[MissingClassProblem]("monix.reactive.internal.operators.CollectWhileOperator"),
-      exclude[MissingClassProblem]("monix.reactive.internal.operators.CollectWhileOperator$")
+      exclude[MissingClassProblem]("monix.reactive.internal.operators.CollectWhileOperator$"),
+      // the 3.4.0 async(scheduler) overload is now a private[deprecated] shim in ConcurrentSubjectDeprecatedBuilders
+      exclude[MethodNoLongerCheckedProblem]("monix.reactive.subjects.ConcurrentSubject.async"),
     )
 
     lazy val all: Seq[ProblemFilter] = Seq(changesFor_3_3_0, changesFor_3_5_0).flatten

@@ -4,16 +4,36 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.." || exit
 
-git fetch --depth=100 origin +refs/tags/*:refs/tags/*
-
-echo "GITHUB_REF=$GITHUB_REF"
-
 : "${PGP_KEY_HEX:?PGP_KEY_HEX is required for signing}"
 : "${PGP_SECRET:?PGP_SECRET is required for signing}"
 : "${PGP_PASSPHRASE:?PGP_PASSPHRASE is required for signing}"
 : "${SONATYPE_USERNAME:?SONATYPE_USERNAME is required for publishing}"
 : "${SONATYPE_PASSWORD:?SONATYPE_PASSWORD is required for publishing}"
+: "${PUBLISH_STABLE_VERSION:?PUBLISH_STABLE_VERSION is required}"
+: "${RELEASE_REF:?RELEASE_REF is required}"
+
+git fetch --depth=100 origin +refs/tags/*:refs/tags/*
+
+case "$PUBLISH_STABLE_VERSION" in
+  true | 1 | yes)
+    tag=$(git describe --exact-match --tags --match 'v[0-9]*' HEAD)
+    if [[ "$RELEASE_REF" != "refs/tags/$tag" ]]; then
+      echo "Stable releases must use the exact checked-out tag refs/tags/$tag" >&2
+      exit 1
+    fi
+    release_command=ci-release
+    ;;
+  false | 0 | no)
+    release_command=ci-snapshot
+    ;;
+  *)
+    echo "PUBLISH_STABLE_VERSION must be true or false" >&2
+    exit 1
+    ;;
+esac
+
+echo "RELEASE_REF=$RELEASE_REF"
 
 printf '%s' "$PGP_SECRET" | base64 --decode | gpg --batch --yes --import
 
-sbt "show version" "ci-release"
+sbt "show version" "$release_command"

@@ -1,0 +1,14 @@
+{
+  "entries": {
+    "github/gh-aw-actions/setup@v0.91.7": {
+      "repo": "github/gh-aw-actions/setup",
+      "version": "v0.91.7",
+      "sha": "7a073567000cd18a81b85d31527ac08d414c9599"
+    },
+    "sbt/setup-sbt@v1": {
+      "repo": "sbt/setup-sbt",
+      "version": "v1",
+      "sha": "6158cb0903b8ceeae04f830055f3155e1b6a5ad7"
+    }
+  }
+}

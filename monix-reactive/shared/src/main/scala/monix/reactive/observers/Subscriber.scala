@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2022 Monix Contributors.
+ * Copyright (c) 2014-2026 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,6 +20,7 @@ package monix.reactive.observers
 import java.io.PrintStream
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.BooleanCancelable
+import monix.execution.internal.Platform
 import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.reactive.Observer
 import monix.reactive.internal.rstreams._
@@ -117,7 +118,7 @@ object Subscriber {
     * specification.
     */
   def toReactiveSubscriber[A](subscriber: Subscriber[A]): RSubscriber[A] =
-    toReactiveSubscriber(subscriber, subscriber.scheduler.executionModel.recommendedBatchSize)
+    toReactiveSubscriber(subscriber, Platform.recommendedBatchSize)
 
   /** Transforms the source [[Subscriber]] into a `org.reactivestreams.Subscriber`
     * instance as defined by the [[http://www.reactive-streams.org/ Reactive Streams]]

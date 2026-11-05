@@ -1,16 +1,14 @@
 import sbt.Keys.version
 import sbt.{ Def, Global, Tags }
-import com.github.sbt.git.SbtGit.GitKeys.useConsoleForROGit
 import com.typesafe.tools.mima.core.ProblemFilter
 import org.typelevel.scalacoptions.ScalacOptions
-import xerial.sbt.Sonatype.sonatypeCentralHost
 
 import MonixBuildUtils._
 
-ThisBuild / useConsoleForROGit := true
+ThisBuild / versionScheme := Some("semver-spec")
 
 val scala213Version = "2.13.18"
-val scala3Version   = "3.3.7"
+val scala3Version   = "3.3.8"
 
 val benchmarkProjects = List(
   "benchmarks"
@@ -39,7 +37,11 @@ addCommandAlias(
 )
 addCommandAlias(
   "ci-release",
-  ";+publishSigned ;sonatypeBundleRelease"
+  ";clean ;+publishSigned ;sonaRelease"
+)
+addCommandAlias(
+  "ci-snapshot",
+  ";clean ;+publishSigned"
 )
 addCommandAlias(
   "scala-213",
@@ -55,7 +57,7 @@ addCommandAlias(
 
 val cats_Version              = "2.13.0"
 val catsEffect_Version        = "2.5.5"
-val jcTools_Version           = "4.0.6"
+val jcTools_Version           = "4.0.7"
 val reactiveStreams_Version   = "1.0.4"
 val macrotaskExecutor_Version = "1.1.1"
 val minitest_Version          = "2.9.6"
@@ -150,11 +152,8 @@ lazy val testDependencies = Seq(
 // Shared settings
 
 /** For building correct links to source in documentation. */
-lazy val gitHubTreeTagOrHash =
-  settingKey[String]("Identifies GitHub's version tag or commit sha")
-
-lazy val publishStableMonixVersion =
-  settingKey[Boolean]("If it should publish stable versions to Sonatype staging repository, instead of a snapshot")
+lazy val gitHubTreeRef =
+  settingKey[String]("Identifies the GitHub tree used for source links")
 
 lazy val pgpSettings = {
   val withHex = sys.env.get("PGP_KEY_HEX").filter(_.nonEmpty) match {
@@ -183,14 +182,17 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   organization := "io.monix",
   scalaVersion := scala213Version,
   crossScalaVersions := Seq(scala213Version, scala3Version),
-  gitHubTreeTagOrHash := {
-    val ver = s"v${version.value}"
-    if (isSnapshot.value)
-      git.gitHeadCommit.value.getOrElse(ver)
-    else
-      ver
-  },
+  gitHubTreeRef := (if (isSnapshot.value) "main" else s"v${version.value}"),
 
+  scalacOptions += "-release:17",
+  scalacOptions ++= {
+    if (scalaVersion.value.startsWith("3.3.")) {
+      Seq("-Yfuture-lazy-vals")
+    } else {
+      Nil
+    }
+  },
+  javacOptions ++= Seq("-source", "17", "-target", "17"),
   // Enable this to debug warnings...
   Compile / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
@@ -234,6 +236,7 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
 
   // Turning off fatal warnings for doc generation
   Compile / doc / tpolecatExcludeOptions ++= ScalacOptions.defaultConsoleExclude,
+  Compile / doc / scalacOptions -= "-Xfatal-warnings",
 
   // Turn off annoyances in tests
   Test / tpolecatExcludeOptions ++= {
@@ -281,18 +284,15 @@ lazy val sharedSettings = pgpSettings ++ Def.settings(
   // https://github.com/sbt/sbt/issues/2654
   incOptions := incOptions.value.withLogRecompileOnMacro(false),
 
-  // -- Settings meant for deployment on central.sonatype.com
-  ThisBuild / sonatypeCredentialHost := sonatypeCentralHost,
-  ThisBuild / publishTo := sonatypePublishToBundle.value,
-  ThisBuild / isSnapshot := {
-    !isVersionStable.value || !publishStableMonixVersion.value
+  // Settings for deployment through the Sonatype Central Portal
+  ThisBuild / publishTo := {
+    val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
+    if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
+    else localStaging.value
   },
-  ThisBuild / dynverSonatypeSnapshots := !(isVersionStable.value && publishStableMonixVersion.value),
-  ThisBuild / sonatypeProfileName := organization.value,
-  sonatypeSessionName := s"[sbt-sonatype] ${name.value}-${version.value}",
   publishMavenStyle := true,
   Test / publishArtifact := false,
-  pomIncludeRepository := { _ => false }, // removes optional dependencies
+  pomIncludeRepository := { _ => false },
 
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
   homepage := Some(url("https://monix.io")),
@@ -411,7 +411,7 @@ lazy val unidocSettings = Seq(
   ScalaUnidoc / unidoc / scalacOptions ++=
     Opts.doc.title(s"Monix"),
   ScalaUnidoc / unidoc / scalacOptions ++=
-    Opts.doc.sourceUrl(s"https://github.com/monix/monix/tree/${gitHubTreeTagOrHash.value}€{FILE_PATH}.scala"),
+    Opts.doc.sourceUrl(s"https://github.com/monix/monix/tree/${gitHubTreeRef.value}€{FILE_PATH}.scala"),
   ScalaUnidoc / unidoc / scalacOptions ++=
     Seq("-doc-root-content", file("rootdoc.txt").getAbsolutePath),
   ScalaUnidoc / unidoc / scalacOptions ++=
@@ -425,7 +425,7 @@ lazy val sharedJSSettings = Seq(
       Seq()
     else {
       val l = (LocalRootProject / baseDirectory).value.toURI.toString
-      val g = s"https://raw.githubusercontent.com/monix/monix/${gitHubTreeTagOrHash.value}/"
+      val g = s"https://raw.githubusercontent.com/monix/monix/${gitHubTreeRef.value}/"
       Seq(
         // Use globally accessible (rather than local) source paths in JS source maps
         s"-P:scalajs:mapSourceURI:$l->$g",
@@ -445,7 +445,7 @@ def mimaSettings(projectName: String, exclusions: Seq[ProblemFilter]) = Seq(
 // ------------------------------------------------------------------------------------------------
 // Configuration profiles
 
-def baseSettingsAndPlugins(publishArtifacts: Boolean): Project ⇒ Project =
+def baseSettingsAndPlugins(publishArtifacts: Boolean): Project => Project =
   pr => {
     val withCoverage = sys.env.getOrElse("SBT_PROFILE", "") match {
       case "coverage" => pr
@@ -505,11 +505,11 @@ def crossModule(
       projectName      = projectName,
       publishArtifacts = publishArtifacts,
       withMimaChecks   = withMimaChecks
-    ).andThen(_.settings(crossSettings: _*)),
+    ).andThen(_.settings(crossSettings *)),
     js = jsProfile(
       projectName      = projectName,
       publishArtifacts = publishArtifacts
-    ).andThen(_.settings(crossSettings: _*))
+    ).andThen(_.settings(crossSettings *))
   )
 }
 
@@ -527,17 +527,10 @@ lazy val monix = project
     // https://www.scala-sbt.org/1.x/docs/Parallel-Execution.html
     Global / concurrentRestrictions += Tags.limit(Tags.Test, 1),
     //
-    // Used in CI when publishing artifacts to Sonatype
-    Global / publishStableMonixVersion := {
-      sys.env
-        .get("PUBLISH_STABLE_VERSION")
-        .exists(v => v == "true" || v == "1" || v == "yes")
-    },
-    //
     // Settings for build.sbt management
     Global / onChangedBuildSource := ReloadOnSourceChanges,
     Global / excludeLintKeys ++= Set(
-      Compile / gitHubTreeTagOrHash,
+      Compile / gitHubTreeRef,
       Compile / coverageExcludedFiles
     ),
     // https://github.com/lightbend/mima/pull/289
@@ -828,7 +821,7 @@ lazy val tracingTests = project
   .dependsOn(evalJVM % "compile->compile; test->test")
   .configs(FullTracingTest)
   .settings(testFrameworks := Seq(new TestFramework("minitest.runner.Framework")))
-  .settings(inConfig(FullTracingTest)(Defaults.testSettings): _*)
+  .settings(inConfig(FullTracingTest)(Defaults.testSettings))
   .settings(
     FullTracingTest / unmanagedSourceDirectories += {
       baseDirectory.value.getParentFile / "src" / "fulltracing" / "scala"

@@ -68,6 +68,10 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
     * delay between the termination of one execution and the
     * commencement of the next.
     *
+    * If any execution of the task encounters an exception, subsequent executions
+    * are suppressed. Otherwise, the task will only terminate via cancellation or
+    * termination of the scheduler.
+    *
     * For example the following schedules a message to be printed to
     * standard output every 10 seconds with an initial delay of 5
     * seconds:
@@ -290,6 +294,10 @@ trait Scheduler extends ExecutionContext with UncaughtExceptionReporter with Exe
     * after the given initial delay and subsequently with the given
     * delay between the termination of one execution and the
     * commencement of the next.
+    *
+    * If any execution of the task encounters an exception, subsequent executions
+    * are suppressed. Otherwise, the task will only terminate via cancellation or
+    * termination of the scheduler.
     *
     * For example the following schedules a message to be printed to
     * standard output every 10 seconds with an initial delay of 5

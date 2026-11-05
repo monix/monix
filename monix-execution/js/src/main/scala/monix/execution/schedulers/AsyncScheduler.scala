@@ -36,17 +36,14 @@ final class AsyncScheduler private (
 ) extends ReferenceScheduler with BatchingScheduler {
 
   protected def executeAsync(r: Runnable): Unit =
-    context.execute {
-      if (reporter ne null) InterceptRunnable(r, reporter)
-      else r
-    }
+    context.execute(InterceptRunnable(r, reporter))
 
   override def scheduleOnce(initialDelay: Long, unit: TimeUnit, r: Runnable): Cancelable = {
     val millis = {
       val v = TimeUnit.MILLISECONDS.convert(initialDelay, unit)
       if (v < 0) 0L else v
     }
-    val task = setTimeout(context, millis, r)
+    val task = setTimeout(context, millis, InterceptRunnable(r, reporter))
     Cancelable(() => clearTimeout(task))
   }
 
