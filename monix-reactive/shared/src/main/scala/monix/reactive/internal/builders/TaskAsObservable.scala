@@ -17,11 +17,12 @@
 
 package monix.reactive.internal.builders
 
+import java.util.concurrent.CancellationException
 import scala.annotation.nowarn
 import monix.execution.Cancelable
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 
 @nowarn("msg=unused value of type")
@@ -29,7 +30,7 @@ private[reactive] final class TaskAsObservable[+A](task: Task[A]) extends Observ
   def unsafeSubscribeFn(subscriber: Subscriber[A]): Cancelable = {
     import subscriber.scheduler
 
-    task.runAsync(new Callback[Throwable, A] {
+    task.runAsync(new CompletionCallback[A] {
       def onSuccess(value: A): Unit = {
         subscriber.onNext(value)
         subscriber.onComplete()
@@ -38,6 +39,9 @@ private[reactive] final class TaskAsObservable[+A](task: Task[A]) extends Observ
       def onError(ex: Throwable): Unit = {
         subscriber.onError(ex)
       }
+
+      def onCancellation(): Unit =
+        onError(new CancellationException("Task canceled"))
     })
   }
 }

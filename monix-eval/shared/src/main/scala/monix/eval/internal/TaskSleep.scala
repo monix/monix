@@ -20,7 +20,7 @@ package monix.eval.internal
 import java.util.concurrent.RejectedExecutionException
 
 import monix.eval.Task.{ Async, Context }
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 
 import scala.concurrent.duration.Duration
@@ -40,7 +40,7 @@ private[eval] object TaskSleep {
 // N.B. the contract is that the injected callback gets called after
 // a full async boundary!
   private final class Register(timespan: Duration) extends ForkedRegister[Unit] {
-    def apply(ctx: Context, cb: Callback[Throwable, Unit]): Unit = {
+    def apply(ctx: Context, cb: CompletionCallback[Unit]): Unit = {
       implicit val s = ctx.scheduler
       val c = TaskConnectionRef()
       ctx.connection.push(c.cancel)
@@ -53,7 +53,7 @@ private[eval] object TaskSleep {
         )
       } catch {
         case e: RejectedExecutionException =>
-          Callback.signalErrorTrampolined(cb, e)
+          CompletionCallback.signalErrorTrampolined(cb, e)
       }
     }
   }
@@ -63,7 +63,7 @@ private[eval] object TaskSleep {
 //
 // N.B. the contract is that the injected callback gets called after
 // a full async boundary!
-  private final class SleepRunnable(ctx: Context, cb: Callback[Throwable, Unit]) extends Runnable {
+  private final class SleepRunnable(ctx: Context, cb: CompletionCallback[Unit]) extends Runnable {
     def run(): Unit = {
       val _ = ctx.connection.pop()
       // We had an async boundary, as we must reset the frame

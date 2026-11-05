@@ -18,7 +18,7 @@
 package monix.eval
 import scala.annotation.nowarn
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.exceptions.DummyException
 import org.reactivestreams.{ Subscriber, Subscription }
 
@@ -166,20 +166,20 @@ object TaskMiscSuite extends BaseTestSuite {
 
   test("Task.now.runAsync with Try-based callback") { implicit s =>
     val p = Promise[Int]()
-    Task.now(1).runAsync(Callback.fromPromise(p))
+    Task.now(1).runAsync(CompletionCallback.fromPromise(p))
     assertEquals(p.future.value, Some(Success(1)))
   }
 
   test("Task.error.runAsync with Try-based callback") { implicit s =>
     val ex = DummyException("dummy")
     val p = Promise[Int]()
-    Task.raiseError[Int](ex).runAsync(Callback.fromPromise(p))
+    Task.raiseError[Int](ex).runAsync(CompletionCallback.fromPromise(p))
     assertEquals(p.future.value, Some(Failure(ex)))
   }
 
   test("task.executeAsync.runAsync with Try-based callback for success") { implicit s =>
     val p = Promise[Int]()
-    Task.now(1).executeAsync.runAsync(Callback.fromPromise(p))
+    Task.now(1).executeAsync.runAsync(CompletionCallback.fromPromise(p))
     s.tick()
     assertEquals(p.future.value, Some(Success(1)))
   }
@@ -187,7 +187,7 @@ object TaskMiscSuite extends BaseTestSuite {
   test("task.executeAsync.runAsync with Try-based callback for error") { implicit s =>
     val ex = DummyException("dummy")
     val p = Promise[Int]()
-    Task.raiseError[Int](ex).executeAsync.runAsync(Callback.fromPromise(p))
+    Task.raiseError[Int](ex).executeAsync.runAsync(CompletionCallback.fromPromise(p))
     s.tick()
     assertEquals(p.future.value, Some(Failure(ex)))
   }

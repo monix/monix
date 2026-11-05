@@ -22,7 +22,7 @@ import java.util.concurrent.{ CountDownLatch, TimeUnit }
 
 import minitest.SimpleTestSuite
 import monix.execution.schedulers.SchedulerService
-import monix.execution.{ Callback, Scheduler, TestUtils, UncaughtExceptionReporter }
+import monix.execution.{ CompletionCallback, Scheduler, TestUtils, UncaughtExceptionReporter }
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -41,7 +41,7 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
         val accepted = new AtomicInteger(0)
         val completed = new CountDownLatch(1)
         val result = Task
-          .async[Int] { callback =>
+          .fromAsync[Int] { callback =>
             runConcurrently(scheduler) {
               if (callback.tryOnSuccess(42))
                 accepted.set(1)
@@ -74,7 +74,7 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
         val accepted = new AtomicInteger(0)
 
         val result = Task
-          .async[Int] { callback =>
+          .fromAsync[Int] { callback =>
             for (_ <- 0 until WORKERS) {
               scheduler.execute { () =>
                 workersReady.countDown()
@@ -113,10 +113,10 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
     try {
       for (_ <- 0 until RETRIES) {
         val registered = new CountDownLatch(1)
-        val resume = new AtomicReference[Callback[Throwable, Int]]()
+        val resume = new AtomicReference[CompletionCallback[Int]]()
         val fiber = Await.result(
           Task
-            .async[Int] { callback =>
+            .fromAsync[Int] { callback =>
               resume.set(callback)
               registered.countDown()
             }
@@ -175,11 +175,11 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
     try {
       for (_ <- 0 until RETRIES) {
         val registered = new CountDownLatch(1)
-        val resume = new AtomicReference[Callback[Throwable, Int]]()
+        val resume = new AtomicReference[CompletionCallback[Int]]()
         val finalizerRuns = new LongAdder()
         val fiber = Await.result(
           Task
-            .async[Int] { callback =>
+            .fromAsync[Int] { callback =>
               resume.set(callback)
               registered.countDown()
             }
@@ -245,19 +245,19 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
       for (_ <- 0 until RETRIES) {
         val originalRegistered = new CountDownLatch(1)
         val finalizerRegistered = new CountDownLatch(1)
-        val originalResume = new AtomicReference[Callback[Throwable, Int]]()
-        val finalizerResume = new AtomicReference[Callback[Throwable, Unit]]()
+        val originalResume = new AtomicReference[CompletionCallback[Int]]()
+        val finalizerResume = new AtomicReference[CompletionCallback[Unit]]()
         val finalizerContinuations = new AtomicInteger(0)
 
         val fiber = Await.result(
           Task
-            .async[Int] { callback =>
+            .fromAsync[Int] { callback =>
               originalResume.set(callback)
               originalRegistered.countDown()
             }
             .onCancel(
               Task
-                .async[Unit] { callback =>
+                .fromAsync[Unit] { callback =>
                   finalizerResume.set(callback)
                   finalizerRegistered.countDown()
                 }
@@ -340,19 +340,19 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
       for (_ <- 0 until RETRIES) {
         val originalRegistered = new CountDownLatch(1)
         val finalizerRegistered = new CountDownLatch(1)
-        val originalResume = new AtomicReference[Callback[Throwable, Int]]()
-        val finalizerResume = new AtomicReference[Callback[Throwable, Unit]]()
+        val originalResume = new AtomicReference[CompletionCallback[Int]]()
+        val finalizerResume = new AtomicReference[CompletionCallback[Unit]]()
         val finalizerContinuations = new AtomicInteger(0)
 
         val fiber = Await.result(
           Task
-            .async[Int] { callback =>
+            .fromAsync[Int] { callback =>
               originalResume.set(callback)
               originalRegistered.countDown()
             }
             .onCancel(
               Task
-                .async[Unit] { callback =>
+                .fromAsync[Unit] { callback =>
                   finalizerResume.set(callback)
                   finalizerRegistered.countDown()
                 }

@@ -17,7 +17,7 @@
 
 package monix.execution
 
-import java.util.concurrent.{ CompletableFuture, CompletionException }
+import java.util.concurrent.{ CancellationException, CompletableFuture, CompletionException }
 
 import minitest.TestSuite
 import monix.execution.exceptions.DummyException
@@ -36,11 +36,20 @@ object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
     assertEquals(FutureUtils.fromJavaCompletable(cf).value, Some(Success(42)))
   }
 
-  test("FutureUtils.fromJavaCompletable is non-terminating on cancelled source") { implicit s =>
+  test("FutureUtils.fromJavaCompletable reports cancellation") { implicit s =>
     val cf = new CompletableFuture[Int]
     val sc = FutureUtils.fromJavaCompletable(cf)
     cf.cancel(true)
-    assertEquals(sc.value, None)
+    s.tick()
+    assert(sc.value.exists { case Failure(_: CancellationException) => true; case _ => false })
+  }
+
+  test("FutureUtils.fromJavaCompletable reports wrapped cancellation") { implicit s =>
+    val cf = new CompletableFuture[Int]
+    val sc = FutureUtils.fromJavaCompletable(cf)
+    cf.completeExceptionally(new CompletionException(new CancellationException))
+    s.tick()
+    assert(sc.value.exists { case Failure(_: CancellationException) => true; case _ => false })
   }
 
   test("FutureUtils.fromJavaCompletable reports errors") { implicit s =>
@@ -88,13 +97,14 @@ object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("CancelableFuture.fromJavaCompletable should be cancelable") { implicit s =>
+  test("CancelableFuture.fromJavaCompletable reports cancellation") { implicit s =>
     val cf = new CompletableFuture[Int]()
     val f = CancelableFuture.fromJavaCompletable(cf)
 
     f.cancel()
+    s.tick()
     assert(!cf.complete(1))
-    assertEquals(f.value, None)
+    assert(f.value.exists { case Failure(_: CancellationException) => true; case _ => false })
   }
 
   test("CancelableFuture.toJavaCompletable should work for success") { implicit s =>
@@ -132,5 +142,14 @@ object CompletableFutureConversionsSuite extends TestSuite[TestScheduler] {
     assertEquals(wasCanceled, 1)
     f.cancel(false); s.tick()
     assertEquals(wasCanceled, 1)
+  }
+
+  test("CancelableFuture.toJavaCompletable reports source cancellation") { implicit s =>
+    val source = CancelablePromise[Int]().future
+    val cf = CancelableFuture.toJavaCompletable(source)
+
+    source.cancel()
+    s.tick()
+    assert(cf.isCompletedExceptionally)
   }
 }

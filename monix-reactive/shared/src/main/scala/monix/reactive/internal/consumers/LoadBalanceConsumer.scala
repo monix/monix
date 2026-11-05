@@ -17,7 +17,8 @@
 
 package monix.reactive.internal.consumers
 
-import monix.execution.Callback
+import java.util.concurrent.CancellationException
+import monix.execution.CompletionCallback
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.{ Ack, Cancelable, Scheduler }
 import monix.execution.atomic.{ Atomic, PaddingStrategy }
@@ -42,7 +43,7 @@ private[reactive] final class LoadBalanceConsumer[-In, R](parallelism: Int, cons
 
   // NOTE: onFinish MUST BE synchronized by `self` and
   // double-checked by means of `isDone`
-  def createSubscriber(onFinish: Callback[Throwable, List[R]], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
+  def createSubscriber(onFinish: CompletionCallback[List[R]], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
     // Assignable cancelable returned, can be used to cancel everything
     // since it will be assigned the stream subscription
     val mainCancelable = SingleAssignCancelable()
@@ -103,11 +104,14 @@ private[reactive] final class LoadBalanceConsumer[-In, R](parallelism: Int, cons
         // When the callback gets called by each subscriber, on success we
         // do nothing because for normal completion we are listing on
         // `Stop` events from onNext, but on failure we deactivate all.
-        val callback = new Callback[Throwable, R] {
+        val callback = new CompletionCallback[R] {
           def onSuccess(value: R): Unit =
             accumulate(value)
           def onError(ex: Throwable): Unit =
             interruptAll(ex)
+
+          def onCancellation(): Unit =
+            onError(new CancellationException("Consumer canceled"))
         }
 
         val arrLen = consumers.length

@@ -17,9 +17,10 @@
 
 package monix.eval.internal
 
+import java.util.concurrent.CancellationException
 import cats.effect.CancelToken
 import monix.catnap.CancelableF
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import monix.execution.atomic.{ Atomic, PaddingStrategy }
 
@@ -37,7 +38,7 @@ private[eval] object TaskRaceList {
 // a full async boundary!
   private final class Register[A](tasks: Iterable[Task[A]]) extends ForkedRegister[A] {
 
-    def apply(context: Task.Context, callback: Callback[Throwable, A]): Unit = {
+    def apply(context: Task.Context, callback: CompletionCallback[A]): Unit = {
       implicit val s = context.scheduler
       val conn = context.connection
 
@@ -56,7 +57,7 @@ private[eval] object TaskRaceList {
         Task.unsafeStartEnsureAsync(
           task,
           taskContext,
-          new Callback[Throwable, A] {
+          new CompletionCallback[A] {
             private def popAndCancelRest(): CancelToken[Task] = {
               val _ = conn.pop()
               val arr2 = cancelableArray.collect {
@@ -77,6 +78,9 @@ private[eval] object TaskRaceList {
               } else {
                 s.reportFailure(ex)
               }
+
+            def onCancellation(): Unit =
+              onError(new CancellationException("Task canceled"))
           }
         )
       }

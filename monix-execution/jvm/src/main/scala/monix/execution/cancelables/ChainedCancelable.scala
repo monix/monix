@@ -18,6 +18,7 @@
 package monix.execution.cancelables
 
 import java.lang.ref.WeakReference
+import java.util.concurrent.atomic.AtomicBoolean
 import monix.execution.Cancelable
 import monix.execution.Cancelable.IsDummy
 import monix.execution.atomic.{ AtomicAny, PaddingStrategy }
@@ -92,7 +93,8 @@ import monix.execution.internal.exceptions.matchError
 final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) extends AssignableCancelable {
 
   import ChainedCancelable.Canceled
-  private type CC = ChainedCancelable
+
+  private def isCanceled: Boolean = state.get() eq Canceled
 
   // States of `state`:
   //
@@ -102,18 +104,47 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
   //  - _: Cancelable: in case it has an underlying reference
 
   override def cancel(): Unit = {
-    // Using getAndSet, which on Java 8 should be faster than
-    // a compare-and-set.
-    state.getAndSet(Canceled) match {
-      case null | Canceled => ()
-      case ref: Cancelable => ref.cancel()
-      case wr: WeakReference[?] =>
-        val cc = wr.get.asInstanceOf[CC]
-        if (cc != null) cc.cancel()
-      case other =>
-        // $COVERAGE-OFF$
-        matchError(other)
-      // $COVERAGE-ON$
+    while (true) {
+      state.get() match {
+        case Canceled => return
+        case wr: ChainedCancelable.ForwardingRef =>
+          wr.markCanceled()
+          val cc = wr.get
+          if (cc != null) cc.cancel()
+          return
+        case current =>
+          if (state.compareAndSet(current, Canceled)) {
+            current match {
+              case null => ()
+              case ref: Cancelable => ref.cancel()
+              case other =>
+                // $COVERAGE-OFF$
+                matchError(other)
+              // $COVERAGE-ON$
+            }
+            return
+          }
+      }
+    }
+  }
+
+  private[monix] def reset(): Unit = {
+    var cursor = this
+    var continue = true
+
+    while (continue) {
+      cursor.state.get() match {
+        case wr: ChainedCancelable.ForwardingRef =>
+          wr.clearCanceled()
+          val next = wr.get
+          if (next == null) {
+            if (cursor.state.compareAndSet(wr, null)) continue = false
+          } else {
+            cursor = next
+          }
+        case current =>
+          if (cursor.state.compareAndSet(current, null)) continue = false
+      }
     }
   }
 
@@ -125,9 +156,10 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
         case Canceled =>
           value.cancel()
           return
-        case wr: WeakReference[?] =>
-          val cc = wr.get.asInstanceOf[CC]
+        case wr: ChainedCancelable.ForwardingRef =>
+          val cc = wr.get
           if (cc != null) cc.update(value)
+          else if (wr.isCanceled) value.cancel()
           return
         case current =>
           if (state.compareAndSet(current, value)) return
@@ -167,8 +199,6 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
     * }}}
     */
   def forwardTo(other: ChainedCancelable): Unit = {
-    type CC = ChainedCancelable
-
     // Short-circuit in case we have the same reference
     val newRoot = {
       var cursor = other
@@ -178,17 +208,13 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
         // Short-circuit if we discover a cycle
         if (cursor eq this) return
         cursor.state.get() match {
-          case ref2: WeakReference[?] =>
-            cursor = ref2.get.asInstanceOf[CC]
+          case ref2: ChainedCancelable.ForwardingRef =>
+            cursor = ref2.get
             if (cursor eq null) {
               cursor = null
               continue = false
             }
-          case ref2 =>
-            if (ref2 eq Canceled) {
-              cancel(); return
-            }
-            continue = false
+          case _ => continue = false
         }
       }
       cursor
@@ -198,13 +224,15 @@ final class ChainedCancelable private (private val state: AtomicAny[AnyRef]) ext
       // Using Java 8 platform intrinsics, should be faster than
       // normal getAndSet, while introducing unsafety; but in case a
       // concurrent cancellation happened, then we say sorry
-      state.getAndSet(new WeakReference(newRoot)) match {
+      val ref = new ChainedCancelable.ForwardingRef(newRoot, newRoot.isCanceled)
+      state.getAndSet(ref) match {
         case null => ()
         case Canceled => cancel()
         case _: IsDummy => ()
-        case w: WeakReference[?] =>
+        case w: ChainedCancelable.ForwardingRef =>
           val cc = w.get
-          if (cc != null) cc.asInstanceOf[CC].update(newRoot)
+          if (cc != null) cc.update(newRoot)
+          else if (w.isCanceled) newRoot.cancel()
         case prev: Cancelable =>
           newRoot.update(prev)
         case other =>
@@ -229,4 +257,13 @@ object ChainedCancelable {
     * have been cancelled.
     */
   private object Canceled
+
+  private final class ForwardingRef(ref: ChainedCancelable, initialCanceled: Boolean)
+    extends WeakReference[ChainedCancelable](ref) {
+    private val canceled = new AtomicBoolean(initialCanceled)
+
+    def isCanceled: Boolean = canceled.get()
+    def markCanceled(): Unit = canceled.set(true)
+    def clearCanceled(): Unit = canceled.set(false)
+  }
 }

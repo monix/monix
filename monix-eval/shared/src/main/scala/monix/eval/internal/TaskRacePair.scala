@@ -18,7 +18,8 @@
 package monix.eval
 package internal
 
-import monix.execution.Callback
+import java.util.concurrent.CancellationException
+import monix.execution.CompletionCallback
 import monix.execution.atomic.Atomic
 
 import scala.concurrent.Promise
@@ -43,7 +44,7 @@ private[eval] object TaskRacePair { // Type aliasing the result only b/c it's a 
 // a full async boundary!
   private final class Register[A, B](fa: Task[A], fb: Task[B]) extends ForkedRegister[RaceEither[A, B]] {
 
-    def apply(context: Task.Context, cb: Callback[Throwable, RaceEither[A, B]]): Unit = {
+    def apply(context: Task.Context, cb: CompletionCallback[RaceEither[A, B]]): Unit = {
       implicit val s = context.scheduler
       val conn = context.connection
 
@@ -62,7 +63,7 @@ private[eval] object TaskRacePair { // Type aliasing the result only b/c it's a 
       Task.unsafeStartEnsureAsync(
         fa,
         contextA,
-        new Callback[Throwable, A] {
+        new CompletionCallback[A] {
           def onSuccess(valueA: A): Unit =
             if (isActive.getAndSet(false)) {
               val fiberB = Fiber(TaskFromFuture.strict(pb.future), connB.cancel)
@@ -83,6 +84,9 @@ private[eval] object TaskRacePair { // Type aliasing the result only b/c it's a 
               pa.failure(ex)
               ()
             }
+
+          def onCancellation(): Unit =
+            onError(new CancellationException("Task canceled"))
         }
       )
 
@@ -90,7 +94,7 @@ private[eval] object TaskRacePair { // Type aliasing the result only b/c it's a 
       Task.unsafeStartEnsureAsync(
         fb,
         contextB,
-        new Callback[Throwable, B] {
+        new CompletionCallback[B] {
           def onSuccess(valueB: B): Unit =
             if (isActive.getAndSet(false)) {
               val fiberA = Fiber(TaskFromFuture.strict(pa.future), connA.cancel)
@@ -111,6 +115,9 @@ private[eval] object TaskRacePair { // Type aliasing the result only b/c it's a 
               pb.failure(ex)
               ()
             }
+
+          def onCancellation(): Unit =
+            onError(new CancellationException("Task canceled"))
         }
       )
     }

@@ -40,8 +40,11 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
   protected final def unsafeCount(): Long =
     stateRef.get().count
 
+  protected final def unsafeAcquireN(n: Long, await: Listener[Unit]): CancelToken =
+    unsafeAcquireN(n, await, () => ())
+
   @tailrec
-  protected final def unsafeAcquireN(n: Long, await: Listener[Unit]): CancelToken = {
+  protected final def unsafeAcquireN(n: Long, await: Listener[Unit], onCancellation: () => Unit): CancelToken = {
     assert(n >= 0, "n must be positive")
 
     stateRef.get() match {
@@ -51,7 +54,7 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
           val update = current.copy(available = stillAvailable)
 
           if (!stateRef.compareAndSet(current, update))
-            unsafeAcquireN(n, await) // retry
+            unsafeAcquireN(n, await, onCancellation) // retry
           else {
             await(Constants.eitherOfUnit)
             emptyCancelable
@@ -61,9 +64,9 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
           val update = current.copy(available = 0, awaitPermits = awaitPermits.enqueue(tuple))
 
           if (!stateRef.compareAndSet(current, update))
-            unsafeAcquireN(n, await) // retry
+            unsafeAcquireN(n, await, onCancellation) // retry
           else
-            makeCancelable(cancelAcquisition(n, isAsync = false), await)
+            makeCancelable(cancelAcquisition(n, false, onCancellation), await)
         }
     }
   }
@@ -82,7 +85,7 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
             unsafeAsyncAcquireN(n, await) // retry
           else {
             await(Constants.eitherOfUnit)
-            makeCancelable(cancelAcquisition(n, isAsync = true), await)
+            makeCancelable(cancelAcquisition(n, true, () => ()), await)
           }
         } else {
           val tuple = (-stillAvailable, await)
@@ -91,7 +94,7 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
           if (!stateRef.compareAndSet(current, update))
             unsafeAsyncAcquireN(n, await) // retry
           else
-            makeCancelable(cancelAcquisition(n, isAsync = true), await)
+            makeCancelable(cancelAcquisition(n, true, () => ()), await)
         }
     }
   }
@@ -165,8 +168,15 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
     }
   }
 
-  @tailrec
   protected final def unsafeAwaitAvailable(n: Long, await: Listener[Unit]): CancelToken =
+    unsafeAwaitAvailable(n, await, () => ())
+
+  @tailrec
+  protected final def unsafeAwaitAvailable(
+    n: Long,
+    await: Listener[Unit],
+    onCancellation: () => Unit
+  ): CancelToken =
     stateRef.get() match {
       case current @ State(available, _, awaitReleases) =>
         if (available >= n) {
@@ -175,9 +185,9 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
         } else {
           val update = current.copy(awaitReleases = (n -> await) :: awaitReleases)
           if (!stateRef.compareAndSet(current, update))
-            unsafeAwaitAvailable(n, await)
+            unsafeAwaitAvailable(n, await, onCancellation)
           else
-            makeCancelable(cancelAwaitRelease, await)
+            makeCancelable(p => cancelAwaitRelease(p, onCancellation), await)
         }
     }
 
@@ -186,17 +196,26 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
     while (cursor.hasNext) cursor.next().apply(Constants.eitherOfUnit)
   }
 
-  private val cancelAwaitRelease: (Listener[Unit] => Unit) = {
-    @tailrec def loop(p: Listener[Unit]): Unit = {
+  private def cancelAwaitRelease(p: Listener[Unit], onCancellation: () => Unit): Unit = {
+    @tailrec def loop(): Unit = {
       val current: State = stateRef.get()
-      val update = current.removeAwaitReleaseRef(p)
-      if (!stateRef.compareAndSet(current, update))
-        loop(p) // retry
+      if (!current.awaitReleases.exists(_._2 eq p)) ()
+      else {
+        val update = current.removeAwaitReleaseRef(p)
+        if (!stateRef.compareAndSet(current, update))
+          loop() // retry
+        else
+          onCancellation()
+      }
     }
-    loop
+    loop()
   }
 
-  private def cancelAcquisition(n: Long, isAsync: Boolean): (Listener[Unit] => Unit) = {
+  private def cancelAcquisition(
+    n: Long,
+    isAsync: Boolean,
+    onCancellation: () => Unit
+  ): (Listener[Unit] => Unit) = {
     @tailrec def loop(permit: Listener[Unit]): Unit = {
       val current: State = stateRef.get()
 
@@ -207,8 +226,13 @@ private[monix] abstract class GenericSemaphore[CancelToken] protected (provision
           val update = current.removeAwaitPermitRef(permit)
           if (!stateRef.compareAndSet(current, update))
             loop(permit) // retry
-          else if (n > m)
-            unsafeReleaseN(n - m)
+          else {
+            try {
+              if (n > m) unsafeReleaseN(n - m)
+            } finally {
+              onCancellation()
+            }
+          }
       }
     }
     loop

@@ -18,7 +18,7 @@
 package monix.reactive.consumers
 
 import minitest.TestSuite
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.Ack.Stop
 import monix.execution.Cancelable
 import monix.execution.exceptions.DummyException
@@ -37,7 +37,7 @@ object CancelConsumerSuite extends TestSuite[TestScheduler] {
     val consumer = Consumer.cancel[Int]
 
     val p = Promise[Unit]()
-    val (out, c) = consumer.createSubscriber(Callback.fromPromise(p), s)
+    val (out, c) = consumer.createSubscriber(CompletionCallback.fromPromise(p), s)
 
     var wasCancelled = false
     c := Cancelable(() => wasCancelled = true)
@@ -60,7 +60,7 @@ object CancelConsumerSuite extends TestSuite[TestScheduler] {
 
   test("onError should report errors") { implicit s =>
     val consumer = Consumer.cancel[Int]
-    val (out, _) = consumer.createSubscriber(Callback.empty, s)
+    val (out, _) = consumer.createSubscriber(CompletionCallback.empty, s)
 
     assertEquals(s.state.lastReportedError, null)
     val ex = DummyException("ex")

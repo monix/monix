@@ -21,7 +21,7 @@ import cats.Contravariant
 import cats.arrow.Profunctor
 import monix.eval.{ Task, TaskLike }
 import monix.execution.cancelables.AssignableCancelable
-import monix.execution.{ Callback, Cancelable, Scheduler }
+import monix.execution.{ Callback, Cancelable, CompletionCallback, Scheduler }
 import monix.reactive.internal.consumers._
 import monix.reactive.observers.Subscriber
 
@@ -43,7 +43,7 @@ abstract class Consumer[-In, +R] extends (Observable[In] => Task[R]) with Serial
     * Notes:
     *
     *  - calling the callback must obey the contract for the
-    *    [[monix.execution.Callback Callback]] type
+    *    [[monix.execution.CompletionCallback CompletionCallback]] type
     *  - the given callback should always get called, unless the
     *    upstream gets canceled
     *  - the given callback can be called when the subscriber is
@@ -53,7 +53,7 @@ abstract class Consumer[-In, +R] extends (Observable[In] => Task[R]) with Serial
     *    loses the ability to cancel the stream, as that `Task` will
     *    complete before the stream is finished
     *
-    * @param cb is the [[monix.execution.Callback Callback]] that will get
+    * @param cb is the [[monix.execution.CompletionCallback CompletionCallback]] that will get
     *        called once the created subscriber is finished.
     * @param s is the [[monix.execution.Scheduler Scheduler]] that will
     *        get used for subscribing to the source observable and to
@@ -61,13 +61,17 @@ abstract class Consumer[-In, +R] extends (Observable[In] => Task[R]) with Serial
     *
     * @return a new subscriber that can be used to consume observables.
     */
-  def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber[In], AssignableCancelable)
+  def createSubscriber(cb: CompletionCallback[R], s: Scheduler): (Subscriber[In], AssignableCancelable)
+
+  @deprecated("Use createSubscriber with CompletionCallback", since = "4.0.0")
+  def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber[In], AssignableCancelable) =
+    createSubscriber(CompletionCallback.fromAttempt(cb), s)
 
   /** Given a source [[Observable]], convert it into a [[monix.eval.Task Task]]
     * by piggybacking on [[createSubscriber]].
     */
   final def apply(source: Observable[In]): Task[R] =
-    Task.create { (scheduler, cb) =>
+    Task.createWithCallback { (scheduler, cb) =>
       val (out, consumerSubscription) = createSubscriber(cb, scheduler)
       // Start consuming the stream
       val sourceSubscription = source.subscribe(out)
@@ -198,16 +202,31 @@ object Consumer {
     *  - a [[monix.execution.Cancelable Cancelable]] that can be used for
     *    concurrently canceling the stream (in addition to being able to
     *    return `Stop` from `onNext`)
-    *  - a [[monix.execution.Callback Callback]] that must be called
+    *  - a [[monix.execution.CompletionCallback CompletionCallback]] that must be called
     *    to signal the final result, after the observer finished
     *    processing the stream, or an error if the processing finished
     *    in error
     *
     * @param f is the input function with an injected `Scheduler`,
-    *        `Cancelable`, `Callback` and that returns an `Observer`
+    *        `Cancelable`, `CompletionCallback` and that returns an `Observer`
     */
-  def create[In, Out](f: (Scheduler, Cancelable, Callback[Throwable, Out]) => Observer[In]): Consumer[In, Out] =
+  def createWithCallback[In, Out](
+    f: (Scheduler, Cancelable, CompletionCallback[Out]) => Observer[In]
+  ): Consumer[In, Out] =
     new CreateConsumer[In, Out](f)
+
+  @deprecated("Use Consumer.createWithCallback", since = "4.0.0")
+  def create[In, Out](f: (Scheduler, Cancelable, Callback[Throwable, Out]) => Observer[In]): Consumer[In, Out] =
+    createWithCallback { (scheduler, cancelable, callback) =>
+      f(
+        scheduler,
+        cancelable,
+        new Callback[Throwable, Out] {
+          override def onSuccess(value: Out): Unit = callback.onSuccess(value)
+          override def onError(error: Throwable): Unit = callback.onError(error)
+        }
+      )
+    }
 
   /** Given a function taking a `Scheduler` and returning an [[Observer]],
     * builds a consumer from it.
@@ -413,7 +432,14 @@ object Consumer {
     * [[monix.reactive.observers.Subscriber.Sync synchronous subscribers]].
     */
   trait Sync[-In, +R] extends Consumer[In, R] {
-    override def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber.Sync[In], AssignableCancelable)
+    override def createSubscriber(cb: CompletionCallback[R], s: Scheduler): (Subscriber.Sync[In], AssignableCancelable)
+
+    @deprecated("Use createSubscriber with CompletionCallback", since = "4.0.0")
+    override def createSubscriber(
+      cb: Callback[Throwable, R],
+      s: Scheduler
+    ): (Subscriber.Sync[In], AssignableCancelable) =
+      createSubscriber(CompletionCallback.fromAttempt(cb), s)
   }
 
   /** `cats.Contravariant` instance for [[Consumer]]. */

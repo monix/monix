@@ -21,7 +21,7 @@ import cats.effect.kernel.{ Async, Deferred, Fiber, Outcome, Poll, Ref }
 import cats.instances.list._
 import monix.eval.internal.TaskFiber
 import monix.eval.instances.CatsAsyncForTask
-import monix.execution.{ Callback, Cancelable, CancelableFuture, Scheduler }
+import monix.execution.{ Callback, Cancelable, CancelableFuture, CompletionCallback, Scheduler }
 import monix.execution.compat.BuildFrom
 
 import scala.annotation.unchecked.uncheckedVariance
@@ -304,14 +304,18 @@ sealed abstract class Task[+A] {
     * Evaluating the returned token requests cancellation and waits for finalizers;
     * merely obtaining it does not cancel the fiber.
     */
-  def unsafeRunAsync(cb: Callback[Throwable, A])(implicit s: Scheduler): CancelToken[Task] = {
-    val fiber = new TaskFiber[A](this, Callback.safe(cb))(s)
+  def unsafeRunAsync(cb: CompletionCallback[A])(implicit s: Scheduler): CancelToken[Task] = {
+    val fiber = new TaskFiber[A](this, CompletionCallback.safe(cb))(s)
     s.execute(fiber)
     fiber.cancel
   }
 
+  @deprecated("Use unsafeRunAsync with CompletionCallback", since = "4.0.0")
+  def unsafeRunAsync(cb: Callback[Throwable, A])(implicit s: Scheduler): CancelToken[Task] =
+    unsafeRunAsync(CompletionCallback.fromAttempt(cb))
+
   def unsafeRunAndForget()(implicit s: Scheduler): Unit = {
-    val _ = unsafeRunAsync(Callback.empty)
+    val _ = unsafeRunAsync(CompletionCallback.empty)
   }
 
   /** Starts this Task and exposes its success/error channel as a `CancelableFuture`.
@@ -321,12 +325,19 @@ sealed abstract class Task[+A] {
     */
   def unsafeRunToFuture()(implicit s: Scheduler): CancelableFuture[A] = {
     val p = Promise[A]()
-    val cancel = unsafeRunAsync(Callback.fromPromise(p))
+    val cancel = unsafeRunAsync(CompletionCallback.fromPromise(p))
     CancelableFuture(p.future, Cancelable(cancel.unsafeRunAndForget _))
   }
 }
 
 object Task {
+
+  @deprecated("Internal compatibility adapter", since = "4.0.0")
+  private def legacyCallback[A](callback: CompletionCallback[A]): Callback[Throwable, A] =
+    new Callback[Throwable, A] {
+      override def onSuccess(value: A): Unit = callback.onSuccess(value)
+      override def onError(error: Throwable): Unit = callback.onError(error)
+    }
 
   implicit lazy val catsEffectAsyncForTask: Async[Task] =
     new CatsAsyncForTask
@@ -351,16 +362,34 @@ object Task {
   def uncancelable[A](body: Poll[Task] => Task[A]): Task[A] =
     Uncancelable(body)
 
+  @deprecated("Use Task.fromAsync", since = "4.0.0")
   def async[A](register: Callback[Throwable, A] => Unit): Task[A] =
+    fromAsync(callback => register(legacyCallback(callback)))
+
+  def fromAsync[A](register: CompletionCallback[A] => Unit): Task[A] =
     AsyncSimple((sc, cb) => protectRegistration(sc, cb)(register))
 
+  @deprecated("Use Task.fromAsync0", since = "4.0.0")
   def async0[A](register: (Scheduler, Callback[Throwable, A]) => Unit): Task[A] =
+    fromAsync0((scheduler, callback) => register(scheduler, legacyCallback(callback)))
+
+  def fromAsync0[A](register: (Scheduler, CompletionCallback[A]) => Unit): Task[A] =
     AsyncSimple((sc, cb) => protectRegistration(sc, cb)(safe => register(sc, safe)))
 
+  @deprecated("Use Task.fromCont", since = "4.0.0")
   def cont[S, A](cont: (Callback[Throwable, S], Task[S]) => Task[A]): Task[A] =
+    fromCont((callback: CompletionCallback[S], get: Task[S]) => cont(legacyCallback(callback), get))
+
+  def fromCont[S, A](cont: (CompletionCallback[S], Task[S]) => Task[A]): Task[A] =
     AsyncCont[S, A]((_, cb, get) => cont(cb, get))
 
+  @deprecated("Use Task.fromCont0", since = "4.0.0")
   def cont0[S, A](cont: (Scheduler, Callback[Throwable, S], Task[S]) => Task[A]): Task[A] =
+    fromCont0((scheduler: Scheduler, callback: CompletionCallback[S], get: Task[S]) =>
+      cont(scheduler, legacyCallback(callback), get)
+    )
+
+  def fromCont0[S, A](cont: (Scheduler, CompletionCallback[S], Task[S]) => Task[A]): Task[A] =
     AsyncCont(cont)
 
   /** Promotes a non-strict value into a task, evaluating it each time the task is run. */
@@ -432,7 +461,7 @@ object Task {
     * The function is called when the resulting task is run.
     */
   def deferAction[A](f: Scheduler => Task[A]): Task[A] =
-    cont0[A, A]((scheduler: Scheduler, _: Callback[Throwable, A], _: Task[A]) => f(scheduler))
+    fromCont0[A, A]((scheduler: Scheduler, _: CompletionCallback[A], _: Task[A]) => f(scheduler))
 
   /** Lifts a non-strict Scala `Future` into a task. */
   def deferFuture[A](future: => Future[A]): Task[A] =
@@ -469,23 +498,35 @@ object Task {
     * The registration task runs before the callback wait begins. Cancellation requested
     * during registration takes effect after registration returns.
     */
+  @deprecated("Use Task.fromAsyncF", since = "4.0.0")
   def asyncF[A](register: Callback[Throwable, A] => Task[Unit]): Task[A] =
+    fromAsyncF(callback => register(legacyCallback(callback)))
+
+  def fromAsyncF[A](register: CompletionCallback[A] => Task[Unit]): Task[A] =
     catsEffectAsyncForTask.async { callback =>
-      defer(register(Callback.fromAttempt[Throwable, A](callback))).as(Some(unit))
+      defer(register(CompletionCallback.fromAttempt[A](callback))).as(Some(unit))
     }
 
   /** Creates a task from a callback registration that returns a cancellation action.
     *
     * The cancellation action runs if the task is canceled before the callback signals a result.
     */
+  @deprecated("Use Task.fromCancelable", since = "4.0.0")
   def cancelable[A](register: Callback[Throwable, A] => CancelToken[Task]): Task[A] =
+    fromCancelable(callback => register(legacyCallback(callback)))
+
+  def fromCancelable[A](register: CompletionCallback[A] => CancelToken[Task]): Task[A] =
     catsEffectAsyncForTask.async { callback =>
-      eval(register(Callback.fromAttempt[Throwable, A](callback))).map(token => Some(token))
+      eval(register(CompletionCallback.fromAttempt[A](callback))).map(token => Some(token))
     }
 
-  /** Creates a cancelable task and provides the scheduler to its callback registration. */
+  @deprecated("Use Task.fromCancelable0", since = "4.0.0")
   def cancelable0[A](register: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] =
-    deferAction(scheduler => cancelable(callback => register(scheduler, callback)))
+    fromCancelable0((scheduler, callback) => register(scheduler, legacyCallback(callback)))
+
+  /** Creates a cancelable task and provides the scheduler to its callback registration. */
+  def fromCancelable0[A](register: (Scheduler, CompletionCallback[A]) => CancelToken[Task]): Task[A] =
+    deferAction(scheduler => fromCancelable(callback => register(scheduler, callback)))
 
   /** Creates a reference initialized with the given value. */
   def ref[A](initial: A): Task[Ref[Task, A]] =
@@ -710,12 +751,12 @@ object Task {
 
   private def protectRegistration[A](
     scheduler: Scheduler,
-    callback: Callback[Throwable, A]
-  )(register: Callback[Throwable, A] => Unit): Unit = {
+    callback: CompletionCallback[A]
+  )(register: CompletionCallback[A] => Unit): Unit = {
     // A registration exception is an effect error only while no result has won.
     // Once the callback has completed, the exception is late and can only be
     // reported to the scheduler.
-    val safe = Callback.safe(callback)(scheduler)
+    val safe = CompletionCallback.safe(callback)(scheduler)
     try register(safe)
     catch {
       case NonFatal(error) =>
@@ -778,7 +819,7 @@ object Task {
     * registration and callback publication need no additional boundary.
     */
   private[eval] final case class AsyncSimple[+A](
-    register: (Scheduler, Callback[Throwable, A]) => Unit
+    register: (Scheduler, CompletionCallback[A]) => Unit
   ) extends Task[A] {
     def tag: Byte = AsyncSimple.TAG
     def accept[AA >: A, R](visitor: Visitor[AA, R]): R = visitor.visit(this)
@@ -795,7 +836,7 @@ object Task {
     * `get` is evaluated.
     */
   private[eval] final case class AsyncCont[A, +B](
-    cont: (Scheduler, Callback[Throwable, A], Task[A]) => Task[B]
+    cont: (Scheduler, CompletionCallback[A], Task[A]) => Task[B]
   ) extends Task[B] {
     def tag: Byte = AsyncCont.TAG
     def accept[BB >: B, R](visitor: Visitor[BB, R]): R = visitor.visit(this)

@@ -18,7 +18,7 @@
 package monix.eval
 import scala.annotation.nowarn
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
@@ -430,13 +430,13 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task = Task.evalAsync { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoizeOnSuccess
 
     val first = Promise[Int]()
-    task.runAsync(Callback.fromPromise(first))
+    task.runAsync(CompletionCallback.fromPromise(first))
 
     s.tick()
     assertEquals(first.future.value, None)
 
-    val second = Promise[Int](); task.runAsync(Callback.fromPromise(second))
-    val third = Promise[Int](); task.runAsync(Callback.fromPromise(third))
+    val second = Promise[Int](); task.runAsync(CompletionCallback.fromPromise(second))
+    val third = Promise[Int](); task.runAsync(CompletionCallback.fromPromise(third))
 
     s.tick()
     assertEquals(second.future.value, None)
@@ -453,7 +453,7 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task = Task.evalAsync { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoizeOnSuccess
 
     val first = Promise[Int]()
-    task.runAsync(Callback.fromPromise(first))
+    task.runAsync(CompletionCallback.fromPromise(first))
 
     s.tick()
     assertEquals(first.future.value, None)
@@ -461,8 +461,8 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     s.tick(1.second)
     assertEquals(first.future.value, Some(Success(2)))
 
-    val second = Promise[Int](); task.runAsync(Callback.fromPromise(second))
-    val third = Promise[Int](); task.runAsync(Callback.fromPromise(third))
+    val second = Promise[Int](); task.runAsync(CompletionCallback.fromPromise(second))
+    val third = Promise[Int](); task.runAsync(CompletionCallback.fromPromise(third))
     assertEquals(second.future.value, Some(Success(2)))
     assertEquals(third.future.value, Some(Success(2)))
   }
@@ -498,15 +498,15 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task = Task.evalAsync { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoizeOnSuccess
 
     val first = Promise[Int]()
-    task.runAsync(Callback.fromPromise(first))
+    task.runAsync(CompletionCallback.fromPromise(first))
 
     s.tick()
     assertEquals(first.future.value, None)
 
     val second = Promise[Int]()
-    task.runAsync(Callback.fromPromise(second))
+    task.runAsync(CompletionCallback.fromPromise(second))
     val third = Promise[Int]()
-    val c3 = task.runAsync(Callback.fromPromise(third))
+    val c3 = task.runAsync(CompletionCallback.fromPromise(third))
 
     s.tick()
     assertEquals(second.future.value, None)
@@ -528,15 +528,15 @@ object TaskMemoizeOnSuccessSuite extends BaseTestSuite {
     val task = Task.evalAsync { effect += 1; effect }.delayExecution(1.second).map(_ + 1).memoizeOnSuccess.map(x => x)
 
     val first = Promise[Int]()
-    task.runAsync(Callback.fromPromise(first))
+    task.runAsync(CompletionCallback.fromPromise(first))
 
     s.tick()
     assertEquals(first.future.value, None)
 
     val second = Promise[Int]()
-    task.runAsync(Callback.fromPromise(second))
+    task.runAsync(CompletionCallback.fromPromise(second))
     val third = Promise[Int]()
-    val c3 = task.runAsync(Callback.fromPromise(third))
+    val c3 = task.runAsync(CompletionCallback.fromPromise(third))
 
     s.tick()
     assertEquals(second.future.value, None)

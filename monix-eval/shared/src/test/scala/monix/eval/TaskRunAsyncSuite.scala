@@ -18,7 +18,7 @@
 package monix.eval
 import scala.annotation.nowarn
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
 
@@ -72,18 +72,18 @@ object TaskRunAsyncSuite extends BaseTestSuite {
     assertEquals(f.value, Some(Failure(dummy)))
   }
 
-  test("runAsync(Callback)") { implicit s =>
+  test("runAsync(CompletionCallback)") { implicit s =>
     val task = Task(1).flatMap(x => Task(x + 2)).executeAsync.map(_ + 1)
     val p = Promise[Int]()
-    task.runAsync(Callback.fromPromise(p))
+    task.runAsync(CompletionCallback.fromPromise(p))
     s.tick()
     assertEquals(p.future.value, Some(Success(4)))
   }
 
-  test("runAsync(Callback) is cancelable") { implicit s =>
+  test("runAsync(CompletionCallback) is cancelable") { implicit s =>
     val task = Task(1).flatMap(x => Task(x + 2)).delayExecution(1.second)
     val p = Promise[Int]()
-    val f = task.runAsync(Callback.fromPromise(p))
+    val f = task.runAsync(CompletionCallback.fromPromise(p))
     s.tick()
 
     assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
@@ -94,55 +94,55 @@ object TaskRunAsyncSuite extends BaseTestSuite {
     assertEquals(p.future.value, None)
   }
 
-  test("runAsync(Callback) for Task.now(x)") { implicit s =>
+  test("runAsync(CompletionCallback) for Task.now(x)") { implicit s =>
     val p = Promise[Int]()
 
-    Task.now(1).runAsync(Callback.fromPromise(p))
+    Task.now(1).runAsync(CompletionCallback.fromPromise(p))
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("runAsync(Callback) for Task.now(x) with AlwaysAsyncExecution") { s =>
+  test("runAsync(CompletionCallback) for Task.now(x) with AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     val p = Promise[Int]()
 
-    Task.now(1).runAsync(Callback.fromPromise(p))
+    Task.now(1).runAsync(CompletionCallback.fromPromise(p))
     assertEquals(p.future.value, None)
 
     s.tick()
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("runAsync(Callback) for Task.raiseError(x)") { implicit s =>
+  test("runAsync(CompletionCallback) for Task.raiseError(x)") { implicit s =>
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
-    Task.raiseError(dummy).runAsync(Callback.fromPromise(p))
+    Task.raiseError(dummy).runAsync(CompletionCallback.fromPromise(p))
     assertEquals(p.future.value, Some(Failure(dummy)))
   }
 
-  test("runAsync(Callback) for Task.raiseError(x) with AlwaysAsyncExecution") { s =>
+  test("runAsync(CompletionCallback) for Task.raiseError(x) with AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
 
-    Task.raiseError(dummy).runAsync(Callback.fromPromise(p))
+    Task.raiseError(dummy).runAsync(CompletionCallback.fromPromise(p))
     assertEquals(p.future.value, None)
 
     s.tick()
     assertEquals(p.future.value, Some(Failure(dummy)))
   }
 
-  test("runAsyncF(Callback)") { implicit s =>
+  test("runAsyncF(CompletionCallback)") { implicit s =>
     val task = Task(1).flatMap(x => Task(x + 2)).executeAsync.map(_ + 1)
     val p = Promise[Int]()
-    task.runAsyncF(Callback.fromPromise(p))
+    task.runAsyncF(CompletionCallback.fromPromise(p))
     s.tick()
     assertEquals(p.future.value, Some(Success(4)))
   }
 
-  test("runAsyncF(Callback) is cancelable") { implicit s =>
+  test("runAsyncF(CompletionCallback) is cancelable") { implicit s =>
     val task = Task(1).flatMap(x => Task(x + 2)).delayExecution(1.second)
     val p = Promise[Int]()
-    val f = task.runAsyncF(Callback.fromPromise(p))
+    val f = task.runAsyncF(CompletionCallback.fromPromise(p))
     s.tick()
 
     assert(s.state.tasks.nonEmpty, "tasks.nonEmpty")
@@ -153,82 +153,82 @@ object TaskRunAsyncSuite extends BaseTestSuite {
     assertEquals(p.future.value, None)
   }
 
-  test("runAsyncF(Callback) for Task.now(x)") { implicit s =>
+  test("runAsyncF(CompletionCallback) for Task.now(x)") { implicit s =>
     val p = Promise[Int]()
 
-    Task.now(1).runAsyncF(Callback.fromPromise(p))
+    Task.now(1).runAsyncF(CompletionCallback.fromPromise(p))
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("runAsyncF(Callback) for Task.now(x) with AlwaysAsyncExecution") { s =>
+  test("runAsyncF(CompletionCallback) for Task.now(x) with AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     val p = Promise[Int]()
 
-    Task.now(1).runAsyncF(Callback.fromPromise(p))
+    Task.now(1).runAsyncF(CompletionCallback.fromPromise(p))
     assertEquals(p.future.value, None)
 
     s.tick()
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("runAsyncF(Callback) for Task.raiseError(x)") { implicit s =>
+  test("runAsyncF(CompletionCallback) for Task.raiseError(x)") { implicit s =>
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
-    Task.raiseError(dummy).runAsyncF(Callback.fromPromise(p))
+    Task.raiseError(dummy).runAsyncF(CompletionCallback.fromPromise(p))
     assertEquals(p.future.value, Some(Failure(dummy)))
   }
 
-  test("runAsyncF(Callback) for Task.raiseError(x) with AlwaysAsyncExecution") { s =>
+  test("runAsyncF(CompletionCallback) for Task.raiseError(x) with AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
 
-    Task.raiseError(dummy).runAsyncF(Callback.fromPromise(p))
+    Task.raiseError(dummy).runAsyncF(CompletionCallback.fromPromise(p))
     assertEquals(p.future.value, None)
 
     s.tick()
     assertEquals(p.future.value, Some(Failure(dummy)))
   }
 
-  test("runAsyncUncancelable(Callback)") { implicit s =>
+  test("runAsyncUncancelable(CompletionCallback)") { implicit s =>
     val task = Task(1).flatMap(x => Task(x + 2)).executeAsync.map(_ + 1)
     val p = Promise[Int]()
-    task.runAsyncUncancelable(Callback.fromPromise(p))
+    task.runAsyncUncancelable(CompletionCallback.fromPromise(p))
     s.tick()
     assertEquals(p.future.value, Some(Success(4)))
   }
 
-  test("runAsyncUncancelable(Callback) for Task.now(x)") { implicit s =>
+  test("runAsyncUncancelable(CompletionCallback) for Task.now(x)") { implicit s =>
     val p = Promise[Int]()
 
-    Task.now(1).runAsyncUncancelable(Callback.fromPromise(p))
+    Task.now(1).runAsyncUncancelable(CompletionCallback.fromPromise(p))
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("runAsyncUncancelable(Callback) for Task.now(x) with AlwaysAsyncExecution") { s =>
+  test("runAsyncUncancelable(CompletionCallback) for Task.now(x) with AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     val p = Promise[Int]()
 
-    Task.now(1).runAsyncUncancelable(Callback.fromPromise(p))
+    Task.now(1).runAsyncUncancelable(CompletionCallback.fromPromise(p))
     assertEquals(p.future.value, None)
 
     s.tick()
     assertEquals(p.future.value, Some(Success(1)))
   }
 
-  test("runAsyncUncancelable(Callback) for Task.raiseError(x)") { implicit s =>
+  test("runAsyncUncancelable(CompletionCallback) for Task.raiseError(x)") { implicit s =>
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
-    Task.raiseError(dummy).runAsyncUncancelable(Callback.fromPromise(p))
+    Task.raiseError(dummy).runAsyncUncancelable(CompletionCallback.fromPromise(p))
     assertEquals(p.future.value, Some(Failure(dummy)))
   }
 
-  test("runAsyncUncancelable(Callback) for Task.raiseError(x) with AlwaysAsyncExecution") { s =>
+  test("runAsyncUncancelable(CompletionCallback) for Task.raiseError(x) with AlwaysAsyncExecution") { s =>
     implicit val s2 = s.withExecutionModel(AlwaysAsyncExecution)
     val p = Promise[Int]()
     val dummy = DummyException("dummy")
 
-    Task.raiseError(dummy).runAsyncUncancelable(Callback.fromPromise(p))
+    Task.raiseError(dummy).runAsyncUncancelable(CompletionCallback.fromPromise(p))
     assertEquals(p.future.value, None)
 
     s.tick()

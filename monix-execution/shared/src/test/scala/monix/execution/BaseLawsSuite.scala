@@ -84,8 +84,8 @@ trait ArbitraryInstances extends ArbitraryInstancesBase {
         future <- Gen.oneOf(
           CancelableFuture.pure(a),
           CancelableFuture.raiseError(DummyException(a.toString)),
-          CancelableFuture.async[A](cb => { cb(Success(a)); Cancelable.empty }),
-          CancelableFuture.async[A](cb => { cb(Failure(DummyException(a.toString))); Cancelable.empty }),
+          CancelableFuture.fromAsync[A](cb => { cb(Success(a)); Cancelable.empty }),
+          CancelableFuture.fromAsync[A](cb => { cb(Failure(DummyException(a.toString))); Cancelable.empty }),
           CancelableFuture.pure(a).flatMap(CancelableFuture.pure)
         )
       } yield future

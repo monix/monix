@@ -118,7 +118,7 @@ private[reactive] final class BufferWithSelectorObservable[+A, S](
               }
               // Actual signaling
               val ack = downstream.onNext(signal)
-              // Callback for cleaning
+              // CompletionCallback for cleaning
               ack.syncOnStopOrFailure { _ =>
                 downstreamIsDone = true
                 upstreamSubscription.cancel()

@@ -20,7 +20,7 @@ package monix.reactive.internal.builders
 import scala.annotation.nowarn
 import monix.eval.Task
 import monix.execution.Ack.{ Continue, Stop }
-import monix.execution.{ Callback, Cancelable }
+import monix.execution.{ Cancelable, CompletionCallback }
 import monix.reactive.Observable
 import monix.reactive.observers.Subscriber
 
@@ -40,7 +40,7 @@ private[reactive] final class PaginateEvalObservable[S, A](seed: S, f: S => Task
       Task
         .defer(loop(subscriber, init))
         .executeWithOptions(_.enableAutoCancelableRunLoops)
-        .runAsync(Callback.empty)
+        .runAsync(CompletionCallback.empty)
     } catch {
       case ex if NonFatal(ex) =>
         if (streamErrors) subscriber.onError(ex)

@@ -18,7 +18,7 @@
 package monix.eval
 import scala.annotation.nowarn
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 
@@ -127,12 +127,14 @@ object TaskParTraverseUnorderedSuite extends BaseTestSuite {
 
     wanderSpecial(tasks)
       .map(_.sum)
-      .runAsync(new Callback[Throwable, Int] {
+      .runAsync(new CompletionCallback[Int] {
         def onSuccess(value: Int): Unit =
           result = Some(Success(value))
 
         def onError(ex: Throwable): Unit =
           result = Some(Failure(ex))
+
+        def onCancellation(): Unit = ()
       })
 
     s.tick()

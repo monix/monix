@@ -22,7 +22,7 @@ import monix.eval.Task
 import monix.eval.Task.{ Async, Context, ContextSwitch, Error, Eval, FlatMap, Map, Now, Suspend, Trace }
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.misc.Local
-import monix.execution.{ Callback, CancelableFuture, ExecutionModel, Scheduler }
+import monix.execution.{ CancelableFuture, CompletionCallback, ExecutionModel, Scheduler }
 
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
@@ -45,14 +45,14 @@ private[eval] object TaskRunLoop {
   def startFull[A](
     source: Task[A],
     contextInit: Context,
-    cb: Callback[Throwable, A],
+    cb: CompletionCallback[A],
     rcb: TaskRestartCallback,
     bFirst: Bind,
     bRest: CallStack,
     frameIndex: FrameIndex
   ): Unit = {
 
-    val cba = cb.asInstanceOf[Callback[Throwable, Any]]
+    val cba = cb.asInstanceOf[CompletionCallback[Any]]
     var current: Current = source
     var bFirstRef = bFirst
     var bRestRef = bRest
@@ -211,7 +211,7 @@ private[eval] object TaskRunLoop {
   def restartAsync[A](
     source: Task[A],
     context: Context,
-    cb: Callback[Throwable, A],
+    cb: CompletionCallback[A],
     rcb: TaskRestartCallback,
     bindCurrent: Bind,
     bindRest: CallStack
@@ -253,13 +253,13 @@ private[eval] object TaskRunLoop {
 * initializing a `Task.Context`, falling back to
 * [[startFull]] when the first `Async` boundary is hit.
 *
-* Function gets invoked by `Task.runAsync(cb: Callback)`.
+* Function gets invoked by `Task.runAsync(cb: CompletionCallback)`.
 */
   def startLight[A](
     source: Task[A],
     scheduler: Scheduler,
     opts: Task.Options,
-    cb: Callback[Throwable, A],
+    cb: CompletionCallback[A],
     isCancelable: Boolean = true
   ): CancelToken[Task] = {
 
@@ -360,7 +360,7 @@ private[eval] object TaskRunLoop {
               async,
               scheduler,
               opts,
-              cb.asInstanceOf[Callback[Throwable, Any]],
+              cb.asInstanceOf[CompletionCallback[Any]],
               bFirst,
               bRest,
               frameIndex,
@@ -397,7 +397,7 @@ private[eval] object TaskRunLoop {
           current,
           scheduler,
           opts,
-          cb.asInstanceOf[Callback[Throwable, Any]],
+          cb.asInstanceOf[CompletionCallback[Any]],
           bFirst,
           bRest,
           frameIndex,
@@ -708,7 +708,7 @@ private[eval] object TaskRunLoop {
   private[internal] def executeAsyncTask(
     task: Task.Async[Any],
     context: Context,
-    cb: Callback[Throwable, Any],
+    cb: CompletionCallback[Any],
     rcb: TaskRestartCallback,
     bFirst: Bind,
     bRest: CallStack,
@@ -743,7 +743,7 @@ private[eval] object TaskRunLoop {
     source: Current,
     scheduler: Scheduler,
     opts: Task.Options,
-    cb: Callback[Throwable, Any],
+    cb: CompletionCallback[Any],
     bFirst: Bind,
     bRest: CallStack,
     nextFrame: FrameIndex,
@@ -785,7 +785,7 @@ private[eval] object TaskRunLoop {
   ): CancelableFuture[A] = {
 
     val p = Promise[A]()
-    val cb = Callback.fromPromise(p).asInstanceOf[Callback[Throwable, Any]]
+    val cb = CompletionCallback.fromPromise(p).asInstanceOf[CompletionCallback[Any]]
     val context = Context(scheduler, opts, TaskConnection(), tracingCtx)
 
     if (!forceFork) source match {

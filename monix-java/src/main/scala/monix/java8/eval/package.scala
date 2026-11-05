@@ -56,7 +56,7 @@ package object eval {
 
   private def convert[A](cf: CompletableFuture[A]): Task[A] = {
     // $COVERAGE-OFF$
-    Task.create((_, cb) => {
+    Task.createWithCallback((_, cb) => {
       cf.handle[Unit](new BiFunction[A, Throwable, Unit] {
         override def apply(result: A, err: Throwable): Unit = {
           err match {

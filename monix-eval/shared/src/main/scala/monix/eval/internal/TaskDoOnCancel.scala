@@ -17,8 +17,9 @@
 
 package monix.eval.internal
 
+import java.util.concurrent.CancellationException
 import monix.eval.Task.{ Async, Context }
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import monix.execution.exceptions.CallbackCalledMultipleTimesException
 import monix.execution.schedulers.TrampolinedRunnable
@@ -31,7 +32,7 @@ private[eval] object TaskDoOnCancel {
     if (callback eq Task.unit) {
       self
     } else {
-      val start = (context: Context, onFinish: Callback[Throwable, A]) => {
+      val start = (context: Context, onFinish: CompletionCallback[A]) => {
         implicit val s = context.scheduler
         context.connection.push(callback)
         Task.unsafeStartNow(self, context, new CallbackThatPops(context, onFinish))
@@ -40,8 +41,8 @@ private[eval] object TaskDoOnCancel {
     }
   }
 
-  private final class CallbackThatPops[A](ctx: Task.Context, cb: Callback[Throwable, A])
-    extends Callback[Throwable, A] with TrampolinedRunnable {
+  private final class CallbackThatPops[A](ctx: Task.Context, cb: CompletionCallback[A])
+    extends CompletionCallback[A] with TrampolinedRunnable {
 
     private var isActive = true
     private var value: A = null.asInstanceOf[A]
@@ -56,6 +57,9 @@ private[eval] object TaskDoOnCancel {
       if (!tryOnError(e)) {
         throw new CallbackCalledMultipleTimesException("onError")
       }
+
+    override def onCancellation(): Unit =
+      onError(new CancellationException("Task canceled"))
 
     override def tryOnSuccess(value: A): Boolean = {
       if (isActive) {

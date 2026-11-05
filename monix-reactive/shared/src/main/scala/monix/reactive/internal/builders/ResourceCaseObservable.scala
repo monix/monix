@@ -19,8 +19,9 @@ package monix.reactive
 package internal
 package builders
 
+import java.util.concurrent.CancellationException
 import cats.effect.ExitCase
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.Cancelable
@@ -37,7 +38,7 @@ private[reactive] final class ResourceCaseObservable[A](
   def unsafeSubscribeFn(conn: AssignableCancelable.Multi, subscriber: Subscriber[A]): Unit = {
     implicit val s = subscriber.scheduler
 
-    acquire.runAsyncUncancelable(new Callback[Throwable, A] {
+    acquire.runAsyncUncancelable(new CompletionCallback[A] {
       def onSuccess(value: A): Unit = {
         conn := new StreamOne(value)
           .guaranteeCase(e => release(value, e))
@@ -47,6 +48,9 @@ private[reactive] final class ResourceCaseObservable[A](
 
       def onError(ex: Throwable): Unit =
         subscriber.onError(ex)
+
+      def onCancellation(): Unit =
+        onError(new CancellationException("Task canceled"))
     })
   }
 

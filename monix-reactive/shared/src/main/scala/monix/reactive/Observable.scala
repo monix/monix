@@ -566,7 +566,7 @@ abstract class Observable[+A] extends Serializable { self =>
   @UnsafeBecauseImpure
   final def foreach(cb: A => Unit)(implicit s: Scheduler): CancelableFuture[Unit] = {
     val p = Promise[Unit]()
-    val onFinish = Callback.fromPromise(p)
+    val onFinish = CompletionCallback.fromPromise(p)
     val c = unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s))
     CancelableFuture(p.future, c)
   }
@@ -3938,7 +3938,7 @@ abstract class Observable[+A] extends Serializable { self =>
     *   import org.reactivestreams.{Publisher, Subscriber, Subscription}
     *
     *   def sum(source: Publisher[Int], requestSize: Int): Task[Long] =
-    *     Task.create { (_, cb) =>
+    *     Task.createWithCallback { (_, cb) =>
     *       val sub = SingleAssignSubscription()
     *
     *       source.subscribe(new Subscriber[Int] {
@@ -4009,7 +4009,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * evaluated and emitted.
     */
   final def lastOrElseL[B >: A](default: => B): Task[B] =
-    Task.create { (s, cb) =>
+    Task.createWithCallback { (s, cb) =>
       unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private var value: A = null.asInstanceOf[A]
@@ -4260,7 +4260,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * gets evaluated and emitted.
     */
   final def firstOrElseL[B >: A](default: => B): Task[B] =
-    Task.create { (s, cb) =>
+    Task.createWithCallback { (s, cb) =>
       unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private var isDone = false
@@ -4441,7 +4441,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * complete with `Unit`.
     */
   final def completedL: Task[Unit] =
-    Task.create { (s, cb) =>
+    Task.createWithCallback { (s, cb) =>
       unsafeSubscribeFn(new Subscriber.Sync[A] {
         implicit val scheduler: Scheduler = s
         private var isDone = false
@@ -4797,7 +4797,7 @@ abstract class Observable[+A] extends Serializable { self =>
     * source observable, executing the given callback for each element.
     */
   final def foreachL(cb: A => Unit): Task[Unit] =
-    Task.create { (s, onFinish) =>
+    Task.createWithCallback { (s, onFinish) =>
       unsafeSubscribeFn(new ForeachSubscriber[A](cb, onFinish, s))
     }
 

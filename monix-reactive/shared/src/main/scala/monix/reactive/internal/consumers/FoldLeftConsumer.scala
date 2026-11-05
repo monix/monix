@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.consumers
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.{ Ack, Scheduler }
 import monix.execution.cancelables.AssignableCancelable
@@ -28,7 +28,7 @@ import monix.reactive.observers.Subscriber
 /** Implementation for [[monix.reactive.Consumer.foldLeft]]. */
 private[reactive] final class FoldLeftConsumer[A, R](initial: () => R, f: (R, A) => R) extends Consumer.Sync[A, R] {
 
-  def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
+  def createSubscriber(cb: CompletionCallback[R], s: Scheduler): (Subscriber.Sync[A], AssignableCancelable) = {
     val out = new Subscriber.Sync[A] {
       implicit val scheduler: Scheduler = s
       private var isDone = false

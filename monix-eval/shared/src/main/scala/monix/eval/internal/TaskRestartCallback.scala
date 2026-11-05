@@ -17,22 +17,23 @@
 
 package monix.eval.internal
 
+import java.util.concurrent.CancellationException
 import monix.eval.Task.{ Context, Error, Now }
 import monix.eval.internal.TaskRunLoop.{ startFull, Bind, CallStack }
 import monix.eval.Task
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.misc.Local
 import monix.execution.schedulers.TrampolinedRunnable
 import scala.annotation.unused
 
-private[internal] abstract class TaskRestartCallback(contextInit: Context, callback: Callback[Throwable, Any])
-  extends Callback[Throwable, Any] with TrampolinedRunnable {
+private[internal] abstract class TaskRestartCallback(contextInit: Context, callback: CompletionCallback[Any])
+  extends CompletionCallback[Any] with TrampolinedRunnable {
 
   // Modified on prepare()
   private var bFirst: Bind = null.asInstanceOf[Bind]
   private var bRest: CallStack = null.asInstanceOf[CallStack]
-  private var register: (Context, Callback[Throwable, Any]) => Unit =
-    null.asInstanceOf[(Context, Callback[Throwable, Any]) => Unit]
+  private var register: (Context, CompletionCallback[Any]) => Unit =
+    null.asInstanceOf[(Context, CompletionCallback[Any]) => Unit]
 
   // Mutated in onSuccess and onError, just before scheduling
   // onSuccessRun and onErrorRun
@@ -91,8 +92,11 @@ private[internal] abstract class TaskRestartCallback(contextInit: Context, callb
       // $COVERAGE-ON$
     }
 
+  final def onCancellation(): Unit =
+    onError(new CancellationException("Task canceled"))
+
   protected def prepareStart(@unused task: Task.Async[?]): Unit = ()
-  protected def prepareCallback: Callback[Throwable, Any] = callback
+  protected def prepareCallback: CompletionCallback[Any] = callback
   private val wrappedCallback = prepareCallback
 
   protected def syncOnSuccess(value: Any): Unit = {
@@ -134,7 +138,7 @@ private[internal] object TaskRestartCallback {
   /** Builder for [[TaskRestartCallback]], returning a specific instance
   * optimized for the passed in `Task.Options`.
   */
-  def apply(context: Context, callback: Callback[Throwable, Any]): TaskRestartCallback = {
+  def apply(context: Context, callback: CompletionCallback[Any]): TaskRestartCallback = {
     if (context.options.localContextPropagation)
       new WithLocals(context, callback)
     else
@@ -142,11 +146,11 @@ private[internal] object TaskRestartCallback {
   }
 
   /** `RestartCallback` class meant for `localContextPropagation == false`. */
-  private final class NoLocals(context: Context, callback: Callback[Throwable, Any])
+  private final class NoLocals(context: Context, callback: CompletionCallback[Any])
     extends TaskRestartCallback(context, callback)
 
   /** `RestartCallback` class meant for `localContextPropagation == true`. */
-  private final class WithLocals(context: Context, callback: Callback[Throwable, Any])
+  private final class WithLocals(context: Context, callback: CompletionCallback[Any])
     extends TaskRestartCallback(context, callback) {
 
     private var preparedLocals: Local.Context = null.asInstanceOf[Local.Context]
@@ -156,8 +160,8 @@ private[internal] object TaskRestartCallback {
       preparedLocals = if (task.restoreLocals) Local.getContext() else null
     }
 
-    override def prepareCallback: Callback[Throwable, Any] =
-      new Callback[Throwable, Any] {
+    override def prepareCallback: CompletionCallback[Any] =
+      new CompletionCallback[Any] {
         def onSuccess(value: Any): Unit = {
           val locals = previousLocals
           if (locals ne null) Local.setContext(locals)
@@ -168,6 +172,12 @@ private[internal] object TaskRestartCallback {
           val locals = previousLocals
           if (locals ne null) Local.setContext(locals)
           callback.onError(ex)
+        }
+
+        def onCancellation(): Unit = {
+          val locals = previousLocals
+          if (locals ne null) Local.setContext(locals)
+          callback.onCancellation()
         }
       }
 

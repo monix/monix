@@ -18,7 +18,7 @@
 package monix.reactive.internal.consumers
 
 import scala.annotation.nowarn
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.Scheduler
 import monix.execution.cancelables.AssignableCancelable
 import monix.reactive.observers.Subscriber
@@ -31,7 +31,7 @@ private[reactive] final class TransformInputConsumer[In2, -In, +R](
   f: Observable[In2] => Observable[In]
 ) extends Consumer[In2, R] {
 
-  def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber[In2], AssignableCancelable) = {
+  def createSubscriber(cb: CompletionCallback[R], s: Scheduler): (Subscriber[In2], AssignableCancelable) = {
     val (input1, conn) = source.createSubscriber(cb, s)
 
     val (input2, output1) = Pipe.publishToOne[In2].transform(f).unicast

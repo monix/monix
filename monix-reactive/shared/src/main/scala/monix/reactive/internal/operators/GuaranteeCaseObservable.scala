@@ -17,8 +17,9 @@
 
 package monix.reactive.internal.operators
 
+import java.util.concurrent.CancellationException
 import cats.effect.ExitCase
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.{ Atomic, AtomicBoolean }
@@ -147,7 +148,7 @@ private[reactive] class GuaranteeCaseObservable[A](source: Observable[A], f: Exi
           }
         )
 
-      task.runAsyncUncancelable(new Callback[Throwable, Ack] {
+      task.runAsyncUncancelable(new CompletionCallback[Ack] {
         def onSuccess(value: Ack): Unit = {
           if (value == Continue) {
             if (e != null) out.onError(e)
@@ -157,6 +158,9 @@ private[reactive] class GuaranteeCaseObservable[A](source: Observable[A], f: Exi
 
         def onError(e2: Throwable): Unit =
           out.onError(composeError(e, e2))
+
+        def onCancellation(): Unit =
+          onError(new CancellationException("Task canceled"))
       })
     }
   }

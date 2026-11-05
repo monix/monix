@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.consumers
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.Ack.Stop
 import monix.execution.{ Ack, Scheduler }
 import monix.execution.cancelables.AssignableCancelable
@@ -27,7 +27,7 @@ import monix.reactive.observers.Subscriber
 /** Implementation for [[monix.reactive.Consumer.headOption]] */
 private[reactive] final class HeadOptionConsumer[A] extends Consumer.Sync[A, Option[A]] {
   override def createSubscriber(
-    cb: Callback[Throwable, Option[A]],
+    cb: CompletionCallback[Option[A]],
     s: Scheduler
   ): (Subscriber.Sync[A], AssignableCancelable) = {
     val out = new Subscriber.Sync[A] {

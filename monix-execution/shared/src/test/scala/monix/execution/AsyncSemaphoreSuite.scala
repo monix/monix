@@ -17,11 +17,12 @@
 
 package monix.execution
 
+import java.util.concurrent.CancellationException
 import minitest.TestSuite
 import monix.execution.schedulers.TestScheduler
 import monix.execution.internal.Platform
 import scala.concurrent.{ ExecutionContext, Future, Promise }
-import scala.util.{ Random, Success }
+import scala.util.{ Failure, Random, Success }
 
 object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -133,6 +134,7 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
     assertEquals(semaphore.available(), 0)
 
     p3.cancel()
+    assert(isCancellation(p3))
     semaphore.release()
     assertEquals(semaphore.available(), 1)
     semaphore.release()
@@ -140,7 +142,83 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
 
     s.tick()
     assertEquals(semaphore.available(), 2)
-    assert(!p3.isCompleted, "!p3.isCompleted")
+    assert(isCancellation(p3))
+  }
+
+  test("canceling a partial acquisition returns its reserved permits") { implicit s =>
+    val semaphore = AsyncSemaphore(provisioned = 3)
+    val held = semaphore.acquireN(2)
+    val pending = semaphore.acquireN(3)
+
+    assertEquals(held.value, Some(Success(())))
+    assertEquals(semaphore.available(), 0)
+    assert(!pending.isCompleted)
+
+    pending.cancel()
+    assert(isCancellation(pending))
+    assertEquals(semaphore.available(), 1)
+
+    semaphore.releaseN(2)
+    assertEquals(semaphore.available(), 3)
+  }
+
+  test("canceling after an acquisition is granted keeps the permit") { implicit s =>
+    val semaphore = AsyncSemaphore(provisioned = 1)
+    val held = semaphore.acquire()
+    val waiter = semaphore.acquire()
+
+    assertEquals(held.value, Some(Success(())))
+    assert(!waiter.isCompleted)
+    semaphore.release()
+    assertEquals(waiter.value, Some(Success(())))
+
+    waiter.cancel()
+    assertEquals(waiter.value, Some(Success(())))
+    assertEquals(semaphore.available(), 0)
+
+    semaphore.release()
+    assertEquals(semaphore.available(), 1)
+  }
+
+  test("canceling awaitAvailable removes the listener and reports cancellation") { implicit s =>
+    val semaphore = AsyncSemaphore(provisioned = 1)
+    val held = semaphore.acquire()
+    val available = semaphore.awaitAvailable(1)
+
+    assertEquals(held.value, Some(Success(())))
+    assert(!available.isCompleted)
+    available.cancel()
+    assert(isCancellation(available))
+
+    semaphore.release()
+    assertEquals(semaphore.available(), 1)
+    assert(isCancellation(available))
+  }
+
+  test("withPermit waits for a canceled operation before releasing permits") { implicit s =>
+    val semaphore = AsyncSemaphore(provisioned = 1)
+    var operationCallback: Option[CompletionCallback[Int]] = None
+    var cancellationRequested = false
+    val result = semaphore.withPermit { () =>
+      CancelableFuture.fromAsync[Int] { callback =>
+        operationCallback = Some(callback)
+        Cancelable(() => { cancellationRequested = true })
+      }
+    }
+
+    s.tick()
+    assert(operationCallback.isDefined)
+    assertEquals(semaphore.available(), 0)
+
+    result.cancel()
+    assert(cancellationRequested)
+    assert(result.value.isEmpty)
+    assertEquals(semaphore.available(), 0)
+
+    operationCallback.get.onCancellation()
+    s.tick()
+    assert(isCancellation(result))
+    assertEquals(semaphore.available(), 1)
   }
 
   testAsync("withPermitN / awaitAvailable concurrent test") { _ =>
@@ -224,4 +302,10 @@ object AsyncSemaphoreSuite extends TestSuite[TestScheduler] {
   def repeatTest(n: Int)(f: () => Future[Unit])(implicit ec: ExecutionContext): Future[Unit] =
     if (n > 0) f().flatMap(_ => repeatTest(n - 1)(f))
     else Future.successful(())
+
+  private def isCancellation[A](future: CancelableFuture[A]): Boolean =
+    future.value.exists {
+      case Failure(_: CancellationException) => true
+      case _ => false
+    }
 }

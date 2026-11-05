@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.consumers
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.Ack.Continue
 import monix.execution.{ Ack, Scheduler }
 import monix.execution.cancelables.AssignableCancelable
@@ -27,7 +27,7 @@ import monix.reactive.observers.Subscriber
 /** Implementation for [[monix.reactive.Consumer.complete]]. */
 private[reactive] object CompleteConsumer extends Consumer.Sync[Any, Unit] {
   override def createSubscriber(
-    cb: Callback[Throwable, Unit],
+    cb: CompletionCallback[Unit],
     s: Scheduler
   ): (Subscriber.Sync[Any], AssignableCancelable) = {
     val out = new Subscriber.Sync[Any] {

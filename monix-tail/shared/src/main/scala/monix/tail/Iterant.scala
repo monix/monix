@@ -1899,7 +1899,7 @@ sealed abstract class Iterant[F[_], A] extends Product with Serializable {
     *   import org.reactivestreams.{Publisher, Subscriber, Subscription}
     *
     *   def sum(source: Publisher[Int], requestSize: Int): Task[Long] =
-    *     Task.create { (_, cb) =>
+    *     Task.createWithCallback { (_, cb) =>
     *       val sub = SingleAssignSubscription()
     *
     *       source.subscribe(new Subscriber[Int] {

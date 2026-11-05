@@ -19,7 +19,7 @@ package monix.eval.internal
 
 import cats.effect._
 import monix.eval.Task.Context
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.schedulers.TrampolinedRunnable
@@ -83,7 +83,7 @@ private[eval] object TaskConversions {
     }
 
   private def fromEffect0[F[_], A](fa: F[A])(implicit F: Effect[F]): Task[A] = {
-    val start = (ctx: Context, cb: Callback[Throwable, A]) => {
+    val start = (ctx: Context, cb: CompletionCallback[A]) => {
       try {
         implicit val sc = ctx.scheduler
         val io = F.runAsync(fa)(new CreateCallback(null, cb))
@@ -114,7 +114,7 @@ private[eval] object TaskConversions {
 * Implementation for `Task.fromReactivePublisher`.
 */
   def fromReactivePublisher[A](source: Publisher[A]): Task[Option[A]] =
-    Task.cancelable0 { (scheduler, cb) =>
+    Task.fromCancelable0 { (scheduler, cb) =>
       val sub = SingleAssignSubscription()
 
       source.subscribe(new Subscriber[A] {
@@ -154,7 +154,7 @@ private[eval] object TaskConversions {
     }
 
   private def fromConcurrentEffect0[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): Task[A] = {
-    val start = (ctx: Context, cb: Callback[Throwable, A]) => {
+    val start = (ctx: Context, cb: CompletionCallback[A]) => {
       try {
         implicit val sc = ctx.scheduler
         val conn = ctx.connection
@@ -175,7 +175,7 @@ private[eval] object TaskConversions {
     )
   }
 
-  private final class CreateCallback[A](conn: TaskConnection, cb: Callback[Throwable, A])(implicit s: Scheduler)
+  private final class CreateCallback[A](conn: TaskConnection, cb: CompletionCallback[A])(implicit s: Scheduler)
     extends (Either[Throwable, A] => IO[Unit]) with TrampolinedRunnable {
 
     private var canCall = true

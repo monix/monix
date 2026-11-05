@@ -17,7 +17,8 @@
 
 package monix.eval.internal
 
-import monix.execution.Callback
+import java.util.concurrent.CancellationException
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import monix.execution.atomic.Atomic
 
@@ -39,7 +40,7 @@ private[eval] object TaskRace {
 // a full async boundary!
   private final class Register[A, B](fa: Task[A], fb: Task[B]) extends ForkedRegister[Either[A, B]] {
 
-    def apply(context: Task.Context, cb: Callback[Throwable, Either[A, B]]): Unit = {
+    def apply(context: Task.Context, cb: CompletionCallback[Either[A, B]]): Unit = {
       implicit val sc = context.scheduler
       val conn = context.connection
 
@@ -55,7 +56,7 @@ private[eval] object TaskRace {
       Task.unsafeStartEnsureAsync(
         fa,
         contextA,
-        new Callback[Throwable, A] {
+        new CompletionCallback[A] {
           def onSuccess(valueA: A): Unit =
             if (isActive.getAndSet(false)) {
               connB.cancel.map { _ =>
@@ -73,6 +74,9 @@ private[eval] object TaskRace {
             } else {
               sc.reportFailure(ex)
             }
+
+          def onCancellation(): Unit =
+            onError(new CancellationException("Task canceled"))
         }
       )
 
@@ -80,7 +84,7 @@ private[eval] object TaskRace {
       Task.unsafeStartEnsureAsync(
         fb,
         contextB,
-        new Callback[Throwable, B] {
+        new CompletionCallback[B] {
           def onSuccess(valueB: B): Unit =
             if (isActive.getAndSet(false)) {
               connA.cancel.map { _ =>
@@ -98,6 +102,9 @@ private[eval] object TaskRace {
             } else {
               sc.reportFailure(ex)
             }
+
+          def onCancellation(): Unit =
+            onError(new CancellationException("Task canceled"))
         }
       )
     }

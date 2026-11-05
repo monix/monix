@@ -17,7 +17,7 @@
 
 package monix.reactive.consumers
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.Ack.Stop
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
@@ -33,7 +33,7 @@ object RaiseErrorConsumerSuite extends BaseTestSuite {
 
     val p = Promise[Unit]()
     val conn = BooleanCancelable()
-    val (out, c) = consumer.createSubscriber(Callback.fromPromise(p), s)
+    val (out, c) = consumer.createSubscriber(CompletionCallback.fromPromise(p), s)
     c := conn
 
     assertEquals(out.onNext(1), Stop)
@@ -46,7 +46,7 @@ object RaiseErrorConsumerSuite extends BaseTestSuite {
     val ex1 = DummyException("dummy1")
     val ex2 = DummyException("dummy2")
     val consumer = Consumer.raiseError(ex1)
-    val (out, _) = consumer.createSubscriber(Callback.empty, s)
+    val (out, _) = consumer.createSubscriber(CompletionCallback.empty, s)
 
     out.onError(ex2)
     assertEquals(s.state.lastReportedError, ex2)

@@ -19,7 +19,7 @@ package monix.catnap
 
 import cats.effect.{ Async, CancelToken, Concurrent, ContextShift }
 import monix.catnap.internal.AsyncUtils
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.annotations.{ UnsafeBecauseImpure, UnsafeProtocol }
 import monix.execution.atomic.PaddingStrategy
 import monix.execution.atomic.PaddingStrategy.NoPadding
@@ -305,7 +305,7 @@ object Semaphore {
           (F0.unit, releaseN(n))
         } else {
           val p = Promise[Unit]()
-          val cancelToken = unsafeAsyncAcquireN(n, Callback.fromPromise(p))
+          val cancelToken = unsafeAsyncAcquireN(n, CompletionCallback.fromPromise(p).toAttempt)
           val acquire = FutureLift.scalaToAsync(F0.pure(p.future))
           // Extra async boundary needed for fairness
           (F0.flatMap(acquire)(bindFork), cancelToken)

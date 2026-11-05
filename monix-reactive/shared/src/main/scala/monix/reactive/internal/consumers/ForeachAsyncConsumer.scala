@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.consumers
 
-import monix.execution.{ Ack, Callback, Cancelable, Scheduler }
+import monix.execution.{ Ack, Cancelable, CompletionCallback, Scheduler }
 import monix.eval.Task
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.cancelables.{ AssignableCancelable, SingleAssignCancelable }
@@ -30,7 +30,7 @@ import scala.concurrent.Future
 /** Implementation for [[monix.reactive.Consumer.foreachTask]]. */
 private[reactive] final class ForeachAsyncConsumer[A](f: A => Task[Unit]) extends Consumer[A, Unit] {
 
-  def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber[A], AssignableCancelable) = {
+  def createSubscriber(cb: CompletionCallback[Unit], s: Scheduler): (Subscriber[A], AssignableCancelable) = {
     var isDone = false
     var lastCancelable = Cancelable.empty
 

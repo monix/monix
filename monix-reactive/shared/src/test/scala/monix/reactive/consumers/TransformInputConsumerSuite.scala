@@ -62,7 +62,7 @@ object TransformInputConsumerSuite extends BaseTestSuite {
   test("Consumer#transformInput propagates cancelable assignment") { implicit s =>
     val sum = Atomic(0L)
 
-    val sumEvens = Consumer.create[Int, Long] { (_, cancelable, callback) =>
+    val sumEvens = Consumer.createWithCallback[Int, Long] { (_, cancelable, callback) =>
       new Observer[Int] {
         override def onNext(elem: Int): Future[Ack] = {
           if (elem % 2 != 0) cancelable.cancel()

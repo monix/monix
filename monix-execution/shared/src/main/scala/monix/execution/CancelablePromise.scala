@@ -21,6 +21,7 @@ import monix.execution.atomic.PaddingStrategy.NoPadding
 import monix.execution.internal.exceptions.matchError
 import monix.execution.atomic.{ AtomicAny, PaddingStrategy }
 
+import java.util.concurrent.CancellationException
 import scala.annotation.tailrec
 import scala.collection.immutable.LongMap
 import scala.collection.mutable.ListBuffer
@@ -70,9 +71,9 @@ sealed abstract class CancelablePromise[A] extends Promise[A] {
     *   //=> Future2 completed with: 99
     * }}}
     *
-    * Note that in the above example `future1` becomes non-terminating
-    * after cancellation. By unsubscribing its listener, it will never
-    * complete.
+    * Cancelling `future1` completes that future with a
+    * `CancellationException` after unsubscribing its listener. Other
+    * futures and callbacks subscribed to this promise remain unaffected.
     *
     * This helps with avoiding memory leaks for futures that are being
     * timed-out due to promises that take a long time to complete.
@@ -206,7 +207,7 @@ object CancelablePromise {
           val (id, update) = queue.enqueue(p)
           val cancelable =
             if (!state.compareAndSet(queue, update)) unsafeSubscribe(p)
-            else new IdCancelable(id)
+            else subscriptionCancelable(id, p)
           CancelableFuture(p.future, cancelable)
         case other =>
           // $COVERAGE-OFF$
@@ -259,7 +260,7 @@ object CancelablePromise {
         case f: (Try[A] => Unit) @unchecked =>
           f(result)
         case p: Promise[A] @unchecked =>
-          p.complete(result)
+          val _ = p.tryComplete(result)
           ()
         case other =>
           // $COVERAGE-OFF$
@@ -276,13 +277,27 @@ object CancelablePromise {
         case queue: MapQueue[Any] @unchecked =>
           val (id, update) = queue.enqueue(cb)
           if (!state.compareAndSet(queue, update)) unsafeSubscribe(cb)
-          else new IdCancelable(id)
+          else subscriptionCancelable(id, cb)
 
         case other =>
           // $COVERAGE-OFF$
           matchError(other)
         // $COVERAGE-ON$
       }
+
+    private def subscriptionCancelable(id: Long, cb: AnyRef): Cancelable =
+      cb match {
+        case p: Promise[_] => new FutureIdCancelable(id, p)
+        case _ => new IdCancelable(id)
+      }
+
+    private final class FutureIdCancelable(id: Long, p: Promise[_]) extends Cancelable {
+      def cancel(): Unit = {
+        new IdCancelable(id).cancel()
+        val _ = p.tryFailure(new CancellationException)
+        ()
+      }
+    }
 
     private final class IdCancelable(id: Long) extends Cancelable {
       @tailrec def cancel(): Unit =

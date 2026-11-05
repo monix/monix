@@ -17,9 +17,10 @@
 
 package monix.eval.internal
 
+import java.util.concurrent.CancellationException
 import monix.eval.Task.{ Context, Error, Now }
 import monix.eval.internal.TaskRunLoop.startFull
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.{ Coeval, Task }
 import monix.execution.Scheduler
 import monix.execution.atomic.Atomic
@@ -51,13 +52,13 @@ private[eval] object TaskMemoize {
 
   /** Registration function, used in `Task.Async`. */
   private final class Register[A](source: Task[A], val cacheErrors: Boolean)
-    extends ((Task.Context, Callback[Throwable, A]) => Unit) { self =>
+    extends ((Task.Context, CompletionCallback[A]) => Unit) { self =>
 
     // N.B. keeps state!
     private var thunk = source
     private val state = Atomic(null: AnyRef)
 
-    def apply(ctx: Context, cb: Callback[Throwable, A]): Unit =
+    def apply(ctx: Context, cb: CompletionCallback[A]): Unit =
       state.get() match {
         case result: Try[A] @unchecked =>
           cb(result)
@@ -109,18 +110,21 @@ private[eval] object TaskMemoize {
     }
 
     /** Builds a callback that gets used to cache the result. */
-    private def complete(implicit s: Scheduler): Callback[Throwable, A] =
-      new Callback[Throwable, A] {
+    private def complete(implicit s: Scheduler): CompletionCallback[A] =
+      new CompletionCallback[A] {
         def onSuccess(value: A): Unit =
           self.cacheValue(Success(value))
         def onError(ex: Throwable): Unit =
           self.cacheValue(Failure(ex))
+
+        def onCancellation(): Unit =
+          onError(new CancellationException("Task canceled"))
       }
 
     /** While the task is pending completion, registers a new listener
 * that will receive the result once the task is complete.
 */
-    private def registerListener(p: Promise[A], context: Context, cb: Callback[Throwable, A])(
+    private def registerListener(p: Promise[A], context: Context, cb: CompletionCallback[A])(
       implicit ec: ExecutionContext
     ): Unit = {
 
@@ -136,7 +140,7 @@ private[eval] object TaskMemoize {
     /**
 * Starts execution, eventually caching the value on completion.
 */
-    @tailrec private def start(context: Context, cb: Callback[Throwable, A]): Unit = {
+    @tailrec private def start(context: Context, cb: CompletionCallback[A]): Unit = {
       implicit val sc: Scheduler = context.scheduler
       self.state.get() match {
         case null =>

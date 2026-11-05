@@ -19,7 +19,7 @@ package monix.eval
 
 import cats.effect.kernel.Fiber
 import minitest.SimpleTestSuite
-import monix.execution.{ Callback, ExecutionModel }
+import monix.execution.{ CompletionCallback, ExecutionModel }
 import monix.execution.schedulers.TestScheduler
 import scala.util.Success
 
@@ -27,10 +27,10 @@ object TaskContRegressionSuite extends SimpleTestSuite {
   test("a canceled cont get can be reused in its cancellation finalizer") {
     implicit val scheduler: TestScheduler =
       TestScheduler(ExecutionModel.AlwaysAsyncExecution)
-    var resume: Callback[Throwable, Int] = null
+    var resume: CompletionCallback[Int] = null
     var observed: Option[Int] = None
 
-    val source = Task.cont[Int, Unit] { (callback, get) =>
+    val source = Task.fromCont[Int, Unit] { (callback, get) =>
       resume = callback
       get.onCancel(get.flatMap(value => Task.delay { observed = Some(value) })).map(_ => ())
     }
@@ -51,10 +51,10 @@ object TaskContRegressionSuite extends SimpleTestSuite {
   test("a cont signal after cancellation is retained for the finalizer get") {
     implicit val scheduler: TestScheduler =
       TestScheduler(ExecutionModel.AlwaysAsyncExecution)
-    var resume: Callback[Throwable, Int] = null
+    var resume: CompletionCallback[Int] = null
     var observed: Option[Int] = None
 
-    val source = Task.cont[Int, Unit] { (callback, get) =>
+    val source = Task.fromCont[Int, Unit] { (callback, get) =>
       resume = callback
       val signalThenGet = Task
         .delay { callback.onSuccess(42) }

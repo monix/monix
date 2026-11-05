@@ -83,7 +83,7 @@ private[eval] final class CatsAsyncForTask extends Async[Task] {
   override val cede: Task[Unit] =
     // Submit the signal to the current scheduler. The callback indirection also
     // covers a scheduler which invokes it before `get` starts.
-    Task.cont0[Unit, Unit] { (scheduler, callback, get) =>
+    Task.fromCont0[Unit, Unit] { (scheduler, callback, get) =>
       scheduler.execute(() => callback.onSuccess(()))
       get
     }
@@ -104,7 +104,7 @@ private[eval] final class CatsAsyncForTask extends Async[Task] {
     uncancelable { poll =>
       start(fa).flatMap { fiberA =>
         start(fb).flatMap { fiberB =>
-          val await = Task.cont0[Result, Result] { (scheduler, callback, get) =>
+          val await = Task.fromCont0[Result, Result] { (scheduler, callback, get) =>
             // Both observers race to signal one continuation. Its atomic state keeps
             // the first outcome and ignores the second signal.
             fiberA.join
@@ -141,7 +141,7 @@ private[eval] final class CatsAsyncForTask extends Async[Task] {
       // Timer installation is masked, while `get` is polled. This prevents a race in
       // which cancellation occurs after scheduling but before its token is attached.
       uncancelable { poll =>
-        Task.cont0[Unit, Unit] { (scheduler, callback, get) =>
+        Task.fromCont0[Unit, Unit] { (scheduler, callback, get) =>
           val cancelable = scheduler.scheduleOnce(time)(callback.onSuccess(()))
           poll(get).onCancel(Task.delay(cancelable.cancel()))
         }
@@ -158,9 +158,9 @@ private[eval] final class CatsAsyncForTask extends Async[Task] {
     Task.ReadExecutionContext
 
   override def cont[K, R](body: Cont[Task, K, R]): Task[R] =
-    // Cats Effect's `Either` callback is adapted to Monix's two-channel `Callback`.
+    // Cats Effect's `Either` callback is adapted to Monix's two-channel `CompletionCallback`.
     // `get` already belongs to `Task`, therefore `lift` is the identity.
-    Task.cont0[K, R] { (_, callback, get) =>
+    Task.fromCont0[K, R] { (_, callback, get) =>
       val resume: Either[Throwable, K] => Unit = {
         case Right(value) => callback.onSuccess(value)
         case Left(error) => callback.onError(error)
@@ -172,5 +172,5 @@ private[eval] final class CatsAsyncForTask extends Async[Task] {
   private def readScheduler[A](f: Scheduler => A): Task[A] =
     // `cont0` exposes the interpreter's current Scheduler. No callback handshake is
     // needed here; the returned delayed node performs the actual read.
-    Task.cont0[A, A]((scheduler, _, _) => Task.delay(f(scheduler)))
+    Task.fromCont0[A, A]((scheduler, _, _) => Task.delay(f(scheduler)))
 }

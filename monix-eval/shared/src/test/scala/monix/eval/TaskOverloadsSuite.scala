@@ -18,7 +18,7 @@
 package monix.eval
 import scala.annotation.nowarn
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
 import scala.concurrent.Promise
@@ -35,7 +35,7 @@ object TaskOverloadsSuite extends BaseTestSuite {
   test("Now.runAsync(callback)") { implicit s =>
     val task = Task.now(1)
     val p = Promise[Int]()
-    task.runAsync(Callback.fromPromise(p))(s)
+    task.runAsync(CompletionCallback.fromPromise(p))(s)
     assertEquals(p.future.value, Some(Success(1)))
   }
 
@@ -44,7 +44,7 @@ object TaskOverloadsSuite extends BaseTestSuite {
     val task = Task.now(1)
     val p = Promise[Int]()
 
-    task.runAsync(Callback.fromPromise(p))(s2)
+    task.runAsync(CompletionCallback.fromPromise(p))(s2)
     assertEquals(p.future.value, None)
 
     s2.tick()
@@ -60,7 +60,7 @@ object TaskOverloadsSuite extends BaseTestSuite {
   test("Now.runAsyncOpt(callback)") { implicit s =>
     val task = Task.now(1)
     val p = Promise[Int]()
-    task.runAsyncOpt(Callback.fromPromise(p))(s, Task.defaultOptions)
+    task.runAsyncOpt(CompletionCallback.fromPromise(p))(s, Task.defaultOptions)
     assertEquals(p.future.value, Some(Success(1)))
   }
 
@@ -75,7 +75,7 @@ object TaskOverloadsSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy)
     val p = Promise[Int]()
-    task.runAsync(Callback.fromPromise(p))(s)
+    task.runAsync(CompletionCallback.fromPromise(p))(s)
     assertEquals(p.future.value, Some(Failure(dummy)))
   }
 
@@ -85,7 +85,7 @@ object TaskOverloadsSuite extends BaseTestSuite {
     val task = Task.raiseError(dummy)
     val p = Promise[Int]()
 
-    task.runAsync(Callback.fromPromise(p))(s2)
+    task.runAsync(CompletionCallback.fromPromise(p))(s2)
     assertEquals(p.future.value, None)
 
     s2.tick()
@@ -103,7 +103,7 @@ object TaskOverloadsSuite extends BaseTestSuite {
     val dummy = DummyException("dummy")
     val task = Task.raiseError(dummy)
     val p = Promise[Int]()
-    task.runAsyncOpt(Callback.fromPromise(p))(s, Task.defaultOptions)
+    task.runAsyncOpt(CompletionCallback.fromPromise(p))(s, Task.defaultOptions)
     assertEquals(p.future.value, Some(Failure(dummy)))
   }
 }

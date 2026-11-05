@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.consumers
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.Ack.Stop
 import monix.execution.{ Ack, Scheduler }
 import monix.execution.atomic.Atomic
@@ -32,7 +32,7 @@ import scala.util.{ Failure, Success, Try }
 /** Implementation for [[monix.reactive.Consumer.fromObserver]]. */
 private[reactive] final class FromObserverConsumer[In](f: Scheduler => Observer[In]) extends Consumer[In, Unit] {
 
-  def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
+  def createSubscriber(cb: CompletionCallback[Unit], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
     Try(f(s)) match {
       case Failure(ex) =>
         Consumer.raiseError(ex).createSubscriber(cb, s)

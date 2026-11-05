@@ -18,7 +18,7 @@
 package monix.eval
 import scala.annotation.nowarn
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
 import scala.concurrent.Promise
@@ -69,7 +69,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runAsync(Callback.fromPromise(p))
+    task.runAsync(CompletionCallback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -105,7 +105,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runAsync(Callback.fromPromise(p))
+    task.runAsync(CompletionCallback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -119,7 +119,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runAsync(Callback.fromPromise(p))
+    task.runAsync(CompletionCallback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -155,7 +155,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runAsync(Callback.fromPromise(p))
+    task.runAsync(CompletionCallback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -169,7 +169,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runAsync(Callback.fromPromise(p))
+    task.runAsync(CompletionCallback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -205,7 +205,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runAsync(Callback.fromPromise(p))
+    task.runAsync(CompletionCallback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -219,7 +219,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runAsync(Callback.fromPromise(p))
+    task.runAsync(CompletionCallback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -255,7 +255,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runAsync(Callback.fromPromise(p))
+    task.runAsync(CompletionCallback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -269,7 +269,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runAsync(Callback.fromPromise(p))
+    task.runAsync(CompletionCallback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))
@@ -305,7 +305,7 @@ object TaskOrCoevalTransformWithSuite extends BaseTestSuite {
     }
 
     val p = Promise[Int]()
-    task.runAsync(Callback.fromPromise(p))
+    task.runAsync(CompletionCallback.fromPromise(p))
 
     s.tick()
     assertEquals(p.future.value, Some(Success(100)))

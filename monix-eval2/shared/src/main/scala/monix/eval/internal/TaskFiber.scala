@@ -21,7 +21,7 @@ package internal
 import cats.effect.kernel.{ Fiber, Outcome, Poll }
 import monix.eval.Task.RaiseError
 import monix.eval.internal.TaskFiber.*
-import monix.execution.{ Callback, ExecutionModel, Scheduler }
+import monix.execution.{ CompletionCallback, ExecutionModel, Scheduler }
 import monix.execution.atomic.Atomic
 import monix.execution.schedulers.TrampolineExecutionContext
 import java.util.concurrent.RejectedExecutionException
@@ -39,7 +39,7 @@ import scala.util.control.NonFatal
   */
 private[eval] final class TaskFiber[A] private[eval] (
   source: Task[A],
-  cb: Callback[Throwable, A],
+  cb: CompletionCallback[A],
   initExecutionContext: ExecutionContext = null
 )(implicit
   initialScheduler: Scheduler
@@ -150,7 +150,7 @@ private[eval] final class TaskFiber[A] private[eval] (
   override def visit[S](ref: Task.AsyncCont[S, Any]): Control = {
     // `callback` and `get` may be used in either order. The indirection retains the
     // first side until the other arrives.
-    val callback = new TaskCallbackIndirection[Throwable, S]
+    val callback = new TaskCallbackIndirection[S]
     val get = Task.AsyncSimple[S]((_, waiting) => callback.register(waiting))
       .onCancel(Task.delay(callback.clear()))
     // Constructing the continuation result may throw. Move a `NonFatal` into the
@@ -242,10 +242,10 @@ private[eval] final class TaskFiber[A] private[eval] (
 
   override def visit[S](ref: Task.Start[S]): Control = {
     // Successful child values are observed through `join`, so the root callback can
-    // ignore success. `Callback.empty` still reports a child error.
+    // ignore success. `CompletionCallback.empty` still reports a child error.
     val child = new TaskFiber[S](
       ref.source,
-      Callback.empty(scheduler),
+      CompletionCallback.empty(scheduler),
       initExecutionContext = executionContext
     )(scheduler)
     val callback = new TaskRestartCallback(this, scheduler)
@@ -315,7 +315,7 @@ private[eval] final class TaskFiber[A] private[eval] (
     // after the state transition rather than inside its CAS retry loop.
     if (publish()) {
       val target = scheduler
-      submit(target, this, (), Callback.empty(target))
+      submit(target, this, (), CompletionCallback.empty(target))
     }
   }
 
@@ -504,7 +504,7 @@ private[eval] final class TaskFiber[A] private[eval] (
     loop()
   }
 
-  private def registerJoin(callback: Callback[Throwable, Outcome[Task, Throwable, A]]): Unit = {
+  private def registerJoin(callback: CompletionCallback[Outcome[Task, Throwable, A]]): Unit = {
     // A registration either adds its callback while the state is `Active`, so
     // `complete` sees it, or observes `Finished` and receives the outcome immediately.
     @tailrec def loop(): Unit =
@@ -518,7 +518,7 @@ private[eval] final class TaskFiber[A] private[eval] (
     loop()
   }
 
-  private def requestCancel(callback: Callback[Throwable, Unit]): Unit = {
+  private def requestCancel(callback: CompletionCallback[Unit]): Unit = {
     @tailrec def releaseMaskedClaim(): Boolean =
       stateRef.get() match {
         case Finished(_) =>
@@ -633,7 +633,7 @@ object TaskFiber {
     scheduler: Scheduler,
     runnable: Runnable,
     accepted: A,
-    callback: Callback[Throwable, A]
+    callback: CompletionCallback[A]
   ): Unit =
     TrampolineExecutionContext.immediate.execute(new Runnable {
       def run(): Unit = {
@@ -665,7 +665,7 @@ object TaskFiber {
   private sealed trait FiberState[A]
 
   private final case class Active[A](
-    listeners: List[Callback[Throwable, Outcome[Task, Throwable, A]]],
+    listeners: List[CompletionCallback[Outcome[Task, Throwable, A]]],
     runActive: Boolean,
     isCanceled: Boolean,
     pendingRef: Current,

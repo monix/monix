@@ -81,6 +81,7 @@ import scala.util.{ Failure, Success, Try }
   *                 `false` in case another concurrent call succeeded
   *                 first in signaling a result
   */
+@deprecated("Use CompletionCallback with explicit cancellation handling", "4.0.0")
 abstract class Callback[-E, -A] extends (Either[E, A] => Unit) {
   /**
     * Signals a successful value.
@@ -183,6 +184,7 @@ abstract class Callback[-E, -A] extends (Either[E, A] => Unit) {
   *         access violations and throws a
   *         [[monix.execution.exceptions.CallbackCalledMultipleTimesException CallbackCalledMultipleTimesException]].
   */
+@deprecated("Use CompletionCallback with explicit cancellation handling", "4.0.0")
 object Callback {
   /**
     * For building [[Callback]] objects using the

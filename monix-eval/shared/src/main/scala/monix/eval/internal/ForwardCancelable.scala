@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference
 import cats.effect.CancelToken
 import monix.eval.Task
 import monix.execution.schedulers.TrampolineExecutionContext
-import monix.execution.{ Callback, Scheduler }
+import monix.execution.{ CompletionCallback, Scheduler }
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
@@ -40,7 +40,7 @@ final private[internal] class ForwardCancelable private () {
   private val state = new AtomicReference[State](init)
 
   val cancel: CancelToken[Task] = {
-    @tailrec def loop(ctx: Task.Context, cb: Callback[Throwable, Unit]): Unit =
+    @tailrec def loop(ctx: Task.Context, cb: CompletionCallback[Unit]): Unit =
       state.get() match {
         case current @ Empty(list) =>
           if (!state.compareAndSet(current, Empty(cb :: list)))
@@ -87,7 +87,7 @@ private[internal] object ForwardCancelable {
   *
   *  - on start, the state is [[Empty]] of `Nil`, aka [[init]]
   *  - on `cancel`, if no token was assigned yet, then the state will
-  *    remain [[Empty]] with a non-nil `List[Callback]`
+  *    remain [[Empty]] with a non-nil `List[CompletionCallback]`
   *  - if a `CancelToken` is provided without `cancel` happening,
   *    then the state transitions to [[Active]] mode
   *  - on `cancel`, if the state was [[Active]], or if it was [[Empty]],
@@ -95,14 +95,14 @@ private[internal] object ForwardCancelable {
   */
   sealed abstract private class State
 
-  final private case class Empty(stack: List[Callback[Throwable, Unit]]) extends State
+  final private case class Empty(stack: List[CompletionCallback[Unit]]) extends State
   final private case class Active(token: CancelToken[Task]) extends State
 
   private val init: State = Empty(Nil)
   private val finished: State = Active(Task.unit)
   private val context: ExecutionContext = TrampolineExecutionContext.immediate
 
-  private def execute(token: CancelToken[Task], stack: List[Callback[Throwable, Unit]])(implicit s: Scheduler): Unit =
+  private def execute(token: CancelToken[Task], stack: List[CompletionCallback[Unit]])(implicit s: Scheduler): Unit =
     context.execute(() => {
       val _ = token.runAsync { r =>
         for (cb <- stack)

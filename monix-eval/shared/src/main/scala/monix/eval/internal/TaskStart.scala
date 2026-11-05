@@ -19,7 +19,7 @@ package monix.eval
 package internal
 
 import monix.eval.Task.{ Async, Context }
-import monix.execution.{ Callback, CancelablePromise }
+import monix.execution.{ CancelablePromise, CompletionCallback }
 
 private[eval] object TaskStart {
   /**
@@ -39,9 +39,9 @@ private[eval] object TaskStart {
         )
     }
 
-  private class StartForked[A](fa: Task[A]) extends ((Context, Callback[Throwable, Fiber[A]]) => Unit) {
+  private class StartForked[A](fa: Task[A]) extends ((Context, CompletionCallback[Fiber[A]]) => Unit) {
 
-    final def apply(ctx: Context, cb: Callback[Throwable, Fiber[A]]): Unit = {
+    final def apply(ctx: Context, cb: CompletionCallback[Fiber[A]]): Unit = {
       // Cancelable Promise gets used for storing or waiting
       // for the final result
       val p = CancelablePromise[A]()
@@ -49,7 +49,7 @@ private[eval] object TaskStart {
       // It needs its own context, its own cancelable
       val ctx2 = Task.Context(ctx.scheduler, ctx.options)
       // Starting actual execution of our newly created task;
-      Task.unsafeStartEnsureAsync(fa, ctx2, Callback.fromPromise(p))
+      Task.unsafeStartEnsureAsync(fa, ctx2, CompletionCallback.fromPromise(p))
       // Signal the created fiber
       val task = Task.fromCancelablePromise(p)
       cb.onSuccess(Fiber(task, ctx2.connection.cancel))

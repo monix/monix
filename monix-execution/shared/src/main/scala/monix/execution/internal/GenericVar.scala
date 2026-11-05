@@ -39,7 +39,14 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
   protected def makeCancelable(f: Id => Unit, id: Id): CancelToken
   protected def emptyCancelable: CancelToken
 
-  protected[monix] final def unsafePut(a: A, await: Either[Nothing, Unit] => Unit): CancelToken = {
+  protected[monix] final def unsafePut(a: A, await: Either[Nothing, Unit] => Unit): CancelToken =
+    unsafePut(a, await, () => ())
+
+  protected[monix] final def unsafePut(
+    a: A,
+    await: Either[Nothing, Unit] => Unit,
+    onCancellation: () => Unit
+  ): CancelToken = {
     stateRef.get() match {
       case current @ WaitForTake(value, listeners) =>
         val id = new Id
@@ -47,9 +54,9 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
         val update = WaitForTake(value, newMap)
 
         if (stateRef.compareAndSet(current, update)) {
-          makeCancelable(putCancel, id)
+          makeCancelable(id => putCancel(id, onCancellation), id)
         } else {
-          unsafePut(a, await) // retry
+          unsafePut(a, await, onCancellation) // retry
         }
 
       case current @ WaitForPut(reads, takes) =>
@@ -73,7 +80,7 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
           await(Constants.eitherOfUnit)
           emptyCancelable
         } else {
-          unsafePut(a, await) // retry
+          unsafePut(a, await, onCancellation) // retry
         }
     }
   }
@@ -107,21 +114,29 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
     }
   }
 
-  private val putCancel: (Id => Unit) = {
-    @tailrec def loop(id: Id): Unit =
+  private def putCancel(id: Id, onCancellation: () => Unit): Unit = {
+    @tailrec def loop(): Unit =
       stateRef.get() match {
-        case current @ WaitForTake(_, queue) =>
+        case current @ WaitForTake(_, queue) if queue.entries.contains(id) =>
           val update = current.copy(queue = queue - id)
           if (!stateRef.compareAndSet(current, update)) {
-            loop(id) // retry
+            loop() // retry
+          } else {
+            onCancellation()
           }
         case _ =>
           ()
       }
-    loop
+    loop()
   }
 
-  protected[monix] final def unsafeTake(await: Either[Nothing, A] => Unit): CancelToken = {
+  protected[monix] final def unsafeTake(await: Either[Nothing, A] => Unit): CancelToken =
+    unsafeTake(await, () => ())
+
+  protected[monix] final def unsafeTake(
+    await: Either[Nothing, A] => Unit,
+    onCancellation: () => Unit
+  ): CancelToken = {
     stateRef.get() match {
       case current @ WaitForTake(a, queue) =>
         val value = Right(a)
@@ -130,7 +145,7 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
             await(value)
             emptyCancelable
           } else {
-            unsafeTake(await) // retry
+            unsafeTake(await, onCancellation) // retry
           }
         } else {
           val ((ax, notify), xs) = queue.dequeue
@@ -139,7 +154,7 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
             notify(Constants.eitherOfUnit)
             emptyCancelable
           } else {
-            unsafeTake(await) // retry
+            unsafeTake(await, onCancellation) // retry
           }
         }
 
@@ -147,9 +162,9 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
         val id = new Id
         val newQueue = takes.updated(id, await)
         if (stateRef.compareAndSet(current, WaitForPut(reads, newQueue)))
-          makeCancelable(takeCancel, id)
+          makeCancelable(id => takeCancel(id, onCancellation), id)
         else {
-          unsafeTake(await) // retry
+          unsafeTake(await, onCancellation) // retry
         }
     }
   }
@@ -182,20 +197,28 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
     }
   }
 
-  private val takeCancel: (Id => Unit) = {
-    @tailrec def loop(id: Id): Unit =
+  private def takeCancel(id: Id, onCancellation: () => Unit): Unit = {
+    @tailrec def loop(): Unit =
       stateRef.get() match {
-        case current @ WaitForPut(reads, takes) =>
+        case current @ WaitForPut(reads, takes) if takes.entries.contains(id) =>
           val newMap = takes - id
           val update: State[A] = WaitForPut(reads, newMap)
           if (!stateRef.compareAndSet(current, update))
-            loop(id)
+            loop()
+          else
+            onCancellation()
         case _ =>
       }
-    loop
+    loop()
   }
 
-  protected[monix] final def unsafeRead(await: Either[Nothing, A] => Unit): CancelToken = {
+  protected[monix] final def unsafeRead(await: Either[Nothing, A] => Unit): CancelToken =
+    unsafeRead(await, () => ())
+
+  protected[monix] final def unsafeRead(
+    await: Either[Nothing, A] => Unit,
+    onCancellation: () => Unit
+  ): CancelToken = {
     val current: State[A] = stateRef.get()
     current match {
       case WaitForTake(value, _) =>
@@ -209,9 +232,9 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
         val id = new Id
         val newQueue = reads.updated(id, await)
         if (stateRef.compareAndSet(current, WaitForPut(newQueue, takes)))
-          makeCancelable(readCancel, id)
+          makeCancelable(id => readCancel(id, onCancellation), id)
         else
-          unsafeRead(await) // retry
+          unsafeRead(await, onCancellation) // retry
     }
   }
 
@@ -231,19 +254,21 @@ private[monix] abstract class GenericVar[A, CancelToken] protected (initial: Opt
         true
     }
 
-  private val readCancel: (Id => Unit) = {
+  private def readCancel(id: Id, onCancellation: () => Unit): Unit = {
     @tailrec
-    def loop(id: Id): Unit =
+    def loop(): Unit =
       stateRef.get() match {
-        case current @ WaitForPut(reads, takes) =>
+        case current @ WaitForPut(reads, takes) if reads.entries.contains(id) =>
           val newMap = reads - id
           val update: State[A] = WaitForPut(newMap, takes)
           if (!stateRef.compareAndSet(current, update)) {
-            loop(id) // retry
+            loop() // retry
+          } else {
+            onCancellation()
           }
         case _ =>
       }
-    loop
+    loop()
   }
 
   // For streaming a value to a whole `reads` collection

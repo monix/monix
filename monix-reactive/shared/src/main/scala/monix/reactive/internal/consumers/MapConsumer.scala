@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.consumers
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.Scheduler
 import monix.execution.cancelables.AssignableCancelable
 import scala.util.control.NonFatal
@@ -27,8 +27,8 @@ import monix.reactive.observers.Subscriber
 /** Implementation for [[monix.reactive.Consumer.map]]. */
 private[reactive] final class MapConsumer[In, R, R2](source: Consumer[In, R], f: R => R2) extends Consumer[In, R2] {
 
-  def createSubscriber(cb: Callback[Throwable, R2], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
-    val cb1 = new Callback[Throwable, R] {
+  def createSubscriber(cb: CompletionCallback[R2], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
+    val cb1 = new CompletionCallback[R] {
       def onSuccess(value: R): Unit =
         s.execute(() => {
           var streamErrors = true
@@ -46,6 +46,11 @@ private[reactive] final class MapConsumer[In, R, R2](source: Consumer[In, R], f:
       def onError(ex: Throwable): Unit =
         s.execute(new Runnable {
           def run(): Unit = cb.onError(ex)
+        })
+
+      def onCancellation(): Unit =
+        s.execute(new Runnable {
+          def run(): Unit = cb.onCancellation()
         })
     }
 

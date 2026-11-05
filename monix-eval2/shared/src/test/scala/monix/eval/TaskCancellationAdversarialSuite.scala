@@ -19,7 +19,7 @@ package monix.eval
 
 import cats.effect.kernel.{ Async, Outcome }
 import minitest.SimpleTestSuite
-import monix.execution.{ Callback, ExecutionModel, Scheduler }
+import monix.execution.{ CompletionCallback, ExecutionModel, Scheduler }
 import monix.execution.schedulers.TestScheduler
 import java.util.concurrent.RejectedExecutionException
 import scala.concurrent.ExecutionContext
@@ -30,9 +30,9 @@ object TaskCancellationAdversarialSuite extends SimpleTestSuite {
     implicit val source: TestScheduler =
       TestScheduler(ExecutionModel.AlwaysAsyncExecution)
     val rejectedScheduler = TestScheduler(ExecutionModel.AlwaysAsyncExecution)
-    var completeTarget: Callback[Throwable, Unit] = null
+    var completeTarget: CompletionCallback[Unit] = null
     val started = Task
-      .async[Unit](callback => completeTarget = callback)
+      .fromAsync[Unit](callback => completeTarget = callback)
       .start
       .unsafeRunToFuture()
     drain(source)
@@ -326,7 +326,7 @@ object TaskCancellationAdversarialSuite extends SimpleTestSuite {
     }
     val targetScheduler = Scheduler(targetContext, ExecutionModel.AlwaysAsyncExecution)
     val F = Async[Task]
-    val suspended = Task.async[Unit] { _ => registered = true }
+    val suspended = Task.fromAsync[Unit] { _ => registered = true }
       .onCancel(Task.delay { finalizerRuns += 1 })
     val started = F.evalOn(suspended.start, targetScheduler).unsafeRunToFuture()
     drainBoth(source, targetQueue)

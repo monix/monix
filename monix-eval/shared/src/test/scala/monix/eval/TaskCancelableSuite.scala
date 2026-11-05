@@ -19,7 +19,7 @@ package monix.eval
 import scala.annotation.nowarn
 
 import cats.effect.ExitCase
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.cancelables.BooleanCancelable
 import monix.execution.exceptions.DummyException
 
@@ -28,7 +28,7 @@ import scala.util.{ Failure, Success, Try }
 @nowarn
 object TaskCancelableSuite extends BaseTestSuite {
   test("Task.cancelable0 should be stack safe on repeated, right-associated binds") { implicit s =>
-    def signal[A](a: A): Task[A] = Task.cancelable0[A] { (_, cb) =>
+    def signal[A](a: A): Task[A] = Task.fromCancelable0[A] { (_, cb) =>
       cb.onSuccess(a)
       Task.unit
     }
@@ -41,7 +41,7 @@ object TaskCancelableSuite extends BaseTestSuite {
   }
 
   test("Task.cancelable0 should be stack safe on repeated, left-associated binds") { implicit s =>
-    def signal[A](a: A): Task[A] = Task.cancelable0[A] { (_, cb) =>
+    def signal[A](a: A): Task[A] = Task.fromCancelable0[A] { (_, cb) =>
       cb.onSuccess(a)
       Task.unit
     }
@@ -54,7 +54,7 @@ object TaskCancelableSuite extends BaseTestSuite {
   }
 
   test("Task.cancelable0 should work onSuccess") { implicit s =>
-    val t = Task.cancelable0[Int] { (_, cb) =>
+    val t = Task.fromCancelable0[Int] { (_, cb) =>
       cb.onSuccess(10); Task.unit
     }
     val f = t.runToFuture
@@ -64,7 +64,7 @@ object TaskCancelableSuite extends BaseTestSuite {
 
   test("Task.cancelable0 should work onError") { implicit s =>
     val dummy = DummyException("dummy")
-    val t = Task.cancelable0[Int] { (_, cb) =>
+    val t = Task.fromCancelable0[Int] { (_, cb) =>
       cb.onError(dummy); Task.unit
     }
     val f = t.runToFuture
@@ -73,7 +73,7 @@ object TaskCancelableSuite extends BaseTestSuite {
   }
 
   test("Task.cancelable0 should execute immediately when executed as future") { implicit s =>
-    val t = Task.cancelable0[Int] { (_, cb) =>
+    val t = Task.fromCancelable0[Int] { (_, cb) =>
       cb.onSuccess(100); Task.unit
     }
     val result = t.runToFuture
@@ -82,17 +82,17 @@ object TaskCancelableSuite extends BaseTestSuite {
 
   test("Task.cancelable0 should execute immediately when executed with callback") { implicit s =>
     var result = Option.empty[Try[Int]]
-    val t = Task.cancelable0[Int] { (_, cb) =>
+    val t = Task.fromCancelable0[Int] { (_, cb) =>
       cb.onSuccess(100); Task.unit
     }
-    t.runAsync(Callback.fromTry[Int]({ r =>
+    t.runAsync(CompletionCallback.fromTry[Int]({ r =>
       result = Some(r)
     }))
     assertEquals(result, Some(Success(100)))
   }
 
   test("Task.cancelable works for immediate successful value") { implicit sc =>
-    val task = Task.cancelable[Int] { cb =>
+    val task = Task.fromCancelable[Int] { cb =>
       cb.onSuccess(1); Task.unit
     }
     assertEquals(task.runToFuture.value, Some(Success(1)))
@@ -100,7 +100,7 @@ object TaskCancelableSuite extends BaseTestSuite {
 
   test("Task.cancelable works for immediate error") { implicit sc =>
     val e = DummyException("dummy")
-    val task = Task.cancelable[Int] { cb =>
+    val task = Task.fromCancelable[Int] { cb =>
       cb.onError(e); Task.unit
     }
     assertEquals(task.runToFuture.value, Some(Failure(e)))
@@ -108,7 +108,7 @@ object TaskCancelableSuite extends BaseTestSuite {
 
   test("Task.cancelable is memory safe in flatMap loops") { implicit sc =>
     def signal(n: Int): Task[Int] =
-      Task.cancelable { cb =>
+      Task.fromCancelable { cb =>
         cb.onSuccess(n); Task.unit
       }
 
@@ -124,7 +124,7 @@ object TaskCancelableSuite extends BaseTestSuite {
 
   test("Task.cancelable is cancelable") { implicit sc =>
     val c = BooleanCancelable()
-    val f = Task.cancelable[Int](_ => Task(c.cancel())).runToFuture
+    val f = Task.fromCancelable[Int](_ => Task(c.cancel())).runToFuture
 
     assertEquals(f.value, None)
     f.cancel()
@@ -140,7 +140,7 @@ object TaskCancelableSuite extends BaseTestSuite {
     val cancel1 = Task(effect += 1)
     val cancel2 = Task(effect += 10)
 
-    val task = Task.cancelable[Unit] { cb =>
+    val task = Task.fromCancelable[Unit] { cb =>
       sc.scheduleOnce(1.second)(cb.onSuccess(()))
       cancel1
     }

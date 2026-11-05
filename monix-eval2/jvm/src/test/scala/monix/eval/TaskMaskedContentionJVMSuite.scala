@@ -23,7 +23,7 @@ import java.util.concurrent.{ CountDownLatch, ExecutorService, Executors, TimeUn
 import cats.effect.kernel.{ Async, Outcome }
 import minitest.SimpleTestSuite
 import monix.execution.schedulers.SchedulerService
-import monix.execution.{ Callback, Scheduler, TestUtils, UncaughtExceptionReporter }
+import monix.execution.{ CompletionCallback, Scheduler, TestUtils, UncaughtExceptionReporter }
 
 import scala.concurrent.{ Await, ExecutionContext }
 import scala.concurrent.duration._
@@ -99,8 +99,8 @@ object TaskMaskedContentionJVMSuite extends SimpleTestSuite with TestUtils {
     val F = Async[Task]
     val bodyRegistered = new CountDownLatch(1)
     val finalizerRegistered = new CountDownLatch(1)
-    val resumeBody = new AtomicReference[Callback[Throwable, Int]]()
-    val resumeFinalizer = new AtomicReference[Callback[Throwable, Unit]]()
+    val resumeBody = new AtomicReference[CompletionCallback[Int]]()
+    val resumeFinalizer = new AtomicReference[CompletionCallback[Unit]]()
     val consumedValues = new AtomicInteger(0)
     val consumedValue = new AtomicInteger(-1)
     val finalizerContinuations = new AtomicInteger(0)
@@ -109,7 +109,7 @@ object TaskMaskedContentionJVMSuite extends SimpleTestSuite with TestUtils {
     val outerContext = new AtomicReference[ExecutionContext]()
     val cancelError = new AtomicReference[Throwable]()
 
-    val wait = Task.async[Int] { callback =>
+    val wait = Task.fromAsync[Int] { callback =>
       resumeBody.set(callback)
       bodyRegistered.countDown()
     }.flatMap { value =>
@@ -122,7 +122,7 @@ object TaskMaskedContentionJVMSuite extends SimpleTestSuite with TestUtils {
     val finalizer = F.executionContext
       .flatMap(ec => Task.delay { innerContext.set(ec); () })
       .flatMap { _ =>
-        Task.async[Unit] { callback =>
+        Task.fromAsync[Unit] { callback =>
           resumeFinalizer.set(callback)
           finalizerRegistered.countDown()
         }

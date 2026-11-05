@@ -17,9 +17,10 @@
 
 package monix.eval.internal
 
+import java.util.concurrent.CancellationException
 import monix.eval.Task
 import monix.execution.rstreams.Subscription
-import monix.execution.{ Callback, Scheduler, UncaughtExceptionReporter }
+import monix.execution.{ CompletionCallback, Scheduler, UncaughtExceptionReporter }
 import org.reactivestreams.Subscriber
 
 private[eval] object TaskToReactivePublisher {
@@ -50,7 +51,7 @@ private[eval] object TaskToReactivePublisher {
     }
 
   private final class PublisherCallback[A](out: Subscriber[? >: A])(implicit s: UncaughtExceptionReporter)
-    extends Callback[Throwable, A] {
+    extends CompletionCallback[A] {
     private var isActive = true
 
     def onError(e: Throwable): Unit =
@@ -67,5 +68,8 @@ private[eval] object TaskToReactivePublisher {
         out.onNext(value)
         out.onComplete()
       }
+
+    def onCancellation(): Unit =
+      onError(new CancellationException("Task canceled"))
   }
 }

@@ -93,17 +93,39 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
   //  - _: Cancelable: in case it has an underlying reference
   override def cancel(): Unit = {
     val prevRef = stateRef
-    stateRef = Canceled
 
     prevRef match {
-      case null | Canceled => ()
-      case ref: Cancelable => ref.cancel()
+      case null | Canceled => stateRef = Canceled
+      case ref: Cancelable =>
+        stateRef = Canceled
+        ref.cancel()
       case WeakRef(cc) =>
         if (cc != null) cc.cancel()
+        else stateRef = Canceled
       case other =>
         // $COVERAGE-OFF$
         matchError(other)
       // $COVERAGE-ON$
+    }
+  }
+
+  private[monix] def reset(): Unit = {
+    var cursor = this
+    var continue = true
+
+    while (continue) {
+      cursor.stateRef match {
+        case WeakRef(next) =>
+          if (next == null) {
+            cursor.stateRef = null
+            continue = false
+          } else {
+            cursor = next
+          }
+        case _ =>
+          cursor.stateRef = null
+          continue = false
+      }
     }
   }
 
@@ -158,11 +180,7 @@ final class ChainedCancelable private (private var stateRef: AnyRef) extends Ass
           case WeakRef(ref2) =>
             cursor = ref2
             continue = cursor ne null
-          case ref2 =>
-            if (ref2 eq Canceled) {
-              cancel(); return
-            }
-            continue = false
+          case _ => continue = false
         }
       }
       cursor

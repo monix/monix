@@ -17,6 +17,7 @@
 
 package monix.eval.internal
 
+import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.AbstractQueuedSynchronizer
 
@@ -25,7 +26,7 @@ import monix.eval.internal.TaskRunLoop._
 import monix.eval.Task
 import monix.eval.internal.TracingPlatform.{ enhancedExceptions, isStackTracing }
 import monix.eval.tracing.TaskEvent
-import monix.execution.{ Callback, Scheduler }
+import monix.execution.{ CompletionCallback, Scheduler }
 import monix.execution.internal.collection.ChunkedArrayStack
 
 import scala.annotation.nowarn
@@ -186,7 +187,7 @@ private[eval] object TaskRunSyncUnsafe {
       throw new TimeoutException(s"Task.runSyncUnsafe($limit)")
   }
 
-  private final class BlockingCallback[A](latch: OneShotLatch) extends Callback[Throwable, A] {
+  private final class BlockingCallback[A](latch: OneShotLatch) extends CompletionCallback[A] {
 
     private var success: A = null.asInstanceOf[A]
     private var error: Throwable = null.asInstanceOf[Throwable]
@@ -208,6 +209,9 @@ private[eval] object TaskRunSyncUnsafe {
       latch.releaseShared(1)
       ()
     }
+
+    def onCancellation(): Unit =
+      onError(new CancellationException("Task canceled"))
   }
 
   private final class OneShotLatch extends AbstractQueuedSynchronizer {

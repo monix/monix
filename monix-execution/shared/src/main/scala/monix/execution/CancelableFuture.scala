@@ -17,8 +17,10 @@
 
 package monix.execution
 
-import monix.execution.Cancelable.IsDummy
-import monix.execution.CancelableFuture.{ Async, Never, Pure }
+import java.util.concurrent.CancellationException
+import monix.execution.atomic.{ AtomicAny, AtomicInt }
+
+import monix.execution.CancelableFuture.{ Async, Pure }
 import monix.execution.cancelables.{ ChainedCancelable, SingleAssignCancelable }
 import monix.execution.misc.Local
 import monix.execution.schedulers.TrampolinedRunnable
@@ -29,8 +31,12 @@ import scala.reflect.ClassTag
 import scala.util.{ Failure, Success, Try }
 import scala.util.control.NonFatal
 
-/** Represents an asynchronous computation that can be canceled
-  * as long as it isn't complete.
+/** Represents an asynchronous computation with a cancellation request.
+  *
+  * `cancel()` is non-blocking. Completion observes the process's terminal
+  * outcome, including `CancellationException` after cancellation and cleanup
+  * finish. Recovery can handle that exception like any other failure.
+  * Builders wrapping external processes must supply their completion signal.
   */
 sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { self =>
   /** Returns this future's underlying [[Cancelable]] reference. */
@@ -104,10 +110,19 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
         else pf(e)
     }
 
+  /** Combines both inputs and waits for both to terminate. A failure cancels
+    * the sibling; cancelling the result cancels both. The first observed
+    * failure is preserved and a distinct sibling failure is suppressed on it.
+    * Ordinary futures are adapted with [[CancelableFuture.fromFuture]].
+    */
   override final def zip[U](that: Future[U]): CancelableFuture[(A, U)] = {
-    implicit val ec = immediate
-    for (a <- this; b <- that) yield (a, b)
+    CancelableFuture.zip(this, CancelableFuture.fromFuture(that))
   }
+
+  override final def zipWith[U, R](that: Future[U])(f: (A, U) => R)(implicit
+    executor: ExecutionContext
+  ): CancelableFuture[R] =
+    zip(that).map { case (a, b) => f(a, b) }
 
   override final def fallbackTo[U >: A](that: Future[U]): CancelableFuture[U] = {
     implicit val ec = immediate
@@ -123,8 +138,6 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
         CancelableFuture.applyWithLocal(other.mapTo[S], cRef, local)
       case p: Pure[Any] =>
         CancelableFuture.applyWithLocal(super.mapTo[S], Cancelable.empty, p.isolatedCtx)
-      case Never =>
-        Never
     }
   }
 
@@ -145,18 +158,13 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
     }
 
   def transform[S](f: Try[A] => Try[S])(implicit executor: ExecutionContext): CancelableFuture[S] = {
-    val g: Try[A] => Try[S] = result => {
-      if (isolatedCtx ne null) Local.setContext(isolatedCtx)
-      f(result)
-    }
-    val next = FutureUtils.transform(underlying, g)
-    CancelableFuture.applyWithLocal(next, cancelable, isolatedCtx)
+    transformWith(result => Future.fromTry(f(result)))
   }
 
   def transformWith[S](f: Try[A] => Future[S])(implicit executor: ExecutionContext): CancelableFuture[S] = {
     // Cancelable reference that needs to be chained with other
     // cancelable references created in the loop
-    val cRef = ChainedCancelable(cancelable)
+    val cRef = ChainedCancelable(this)
 
     // FutureUtils will use a polyfill for Scala 2.11 and will
     // use the real `transformWith` on Scala 2.12
@@ -164,34 +172,22 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
       underlying,
       { (result: Try[A]) =>
         if (isolatedCtx ne null) Local.setContext(isolatedCtx)
-        val nextRef: Future[S] =
-          try f(result)
-          catch { case e if NonFatal(e) => Future.failed(e) }
+        // A failure is an outcome that a consumer may recover from, not
+        // a cancellation request for the consumer's replacement work.
+        if (result.isFailure) cRef.reset()
+        val next =
+          try CancelableFuture.fromFuture(f(result))
+          catch { case e if NonFatal(e) => CancelableFuture.failed(e) }
 
-        // Checking to see if we are dealing with a "flatMap"
-        // future, in which case we need to chain the cancelable
-        // reference in order to not create a memory leak
-        nextRef match {
-          case ref: CancelableFuture[?] if ref ne Never =>
-            val cf = ref.asInstanceOf[CancelableFuture[S]]
-            // If the resulting Future is completed, there's no reason
-            // to chain cancelable tokens
-            if (!cf.isCompleted)
-              cf.cancelable match {
-                case cRef2: ChainedCancelable =>
-                  // Chaining ensures we don't leak
-                  cRef2.forwardTo(cRef)
-                case cRef2 =>
-                  if (!cRef2.isInstanceOf[IsDummy]) cRef := cRef2
-              }
-
-            // Returning underlying b/c otherwise we leak memory in
-            // infinite loops
-            cf.underlying
-
-          case _ =>
-            nextRef
+        if (next.isCompleted) cRef := Cancelable.empty
+        else next.cancelable match {
+          case nextChain: ChainedCancelable => nextChain.forwardTo(cRef)
+          case token => cRef := token
         }
+
+        // Forward tokens and unwrap futures so recursive composition does
+        // not retain completed wrappers.
+        next.underlying
       }
     )
     CancelableFuture.applyWithLocal(f2, cRef, isolatedCtx)
@@ -200,6 +196,10 @@ sealed abstract class CancelableFuture[+A] extends Future[A] with Cancelable { s
 
 object CancelableFuture extends internal.CancelableFutureForPlatform {
   /** Builder for a [[CancelableFuture]].
+    *
+    * The caller owns the cancellation protocol: `underlying` must report
+    * cancellation only after the process and its finalizers have finished.
+    * Invoking `cancelable` does not itself complete this future.
     *
     * @param underlying is an underlying `Future` reference that will respond to `onComplete` calls
     * @param cancelable is a [[monix.execution.Cancelable Cancelable]]
@@ -252,9 +252,66 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
   val unit: CancelableFuture[Unit] =
     successful(())
 
-  /** Returns a [[CancelableFuture]] instance that will never complete. */
-  final def never[A]: CancelableFuture[A] =
-    Never
+  /** Never completes normally. Cancellation immediately reports
+    * [[java.util.concurrent.CancellationException]]. Each call creates
+    * an independent cancellation scope.
+    */
+  final def never[A]: CancelableFuture[A] = {
+    val promise = Promise[A]()
+    apply(promise.future, Cancelable(() => { val _ = promise.tryFailure(new CancellationException); () }))
+  }
+
+  /** Adapts a future while preserving an existing cancelable future.
+    *
+    * Cancellation of an ordinary future cannot stop its producer. The
+    * adapter waits for that producer to complete, then reports cancellation
+    * instead of its result. The cancellation request itself does not block.
+    */
+  def fromFuture[A](source: Future[A]): CancelableFuture[A] =
+    source match {
+      case ref: CancelableFuture[A] => ref
+      case _ =>
+        source.value match {
+          case Some(result) => fromTry(result)
+          case None =>
+            val promise = Promise[A]()
+            // Pending, cancellation requested, completed.
+            val state = AtomicInt(0)
+            source.onComplete { result =>
+              val outcome =
+                if (state.getAndSet(2) == 1) Failure(new CancellationException)
+                else result
+              val _ = promise.tryComplete(outcome)
+              ()
+            }(immediate)
+            apply(promise.future, Cancelable(() => { val _ = state.compareAndSet(0, 1); () }))
+        }
+    }
+
+  /** Adapts a future with immediate cancellation of the adapter. The
+    * inaccessible producer may continue running after cancellation.
+    * Existing cancelable futures are returned unchanged.
+    */
+  def fromForgettableFuture[A](source: Future[A]): CancelableFuture[A] =
+    source match {
+      case ref: CancelableFuture[A] => ref
+      case _ =>
+        source.value match {
+          case Some(result) => fromTry(result)
+          case None =>
+            val promise = Promise[A]()
+            val listener = AtomicAny[Option[Promise[A]]](Some(promise))
+            source.onComplete { result =>
+              listener.getAndSet(None).foreach(_.tryComplete(result))
+            }(immediate)
+            apply(
+              promise.future,
+              Cancelable(() => {
+                listener.getAndSet(None).foreach(_.tryFailure(new CancellationException))
+              })
+            )
+        }
+    }
 
   /** Promotes a strict `Try[A]` to a [[CancelableFuture]] that's
     * already complete.
@@ -288,7 +345,21 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     * This is much like working with Scala's
     * [[scala.concurrent.Promise Promise]], only safer.
     */
-  def async[A](register: (Try[A] => Unit) => Cancelable)(implicit ec: ExecutionContext): CancelableFuture[A] = {
+  @deprecated("Use fromAsync with CompletionCallback", "4.0.0")
+  def async[A](register: (Try[A] => Unit) => Cancelable)(implicit ec: ExecutionContext): CancelableFuture[A] =
+    fromAsync(cb => register(cb.toTry))
+
+  /** Starts an asynchronous process with explicit terminal notifications.
+    *
+    * The returned token requests cancellation. The producer must call
+    * `onCancellation()` only after it has stopped and its finalizers have
+    * finished. Returning from the token's `cancel()` does not complete the
+    * future. A producer can instead report success or failure if that
+    * outcome wins the race with cancellation.
+    */
+  def fromAsync[A](register: CompletionCallback[A] => Cancelable)(implicit
+    ec: ExecutionContext
+  ): CancelableFuture[A] = {
 
     val p = Promise[A]()
     val cRef = SingleAssignCancelable()
@@ -297,7 +368,7 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     ec.execute(new TrampolinedRunnable {
       def run(): Unit = {
         try {
-          cRef := register { v => p.complete(v); () }
+          cRef := register(CompletionCallback.fromPromise(p))
           ()
         } catch {
           case e if NonFatal(e) =>
@@ -320,34 +391,75 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
   ): CancelableFuture[A] =
     new Async[A](underlying, cancelable, isolatedCtx)
 
-  /** A [[CancelableFuture]] instance that will never complete. */
-  private[execution] object Never extends CancelableFuture[Nothing] {
-    def onComplete[U](f: (Try[Nothing]) => U)(implicit executor: ExecutionContext): Unit = ()
+  private def zip[A, B](left: CancelableFuture[A], right: CancelableFuture[B]): CancelableFuture[(A, B)] = {
+    val promise = Promise[(A, B)]()
+    val leftToken = AtomicAny[Cancelable](left)
+    val rightToken = AtomicAny[Cancelable](right)
+    val lock = new AnyRef
+    var leftResult: Option[Try[A]] = None
+    var rightResult: Option[Try[B]] = None
+    var firstFailure: Option[Throwable] = None
 
-    val isCompleted = false
-    val value = None
+    def outcome(): Option[Try[(A, B)]] =
+      (leftResult, rightResult) match {
+        case (Some(a), Some(b)) =>
+          val result = firstFailure match {
+            case Some(error) =>
+              a.failed.foreach(other => if (other ne error) error.addSuppressed(other))
+              b.failed.foreach(other => if (other ne error) error.addSuppressed(other))
+              Failure(error)
+            case None =>
+              for (x <- a; y <- b) yield (x, y)
+          }
+          leftResult = None
+          rightResult = None
+          firstFailure = None
+          Some(result)
+        case _ => None
+      }
 
-    override def cancelable = Cancelable.empty
-    override def underlying = this
-    override val isolatedCtx: Local.Context = null
+    def publish(result: Option[Try[(A, B)]]): Unit =
+      result.foreach { value =>
+        leftToken.set(Cancelable.empty)
+        rightToken.set(Cancelable.empty)
+        val _ = promise.tryComplete(value)
+        ()
+      }
 
-    @scala.throws[Exception](classOf[Exception])
-    def result(atMost: Duration)(implicit permit: CanAwait): Nothing =
-      throw new TimeoutException("This CancelableFuture will never finish!")
+    left.onComplete { result =>
+      leftToken.set(Cancelable.empty)
+      val completed = lock.synchronized {
+        leftResult = Some(result)
+        result match {
+          case Failure(error) if firstFailure.isEmpty => firstFailure = Some(error)
+          case _ => ()
+        }
+        outcome()
+      }
+      if (result.isFailure) rightToken.getAndSet(Cancelable.empty).cancel()
+      publish(completed)
+    }(immediate)
 
-    @scala.throws[InterruptedException](classOf[InterruptedException])
-    @scala.throws[TimeoutException](classOf[TimeoutException])
-    def ready(atMost: Duration)(implicit permit: CanAwait): this.type =
-      throw new TimeoutException("This CancelableFuture will never finish!")
+    right.onComplete { result =>
+      rightToken.set(Cancelable.empty)
+      val completed = lock.synchronized {
+        rightResult = Some(result)
+        result match {
+          case Failure(error) if firstFailure.isEmpty => firstFailure = Some(error)
+          case _ => ()
+        }
+        outcome()
+      }
+      if (result.isFailure) leftToken.getAndSet(Cancelable.empty).cancel()
+      publish(completed)
+    }(immediate)
 
-    def cancel(): Unit = ()
-
-    override def transform[S](f: (Try[Nothing]) => Try[S])(implicit executor: ExecutionContext): CancelableFuture[S] =
-      this
-    override def transformWith[S](f: (Try[Nothing]) => Future[S])(implicit
-      executor: ExecutionContext
-    ): CancelableFuture[S] =
-      this
+    val token = new Cancelable {
+      def cancel(): Unit =
+        try leftToken.getAndSet(Cancelable.empty).cancel()
+        finally rightToken.getAndSet(Cancelable.empty).cancel()
+    }
+    applyWithLocal(promise.future, token, left.isolatedCtx)
   }
 
   /** An internal [[CancelableFuture]] implementation. */
@@ -397,7 +509,10 @@ object CancelableFuture extends internal.CancelableFutureForPlatform {
     }
 
     override def cancel(): Unit =
-      cancelable.cancel()
+      if (!underlying.isCompleted) cancelable match {
+        case chain: ChainedCancelable => immediate.execute(() => chain.cancel())
+        case token => token.cancel()
+      }
   }
 
 }

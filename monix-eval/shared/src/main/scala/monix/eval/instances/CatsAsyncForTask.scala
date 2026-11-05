@@ -36,7 +36,7 @@ class CatsAsyncForTask extends CatsBaseForTask with Async[Task] {
   override def suspend[A](fa: => Task[A]): Task[A] =
     Task.defer(fa)
   override def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): Task[A] =
-    TaskCreate.async(k)
+    TaskCreate.async(callback => k(callback.toAttempt))
   override def bracket[A, B](acquire: Task[A])(use: A => Task[B])(release: A => Task[Unit]): Task[B] =
     acquire.bracket(use)(release)
   override def bracketCase[A, B](acquire: Task[A])(use: A => Task[B])(
@@ -44,7 +44,7 @@ class CatsAsyncForTask extends CatsBaseForTask with Async[Task] {
   ): Task[B] =
     acquire.bracketCase(use)(release)
   override def asyncF[A](k: (Either[Throwable, A] => Unit) => Task[Unit]): Task[A] =
-    Task.asyncF(k)
+    Task.fromAsyncF(callback => k(callback.toAttempt))
   override def guarantee[A](acquire: Task[A])(finalizer: Task[Unit]): Task[A] =
     acquire.guarantee(finalizer)
   override def guaranteeCase[A](acquire: Task[A])(finalizer: ExitCase[Throwable] => Task[Unit]): Task[A] =
