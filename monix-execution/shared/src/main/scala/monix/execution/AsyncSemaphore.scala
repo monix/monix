@@ -108,7 +108,10 @@ final class AsyncSemaphore private (provisioned: Long, ps: PaddingStrategy)
       val result =
         try f()
         catch { case NonFatal(e) => Future.failed(e) }
-      FutureUtils.transform[A, A](result, r => { releaseN(n); r })
+      CancelableFuture.fromFuture(result).transform { r =>
+        releaseN(n)
+        r
+      }
     }
 
   /** Acquires a single permit. Alias for `[[acquireN]](1)`.
@@ -141,7 +144,8 @@ final class AsyncSemaphore private (provisioned: Long, ps: PaddingStrategy)
       CancelableFuture.unit
     } else {
       val p = Promise[Unit]()
-      unsafeAcquireN(n, Callback.fromPromise(p)) match {
+      val completion = CompletionCallback.fromPromise(p)
+      unsafeAcquireN(n, completion.toAttempt, () => completion.onCancellation()) match {
         case Cancelable.empty => CancelableFuture.unit
         case c => CancelableFuture(p.future, c)
       }
@@ -217,7 +221,8 @@ final class AsyncSemaphore private (provisioned: Long, ps: PaddingStrategy)
   @UnsafeBecauseImpure
   def awaitAvailable(n: Long): CancelableFuture[Unit] = {
     val p = Promise[Unit]()
-    unsafeAwaitAvailable(n, Callback.fromPromise(p)) match {
+    val completion = CompletionCallback.fromPromise(p)
+    unsafeAwaitAvailable(n, completion.toAttempt, () => completion.onCancellation()) match {
       case Cancelable.empty => CancelableFuture.unit
       case c => CancelableFuture(p.future, c)
     }

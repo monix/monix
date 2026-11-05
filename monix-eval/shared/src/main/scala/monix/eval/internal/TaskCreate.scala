@@ -26,7 +26,7 @@ import monix.execution.atomic.AtomicInt
 import monix.execution.exceptions.CallbackCalledMultipleTimesException
 import monix.execution.internal.Platform
 import monix.execution.schedulers.{ StartAsyncBatchRunnable, TrampolinedRunnable }
-import monix.execution.{ Callback, Cancelable, Scheduler, UncaughtExceptionReporter }
+import monix.execution.{ Cancelable, CompletionCallback, Scheduler, UncaughtExceptionReporter }
 
 import scala.util.control.NonFatal
 
@@ -35,12 +35,12 @@ private[eval] object TaskCreate {
 * Implementation for `cats.effect.Concurrent#cancelable`.
 */
   def cancelableEffect[A](k: (Either[Throwable, A] => Unit) => CancelToken[Task]): Task[A] =
-    cancelable0((_, cb) => k(cb))
+    cancelable0((_, cb) => k(cb.toAttempt))
 
   /**
 * Implementation for `Task.cancelable`
 */
-  def cancelable0[A](fn: (Scheduler, Callback[Throwable, A]) => CancelToken[Task]): Task[A] = {
+  def cancelable0[A](fn: (Scheduler, CompletionCallback[A]) => CancelToken[Task]): Task[A] = {
     val start = new Cancelable0Start[A, CancelToken[Task]](fn) {
       def setConnection(ref: TaskConnectionRef, token: CancelToken[Task])(implicit s: Scheduler): Unit =
         ref := token
@@ -51,13 +51,13 @@ private[eval] object TaskCreate {
   /**
 * Implementation for `Task.create`, used via `TaskBuilder`.
 */
-  def cancelableIO[A](start: (Scheduler, Callback[Throwable, A]) => CancelToken[IO]): Task[A] =
+  def cancelableIO[A](start: (Scheduler, CompletionCallback[A]) => CancelToken[IO]): Task[A] =
     cancelable0((sc, cb) => Task.from(start(sc, cb)))
 
   /**
 * Implementation for `Task.create`, used via `TaskBuilder`.
 */
-  def cancelableCancelable[A](fn: (Scheduler, Callback[Throwable, A]) => Cancelable): Task[A] = {
+  def cancelableCancelable[A](fn: (Scheduler, CompletionCallback[A]) => Cancelable): Task[A] = {
     val start = new Cancelable0Start[A, Cancelable](fn) {
       def setConnection(ref: TaskConnectionRef, token: Cancelable)(implicit s: Scheduler): Unit =
         ref := token
@@ -68,14 +68,14 @@ private[eval] object TaskCreate {
   /**
 * Implementation for `Task.create`, used via `TaskBuilder`.
 */
-  def cancelableCoeval[A](start: (Scheduler, Callback[Throwable, A]) => Coeval[Unit]): Task[A] =
+  def cancelableCoeval[A](start: (Scheduler, CompletionCallback[A]) => Coeval[Unit]): Task[A] =
     cancelable0((sc, cb) => Task.from(start(sc, cb)))
 
   /**
 * Implementation for `Task.async0`
 */
-  def async0[A](fn: (Scheduler, Callback[Throwable, A]) => Any): Task[A] = {
-    val start = (ctx: Context, cb: Callback[Throwable, A]) => {
+  def async0[A](fn: (Scheduler, CompletionCallback[A]) => Any): Task[A] = {
+    val start = (ctx: Context, cb: CompletionCallback[A]) => {
       implicit val s = ctx.scheduler
       val cbProtected = new CallbackForCreate(ctx, shouldPop = false, cb)
       try {
@@ -97,8 +97,8 @@ private[eval] object TaskCreate {
 * It duplicates the implementation of `Task.async0` with the purpose
 * of avoiding extraneous callback allocations.
 */
-  def async[A](k: Callback[Throwable, A] => Unit): Task[A] = {
-    val start = (ctx: Context, cb: Callback[Throwable, A]) => {
+  def async[A](k: CompletionCallback[A] => Unit): Task[A] = {
+    val start = (ctx: Context, cb: CompletionCallback[A]) => {
       implicit val s = ctx.scheduler
       val cbProtected = new CallbackForCreate(ctx, shouldPop = false, cb)
       try {
@@ -116,8 +116,8 @@ private[eval] object TaskCreate {
   /**
 * Implementation for `Task.asyncF`.
 */
-  def asyncF[A](k: Callback[Throwable, A] => Task[Unit]): Task[A] = {
-    val start = (ctx: Context, cb: Callback[Throwable, A]) => {
+  def asyncF[A](k: CompletionCallback[A] => Task[Unit]): Task[A] = {
+    val start = (ctx: Context, cb: CompletionCallback[A]) => {
       implicit val s = ctx.scheduler
       // Creating new connection, because we can have a race condition
       // between the bind continuation and executing the generated task
@@ -140,12 +140,12 @@ private[eval] object TaskCreate {
     TracedAsync[A](start, trampolineBefore = false, trampolineAfter = false, traceKey = k)
   }
 
-  private abstract class Cancelable0Start[A, Token](fn: (Scheduler, Callback[Throwable, A]) => Token)
-    extends ((Context, Callback[Throwable, A]) => Unit) {
+  private abstract class Cancelable0Start[A, Token](fn: (Scheduler, CompletionCallback[A]) => Token)
+    extends ((Context, CompletionCallback[A]) => Unit) {
 
     def setConnection(ref: TaskConnectionRef, token: Token)(implicit s: Scheduler): Unit
 
-    final def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
+    final def apply(ctx: Context, cb: CompletionCallback[A]): Unit = {
       implicit val s = ctx.scheduler
       val conn = ctx.connection
       val cancelable = TaskConnectionRef()
@@ -166,25 +166,29 @@ private[eval] object TaskCreate {
     }
   }
 
-  private final class ForwardErrorCallback(cb: Callback[Throwable, ?])(implicit r: UncaughtExceptionReporter)
-    extends Callback[Throwable, Unit] {
+  private final class ForwardErrorCallback(cb: CompletionCallback[?])(implicit r: UncaughtExceptionReporter)
+    extends CompletionCallback[Unit] {
 
     override def onSuccess(value: Unit): Unit = ()
     override def onError(e: Throwable): Unit =
       if (!cb.tryOnError(e)) {
         r.reportFailure(e)
       }
+
+    override def onCancellation(): Unit = {
+      val _ = cb.tryOnCancellation()
+    }
   }
 
-  private final class CallbackForCreate[A](ctx: Context, threadId: Long, shouldPop: Boolean, cb: Callback[Throwable, A])
-    extends Callback[Throwable, A] with TrampolinedRunnable {
+  private final class CallbackForCreate[A](ctx: Context, threadId: Long, shouldPop: Boolean, cb: CompletionCallback[A])
+    extends CompletionCallback[A] with TrampolinedRunnable {
 
     private val state = AtomicInt(0)
     private var value: A = null.asInstanceOf[A]
     private var error: Throwable = null.asInstanceOf[Throwable]
     private var isSameThread = false
 
-    def this(ctx: Context, shouldPop: Boolean, cb: Callback[Throwable, A]) =
+    def this(ctx: Context, shouldPop: Boolean, cb: CompletionCallback[A]) =
       this(ctx, Platform.currentThreadId(), shouldPop, cb)
 
     override def onSuccess(value: A): Unit =
@@ -210,6 +214,20 @@ private[eval] object TaskCreate {
     override def tryOnError(e: Throwable): Boolean = {
       if (state.compareAndSet(0, 2)) {
         this.error = e
+        startExecution()
+        true
+      } else {
+        false
+      }
+    }
+
+    override def onCancellation(): Unit =
+      if (!tryOnCancellation()) {
+        throw new CallbackCalledMultipleTimesException("onCancellation")
+      }
+
+    override def tryOnCancellation(): Boolean = {
+      if (state.compareAndSet(0, 3)) {
         startExecution()
         true
       } else {
@@ -252,6 +270,8 @@ private[eval] object TaskCreate {
           val e = error
           error = null
           cb.onError(e)
+        case 3 =>
+          cb.onCancellation()
         case _ =>
           throw new IllegalStateException(s"Unexpected callback state: ${state.get()}")
       }
@@ -264,7 +284,7 @@ private[eval] object TaskCreate {
         error = null
         ctx.scheduler.reportFailure(e)
       }
-      Callback.signalErrorTrampolined(cb, e)
+      CompletionCallback.signalErrorTrampolined(cb, e)
     }
   }
 }

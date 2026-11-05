@@ -21,9 +21,11 @@ import minitest.TestSuite
 import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, DummyException }
 import monix.execution.schedulers.TestScheduler
 
+import scala.annotation.nowarn
 import scala.concurrent.Promise
 import scala.util.{ Failure, Success, Try }
 
+@nowarn("cat=deprecation")
 object CallbackSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =

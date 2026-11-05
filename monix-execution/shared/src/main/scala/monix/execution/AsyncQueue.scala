@@ -17,17 +17,20 @@
 
 package monix.execution
 
+import java.util.concurrent.CancellationException
 import monix.execution.ChannelType.MPMC
 import monix.execution.annotations.{ UnsafeBecauseImpure, UnsafeProtocol }
 import monix.execution.atomic.AtomicAny
 import monix.execution.atomic.PaddingStrategy.LeftRight128
-import monix.execution.cancelables.MultiAssignCancelable
+import monix.execution.cancelables.{ MultiAssignCancelable, SingleAssignCancelable }
 import monix.execution.internal.Constants
 import monix.execution.internal.collection.LowLevelConcurrentQueue
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Promise
+import scala.util.{ Failure, Try }
+import scala.util.control.NonFatal
 
 /**
   * A high-performance, back-pressured, asynchronous queue implementation.
@@ -112,6 +115,8 @@ final class AsyncQueue[A] private[monix] (
   capacity: BufferCapacity,
   channelType: ChannelType,
 )(implicit scheduler: Scheduler) {
+  import AsyncQueue.PendingOperation
+
   /** Try pushing a value to the queue.
     *
     * The protocol is unsafe because usage of the "try*" methods imply an
@@ -153,9 +158,9 @@ final class AsyncQueue[A] private[monix] (
       CancelableFuture.successful(happy)
     else {
       val p = Promise[A]()
-      val c = MultiAssignCancelable()
-      sleepThenRepeat(consumersAwaiting, pollQueue, pollTest, pollMap, p, c)
-      CancelableFuture(p.future, c)
+      val operation = new PendingOperation(p, MultiAssignCancelable())
+      sleepThenRepeat(consumersAwaiting, pollQueue, pollTest, pollMap, operation)
+      CancelableFuture(p.future, operation)
     }
   }
 
@@ -219,6 +224,9 @@ final class AsyncQueue[A] private[monix] (
     *
     * @return a future with a sequence of length between minLength and maxLength;
     *         it can also be cancelled, interrupting the wait
+    *
+    * Cancellation may happen after the operation has consumed a partial batch.
+    * Consumed items are not returned to the queue when the wait is cancelled.
     */
   @UnsafeBecauseImpure
   def drain(minLength: Int, maxLength: Int): CancelableFuture[Seq[A]] = {
@@ -230,18 +238,17 @@ final class AsyncQueue[A] private[monix] (
       CancelableFuture.successful(toSeq(buffer))
     } else {
       val promise = Promise[Seq[A]]()
-      val conn = MultiAssignCancelable()
+      val operation = new PendingOperation(promise, MultiAssignCancelable())
 
       sleepThenRepeat[Int, Seq[A]](
         consumersAwaiting,
         () => tryDrainUnsafe(buffer, maxLength - buffer.length),
         _ => buffer.length >= minLength,
         _ => toSeq(buffer),
-        promise,
-        conn
+        operation
       )
 
-      CancelableFuture(promise.future, conn)
+      CancelableFuture(promise.future, operation)
     }
   }
 
@@ -339,8 +346,9 @@ final class AsyncQueue[A] private[monix] (
 
   private def offerWait(a: A, c: MultiAssignCancelable): CancelableFuture[Unit] = {
     val p = Promise[Unit]()
-    sleepThenRepeat[Boolean, Unit](producersAwaiting, () => tryOfferUnsafe(a), offerTest, offerMap, p, c)
-    CancelableFuture(p.future, c)
+    val operation = new PendingOperation(p, c)
+    sleepThenRepeat[Boolean, Unit](producersAwaiting, () => tryOfferUnsafe(a), offerTest, offerMap, operation)
+    CancelableFuture(p.future, operation)
   }
 
   private def toSeq(buffer: ArrayBuffer[A]): Seq[A] =
@@ -358,8 +366,7 @@ final class AsyncQueue[A] private[monix] (
     f: () => T,
     filter: T => Boolean,
     map: T => U,
-    cb: Promise[U],
-    token: MultiAssignCancelable
+    operation: PendingOperation[U]
   ): Unit = {
 
     // Registering intention to sleep via promise
@@ -367,12 +374,12 @@ final class AsyncQueue[A] private[monix] (
       case null =>
         val ref = CancelablePromise[Unit]()
         if (!state.compareAndSet(null, ref))
-          sleepThenRepeat(state, f, filter, map, cb, token)
+          sleepThenRepeat(state, f, filter, map, operation)
         else
-          sleepThenRepeat_Step2TryAgainThenSleep(state, f, filter, map, cb, token)(ref)
+          sleepThenRepeat_Step2TryAgainThenSleep(state, f, filter, map, operation)(ref)
 
       case ref =>
-        sleepThenRepeat_Step2TryAgainThenSleep(state, f, filter, map, cb, token)(ref)
+        sleepThenRepeat_Step2TryAgainThenSleep(state, f, filter, map, operation)(ref)
     }
   }
 
@@ -381,24 +388,18 @@ final class AsyncQueue[A] private[monix] (
     f: () => T,
     filter: T => Boolean,
     map: T => U,
-    cb: Promise[U],
-    token: MultiAssignCancelable
+    operation: PendingOperation[U]
   )(p: CancelablePromise[Unit]): Unit = {
 
     // Async boundary, for fairness reasons; also creates a full
     // memory barrier between the promise registration and what follows
     scheduler.execute { () =>
-      // Trying to read one more time
-      val value = f()
-      if (filter(value)) {
-        cb.success(map(value))
-        ()
-      } else {
-        // Awaits on promise, then repeats
-        token := p.subscribe { _ =>
-          sleepThenRepeat_Step3Awaken(state, f, filter, map, cb, token)
+      operation.attempt(f, filter, map) {
+        val slot = SingleAssignCancelable()
+        operation.setWaiter(slot)
+        slot := p.subscribe { _ =>
+          sleepThenRepeat_Step3Awaken(state, f, filter, map, operation)
         }
-        ()
       }
     }
   }
@@ -408,23 +409,126 @@ final class AsyncQueue[A] private[monix] (
     f: () => T,
     filter: T => Boolean,
     map: T => U,
-    cb: Promise[U],
-    token: MultiAssignCancelable
+    operation: PendingOperation[U]
   ): Unit = {
-
-    // Trying to read
-    val value = f()
-    if (filter(value)) {
-      cb.success(map(value))
-      ()
-    } else {
-      // Go to sleep again
-      sleepThenRepeat(state, f, filter, map, cb, token)
+    operation.attempt(f, filter, map) {
+      sleepThenRepeat(state, f, filter, map, operation)
     }
   }
+
 }
 
 object AsyncQueue {
+  private object PendingOperationState {
+    sealed trait State[+A]
+    case object Idle extends State[Nothing]
+    case object Running extends State[Nothing]
+    case object StoppingIdle extends State[Nothing]
+    case object StoppingRunning extends State[Nothing]
+    case object CancelledRunning extends State[Nothing]
+    final case class Stopped[A](outcome: Try[A]) extends State[A]
+    case object Done extends State[Nothing]
+  }
+
+  private final class PendingOperation[U](promise: Promise[U], token: MultiAssignCancelable) extends Cancelable {
+    import PendingOperationState._
+
+    private var state: State[U] = Idle
+
+    def setWaiter(waiter: Cancelable): Unit =
+      token := waiter
+
+    def attempt[T](f: () => T, filter: T => Boolean, map: T => U)(retry: => Unit): Unit = {
+      val shouldRun = synchronized {
+        state match {
+          case Idle =>
+            state = Running
+            true
+          case _ =>
+            false
+        }
+      }
+
+      if (shouldRun) {
+        val outcome =
+          try {
+            val value = f()
+            if (filter(value)) Some(Try(map(value))) else None
+          } catch {
+            case error if NonFatal(error) => Some(Failure(error))
+          }
+
+        var retryAgain = false
+        val completed = synchronized {
+          state match {
+            case Running =>
+              outcome match {
+                case Some(result) =>
+                  state = Done
+                  Some(result)
+                case None =>
+                  state = Idle
+                  retryAgain = true
+                  None
+              }
+            case StoppingRunning =>
+              state = Stopped(outcome.getOrElse(Failure(new CancellationException)))
+              None
+            case CancelledRunning =>
+              state = Done
+              Some(outcome.getOrElse(Failure(new CancellationException)))
+            case _ => None
+          }
+        }
+
+        completed.foreach(complete)
+        if (retryAgain) retry
+      }
+    }
+
+    override def cancel(): Unit = {
+      val shouldCancel = synchronized {
+        state match {
+          case Idle =>
+            state = StoppingIdle
+            true
+          case Running =>
+            state = StoppingRunning
+            true
+          case _ => false
+        }
+      }
+
+      if (shouldCancel) {
+        try token.cancel()
+        finally {
+          val completed = synchronized {
+            state match {
+              case StoppingIdle =>
+                state = Done
+                Some(Failure(new CancellationException))
+              case StoppingRunning =>
+                state = CancelledRunning
+                None
+              case Stopped(outcome) =>
+                state = Done
+                Some(outcome)
+              case _ => None
+            }
+          }
+
+          completed.foreach(complete)
+        }
+      }
+    }
+
+    private def complete(outcome: Try[U]): Unit = {
+      val _ = token.clear()
+      val _ = promise.tryComplete(outcome)
+      ()
+    }
+  }
+
   /**
     * Builds a limited capacity and back-pressured [[AsyncQueue]].
     *

@@ -103,7 +103,7 @@ final class AsyncVar[A] private (initial: Option[A], ps: PaddingStrategy)
   @UnsafeBecauseImpure
   def put(a: A): CancelableFuture[Unit] = {
     val p = Promise[Unit]()
-    val c = putByCallback(a, Callback.fromPromise(p))
+    val c = putByCallback(a, CompletionCallback.fromPromise(p))
     CancelableFuture(p.future, c)
   }
 
@@ -121,8 +121,20 @@ final class AsyncVar[A] private (initial: Option[A], ps: PaddingStrategy)
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
+  @deprecated("Use CompletionCallback", "4.0.0")
   def putByCallback(a: A, await: Callback[Nothing, Unit]): Cancelable =
     unsafePut(a, await)
+
+  /** Fills the `AsyncVar` if it is empty, or waits asynchronously until
+    * the given value is next in line to be consumed on [[take]].
+    *
+    * Cancellation removes the pending operation and reports cancellation
+    * through `await.onCancellation()`.
+    */
+  @UnsafeProtocol
+  @UnsafeBecauseImpure
+  def putByCallback(a: A, await: CompletionCallback[Unit]): Cancelable =
+    unsafePut(a, await.toAttempt, () => await.onCancellation())
 
   /**
     * Tries to put a value in the underlying var, returning `true` if the
@@ -147,7 +159,7 @@ final class AsyncVar[A] private (initial: Option[A], ps: PaddingStrategy)
   @UnsafeBecauseImpure
   def take(): CancelableFuture[A] = {
     val p = Promise[A]()
-    val c = takeByCallback(Callback.fromPromise(p))
+    val c = takeByCallback(CompletionCallback.fromPromise(p))
     CancelableFuture(p.future, c)
   }
 
@@ -163,8 +175,20 @@ final class AsyncVar[A] private (initial: Option[A], ps: PaddingStrategy)
     */
   @UnsafeProtocol
   @UnsafeBecauseImpure
+  @deprecated("Use CompletionCallback", "4.0.0")
   def takeByCallback(await: Callback[Nothing, A]): Cancelable =
     unsafeTake(await)
+
+  /** Empties the `AsyncVar` if full, or waits asynchronously until a value
+    * is available.
+    *
+    * Cancellation removes the pending operation and reports cancellation
+    * through `await.onCancellation()`.
+    */
+  @UnsafeProtocol
+  @UnsafeBecauseImpure
+  def takeByCallback(await: CompletionCallback[A]): Cancelable =
+    unsafeTake(await.toAttempt, () => await.onCancellation())
 
   /**
     * Tries to take a value from the underlying var, returning `Some(a)` if the
@@ -192,7 +216,7 @@ final class AsyncVar[A] private (initial: Option[A], ps: PaddingStrategy)
   @UnsafeBecauseImpure
   def read(): CancelableFuture[A] = {
     val p = Promise[A]()
-    val c = readByCallback(Callback.fromPromise(p))
+    val c = readByCallback(CompletionCallback.fromPromise(p))
     CancelableFuture(p.future, c)
   }
 
@@ -207,8 +231,19 @@ final class AsyncVar[A] private (initial: Option[A], ps: PaddingStrategy)
     * @return $cancelableReturn
     */
   @UnsafeProtocol @UnsafeBecauseImpure
+  @deprecated("Use CompletionCallback", "4.0.0")
   def readByCallback(await: Callback[Nothing, A]): Cancelable =
     unsafeRead(await)
+
+  /** Reads the current value without taking it, or waits asynchronously
+    * until a value is available.
+    *
+    * Cancellation removes the pending operation and reports cancellation
+    * through `await.onCancellation()`.
+    */
+  @UnsafeProtocol @UnsafeBecauseImpure
+  def readByCallback(await: CompletionCallback[A]): Cancelable =
+    unsafeRead(await.toAttempt, () => await.onCancellation())
 
   /**
     * Tries reading the current value, without modifying the var in any way:

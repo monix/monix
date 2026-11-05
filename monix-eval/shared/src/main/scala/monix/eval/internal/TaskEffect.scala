@@ -18,8 +18,9 @@
 package monix.eval
 package internal
 
+import java.util.concurrent.CancellationException
 import cats.effect.{ CancelToken, IO, SyncIO }
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.Scheduler
 import monix.execution.internal.AttemptCallback.noop
 import scala.util.control.NonFatal
@@ -58,7 +59,7 @@ private[eval] object TaskEffect {
     s: Scheduler,
     opts: Task.Options
   ): CancelToken[Task] = {
-    fa.runAsyncOptF(new Callback[Throwable, A] {
+    fa.runAsyncOptF(new CompletionCallback[A] {
       private def signal(value: Either[Throwable, A]): Unit =
         try cb(value).unsafeRunAsync(noop)
         catch { case NonFatal(e) => s.reportFailure(e) }
@@ -67,6 +68,8 @@ private[eval] object TaskEffect {
         signal(Right(value))
       def onError(e: Throwable): Unit =
         signal(Left(e))
+      def onCancellation(): Unit =
+        signal(Left(new CancellationException("Task canceled")))
     })
   }
 }

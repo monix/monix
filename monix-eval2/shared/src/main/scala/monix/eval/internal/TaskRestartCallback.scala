@@ -18,9 +18,10 @@
 package monix.eval
 package internal
 
+import java.util.concurrent.CancellationException
 import monix.eval.Task.AsyncSimple
 import monix.execution.exceptions.APIContractViolationException
-import monix.execution.{ Callback, Scheduler }
+import monix.execution.{ CompletionCallback, Scheduler }
 import scala.util.control.NonFatal
 
 /** A callback belongs to exactly one async suspension.
@@ -32,7 +33,7 @@ import scala.util.control.NonFatal
 private[internal] final class TaskRestartCallback(
   fiber: TaskFiber[_],
   scheduler: Scheduler
-) extends Callback[Throwable, Any] {
+) extends CompletionCallback[Any] {
   def start(task: AsyncSimple[_]): Unit =
     try task.register(scheduler, this)
     catch {
@@ -50,6 +51,9 @@ private[internal] final class TaskRestartCallback(
 
   override def onError(error: Throwable): Unit =
     signal(Task.RaiseError(error))
+
+  override def onCancellation(): Unit =
+    onError(new CancellationException("Task canceled"))
 
   private def signal(result: Task[Any]): Unit =
     try fiber.continueWithRef(result, this)

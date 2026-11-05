@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.consumers
 
-import monix.execution.{ Callback, Cancelable, Scheduler }
+import monix.execution.{ Cancelable, CompletionCallback, Scheduler }
 import monix.eval.Task
 import monix.execution.cancelables.AssignableCancelable
 import scala.util.control.NonFatal
@@ -29,10 +29,10 @@ import monix.reactive.observers.Subscriber
 private[reactive] final class MapTaskConsumer[In, R, R2](source: Consumer[In, R], f: R => Task[R2])
   extends Consumer[In, R2] {
 
-  def createSubscriber(cb: Callback[Throwable, R2], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
+  def createSubscriber(cb: CompletionCallback[R2], s: Scheduler): (Subscriber[In], AssignableCancelable) = {
     var lastCancelable: Cancelable = Cancelable.empty
     var isCancelled = false
-    val asyncCallback = new Callback[Throwable, R] { self =>
+    val asyncCallback = new CompletionCallback[R] { self =>
       def onSuccess(value: R): Unit =
         s.execute(() => {
           implicit val scheduler = s
@@ -58,6 +58,9 @@ private[reactive] final class MapTaskConsumer[In, R, R2](source: Consumer[In, R]
         // end up with stack-overflows or other problems
         s.execute(() => cb.onError(ex))
       }
+
+      def onCancellation(): Unit =
+        s.execute(() => cb.onCancellation())
     }
 
     val (sub, ac) = source.createSubscriber(asyncCallback, s)

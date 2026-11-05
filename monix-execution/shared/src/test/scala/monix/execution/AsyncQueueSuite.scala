@@ -17,6 +17,7 @@
 
 package monix.execution
 
+import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicLong
 import minitest.TestSuite
 import monix.execution.BufferCapacity.{ Bounded, Unbounded }
@@ -26,6 +27,7 @@ import monix.execution.schedulers.TestScheduler
 import scala.collection.immutable.Queue
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.Failure
 
 object AsyncQueueFakeSuite extends BaseAsyncQueueSuite[TestScheduler] {
   def setup() = TestScheduler()
@@ -44,6 +46,103 @@ object AsyncQueueFakeSuite extends BaseAsyncQueueSuite[TestScheduler] {
       val _ = repeatTest(f(ec), times)
       ec.tick(1.day)
     }
+  }
+
+  private def isCancellation[A](future: CancelableFuture[A]): Boolean =
+    future.value.exists { case Failure(_: CancellationException) => true; case _ => false }
+
+  test("canceling a pending poll reports cancellation and leaves later values queued") { implicit s =>
+    val queue = AsyncQueue.bounded[Int](2)
+    val pending = queue.poll()
+
+    s.tick()
+    assertEquals(pending.value, None)
+
+    pending.cancel()
+    assert(isCancellation(pending))
+
+    assert(queue.tryOffer(1))
+    s.tick()
+    assertEquals(queue.tryPoll(), Some(1))
+  }
+
+  test("canceling a pending offer reports cancellation and does not enqueue after wake") { implicit s =>
+    val queue = AsyncQueue.bounded[Int](2)
+    val queued = scala.collection.mutable.ArrayBuffer.empty[Int]
+    var nextValue = 0
+    while (queue.tryOffer(nextValue)) {
+      val _ = queued += nextValue
+      nextValue += 1
+    }
+    assert(queued.nonEmpty)
+    val pending = queue.offer(nextValue)
+
+    s.tick()
+    assertEquals(pending.value, None)
+
+    pending.cancel()
+    assert(isCancellation(pending))
+
+    queued.foreach(value => assertEquals(queue.tryPoll(), Some(value)))
+    s.tick()
+    assertEquals(queue.tryPoll(), None)
+  }
+
+  test("canceling one offer waiter preserves other waiters") { implicit s =>
+    val queue = AsyncQueue.bounded[Int](2)
+    val queued = scala.collection.mutable.ArrayBuffer.empty[Int]
+    var nextValue = 0
+    while (queue.tryOffer(nextValue)) {
+      val _ = queued += nextValue
+      nextValue += 1
+    }
+    assert(queued.nonEmpty)
+    val cancelled = queue.offer(nextValue)
+    val activeValue = nextValue + 1
+    val active = queue.offer(activeValue)
+
+    s.tick()
+    cancelled.cancel()
+    assert(isCancellation(cancelled))
+    assertEquals(active.value, None)
+
+    assertEquals(queue.tryPoll(), Some(queued.head))
+    s.tick()
+    assertEquals(active.value, Some(scala.util.Success(())))
+    queued.tail.foreach(value => assertEquals(queue.tryPoll(), Some(value)))
+    assertEquals(queue.tryPoll(), Some(activeValue))
+    assertEquals(queue.tryPoll(), None)
+  }
+
+  test("canceling a pending drain reports cancellation and preserves queued items") { implicit s =>
+    val queue = AsyncQueue.bounded[Int](2)
+    val pending = queue.drain(2, 2)
+
+    s.tick()
+    assertEquals(pending.value, None)
+
+    pending.cancel()
+    assert(isCancellation(pending))
+    assert(queue.tryOffer(1))
+    assert(queue.tryOffer(2))
+    s.tick()
+
+    assertEquals(queue.tryPoll(), Some(1))
+    assertEquals(queue.tryPoll(), Some(2))
+  }
+
+  test("canceling a partial drain does not put consumed items back") { implicit s =>
+    val queue = AsyncQueue.bounded[Int](2)
+    assert(queue.tryOffer(1))
+    val pending = queue.drain(2, 2)
+
+    assertEquals(queue.tryPoll(), None)
+    s.tick()
+    assertEquals(pending.value, None)
+
+    pending.cancel()
+    assert(isCancellation(pending))
+    assertEquals(queue.tryPoll(), None)
   }
 }
 

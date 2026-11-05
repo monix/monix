@@ -17,6 +17,7 @@
 
 package monix.execution.cancelables
 
+import java.lang.ref.WeakReference
 import minitest.SimpleTestSuite
 import monix.execution.TestUtils
 
@@ -57,6 +58,56 @@ object ChainedCancelableJVMSuite extends SimpleTestSuite with TestUtils {
     }
 
     assert(success)
+  }
+
+  test("cancelled target still cancels assignments after collection") {
+    if (isCI) ignore("Test is flaky, ignoring on top of CI")
+
+    val child = ChainedCancelable()
+    def linkToCancelledSource(): WeakReference[ChainedCancelable] = {
+      val source = ChainedCancelable()
+      source.cancel()
+      child.forwardTo(source)
+      new WeakReference(source)
+    }
+
+    val sourceRef = linkToCancelledSource()
+    var tries = 0
+    while (tries < 10 && sourceRef.get() != null) {
+      System.gc()
+      tries += 1
+    }
+    assert(sourceRef.get() == null)
+
+    val token = BooleanCancelable()
+    child := token
+    assert(token.isCanceled)
+  }
+
+  test("reset clears cancellation after target collection") {
+    if (isCI) ignore("Test is flaky, ignoring on top of CI")
+
+    val child = ChainedCancelable()
+    def linkToCancelledSource(): WeakReference[ChainedCancelable] = {
+      val source = ChainedCancelable()
+      source.cancel()
+      child.forwardTo(source)
+      new WeakReference(source)
+    }
+
+    val sourceRef = linkToCancelledSource()
+    var tries = 0
+    while (tries < 10 && sourceRef.get() != null) {
+      System.gc()
+      tries += 1
+    }
+    assert(sourceRef.get() == null)
+
+    child.reset()
+
+    val token = BooleanCancelable()
+    child := token
+    assert(!token.isCanceled)
   }
 
   test("chain second time before weak reference is collected") {

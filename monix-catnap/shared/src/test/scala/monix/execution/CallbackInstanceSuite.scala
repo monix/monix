@@ -18,17 +18,23 @@
 package monix.execution
 import cats.Contravariant
 import minitest.TestSuite
-import monix.execution.CallbackSuite.TestCallback
 import monix.execution.schedulers.TestScheduler
 
 object CallbackInstanceSuite extends TestSuite[TestScheduler] {
+  private final class TestCompletionCallback extends CompletionCallback[Int] {
+    var successCalled = false
+    override def onSuccess(value: Int): Unit = successCalled = true
+    override def onError(error: Throwable): Unit = ()
+    override def onCancellation(): Unit = ()
+  }
+
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
 
   test("contramap has a cats Contramap instance") { _ =>
-    val instance = implicitly[Contravariant[Callback[Throwable, *]]]
-    val callback = TestCallback()
+    val instance = implicitly[Contravariant[CompletionCallback[*]]]
+    val callback = new TestCompletionCallback
     val stringCallback = instance.contramap(callback)((x: String) => x.toInt)
     stringCallback.onSuccess("1")
     assert(callback.successCalled)

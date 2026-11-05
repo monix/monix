@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.atomic.Atomic
 import monix.execution.exceptions.APIContractViolationException
 import scala.annotation.tailrec
@@ -35,13 +35,13 @@ import scala.annotation.tailrec
   * signals harmless. A second concurrent signal observes a terminal state and is
   * ignored.
   */
-final class TaskCallbackIndirection[E, A] extends Callback[E, A] {
+final class TaskCallbackIndirection[A] extends CompletionCallback[A] {
   import TaskCallbackIndirection._
 
-  private[this] val atomic = Atomic(Init: State[E, A])
+  private[this] val atomic = Atomic(Init: State[A])
 
   @tailrec
-  def register(cb: Callback[E, A]): Unit =
+  def register(cb: CompletionCallback[A]): Unit =
     atomic.get() match {
       case current @ Init =>
         if (!atomic.compareAndSet(current, Waiting(cb)))
@@ -51,6 +51,8 @@ final class TaskCallbackIndirection[E, A] extends Callback[E, A] {
         cb.onSuccess(a)
       case Failure(e) =>
         cb.onError(e)
+      case Cancelled =>
+        cb.onCancellation()
       case Waiting(_) =>
         // Only one `get` may wait at a time. A canceled wait clears this state
         // before a later `get` is evaluated.
@@ -65,42 +67,48 @@ final class TaskCallbackIndirection[E, A] extends Callback[E, A] {
       case current @ Waiting(_) =>
         if (!atomic.compareAndSet(current, Init))
           clear()
-      case Init | Success(_) | Failure(_) =>
+      case Init | Success(_) | Failure(_) | Cancelled =>
         ()
     }
 
   @tailrec
-  private def signalLoop(isSuccess: Boolean, unboxed: Any, boxed: State[E, A]): Unit =
+  private def signalLoop(boxed: Terminal[A]): Unit =
     atomic.get() match {
       case current @ Init =>
         if (!atomic.compareAndSet(current, boxed))
-          signalLoop(isSuccess, unboxed, boxed) // retry
-      case current @ Waiting(cb: Callback[E, A] @unchecked) =>
+          signalLoop(boxed) // retry
+      case current @ Waiting(cb: CompletionCallback[A] @unchecked) =>
         // Publish the result before invoking the callback. Even if it throws,
         // a duplicate signal cannot invoke this waiter a second time.
         if (atomic.compareAndSet(current, boxed)) {
-          if (isSuccess)
-            cb.onSuccess(unboxed.asInstanceOf[A])
-          else
-            cb.onError(unboxed.asInstanceOf[E])
+          boxed match {
+            case Success(value) => cb.onSuccess(value)
+            case Failure(error) => cb.onError(error)
+            case Cancelled => cb.onCancellation()
+          }
         } else {
-          signalLoop(isSuccess, unboxed, boxed) // retry
+          signalLoop(boxed) // retry
         }
-      case Success(_) | Failure(_) =>
+      case Success(_) | Failure(_) | Cancelled =>
         ()
     }
 
   override def onSuccess(a: A): Unit =
-    signalLoop(isSuccess = true, a, Success(a))
+    signalLoop(Success(a))
 
-  override def onError(e: E): Unit =
-    signalLoop(isSuccess = false, e, Failure(e))
+  override def onError(e: Throwable): Unit =
+    signalLoop(Failure(e))
+
+  override def onCancellation(): Unit =
+    signalLoop(Cancelled)
 }
 
 object TaskCallbackIndirection {
-  private sealed trait State[+E, +A]
-  private case object Init extends State[Nothing, Nothing]
-  private final case class Waiting[E, A](cb: Callback[E, A]) extends State[E, A]
-  private final case class Success[A](a: A) extends State[Nothing, A]
-  private final case class Failure[E](e: E) extends State[E, Nothing]
+  private sealed trait State[+A]
+  private sealed trait Terminal[+A] extends State[A]
+  private case object Init extends State[Nothing]
+  private final case class Waiting[A](cb: CompletionCallback[A]) extends State[A]
+  private final case class Success[A](a: A) extends Terminal[A]
+  private final case class Failure(e: Throwable) extends Terminal[Nothing]
+  private case object Cancelled extends Terminal[Nothing]
 }

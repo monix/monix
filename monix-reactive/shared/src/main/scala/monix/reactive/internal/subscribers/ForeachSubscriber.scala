@@ -17,14 +17,14 @@
 
 package monix.reactive.internal.subscribers
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.Ack.{ Continue, Stop }
 import scala.util.control.NonFatal
 import monix.execution.{ Ack, Scheduler }
 import monix.reactive.observers.Subscriber
 
 /** Subscriber implementation for `Observable.foreach` */
-private[reactive] final class ForeachSubscriber[A](f: A => Unit, onFinish: Callback[Throwable, Unit], s: Scheduler)
+private[reactive] final class ForeachSubscriber[A](f: A => Unit, onFinish: CompletionCallback[Unit], s: Scheduler)
   extends Subscriber.Sync[A] {
 
   implicit val scheduler: Scheduler = s

@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import scala.util.control.NonFatal
 
@@ -37,7 +37,7 @@ private[eval] object TaskEvalAsync {
 // that this is a task that forks on evaluation
   private final class EvalAsyncRegister[A](a: () => A) extends ForkedRegister[A] {
 
-    def apply(ctx: Task.Context, cb: Callback[Throwable, A]): Unit =
+    def apply(ctx: Task.Context, cb: CompletionCallback[A]): Unit =
       ctx.scheduler.execute(() => {
         ctx.frameRef.reset()
         var streamError = true

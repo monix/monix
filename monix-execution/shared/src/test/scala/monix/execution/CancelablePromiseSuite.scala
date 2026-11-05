@@ -20,8 +20,10 @@ package monix.execution
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.DummyException
 
+import java.util.concurrent.CancellationException
 import scala.concurrent.Promise
-import scala.util.{ Failure, Success }
+import scala.concurrent.ExecutionContext
+import scala.util.{ Failure, Success, Try }
 
 object CancelablePromiseSuite extends SimpleTestSuite {
   test("completes in success") {
@@ -73,20 +75,49 @@ object CancelablePromiseSuite extends SimpleTestSuite {
     assertEquals(p4.future.value, Some(Failure(dummy)))
   }
 
-  test("can unsubscribe futures") {
+  test("cancelling a future fails only that subscription") {
     val p = CancelablePromise[Int]()
 
     val f1 = p.future
     val f2 = p.future
     val f3 = p.future
 
+    val immediate = new ExecutionContext {
+      def execute(runnable: Runnable): Unit = runnable.run()
+      def reportFailure(error: Throwable): Unit = throw error
+    }
+    var observed1 = Option.empty[Try[Int]]
+    var observed2 = Option.empty[Try[Int]]
+    f1.onComplete(result => observed1 = Some(result))(immediate)
+    f1.onComplete(result => observed2 = Some(result))(immediate)
+
     f1.cancel()
     f3.cancel()
+
+    assert(f1.value.exists { case Failure(_: CancellationException) => true; case _ => false })
+    assert(f3.value.exists { case Failure(_: CancellationException) => true; case _ => false })
+    assertEquals(observed1, f1.value)
+    assertEquals(observed2, f1.value)
+
     p.complete(Success(99))
 
-    assertEquals(f1.value, None)
     assertEquals(f2.value, Some(Success(99)))
-    assertEquals(f3.value, None)
+    assert(f1.value.exists { case Failure(_: CancellationException) => true; case _ => false })
+    assert(f3.value.exists { case Failure(_: CancellationException) => true; case _ => false })
+  }
+
+  test("cancellation and producer completion are safe in either order") {
+    val cancelledFirst = CancelablePromise[Int]()
+    val cancelledFuture = cancelledFirst.future
+    cancelledFuture.cancel()
+    assert(cancelledFirst.tryComplete(Success(99)))
+    assert(cancelledFuture.value.exists { case Failure(_: CancellationException) => true; case _ => false })
+
+    val completedFirst = CancelablePromise[Int]()
+    val completedFuture = completedFirst.future
+    assert(completedFirst.tryComplete(Success(99)))
+    completedFuture.cancel()
+    assertEquals(completedFuture.value, Some(Success(99)))
   }
 
   test("can unsubscribe callbacks") {

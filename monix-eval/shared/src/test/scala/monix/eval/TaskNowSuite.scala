@@ -20,7 +20,7 @@ import scala.annotation.nowarn
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.ExecutionModel.AlwaysAsyncExecution
 import monix.execution.exceptions.DummyException
 import scala.util.{ Failure, Success, Try }
@@ -58,7 +58,7 @@ object TaskNowSuite extends BaseTestSuite {
     val task = Task.now(trigger())
     assert(wasTriggered, "wasTriggered")
 
-    task.runAsync(Callback.fromTry[String](r => result = Some(r)))
+    task.runAsync(CompletionCallback.fromTry[String](r => result = Some(r)))
     assertEquals(result, Some(Success("result")))
   }
 
@@ -72,7 +72,7 @@ object TaskNowSuite extends BaseTestSuite {
     val task = Task.now(trigger())
     assert(wasTriggered, "wasTriggered")
 
-    task.runAsync(Callback.fromTry[String](r => result = Some(r)))
+    task.runAsync(CompletionCallback.fromTry[String](r => result = Some(r)))
     assertEquals(result, None)
     s2.tick()
     assertEquals(result, Some(Success("result")))
@@ -112,7 +112,7 @@ object TaskNowSuite extends BaseTestSuite {
     val task = Task.raiseError[String](trigger())
     assert(wasTriggered, "wasTriggered")
 
-    task.runAsync(Callback.fromTry[String](r => result = Some(r)))
+    task.runAsync(CompletionCallback.fromTry[String](r => result = Some(r)))
     assertEquals(result, Some(Failure(dummy)))
   }
 
@@ -127,7 +127,7 @@ object TaskNowSuite extends BaseTestSuite {
     val task = Task.raiseError[String](trigger())
     assert(wasTriggered, "wasTriggered")
 
-    task.runAsync(Callback.fromTry[String](r => result = Some(r)))
+    task.runAsync(CompletionCallback.fromTry[String](r => result = Some(r)))
     assertEquals(result, None)
     s2.tick()
     assertEquals(result, Some(Failure(dummy)))

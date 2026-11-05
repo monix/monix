@@ -40,7 +40,7 @@ object TaskSimpleTest extends SimpleTestSuite {
   test("async registration exceptions become effect errors") {
     implicit val scheduler: TestScheduler = TestScheduler()
     val dummy = new RuntimeException("dummy")
-    val result = Task.async0[Int]((_, _) => throw dummy).unsafeRunToFuture()
+    val result = Task.fromAsync0[Int]((_, _) => throw dummy).unsafeRunToFuture()
 
     scheduler.tick()
 
@@ -52,7 +52,7 @@ object TaskSimpleTest extends SimpleTestSuite {
     implicit val scheduler: TestScheduler = TestScheduler()
 
     def signal(n: Int): Task[Int] =
-      Task.async(callback => callback.onSuccess(n))
+      Task.fromAsync(callback => callback.onSuccess(n))
 
     def loop(n: Int, acc: Int): Task[Int] =
       signal(n).flatMap { value =>
@@ -70,7 +70,7 @@ object TaskSimpleTest extends SimpleTestSuite {
     implicit val scheduler: TestScheduler = TestScheduler()
 
     def signal(n: Int): Task[Int] =
-      Task.async0 { (s, callback) =>
+      Task.fromAsync0 { (s, callback) =>
         s.execute(() => callback.onSuccess(n))
       }
 
@@ -92,7 +92,7 @@ object TaskSimpleTest extends SimpleTestSuite {
     var secondAccepted = true
 
     val result = Task
-      .async[Int] { callback =>
+      .fromAsync[Int] { callback =>
         firstAccepted = callback.tryOnSuccess(42)
         secondAccepted = callback.tryOnSuccess(43)
       }
@@ -114,7 +114,7 @@ object TaskSimpleTest extends SimpleTestSuite {
     val started = Task.never
       .onCancel {
         Task.delay { finalizerRuns += 1 }.flatMap { _ =>
-          Task.async[Unit] { callback =>
+          Task.fromAsync[Unit] { callback =>
             finishFinalizer = () => callback.onSuccess(())
           }
         }
@@ -255,7 +255,7 @@ object TaskSimpleTest extends SimpleTestSuite {
     implicit val scheduler: TestScheduler = TestScheduler()
     val dummy = new RuntimeException("dummy")
     val result = Task
-      .async0[Int] { (_, callback) =>
+      .fromAsync0[Int] { (_, callback) =>
         callback.onSuccess(42)
         throw dummy
       }
@@ -271,7 +271,7 @@ object TaskSimpleTest extends SimpleTestSuite {
     implicit val scheduler: TestScheduler = TestScheduler()
     val dummy = new RuntimeException("dummy")
     val result = Task
-      .cont0[Int, Int]((_, _, _) => throw dummy)
+      .fromCont0[Int, Int]((_, _, _) => throw dummy)
       .unsafeRunToFuture()
 
     scheduler.tick()
@@ -372,7 +372,7 @@ object TaskSimpleTest extends SimpleTestSuite {
     var finalized = false
     val started = Task
       .uncancelable { _ =>
-        Task.async0[Unit] { (_, callback) =>
+        Task.fromAsync0[Unit] { (_, callback) =>
           resume = () => callback.onSuccess(())
         }
       }
@@ -409,11 +409,11 @@ object TaskSimpleTest extends SimpleTestSuite {
       x1 <- Task.pure(1)
       x2 <- Task.pure(2)
       x3 <- Task.pure(3)
-      x4 <- Task.async0[Int] { (sc, cb) =>
+      x4 <- Task.fromAsync0[Int] { (sc, cb) =>
         sc.execute(() => cb.onSuccess(4))
       }
       x5 <- Task.delay(5)
-      x6 <- Task.cont0[Int, Int] { (sc, cb, get) =>
+      x6 <- Task.fromCont0[Int, Int] { (sc, cb, get) =>
         Task.delay {
           sc.scheduleOnce(1, TimeUnit.SECONDS, () => cb.onSuccess(3 + 3))
         }.flatMap { _ =>
@@ -421,7 +421,7 @@ object TaskSimpleTest extends SimpleTestSuite {
         }
       }
       x7 <- Task.delay(7)
-      x8 <- Task.cont0[Int, Int] { (sc, cb, get) =>
+      x8 <- Task.fromCont0[Int, Int] { (sc, cb, get) =>
         cb.onSuccess(8)
         get
       }

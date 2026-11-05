@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.consumers
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.Ack.Stop
 import monix.execution.{ Ack, Scheduler }
 import monix.execution.cancelables.AssignableCancelable
@@ -31,7 +31,7 @@ import scala.concurrent.Future
 private[reactive] final class ContraMapConsumer[In2, -In, +R](source: Consumer[In, R], f: In2 => In)
   extends Consumer[In2, R] {
 
-  def createSubscriber(cb: Callback[Throwable, R], s: Scheduler): (Subscriber[In2], AssignableCancelable) = {
+  def createSubscriber(cb: CompletionCallback[R], s: Scheduler): (Subscriber[In2], AssignableCancelable) = {
     val (out, c) = source.createSubscriber(cb, s)
 
     val out2 = new Subscriber[In2] {

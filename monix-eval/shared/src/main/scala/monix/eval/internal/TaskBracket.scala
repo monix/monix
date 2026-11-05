@@ -17,10 +17,11 @@
 
 package monix.eval.internal
 
+import java.util.concurrent.CancellationException
 import cats.effect.ExitCase
 import cats.effect.ExitCase.{ Canceled, Completed, Error }
 import monix.eval.Task.{ Context, ContextSwitch }
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import monix.execution.atomic.Atomic
 import monix.execution.internal.Platform
@@ -41,9 +42,9 @@ private[monix] object TaskBracket { // -----------------------------------------
     )
 
   private final class ReleaseStart[A](source: Task[A], release: ExitCase[Throwable] => Task[Unit])
-    extends ((Context, Callback[Throwable, A]) => Unit) {
+    extends ((Context, CompletionCallback[A]) => Unit) {
 
-    def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
+    def apply(ctx: Context, cb: CompletionCallback[A]): Unit = {
       implicit val s = ctx.scheduler
 
       val conn = ctx.connection
@@ -165,11 +166,11 @@ private[monix] object TaskBracket { // -----------------------------------------
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
   private abstract class BaseStart[A, B](acquire: Task[A], use: A => Task[B])
-    extends ((Context, Callback[Throwable, B]) => Unit) {
+    extends ((Context, CompletionCallback[B]) => Unit) {
 
     protected def makeReleaseFrame(ctx: Context, value: A): BaseReleaseFrame[A, B]
 
-    final def apply(ctx: Context, cb: Callback[Throwable, B]): Unit = {
+    final def apply(ctx: Context, cb: CompletionCallback[B]): Unit = {
       // Placeholder for the future finalizer
       val deferredRelease = ForwardCancelable()
       ctx.connection.push(deferredRelease.cancel)(ctx.scheduler)
@@ -177,7 +178,7 @@ private[monix] object TaskBracket { // -----------------------------------------
       Task.unsafeStartNow(
         acquire,
         ctx.withConnection(TaskConnection.uncancelable),
-        new Callback[Throwable, A] {
+        new CompletionCallback[A] {
           def onSuccess(value: A): Unit = {
             implicit val sc = ctx.scheduler
             val conn = ctx.connection
@@ -202,6 +203,9 @@ private[monix] object TaskBracket { // -----------------------------------------
             deferredRelease.complete(Task.unit)(ctx.scheduler)
             cb.onError(ex)
           }
+
+          def onCancellation(): Unit =
+            onError(new CancellationException("Task canceled"))
         }
       )
     }

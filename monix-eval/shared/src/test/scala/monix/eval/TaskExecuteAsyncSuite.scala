@@ -55,7 +55,7 @@ object TaskExecuteAsyncSuite extends BaseTestSuite {
 
   test("Task.create.executeOn should execute async") { implicit s =>
     val s2 = TestScheduler()
-    val source = Task.cancelable0[Int] { (_, cb) =>
+    val source = Task.fromCancelable0[Int] { (_, cb) =>
       cb.onSuccess(10); Task.unit
     }
     val t = source.executeOn(s2)

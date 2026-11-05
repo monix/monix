@@ -20,7 +20,7 @@ package monix.reactive.consumers
 import cats.laws._
 import cats.laws.discipline._
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.atomic.{ Atomic, AtomicInt, AtomicLong }
 import monix.execution.cancelables.{ AssignableCancelable, BooleanCancelable, CompositeCancelable }
@@ -100,7 +100,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
 
     val finishPromise = Promise[Int]()
     val loadBalancer = Consumer.loadBalance(sync, async, busy, sync, async, busy).map(_.length)
-    val (subscriber, _) = loadBalancer.createSubscriber(Callback.fromPromise(finishPromise), s)
+    val (subscriber, _) = loadBalancer.createSubscriber(CompletionCallback.fromPromise(finishPromise), s)
 
     val continue = Observer.feed(subscriber, BooleanCancelable(), (0 until 10000).iterator)
     s.tick()
@@ -137,7 +137,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     val loadBalancer = Consumer.loadBalance(sync, async, busy1, sync, async, busy2).map(_.length)
 
     val conn = BooleanCancelable()
-    val (subscriber, c) = loadBalancer.createSubscriber(Callback.fromPromise(finishPromise), s)
+    val (subscriber, c) = loadBalancer.createSubscriber(CompletionCallback.fromPromise(finishPromise), s)
     c := conn
 
     val continue = Observer.feed(subscriber, conn, (0 until 10000).iterator)
@@ -184,7 +184,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     val loadBalancer = Consumer.loadBalance(sync, async, withError, sync, async, busy).map(_.length)
 
     val conn = BooleanCancelable()
-    val (subscriber, c) = loadBalancer.createSubscriber(Callback.fromPromise(finishPromise), s)
+    val (subscriber, c) = loadBalancer.createSubscriber(CompletionCallback.fromPromise(finishPromise), s)
     c := conn
 
     val continue = Observer.feed(subscriber, conn, (0 until 10000).iterator)
@@ -222,7 +222,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
     val loadBalancer = Consumer.loadBalance(sync, cancelableConsumer, sync, cancelableConsumer).map(_.length)
 
     val finishPromise = Promise[Int]()
-    val (subscriber, _) = loadBalancer.createSubscriber(Callback.fromPromise(finishPromise), s)
+    val (subscriber, _) = loadBalancer.createSubscriber(CompletionCallback.fromPromise(finishPromise), s)
 
     for (_ <- 0 until 4) assertEquals(subscriber.onNext(1), Continue)
     s.tick()
@@ -243,7 +243,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
 
   def createCancelable(sum: AtomicLong, wasCompleted: AtomicInt, conn: CompositeCancelable): Consumer[Int, Unit] =
     new Consumer[Int, Unit] {
-      def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber[Int], AssignableCancelable) = {
+      def createSubscriber(cb: CompletionCallback[Unit], s: Scheduler): (Subscriber[Int], AssignableCancelable) = {
         val sendFinal = Cancelable { () =>
           cb.onSuccess(())
         }
@@ -316,7 +316,7 @@ object LoadBalanceConsumerSuite extends BaseTestSuite {
 
   def createErrorSignaling(ack: Promise[Ack], ex: Throwable): Consumer[Int, Unit] =
     new Consumer[Int, Unit] {
-      def createSubscriber(cb: Callback[Throwable, Unit], s: Scheduler): (Subscriber[Int], AssignableCancelable) = {
+      def createSubscriber(cb: CompletionCallback[Unit], s: Scheduler): (Subscriber[Int], AssignableCancelable) = {
         val sub = new Subscriber[Int] {
           implicit val scheduler: Scheduler = s
 

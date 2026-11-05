@@ -498,12 +498,12 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async(register) should shift back if register forks") { s =>
+  testAsync("Task.fromAsync(register) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val r = Task
-        .async[Unit] { cb =>
+        .fromAsync[Unit] { cb =>
           s2.execute(() => cb.onSuccess(()))
         }
         .flatMap(_ => Task(Thread.currentThread().getName))
@@ -516,12 +516,12 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async(register) should not shift back if register does not fork") { s =>
+  testAsync("Task.fromAsync(register) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val r = Task
-        .async[Unit](_.onSuccess(()))
+        .fromAsync[Unit](_.onSuccess(()))
         .flatMap(_ => Task(Thread.currentThread().getName))
         .runToFuture(s)
 
@@ -531,13 +531,13 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async(register error) should shift back if register forks") { s =>
+  testAsync("Task.fromAsync(register error) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val dummy = DummyException("dummy")
       val r = Task
-        .async[Unit] { cb =>
+        .fromAsync[Unit] { cb =>
           s2.execute(() => cb.onError(dummy))
         }
         .onErrorHandle(e => assertEquals(e, dummy))
@@ -551,13 +551,13 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async(register error) should not shift back if register does not fork") { s =>
+  testAsync("Task.fromAsync(register error) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val dummy = DummyException("dummy")
       val r = Task
-        .async[Unit](_.onError(dummy))
+        .fromAsync[Unit](_.onError(dummy))
         .onErrorHandle(e => assertEquals(e, dummy))
         .flatMap(_ => Task(Thread.currentThread().getName))
         .runToFuture(s)
@@ -568,12 +568,12 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async0(register) should shift back if register forks") { s =>
+  testAsync("Task.fromAsync0(register) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val r = Task
-        .async0[Unit] { (_, cb) =>
+        .fromAsync0[Unit] { (_, cb) =>
           s2.execute(() => cb.onSuccess(()))
         }
         .flatMap(_ => Task(Thread.currentThread().getName))
@@ -586,12 +586,12 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async0(register) should not shift back if register does not fork") { s =>
+  testAsync("Task.fromAsync0(register) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val r = Task
-        .async0[Unit]((_, cb) => cb.onSuccess(()))
+        .fromAsync0[Unit]((_, cb) => cb.onSuccess(()))
         .flatMap(_ => Task(Thread.currentThread().getName))
         .runToFuture(s)
 
@@ -601,13 +601,13 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async0(register error) should shift back if register forks") { s =>
+  testAsync("Task.fromAsync0(register error) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val dummy = DummyException("dummy")
       val r = Task
-        .async0[Unit] { (_, cb) =>
+        .fromAsync0[Unit] { (_, cb) =>
           s2.execute(() => cb.onError(dummy))
         }
         .onErrorHandle(e => assertEquals(e, dummy))
@@ -621,13 +621,13 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.async0(register error) should not shift back if register does not fork") { s =>
+  testAsync("Task.fromAsync0(register error) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val dummy = DummyException("dummy")
       val r = Task
-        .async0[Unit]((_, cb) => cb.onError(dummy))
+        .fromAsync0[Unit]((_, cb) => cb.onError(dummy))
         .onErrorHandle(e => assertEquals(e, dummy))
         .flatMap(_ => Task(Thread.currentThread().getName))
         .runToFuture(s)
@@ -638,12 +638,12 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable(register) should shift back if register forks") { s =>
+  testAsync("Task.fromCancelable(register) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val r = Task
-        .cancelable[Unit] { cb =>
+        .fromCancelable[Unit] { cb =>
           s2.execute(() => cb.onSuccess(()))
           Task(())
         }
@@ -657,12 +657,12 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable(register) should not shift back if register does not fork") { s =>
+  testAsync("Task.fromCancelable(register) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val r = Task
-        .cancelable[Unit] { cb =>
+        .fromCancelable[Unit] { cb =>
           cb.onSuccess(())
           Task(())
         }
@@ -675,13 +675,13 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable(register error) should shift back if register forks") { s =>
+  testAsync("Task.fromCancelable(register error) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val dummy = DummyException("dummy")
       val r = Task
-        .cancelable[Unit] { cb =>
+        .fromCancelable[Unit] { cb =>
           s2.execute(() => cb.onError(dummy))
           Task(())
         }
@@ -696,13 +696,13 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable(register error) should not shift back if register does not fork") { s =>
+  testAsync("Task.fromCancelable(register error) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val dummy = DummyException("dummy")
       val r = Task
-        .cancelable[Unit] { cb =>
+        .fromCancelable[Unit] { cb =>
           cb.onError(dummy)
           Task(())
         }
@@ -716,12 +716,12 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable0(register) should shift back if register forks") { s =>
+  testAsync("Task.fromCancelable0(register) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val r = Task
-        .cancelable0[Unit] { (_, cb) =>
+        .fromCancelable0[Unit] { (_, cb) =>
           s2.execute(() => cb.onSuccess(()))
           Task(())
         }
@@ -735,12 +735,12 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable0(register) should not shift back if register does not fork") { s =>
+  testAsync("Task.fromCancelable0(register) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val r = Task
-        .cancelable0[Unit] { (_, cb) =>
+        .fromCancelable0[Unit] { (_, cb) =>
           cb.onSuccess(())
           Task(())
         }
@@ -753,13 +753,13 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable0(register error) should shift back if register forks") { s =>
+  testAsync("Task.fromCancelable0(register error) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val dummy = DummyException("dummy")
       val r = Task
-        .cancelable0[Unit] { (_, cb) =>
+        .fromCancelable0[Unit] { (_, cb) =>
           s2.execute(() => cb.onError(dummy))
           Task(())
         }
@@ -774,13 +774,13 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.cancelable0(register error) should not shift back if register does not fork") { s =>
+  testAsync("Task.fromCancelable0(register error) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val dummy = DummyException("dummy")
       val r = Task
-        .cancelable0[Unit] { (_, cb) =>
+        .fromCancelable0[Unit] { (_, cb) =>
           cb.onError(dummy)
           Task(())
         }
@@ -794,12 +794,12 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.create(register) should shift back if register forks") { s =>
+  testAsync("Task.createWithCallback(register) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val r = Task
-        .create[Unit] { (_, cb) =>
+        .createWithCallback[Unit] { (_, cb) =>
           s2.execute(() => cb.onSuccess(()))
           Task(())
         }
@@ -813,12 +813,12 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.create(register) should not shift back if register does not fork") { s =>
+  testAsync("Task.createWithCallback(register) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val r = Task
-        .create[Unit] { (_, cb) =>
+        .createWithCallback[Unit] { (_, cb) =>
           cb.onSuccess(())
           Task(())
         }
@@ -831,13 +831,13 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.create(register error) should shift back if register forks") { s =>
+  testAsync("Task.createWithCallback(register error) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val dummy = DummyException("dummy")
       val r = Task
-        .create[Unit] { (_, cb) =>
+        .createWithCallback[Unit] { (_, cb) =>
           s2.execute(() => cb.onError(dummy))
           Task(())
         }
@@ -852,13 +852,13 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.create(register error) should not shift back if register does not fork") { s =>
+  testAsync("Task.createWithCallback(register error) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val dummy = DummyException("dummy")
       val r = Task
-        .create[Unit] { (_, cb) =>
+        .createWithCallback[Unit] { (_, cb) =>
           cb.onError(dummy)
           Task(())
         }
@@ -873,12 +873,12 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
   }
 
   /// ...
-  testAsync("Task.asyncF(register) should shift back if register forks") { s =>
+  testAsync("Task.fromAsyncF(register) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val r = Task
-        .asyncF[Unit] { cb =>
+        .fromAsyncF[Unit] { cb =>
           Task(s2.execute(() => cb.onSuccess(())))
         }
         .flatMap(_ => Task(Thread.currentThread().getName))
@@ -891,12 +891,12 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.asyncF(register) should not shift back if register does not fork") { s =>
+  testAsync("Task.fromAsyncF(register) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val r = Task
-        .asyncF[Unit](cb => Task(cb.onSuccess(())))
+        .fromAsyncF[Unit](cb => Task(cb.onSuccess(())))
         .flatMap(_ => Task(Thread.currentThread().getName))
         .runToFuture(s)
 
@@ -906,13 +906,13 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.asyncF(register error) should shift back if register forks") { s =>
+  testAsync("Task.fromAsyncF(register error) should shift back if register forks") { s =>
     implicit val s2: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val dummy = DummyException("dummy")
       val r = Task
-        .asyncF[Unit] { cb =>
+        .fromAsyncF[Unit] { cb =>
           Task(s2.execute(() => cb.onError(dummy)))
         }
         .onErrorHandle(e => assertEquals(e, dummy))
@@ -926,13 +926,13 @@ object TaskAsyncAutoShiftJVMSuite extends TestSuite[SchedulerService] {
     }
   }
 
-  testAsync("Task.asyncF(register error) should not shift back if register does not fork") { s =>
+  testAsync("Task.fromAsyncF(register error) should not shift back if register does not fork") { s =>
     implicit val ec: Scheduler = Scheduler.global
 
     repeatTest(1000) {
       val dummy = DummyException("dummy")
       val r = Task
-        .asyncF[Unit](cb => Task(cb.onError(dummy)))
+        .fromAsyncF[Unit](cb => Task(cb.onError(dummy)))
         .onErrorHandle(e => assertEquals(e, dummy))
         .flatMap(_ => Task(Thread.currentThread().getName))
         .runToFuture(s)

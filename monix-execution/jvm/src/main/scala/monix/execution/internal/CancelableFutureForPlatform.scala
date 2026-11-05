@@ -28,21 +28,26 @@ private[execution] abstract class CancelableFutureForPlatform {
     * Convert `java.util.concurrent.CompletableFuture` to
     * [[monix.execution.CancelableFuture CancelableFuture]]
     *
-    * If the source is cancelled, returned `Future` will never terminate
+    * Completion and cancellation reported by the Java future are observed by
+    * the returned `CancelableFuture`. Cancelling the returned value requests
+    * cancellation of the Java future; whether its underlying computation stops
+    * depends on the source implementation.
     */
   def fromJavaCompletable[A](cfa: CompletableFuture[A])(implicit ec: ExecutionContext): CancelableFuture[A] =
-    CancelableFuture.async(cb => {
+    CancelableFuture.fromAsync[A]((cb: CompletionCallback[A]) => {
       cfa.handle[Unit](new BiFunction[A, Throwable, Unit] {
         override def apply(result: A, err: Throwable): Unit = {
           err match {
             case null =>
-              cb(Success(result))
+              cb.onSuccess(result)
             case _: CancellationException =>
-              ()
+              cb.onCancellation()
+            case ex: CompletionException if ex.getCause.isInstanceOf[CancellationException] =>
+              cb.onCancellation()
             case ex: CompletionException if ex.getCause ne null =>
-              cb(Failure(ex.getCause))
+              cb.onError(ex.getCause)
             case ex =>
-              cb(Failure(ex))
+              cb.onError(ex)
           }
         }
       })

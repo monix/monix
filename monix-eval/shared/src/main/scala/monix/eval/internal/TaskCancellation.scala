@@ -18,9 +18,10 @@
 package monix.eval
 package internal
 
+import java.util.concurrent.CancellationException
 import cats.effect.CancelToken
 import monix.eval.Task.{ Async, Context }
-import monix.execution.{ Callback, Scheduler }
+import monix.execution.{ CompletionCallback, Scheduler }
 import monix.execution.atomic.{ Atomic, AtomicBoolean }
 import monix.execution.schedulers.TrampolinedRunnable
 
@@ -35,7 +36,7 @@ private[eval] object TaskCancellation {
 * Implementation for `Task.onCancelRaiseError`.
 */
   def raiseError[A](fa: Task[A], e: Throwable): Task[A] = {
-    val start = (ctx: Context, cb: Callback[Throwable, A]) => {
+    val start = (ctx: Context, cb: CompletionCallback[A]) => {
       implicit val sc = ctx.scheduler
       val canCall = Atomic(true)
       // We need a special connection because the main one will be reset on
@@ -56,9 +57,9 @@ private[eval] object TaskCancellation {
   private final class RaiseCallback[A](
     waitsForResult: AtomicBoolean,
     conn: TaskConnection,
-    cb: Callback[Throwable, A]
+    cb: CompletionCallback[A]
   )(implicit s: Scheduler)
-    extends Callback[Throwable, A] with TrampolinedRunnable {
+    extends CompletionCallback[A] with TrampolinedRunnable {
 
     private var value: A = null.asInstanceOf[A]
     private var error: Throwable = null.asInstanceOf[Throwable]
@@ -84,13 +85,16 @@ private[eval] object TaskCancellation {
       } else {
         s.reportFailure(e)
       }
+
+    def onCancellation(): Unit =
+      onError(new CancellationException("Task canceled"))
   }
 
   private def raiseCancelable[A](
     waitsForResult: AtomicBoolean,
     conn: TaskConnection,
     conn2: TaskConnection,
-    cb: Callback[Throwable, A],
+    cb: CompletionCallback[A],
     e: Throwable
   ): CancelToken[Task] = {
     Task.suspend {

@@ -20,7 +20,7 @@ import scala.annotation.nowarn
 
 import cats.laws._
 import cats.laws.discipline._
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.atomic.{ Atomic, AtomicInt }
 import monix.execution.exceptions.DummyException
 import monix.execution.internal.Platform
@@ -83,11 +83,13 @@ object TaskFlatMapSuite extends BaseTestSuite {
 
     val c = loop(atomic)
       .executeWithOptions(_.enableAutoCancelableRunLoops)
-      .runAsync(new Callback[Throwable, Unit] {
+      .runAsync(new CompletionCallback[Unit] {
         def onSuccess(value: Unit): Unit =
           result = Some(Success(value))
         def onError(ex: Throwable): Unit =
           result = Some(Failure(ex))
+
+        def onCancellation(): Unit = ()
       })
 
     c.cancel()

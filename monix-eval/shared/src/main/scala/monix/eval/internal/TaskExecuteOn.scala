@@ -19,7 +19,7 @@ package monix.eval.internal
 
 import monix.eval.Task.{ Async, Context }
 import java.util.concurrent.RejectedExecutionException
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import monix.execution.Scheduler
 
@@ -44,7 +44,7 @@ private[eval] object TaskExecuteOn {
 // Implementing Async's "start" via `ForkedStart` in order to signal
 // that this is task that forks on evaluation
   private final class AsyncRegister[A](source: Task[A], s: Scheduler) extends ForkedRegister[A] {
-    def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
+    def apply(ctx: Context, cb: CompletionCallback[A]): Unit = {
       val oldS = ctx.scheduler
       val ctx2 = ctx.withScheduler(s)
 
@@ -52,9 +52,10 @@ private[eval] object TaskExecuteOn {
         Task.unsafeStartAsync(
           source,
           ctx2,
-          new Callback[Throwable, A] with Runnable {
+          new CompletionCallback[A] with Runnable {
             private var value: A = null.asInstanceOf[A]
             private var error: Throwable = null.asInstanceOf[Throwable]
+            private var isCancelled = false
 
             def onSuccess(value: A): Unit = {
               this.value = value
@@ -66,29 +67,35 @@ private[eval] object TaskExecuteOn {
               oldS.execute(this)
             }
 
+            def onCancellation(): Unit = {
+              isCancelled = true
+              oldS.execute(this)
+            }
+
             def run() = {
-              if (error ne null) cb.onError(error)
+              if (isCancelled) cb.onCancellation()
+              else if (error ne null) cb.onError(error)
               else cb.onSuccess(value)
             }
           }
         )
       } catch {
         case e: RejectedExecutionException =>
-          Callback.signalErrorTrampolined(cb, e)
+          CompletionCallback.signalErrorTrampolined(cb, e)
       }
     }
   }
 
   private final class TrampolinedStart[A](source: Task[A], s: Scheduler)
-    extends ((Context, Callback[Throwable, A]) => Unit) {
+    extends ((Context, CompletionCallback[A]) => Unit) {
 
-    def apply(ctx: Context, cb: Callback[Throwable, A]): Unit = {
+    def apply(ctx: Context, cb: CompletionCallback[A]): Unit = {
       val ctx2 = ctx.withScheduler(s)
       try {
         Task.unsafeStartNow(source, ctx2, cb)
       } catch {
         case e: RejectedExecutionException =>
-          Callback.signalErrorTrampolined(cb, e)
+          CompletionCallback.signalErrorTrampolined(cb, e)
       }
     }
   }

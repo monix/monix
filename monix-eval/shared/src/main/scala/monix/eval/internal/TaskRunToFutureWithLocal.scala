@@ -24,7 +24,7 @@ import monix.eval.tracing.TaskEvent
 import monix.eval.internal.TracingPlatform.{ enhancedExceptions, isStackTracing }
 import monix.execution.internal.collection.ChunkedArrayStack
 import monix.execution.misc.Local
-import monix.execution.{ Callback, CancelableFuture, Scheduler }
+import monix.execution.{ CancelableFuture, CompletionCallback, Scheduler }
 
 import scala.concurrent.Promise
 import scala.util.control.NonFatal
@@ -207,7 +207,7 @@ private[eval] object TaskRunToFutureWithLocal {
 
     val p = Promise[A]()
 
-    val cb = Callback.fromPromise(p).asInstanceOf[Callback[Throwable, Any]]
+    val cb = CompletionCallback.fromPromise(p).asInstanceOf[CompletionCallback[Any]]
     val context = Context(scheduler, opts, TaskConnection(), tracingCtx)
 
     if (!forceFork) source match {

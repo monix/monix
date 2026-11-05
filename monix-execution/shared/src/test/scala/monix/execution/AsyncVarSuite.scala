@@ -17,11 +17,16 @@
 
 package monix.execution
 
+import java.util.concurrent.CancellationException
 import minitest.SimpleTestSuite
 import monix.execution.atomic.PaddingStrategy.LeftRight128
-import scala.util.Success
+import scala.annotation.nowarn
+import scala.util.{ Failure, Success }
 
 object AsyncVarSuite extends SimpleTestSuite {
+  private def assertCancellation[A](future: CancelableFuture[A]): Unit =
+    assert(future.value.exists { case Failure(_: CancellationException) => true; case _ => false })
+
   test("empty; put; read; take; put; read; take") {
     val av = AsyncVar.empty[Int]()
 
@@ -203,5 +208,102 @@ object AsyncVarSuite extends SimpleTestSuite {
     assertEquals(r3.value, Some(Success(())))
     val r4 = av.take()
     assertEquals(r4.value, Some(Success(20)))
+  }
+
+  test("cancelling a queued take signals only that consumer") {
+    val av = AsyncVar.empty[Int]()
+    val take1 = av.take()
+    val take2 = av.take()
+
+    take1.cancel()
+    assertCancellation(take1)
+    assertEquals(take2.value, None)
+
+    val put = av.put(10)
+    assertEquals(put.value, Some(Success(())))
+    assertCancellation(take1)
+    assertEquals(take2.value, Some(Success(10)))
+    assertEquals(av.tryRead(), None)
+  }
+
+  test("cancelling a queued read signals only that consumer") {
+    val av = AsyncVar.empty[Int]()
+    val read1 = av.read()
+    val read2 = av.read()
+
+    read1.cancel()
+    assertCancellation(read1)
+    assertEquals(read2.value, None)
+
+    val put = av.put(10)
+    assertEquals(put.value, Some(Success(())))
+    assertCancellation(read1)
+    assertEquals(read2.value, Some(Success(10)))
+    assertEquals(av.take().value, Some(Success(10)))
+  }
+
+  test("cancelling a queued put removes only that producer") {
+    val av = AsyncVar.empty[Int]()
+    assertEquals(av.put(1).value, Some(Success(())))
+    val put2 = av.put(2)
+    val put3 = av.put(3)
+
+    put2.cancel()
+    assertCancellation(put2)
+    assertEquals(put3.value, None)
+
+    assertEquals(av.take().value, Some(Success(1)))
+    assertEquals(put3.value, Some(Success(())))
+    assertEquals(av.take().value, Some(Success(3)))
+    assertCancellation(put2)
+  }
+
+  test("cancellation after AsyncVar completion preserves the result") {
+    val av = AsyncVar(10)
+    val take = av.take()
+
+    assertEquals(take.value, Some(Success(10)))
+    take.cancel()
+    assertEquals(take.value, Some(Success(10)))
+  }
+
+  test("CompletionCallback receives cancellation separately from errors") {
+    val av = AsyncVar.empty[Int]()
+    var succeeded = false
+    var errored = false
+    var cancelled = false
+    val callback = new CompletionCallback[Int] {
+      def onSuccess(value: Int): Unit = succeeded = true
+      def onError(error: Throwable): Unit = errored = true
+      def onCancellation(): Unit = cancelled = true
+    }
+
+    val token = av.takeByCallback(callback)
+    token.cancel()
+
+    assert(!succeeded)
+    assert(!errored)
+    assert(cancelled)
+  }
+
+  test("deprecated callback cancellation retains unsubscribe behavior") {
+    testDeprecatedCallbackCancellation()
+  }
+
+  @nowarn("cat=deprecation")
+  private def testDeprecatedCallbackCancellation(): Unit = {
+    val av = AsyncVar.empty[Int]()
+    var called = false
+    val callback = new Callback[Throwable, Int] {
+      def onSuccess(value: Int): Unit = called = true
+      def onError(error: Throwable): Unit = throw error
+    }
+
+    val token = av.takeByCallback(callback)
+    token.cancel()
+    assert(!called)
+    assert(av.tryPut(10))
+    assert(!called)
+    assertEquals(av.tryTake(), Some(10))
   }
 }

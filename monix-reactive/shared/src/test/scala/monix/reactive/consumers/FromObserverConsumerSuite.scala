@@ -20,7 +20,7 @@ package monix.reactive.consumers
 import cats.laws._
 import cats.laws.discipline._
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import monix.execution.Ack.Continue
 import monix.execution.exceptions.DummyException
@@ -33,7 +33,7 @@ object FromObserverConsumerSuite extends BaseTestSuite {
   test("convert an observer into a consumer") { implicit s =>
     check1 { (source: Observable[Int]) =>
       val lh = source.sumL
-      val rh = Task.create[Int] { (s, cb) =>
+      val rh = Task.createWithCallback[Int] { (s, cb) =>
         implicit val scheduler = s
         var sum = 0
 
@@ -48,7 +48,7 @@ object FromObserverConsumerSuite extends BaseTestSuite {
         )
 
         val onFinish = Promise[Unit]()
-        val (out, _) = consumer.createSubscriber(Callback.fromPromise(onFinish), s)
+        val (out, _) = consumer.createSubscriber(CompletionCallback.fromPromise(onFinish), s)
         onFinish.future.onComplete {
           case Success(()) => cb.onSuccess(sum)
           case Failure(ex) => cb.onError(ex)
@@ -65,7 +65,7 @@ object FromObserverConsumerSuite extends BaseTestSuite {
       val ex = DummyException("dummy")
       val lh = Task.raiseError[Unit](ex)
 
-      val rh = Task.create[Unit] { (s, cb) =>
+      val rh = Task.createWithCallback[Unit] { (s, cb) =>
         val consumer = Consumer.fromObserver(_ =>
           new Observer[Int] {
             def onError(ex: Throwable): Unit = throw ex

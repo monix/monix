@@ -17,8 +17,9 @@
 
 package monix.eval.internal
 
+import java.util.concurrent.CancellationException
 import monix.eval.Task.Context
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import monix.execution.Ack.Stop
 import monix.execution.Scheduler
@@ -50,7 +51,7 @@ private[eval] object TaskMapBoth {
   private final class Register[A1, A2, R](fa1: Task[A1], fa2: Task[A2], f: (A1, A2) => R) extends ForkedRegister[R] {
 
     /* For signaling the values after the successful completion of both tasks. */
-    def sendSignal(mainConn: TaskConnection, cb: Callback[Throwable, R], a1: A1, a2: A2): Unit = {
+    def sendSignal(mainConn: TaskConnection, cb: CompletionCallback[R], a1: A1, a2: A2): Unit = {
       var streamErrors = true
       try {
         val r = f(a1, a2)
@@ -70,7 +71,7 @@ private[eval] object TaskMapBoth {
     @tailrec def sendError(
       mainConn: TaskConnection,
       state: AtomicAny[AnyRef],
-      cb: Callback[Throwable, R],
+      cb: CompletionCallback[R],
       ex: Throwable
     )(implicit s: Scheduler): Unit = {
 
@@ -89,7 +90,7 @@ private[eval] object TaskMapBoth {
       }
     }
 
-    def apply(context: Context, cb: Callback[Throwable, R]): Unit = {
+    def apply(context: Context, cb: CompletionCallback[R]): Unit = {
       implicit val s = context.scheduler
       val mainConn = context.connection
       // for synchronizing the results
@@ -106,7 +107,7 @@ private[eval] object TaskMapBoth {
       Task.unsafeStartEnsureAsync(
         fa1,
         context1,
-        new Callback[Throwable, A1] {
+        new CompletionCallback[A1] {
           @tailrec def onSuccess(a1: A1): Unit =
             state.get() match {
               case null => // null means this is the first task to complete
@@ -127,6 +128,9 @@ private[eval] object TaskMapBoth {
 
           def onError(ex: Throwable): Unit =
             sendError(mainConn, state, cb, ex)(s)
+
+          def onCancellation(): Unit =
+            onError(new CancellationException("Task canceled"))
         }
       )
 
@@ -134,7 +138,7 @@ private[eval] object TaskMapBoth {
       Task.unsafeStartEnsureAsync(
         fa2,
         context2,
-        new Callback[Throwable, A2] {
+        new CompletionCallback[A2] {
           @tailrec def onSuccess(a2: A2): Unit =
             state.get() match {
               case null => // null means this is the first task to complete
@@ -155,6 +159,9 @@ private[eval] object TaskMapBoth {
 
           def onError(ex: Throwable): Unit =
             sendError(mainConn, state, cb, ex)(s)
+
+          def onCancellation(): Unit =
+            onError(new CancellationException("Task canceled"))
         }
       )
     }

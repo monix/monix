@@ -22,7 +22,7 @@ import java.util.concurrent.{ CountDownLatch, TimeUnit }
 import minitest.SimpleTestSuite
 import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, DummyException }
 import monix.execution.schedulers.SchedulerService
-import monix.execution.{ Callback, Scheduler, TestUtils }
+import monix.execution.{ CompletionCallback, Scheduler, TestUtils }
 
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success }
@@ -32,20 +32,20 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
   val RETRIES = if (!isCI) 1000 else 100
 
   test("Task.async has a safe callback") {
-    runConcurrentCallbackTest(Task.async)
+    runConcurrentCallbackTest(Task.fromAsync)
   }
 
   test("Task.async0 has a safe callback") {
-    runConcurrentCallbackTest(f => Task.async0((_, cb) => f(cb)))
+    runConcurrentCallbackTest(f => Task.fromAsync0((_, cb) => f(cb)))
   }
 
   test("Task.asyncF has a safe callback") {
-    runConcurrentCallbackTest(f => Task.asyncF(cb => Task(f(cb))))
+    runConcurrentCallbackTest(f => Task.fromAsyncF(cb => Task(f(cb))))
   }
 
   test("Task.cancelable has a safe callback") {
     runConcurrentCallbackTest(f =>
-      Task.cancelable { cb =>
+      Task.fromCancelable { cb =>
         f(cb); Task(())
       }
     )
@@ -53,14 +53,14 @@ object TaskCallbackSafetyJVMSuite extends SimpleTestSuite with TestUtils {
 
   test("Task.cancelable0 has a safe callback") {
     runConcurrentCallbackTest(f =>
-      Task.cancelable0 { (_, cb) =>
+      Task.fromCancelable0 { (_, cb) =>
         f(cb); Task(())
       }
     )
   }
 
-  def runConcurrentCallbackTest(create: (Callback[Throwable, Int] => Unit) => Task[Int]): Unit = {
-    def run(trigger: Callback[Throwable, Int] => Unit): Unit = {
+  def runConcurrentCallbackTest(create: (CompletionCallback[Int] => Unit) => Task[Int]): Unit = {
+    def run(trigger: CompletionCallback[Int] => Unit): Unit = {
       implicit val sc: SchedulerService = Scheduler.io("task-callback-safety")
       try {
         for (_ <- 0 until RETRIES) {

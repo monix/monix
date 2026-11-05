@@ -36,12 +36,17 @@ package object execution {
   implicit def cancelableFutureCatsInstances(implicit ec: ExecutionContext): CancelableFutureCatsInstances =
     new CancelableFutureCatsInstances()
 
-  /** Contravariant type class instance of [[Callback]] for Cats. */
-  implicit def contravariantCallback[E]: Contravariant[Callback[E, *]] =
-    contravariantRef.asInstanceOf[Contravariant[Callback[E, *]]]
+  /** Contravariant type class instance of [[CompletionCallback]] for Cats. */
+  implicit val contravariantCompletionCallback: Contravariant[CompletionCallback[*]] =
+    new Contravariant[CompletionCallback[*]] {
+      override def contramap[A, B](cb: CompletionCallback[A])(f: B => A): CompletionCallback[B] =
+        cb.contramap(f)
+    }
 
-  private val contravariantRef: Contravariant[Callback[Any, *]] = new Contravariant[Callback[Any, *]] {
-    override def contramap[A, B](cb: Callback[Any, A])(f: B => A): Callback[Any, B] =
-      cb.contramap(f)
-  }
+  @deprecated("Use CompletionCallback", "4.0.0")
+  implicit def contravariantCallback[E]: Contravariant[Callback[E, *]] =
+    new Contravariant[Callback[E, *]] {
+      override def contramap[A, B](cb: Callback[E, A])(f: B => A): Callback[E, B] =
+        cb.contramap(f)
+    }
 }

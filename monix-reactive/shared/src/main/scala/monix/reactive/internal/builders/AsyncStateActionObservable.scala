@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.builders
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.Cancelable
@@ -36,7 +36,7 @@ private[reactive] final class AsyncStateActionObservable[S, A](seed: => S, f: S 
       Task
         .defer(loop(subscriber, init))
         .executeWithOptions(_.enableAutoCancelableRunLoops)
-        .runAsync(Callback.empty)
+        .runAsync(CompletionCallback.empty)
     } catch {
       case ex if NonFatal(ex) =>
         if (streamErrors) subscriber.onError(ex)

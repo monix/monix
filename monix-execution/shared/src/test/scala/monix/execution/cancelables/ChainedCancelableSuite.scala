@@ -68,6 +68,29 @@ object ChainedCancelableSuite extends SimpleTestSuite {
     assert(sub.isCanceled)
   }
 
+  test("reset allows assigning a new cancellation token") {
+    val mSub = ChainedCancelable()
+    mSub.cancel()
+    mSub.reset()
+
+    val sub = BooleanCancelable()
+    mSub := sub
+    assert(!sub.isCanceled)
+
+    mSub.cancel()
+    assert(sub.isCanceled)
+  }
+
+  test("reset does not cancel the completed token") {
+    val mSub = ChainedCancelable()
+    val sub = BooleanCancelable()
+    mSub := sub
+
+    mSub.reset()
+
+    assert(!sub.isCanceled)
+  }
+
   test(":= does not throw on null") {
     val c = ChainedCancelable()
     c := null
@@ -149,6 +172,60 @@ object ChainedCancelableSuite extends SimpleTestSuite {
     assert(c2.isCanceled, "c2.isCanceled")
 
     child.forwardTo(source2)
+  }
+
+  test("reset through a forwarded link") {
+    val source = ChainedCancelable()
+    val child = ChainedCancelable()
+    child.forwardTo(source)
+    child.cancel()
+
+    child.reset()
+
+    val next = BooleanCancelable()
+    child := next
+    assert(!next.isCanceled)
+
+    source.cancel()
+    assert(next.isCanceled)
+  }
+
+  test("reset after forwarding a cancelled child") {
+    val source = ChainedCancelable()
+    val child = ChainedCancelable()
+    child.cancel()
+    child.forwardTo(source)
+
+    child.reset()
+
+    val next = BooleanCancelable()
+    child := next
+    assert(!next.isCanceled)
+
+    source.cancel()
+    assert(next.isCanceled)
+  }
+
+  test("reset through a long forwarding chain") {
+    val source = ChainedCancelable()
+    val chain = Array.fill(64)(ChainedCancelable())
+    chain(0).forwardTo(source)
+    var i = 1
+    while (i < chain.length) {
+      chain(i).forwardTo(chain(i - 1))
+      i += 1
+    }
+
+    val leaf = chain.last
+    leaf.cancel()
+    leaf.reset()
+
+    val next = BooleanCancelable()
+    leaf := next
+    assert(!next.isCanceled)
+
+    source.cancel()
+    assert(next.isCanceled)
   }
 
   test("chained twice, test 1") {

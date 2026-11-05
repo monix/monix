@@ -28,7 +28,7 @@ import java.util.concurrent.{
 }
 import java.util.concurrent.atomic.AtomicReference
 import minitest.SimpleTestSuite
-import monix.execution.{ Callback, ExecutionModel, Scheduler }
+import monix.execution.{ CompletionCallback, ExecutionModel, Scheduler }
 import scala.concurrent.{ Await, ExecutionContext }
 import scala.concurrent.duration._
 import scala.util.Failure
@@ -47,13 +47,13 @@ object TaskAsyncResumeThreadJVMSuite extends SimpleTestSuite {
     val targetScheduler =
       Scheduler(executorContext(targetExecutor, reportedErrors), ExecutionModel.BatchedExecution(1024))
     val registered = new CountDownLatch(1)
-    val callback = new AtomicReference[Callback[Throwable, Int]]()
+    val callback = new AtomicReference[CompletionCallback[Int]]()
     val resumedThread = new AtomicReference[Thread]()
     val resumedContext = new AtomicReference[ExecutionContext]()
     val resumedValue = new AtomicReference[Integer]()
     val F = Async[Task]
     val effect = F.evalOn(
-      Task.async[Int] { cb =>
+      Task.fromAsync[Int] { cb =>
         callback.set(cb)
         registered.countDown()
       }.flatMap { value =>

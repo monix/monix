@@ -48,7 +48,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
 
   test("broken tasks test (1)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
-      val task = Task.async[String] { cb =>
+      val task = Task.fromAsync[String] { cb =>
         sc.execute(() => cb.onSuccess("1"))
         sc.execute(() => cb.onSuccess("2"))
       }
@@ -65,7 +65,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
 
   test("broken tasks test (2)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
-      val task = Task.async[String] { cb =>
+      val task = Task.fromAsync[String] { cb =>
         sc.execute(() => cb.onSuccess("1"))
         sc.execute(() => cb.onSuccess("2"))
       }
@@ -79,7 +79,7 @@ object Issue908Suite extends TestSuite[SchedulerService] {
 
   test("broken tasks test (3)") { implicit sc =>
     for (_ <- 0 until CYCLES) {
-      val task = Task.async[String] { cb =>
+      val task = Task.fromAsync[String] { cb =>
         sc.execute(() => cb.onSuccess("1"))
         sc.execute(() => cb.onSuccess("2"))
       }

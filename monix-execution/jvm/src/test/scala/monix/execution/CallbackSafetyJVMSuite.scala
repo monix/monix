@@ -24,10 +24,12 @@ import minitest.api.{ AssertionException, MiniTestException }
 import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, DummyException }
 import monix.execution.schedulers.SchedulerService
 
+import scala.annotation.nowarn
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success, Try }
 
+@nowarn("cat=deprecation")
 object CallbackSafetyJVMSuite extends TestSuite[SchedulerService] with TestUtils {
   val WORKERS = 10
   val RETRIES = if (!isCI) 1000 else 100

@@ -43,7 +43,7 @@ object FullStackTracingSuite extends BaseTestSuite {
   }
 
   testAsync("captures async frames") { implicit s =>
-    val task = Task.async[Int](_(Right(0))).flatMap(a => Task(a + 1)).flatMap(a => Task(a + 1))
+    val task = Task.fromAsync[Int](_(Right(0))).flatMap(a => Task(a + 1)).flatMap(a => Task(a + 1))
 
     val test =
       for (r <- traced(task)) yield {

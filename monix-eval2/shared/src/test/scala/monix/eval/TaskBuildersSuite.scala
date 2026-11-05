@@ -18,7 +18,7 @@
 package monix.eval
 
 import minitest.SimpleTestSuite
-import monix.execution.{ Callback, Scheduler }
+import monix.execution.{ CompletionCallback, Scheduler }
 import monix.execution.schedulers.TestScheduler
 
 import scala.util.{ Failure, Success }
@@ -28,7 +28,7 @@ object TaskBuildersSuite extends SimpleTestSuite {
     implicit val scheduler: TestScheduler = TestScheduler()
     var registrations = 0
 
-    val source = Task.asyncF[Int] { callback =>
+    val source = Task.fromAsyncF[Int] { callback =>
       Task.delay {
         registrations += 1
         callback.onSuccess(42)
@@ -47,14 +47,14 @@ object TaskBuildersSuite extends SimpleTestSuite {
 
   test("asyncF resumes with delayed callback success and error") {
     implicit val scheduler: TestScheduler = TestScheduler()
-    var successCallback = Option.empty[Callback[Throwable, Int]]
-    var errorCallback = Option.empty[Callback[Throwable, Int]]
+    var successCallback = Option.empty[CompletionCallback[Int]]
+    var errorCallback = Option.empty[CompletionCallback[Int]]
     val expected = new RuntimeException("callback")
 
-    val success = Task.asyncF[Int] { callback =>
+    val success = Task.fromAsyncF[Int] { callback =>
       Task.delay { successCallback = Some(callback) }
     }.unsafeRunToFuture()
-    val failure = Task.asyncF[Int] { callback =>
+    val failure = Task.fromAsyncF[Int] { callback =>
       Task.delay { errorCallback = Some(callback) }
     }.unsafeRunToFuture()
 
@@ -76,7 +76,7 @@ object TaskBuildersSuite extends SimpleTestSuite {
     implicit val scheduler: TestScheduler = TestScheduler()
     var finalized = false
 
-    val result = Task.asyncF[Int](_ => Task.unit)
+    val result = Task.fromAsyncF[Int](_ => Task.unit)
       .onCancel(Task.delay { finalized = true })
       .unsafeRunToFuture()
 
@@ -94,11 +94,11 @@ object TaskBuildersSuite extends SimpleTestSuite {
     implicit val scheduler: TestScheduler = TestScheduler()
     val expected = new RuntimeException("callback")
 
-    val success = Task.cancelable[Int] { callback =>
+    val success = Task.fromCancelable[Int] { callback =>
       callback.onSuccess(42)
       Task.unit
     }.unsafeRunToFuture()
-    val failure = Task.cancelable[Int] { callback =>
+    val failure = Task.fromCancelable[Int] { callback =>
       callback.onError(expected)
       Task.unit
     }.unsafeRunToFuture()
@@ -113,15 +113,15 @@ object TaskBuildersSuite extends SimpleTestSuite {
     implicit val scheduler: TestScheduler = TestScheduler()
     var registrations = 0
     var tokenRuns = 0
-    var finishToken = Option.empty[Callback[Throwable, Unit]]
+    var finishToken = Option.empty[CompletionCallback[Unit]]
 
-    val cancel = Task.cancelable[Int] { _ =>
+    val cancel = Task.fromCancelable[Int] { _ =>
       registrations += 1
-      Task.async[Unit] { callback =>
+      Task.fromAsync[Unit] { callback =>
         tokenRuns += 1
         finishToken = Some(callback)
       }
-    }.unsafeRunAsync(Callback.empty)
+    }.unsafeRunAsync(CompletionCallback.empty)
 
     assertEquals(registrations, 0)
     scheduler.tick()
@@ -144,9 +144,9 @@ object TaskBuildersSuite extends SimpleTestSuite {
     implicit val scheduler: TestScheduler = TestScheduler()
     val expected = new RuntimeException("registration")
 
-    val asyncF = Task.asyncF[Int](_ => throw expected).unsafeRunToFuture()
-    val cancelable = Task.cancelable[Int](_ => throw expected).unsafeRunToFuture()
-    val cancelable0 = Task.cancelable0[Int]((_, _) => throw expected).unsafeRunToFuture()
+    val asyncF = Task.fromAsyncF[Int](_ => throw expected).unsafeRunToFuture()
+    val cancelable = Task.fromCancelable[Int](_ => throw expected).unsafeRunToFuture()
+    val cancelable0 = Task.fromCancelable0[Int]((_, _) => throw expected).unsafeRunToFuture()
 
     scheduler.tick()
 
@@ -160,7 +160,7 @@ object TaskBuildersSuite extends SimpleTestSuite {
     implicit val scheduler: TestScheduler = TestScheduler()
     var observedScheduler = Option.empty[Scheduler]
 
-    val result = Task.cancelable0[Int] { (current, callback) =>
+    val result = Task.fromCancelable0[Int] { (current, callback) =>
       observedScheduler = Some(current)
       callback.onSuccess(42)
       Task.unit

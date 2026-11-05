@@ -19,7 +19,7 @@ package monix.eval
 
 import cats.effect.kernel.{ Async, Outcome }
 import minitest.SimpleTestSuite
-import monix.execution.{ Callback, ExecutionModel }
+import monix.execution.{ CompletionCallback, ExecutionModel }
 import monix.execution.schedulers.TestScheduler
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.Success
@@ -280,7 +280,7 @@ object TaskRuntimeRegressionSuite extends SimpleTestSuite {
   }
 
   private def assertCancellationFinalizerRetainsOwnership(
-    signal: Callback[Throwable, Unit] => Unit
+    signal: CompletionCallback[Unit] => Unit
   ): Unit = {
     implicit val scheduler: TestScheduler =
       TestScheduler(ExecutionModel.AlwaysAsyncExecution)
@@ -290,11 +290,11 @@ object TaskRuntimeRegressionSuite extends SimpleTestSuite {
     var finalizerContinued = false
 
     val started = Task
-      .async[Unit] { callback =>
+      .fromAsync[Unit] { callback =>
         resumeBody = () => signal(callback)
       }
       .onCancel {
-        Task.async[Unit] { callback =>
+        Task.fromAsync[Unit] { callback =>
           finalizerRegistered = true
           resumeFinalizer = () => callback.onSuccess(())
         }.flatMap(_ => Task.delay { finalizerContinued = true })

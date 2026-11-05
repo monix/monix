@@ -23,7 +23,7 @@ import cats.effect.laws.discipline.{ ConcurrentEffectTests, ConcurrentTests }
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.{ CoflatMapTests, CommutativeApplicativeTests, ParallelTests }
 import monix.eval.Task.Options
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.schedulers.TestScheduler
 
 import scala.concurrent.Promise
@@ -58,7 +58,7 @@ class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options) ext
 
     Eq.by { task =>
       val p = Promise[A]()
-      task.runAsyncOpt(Callback.fromPromise(p))
+      task.runAsyncOpt(CompletionCallback.fromPromise(p))
       p.future
     }
   }
@@ -73,7 +73,7 @@ class BaseTypeClassLawsForTaskWithCallbackSuite(implicit opts: Task.Options) ext
     import Task.Par.unwrap
     Eq.by { task =>
       val p = Promise[A]()
-      unwrap(task).runAsyncOpt(Callback.fromPromise(p))
+      unwrap(task).runAsyncOpt(CompletionCallback.fromPromise(p))
       p.future
     }
   }

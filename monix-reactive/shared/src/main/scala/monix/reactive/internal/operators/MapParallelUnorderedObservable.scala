@@ -17,7 +17,7 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.{ Ack, AsyncSemaphore, Callback, Cancelable, Scheduler }
+import monix.execution.{ Ack, AsyncSemaphore, Cancelable, CompletionCallback, Scheduler }
 import monix.eval.Task
 import monix.execution.Ack.{ Continue, Stop }
 import monix.execution.ChannelType.MultiProducer
@@ -120,7 +120,7 @@ private[reactive] final class MapParallelUnorderedObservable[A, B](
         // No longer allowed to stream errors downstream
         streamErrors = false
         // Start execution
-        subscription := task.runAsync(Callback.empty)
+        subscription := task.runAsync(CompletionCallback.empty)
       } catch {
         case ex if NonFatal(ex) =>
           if (streamErrors) self.onError(ex)

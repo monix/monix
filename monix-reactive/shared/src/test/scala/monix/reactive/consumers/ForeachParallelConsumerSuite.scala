@@ -18,7 +18,7 @@
 package monix.reactive.consumers
 
 import minitest.TestSuite
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.execution.Ack.Continue
 import monix.execution.Cancelable
 import monix.execution.atomic.Atomic
@@ -63,7 +63,7 @@ object ForeachParallelConsumerSuite extends TestSuite[TestScheduler] {
     val consumer = Consumer.foreachParallel[Int](10)(x => throw ex)
     val onFinish = Promise[Unit]()
 
-    val (out, c) = consumer.createSubscriber(Callback.fromPromise(onFinish), s)
+    val (out, c) = consumer.createSubscriber(CompletionCallback.fromPromise(onFinish), s)
     c := Cancelable { () =>
       mainWasCanceled = true
     }

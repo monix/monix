@@ -17,7 +17,8 @@
 
 package monix.reactive.internal.operators
 
-import monix.execution.Callback
+import java.util.concurrent.CancellationException
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import monix.execution.Ack.Stop
 import monix.execution.Scheduler
@@ -38,7 +39,7 @@ private[reactive] object DoOnSubscribeObservable {
       implicit val s = subscriber.scheduler
       val conn = OrderedCancelable()
 
-      val c = task.runAsync(new Callback[Throwable, Unit] {
+      val c = task.runAsync(new CompletionCallback[Unit] {
         def onSuccess(value: Unit): Unit = {
           val c = source.unsafeSubscribeFn(subscriber)
           conn.orderedUpdate(c, order = 2)
@@ -47,6 +48,9 @@ private[reactive] object DoOnSubscribeObservable {
 
         def onError(ex: Throwable): Unit =
           subscriber.onError(ex)
+
+        def onCancellation(): Unit =
+          onError(new CancellationException("Task canceled"))
       })
 
       conn.orderedUpdate(c, order = 1)
@@ -110,7 +114,7 @@ private[reactive] object DoOnSubscribeObservable {
       val ref = SingleAssignCancelable()
       val conn = StackedCancelable(List(ref, cancelable))
 
-      ref := task.runAsync(new Callback[Throwable, Unit] {
+      ref := task.runAsync(new CompletionCallback[Unit] {
         def onSuccess(value: Unit): Unit = {
           val _ = conn.pop()
           p.success(())
@@ -121,6 +125,9 @@ private[reactive] object DoOnSubscribeObservable {
           p.failure(ex)
           ()
         }
+
+        def onCancellation(): Unit =
+          onError(new CancellationException("Task canceled"))
       })
       conn
     }

@@ -17,19 +17,30 @@
 
 package monix.execution
 
+import java.util.concurrent.CancellationException
 import minitest.TestSuite
 import monix.execution.cancelables.{ BooleanCancelable, ChainedCancelable }
-import monix.execution.exceptions.DummyException
-import monix.execution.schedulers.TestScheduler
+import monix.execution.exceptions.{ CallbackCalledMultipleTimesException, DummyException }
+import monix.execution.schedulers.{ TestScheduler, TrampolineExecutionContext }
 
+import scala.annotation.nowarn
 import scala.concurrent.duration._
-import scala.concurrent.{ Future, Promise }
+import scala.concurrent.{ ExecutionContext, Future, Promise }
 import scala.util.{ Failure, Success, Try }
 
 object CancelableFutureSuite extends TestSuite[TestScheduler] {
   def setup() = TestScheduler()
   def tearDown(env: TestScheduler): Unit =
     assert(env.state.tasks.isEmpty, "should not have tasks left to execute")
+
+  private def assertCancellation[A](future: CancelableFuture[A]): Unit =
+    assert(future.value.exists { case Failure(_: CancellationException) => true; case _ => false })
+
+  @nowarn("cat=deprecation")
+  private def legacyAsync[A](register: (Try[A] => Unit) => Cancelable)(implicit
+    ec: ExecutionContext
+  ): CancelableFuture[A] =
+    CancelableFuture.async(register)
 
   test("CancelableFuture.fromTry(success)") { _ =>
     val f = CancelableFuture.fromTry(Success(1))
@@ -40,6 +51,81 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     val ex = new RuntimeException("dummy")
     val f = CancelableFuture.fromTry(Failure(ex))
     assertEquals(f.value, Some(Failure(ex)))
+  }
+
+  test("future adapters preserve existing CancelableFuture identity") { _ =>
+    val source = CancelableFuture.never[Int]
+    assert(CancelableFuture.fromFuture(source) eq source)
+    assert(CancelableFuture.fromForgettableFuture(source) eq source)
+  }
+
+  test("fromFuture waits for source success after cancellation") { _ =>
+    val source = Promise[Int]()
+    val future = CancelableFuture.fromFuture(source.future)
+
+    future.cancel()
+    assertEquals(future.value, None)
+    source.success(42)
+    assertCancellation(future)
+  }
+
+  test("fromFuture reports cancellation instead of source failure") { _ =>
+    val source = Promise[Int]()
+    val future = CancelableFuture.fromFuture(source.future)
+
+    future.cancel()
+    assertEquals(future.value, None)
+    source.failure(DummyException("source failure"))
+    assertCancellation(future)
+  }
+
+  test("fromFuture preserves a result completed before cancellation") { _ =>
+    val future = CancelableFuture.fromFuture(Future.successful(42))
+
+    assertEquals(future.value, Some(Success(42)))
+    future.cancel()
+    assertEquals(future.value, Some(Success(42)))
+
+    val forgettable = CancelableFuture.fromForgettableFuture(Future.successful(99))
+    assertEquals(forgettable.value, Some(Success(99)))
+    forgettable.cancel()
+    assertEquals(forgettable.value, Some(Success(99)))
+  }
+
+  test("future converters preserve completed outcomes inside the immediate trampoline") { _ =>
+    val error = DummyException("completed failure")
+    TrampolineExecutionContext.immediate.execute(new Runnable {
+      def run(): Unit = {
+        val successfulSource = Future.successful(42)
+        val failedSource = Future.failed[Int](error)
+
+        val fromFutureSuccess = CancelableFuture.fromFuture(successfulSource)
+        fromFutureSuccess.cancel()
+        assertEquals(fromFutureSuccess.value, Some(Success(42)))
+
+        val fromFutureFailure = CancelableFuture.fromFuture(failedSource)
+        fromFutureFailure.cancel()
+        assertEquals(fromFutureFailure.value, Some(Failure(error)))
+
+        val forgettableSuccess = CancelableFuture.fromForgettableFuture(successfulSource)
+        forgettableSuccess.cancel()
+        assertEquals(forgettableSuccess.value, Some(Success(42)))
+
+        val forgettableFailure = CancelableFuture.fromForgettableFuture(failedSource)
+        forgettableFailure.cancel()
+        assertEquals(forgettableFailure.value, Some(Failure(error)))
+      }
+    })
+  }
+
+  test("fromForgettableFuture reports cancellation immediately and forgets source") { _ =>
+    val source = Promise[Int]()
+    val future = CancelableFuture.fromForgettableFuture(source.future)
+
+    future.cancel()
+    assertCancellation(future)
+    assert(source.trySuccess(42), "source should remain independently completable")
+    assertCancellation(future)
   }
 
   test("CancelableFuture.successful is already completed") { _ =>
@@ -89,7 +175,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
 
   test("async is chain-able, test 1") { implicit s =>
     val b = BooleanCancelable()
-    val fa = CancelableFuture.async[Int] { _ =>
+    val fa = CancelableFuture.fromAsync[Int] { _ =>
       val ch = ChainedCancelable()
       s.execute(() => { ch := b; () })
       ch
@@ -105,7 +191,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
 
   test("async is chain-able, test 2") { implicit s =>
     val b = BooleanCancelable()
-    val fa = CancelableFuture.async[Int] { _ =>
+    val fa = CancelableFuture.fromAsync[Int] { _ =>
       val ch = ChainedCancelable()
       s.execute(() => { ch := b; () })
       ch
@@ -120,7 +206,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
 
   test("async is chain-able, test 2") { implicit s =>
     val b = BooleanCancelable()
-    val fa = CancelableFuture.async[Int] { _ =>
+    val fa = CancelableFuture.fromAsync[Int] { _ =>
       ChainedCancelable(b)
     }
 
@@ -351,6 +437,170 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(4)))
   }
 
+  test("zip cancellation requests both inputs and waits for both") { implicit s =>
+    var leftCallback = Option.empty[CompletionCallback[Int]]
+    var rightCallback = Option.empty[CompletionCallback[Int]]
+    var leftCancelRequests = 0
+    var rightCancelRequests = 0
+
+    val left = CancelableFuture.fromAsync[Int] { cb =>
+      leftCallback = Some(cb)
+      Cancelable(() => leftCancelRequests += 1)
+    }
+    val right = CancelableFuture.fromAsync[Int] { cb =>
+      rightCallback = Some(cb)
+      Cancelable(() => rightCancelRequests += 1)
+    }
+    s.tick()
+
+    val zipped = left.zip(right)
+    zipped.cancel()
+    assertEquals(leftCancelRequests, 1)
+    assertEquals(rightCancelRequests, 1)
+    assertEquals(zipped.value, None)
+
+    leftCallback.get.onCancellation()
+    s.tick()
+    assertEquals(zipped.value, None)
+
+    rightCallback.get.onCancellation()
+    s.tick()
+    assertCancellation(zipped)
+  }
+
+  test("zipWith cancellation requests both inputs and waits for both") { implicit s =>
+    var leftCallback = Option.empty[CompletionCallback[Int]]
+    var rightCallback = Option.empty[CompletionCallback[Int]]
+    var leftCancelRequests = 0
+    var rightCancelRequests = 0
+
+    val left = CancelableFuture.fromAsync[Int] { cb =>
+      leftCallback = Some(cb)
+      Cancelable(() => leftCancelRequests += 1)
+    }
+    val right = CancelableFuture.fromAsync[Int] { cb =>
+      rightCallback = Some(cb)
+      Cancelable(() => rightCancelRequests += 1)
+    }
+    s.tick()
+
+    val zipped = left.zipWith(right)(_ + _)
+    zipped.cancel()
+    assertEquals(leftCancelRequests, 1)
+    assertEquals(rightCancelRequests, 1)
+
+    leftCallback.get.onCancellation()
+    s.tick()
+    assertEquals(zipped.value, None)
+    rightCallback.get.onCancellation()
+    s.tick()
+    assertCancellation(zipped)
+  }
+
+  test("zip waits for a sibling after an independent cancellation") { implicit s =>
+    var leftCallback = Option.empty[CompletionCallback[Int]]
+    var rightCallback = Option.empty[CompletionCallback[Int]]
+    var rightCancelRequests = 0
+
+    val left = CancelableFuture.fromAsync[Int] { cb =>
+      leftCallback = Some(cb)
+      Cancelable.empty
+    }
+    val right = CancelableFuture.fromAsync[Int] { cb =>
+      rightCallback = Some(cb)
+      Cancelable(() => rightCancelRequests += 1)
+    }
+    s.tick()
+
+    val zipped = left.zip(right)
+    leftCallback.get.onCancellation()
+    s.tick()
+    assertEquals(rightCancelRequests, 1)
+    assertEquals(zipped.value, None)
+
+    rightCallback.get.onCancellation()
+    s.tick()
+    assertCancellation(zipped)
+  }
+
+  test("zip preserves first failure and suppresses the sibling failure") { implicit s =>
+    var leftCallback = Option.empty[CompletionCallback[Int]]
+    var rightCallback = Option.empty[CompletionCallback[Int]]
+    var leftCancelRequests = 0
+    val primary = DummyException("primary")
+    val sibling = DummyException("sibling")
+
+    val left = CancelableFuture.fromAsync[Int] { cb =>
+      leftCallback = Some(cb)
+      Cancelable(() => leftCancelRequests += 1)
+    }
+    val right = CancelableFuture.fromAsync[Int] { cb =>
+      rightCallback = Some(cb)
+      Cancelable.empty
+    }
+    s.tick()
+
+    val zipped = left.zip(right)
+    rightCallback.get.onError(primary)
+    s.tick()
+    assertEquals(leftCancelRequests, 1)
+    assertEquals(zipped.value, None)
+
+    leftCallback.get.onError(sibling)
+    s.tick()
+    assertEquals(zipped.value, Some(Failure(primary)))
+    assertEquals(primary.getSuppressed.toList, List(sibling))
+  }
+
+  test("zip does not self-suppress a repeated failure") { implicit s =>
+    var leftCallback = Option.empty[CompletionCallback[Int]]
+    var rightCallback = Option.empty[CompletionCallback[Int]]
+    val shared = DummyException("shared")
+
+    val left = CancelableFuture.fromAsync[Int] { cb =>
+      leftCallback = Some(cb)
+      Cancelable.empty
+    }
+    val right = CancelableFuture.fromAsync[Int] { cb =>
+      rightCallback = Some(cb)
+      Cancelable.empty
+    }
+    s.tick()
+
+    val zipped = left.zip(right)
+    leftCallback.get.onError(shared)
+    s.tick()
+    rightCallback.get.onError(shared)
+    s.tick()
+
+    assertEquals(zipped.value, Some(Failure(shared)))
+    assertEquals(shared.getSuppressed.toList, Nil)
+  }
+
+  test("zip with an ordinary Future waits for its source after cancellation") { implicit s =>
+    var leftCallback = Option.empty[CompletionCallback[Int]]
+    var leftCancelRequests = 0
+    val left = CancelableFuture.fromAsync[Int] { cb =>
+      leftCallback = Some(cb)
+      Cancelable(() => leftCancelRequests += 1)
+    }
+    val source = Promise[Int]()
+    s.tick()
+
+    val zipped = left.zip(source.future)
+    zipped.cancel()
+    assertEquals(leftCancelRequests, 1)
+    assertEquals(zipped.value, None)
+
+    leftCallback.get.onCancellation()
+    s.tick()
+    assertEquals(zipped.value, None)
+
+    source.success(42)
+    s.tick()
+    assertCancellation(zipped)
+  }
+
   test("now.fallbackTo") { _ =>
     val ex = new RuntimeException("dummy")
     val f = CancelableFuture
@@ -387,9 +637,16 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(f.value, Some(Success(1)))
   }
 
-  test("never.mapTo") { _ =>
-    val f = CancelableFuture.never[Int].mapTo[Int]
-    assertEquals(f, CancelableFuture.never)
+  test("never.mapTo remains independently cancellable") { implicit s =>
+    val source = CancelableFuture.never[Int]
+    val f = source.mapTo[Int]
+    assert(!(f eq source))
+    assertEquals(f.value, None)
+
+    f.cancel()
+    s.tick()
+    assertCancellation(f)
+    assertCancellation(source)
   }
 
   test("async.mapTo") { implicit s =>
@@ -496,19 +753,23 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
   }
 
   test("never") { implicit s =>
-    var effect = false
-    val f = CancelableFuture.never[Int]
-    f.onComplete(_ => effect = true)
-
+    val first = CancelableFuture.never[Int]
+    val second = CancelableFuture.never[Int]
+    var observed = Option.empty[Try[Int]]
+    assert(!(first eq second))
+    assertEquals(first.value, None)
+    assertEquals(second.value, None)
+    first.onComplete(result => observed = Some(result))
     s.tick()
-    assert(!effect, "!effect")
-    assert(!f.isCompleted, "!f.isCompleted")
-    assertEquals(f.value, None)
+    assertEquals(observed, None)
 
-    f.cancel()
-    assertEquals(f.value, None)
-    assertEquals(CancelableFuture.Never.cancelable, Cancelable.empty)
-    assertEquals(CancelableFuture.Never.underlying, CancelableFuture.Never)
+    first.cancel()
+    assertCancellation(first)
+    assertEquals(second.value, None)
+    s.tick()
+    assertEquals(observed, first.value)
+    second.cancel()
+    assertCancellation(second)
   }
 
   test("flatMap cancels first") { implicit s =>
@@ -560,8 +821,132 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     assert(c.isCanceled, "c.isCanceled")
   }
 
+  test("flatMap carries pending cancellation across successful handoff") { implicit s =>
+    var sourceCallback = Option.empty[CompletionCallback[Int]]
+    var nextCallback = Option.empty[CompletionCallback[Int]]
+    var sourceCancelRequests = 0
+    var nextCancelRequests = 0
+
+    val source = CancelableFuture.fromAsync[Int] { cb =>
+      sourceCallback = Some(cb)
+      Cancelable(() => sourceCancelRequests += 1)
+    }
+    val flatMapped = source.flatMap { _ =>
+      CancelableFuture.fromAsync[Int] { cb =>
+        nextCallback = Some(cb)
+        Cancelable(() => nextCancelRequests += 1)
+      }
+    }
+    s.tick()
+
+    flatMapped.cancel()
+    assertEquals(sourceCancelRequests, 1)
+    assertEquals(nextCancelRequests, 0)
+    assertEquals(flatMapped.value, None)
+
+    sourceCallback.get.onSuccess(1)
+    s.tick()
+    assert(nextCallback.nonEmpty)
+    assertEquals(nextCancelRequests, 1)
+    assertEquals(flatMapped.value, None)
+
+    nextCallback.get.onCancellation()
+    s.tick()
+    assertCancellation(flatMapped)
+  }
+
+  test("flatMap adapts a plain Future stage and waits after cancellation") { implicit s =>
+    val next = Promise[Int]()
+    val flatMapped = CancelableFuture.successful(1).flatMap(_ => next.future)
+    s.tick()
+    assertEquals(flatMapped.value, None)
+
+    flatMapped.cancel()
+    assertEquals(flatMapped.value, None)
+    next.success(42)
+    s.tick()
+    assertCancellation(flatMapped)
+  }
+
+  test("recovery starts a fresh cancellation stage") { implicit s =>
+    var sourceCallback = Option.empty[CompletionCallback[Int]]
+    var replacementCallback = Option.empty[CompletionCallback[Int]]
+    var replacementCancelRequests = 0
+
+    val source = CancelableFuture.fromAsync[Int] { cb =>
+      sourceCallback = Some(cb)
+      Cancelable(() => cb.onCancellation())
+    }
+    val recovered = source.recoverWith {
+      case _: CancellationException =>
+        CancelableFuture.fromAsync[Int] { cb =>
+          replacementCallback = Some(cb)
+          Cancelable(() => replacementCancelRequests += 1)
+        }
+    }
+    s.tick()
+
+    recovered.cancel()
+    s.tick()
+    assert(sourceCallback.nonEmpty)
+    assert(replacementCallback.nonEmpty)
+    assertEquals(replacementCancelRequests, 0)
+    assertEquals(recovered.value, None)
+
+    recovered.cancel()
+    assertEquals(replacementCancelRequests, 1)
+    replacementCallback.get.onCancellation()
+    s.tick()
+    assertCancellation(recovered)
+  }
+
+  test("cancelling a deep pending map and flatMap chain does not overflow the stack") { implicit s =>
+    var future: CancelableFuture[Int] = CancelableFuture.never[Int]
+    var index = 0
+    while (index < 5000) {
+      future = future.map((value: Int) => value).flatMap(value => CancelableFuture.successful(value))
+      index += 1
+    }
+
+    future.cancel()
+    s.tick()
+    assertCancellation(future)
+  }
+
+  test("long flatMap chain cancels only the active stage and waits for it") { implicit s =>
+    var completedStageCancelRequests = 0
+    var activeCallback = Option.empty[CompletionCallback[Int]]
+    var activeCancelRequests = 0
+
+    val chain = (0 until 512).foldLeft(CancelableFuture.successful(0)) { (current, index) =>
+      current.flatMap { _ =>
+        CancelableFuture.fromAsync[Int] { cb =>
+          cb.onSuccess(index + 1)
+          Cancelable(() => completedStageCancelRequests += 1)
+        }
+      }
+    }
+    val result = chain.flatMap { _ =>
+      CancelableFuture.fromAsync[Int] { cb =>
+        activeCallback = Some(cb)
+        Cancelable(() => activeCancelRequests += 1)
+      }
+    }
+    s.tick()
+    assert(activeCallback.nonEmpty)
+
+    result.cancel()
+    assertEquals(completedStageCancelRequests, 0)
+    assertEquals(activeCancelRequests, 1)
+    assertEquals(result.value, None)
+
+    activeCallback.get.onCancellation()
+    s.tick()
+    assertCancellation(result)
+  }
+
   test("async works for success") { implicit s =>
-    val fa = CancelableFuture.async[Int] { cb =>
+    val fa = legacyAsync[Int] { cb =>
       s.execute(() => cb(Success(1)))
       Cancelable.empty
     }
@@ -572,7 +957,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
 
   test("async works for failure") { implicit s =>
     val dummy = DummyException("dummy")
-    val fa = CancelableFuture.async[Int] { cb =>
+    val fa = legacyAsync[Int] { cb =>
       s.execute(() => cb(Failure(dummy)))
       Cancelable.empty
     }
@@ -582,7 +967,7 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
   }
 
   test("async is cancelable") { implicit s =>
-    val fa = CancelableFuture.async[Int] { cb =>
+    val fa = legacyAsync[Int] { cb =>
       s.scheduleOnce(1.second)(cb(Success(1)))
     }
 
@@ -599,16 +984,67 @@ object CancelableFutureSuite extends TestSuite[TestScheduler] {
     assertEquals(fa.value, None)
   }
 
+  test("fromAsync reports cancellation after late token assignment") { _ =>
+    var callback = Option.empty[CompletionCallback[Int]]
+    var cancelRequests = 0
+    val tasks = scala.collection.mutable.Queue.empty[Runnable]
+    val queued = new ExecutionContext {
+      def execute(runnable: Runnable): Unit = tasks.enqueue(runnable)
+      def reportFailure(error: Throwable): Unit = throw error
+    }
+    val future = CancelableFuture.fromAsync[Int] { cb =>
+      callback = Some(cb)
+      Cancelable(() => cancelRequests += 1)
+    }(queued)
+
+    future.cancel()
+    assertEquals(cancelRequests, 0)
+    assertEquals(future.value, None)
+
+    tasks.dequeue().run()
+    assertEquals(cancelRequests, 1)
+    assert(callback.nonEmpty)
+    assertEquals(future.value, None)
+    callback.get.onCancellation()
+    assertCancellation(future)
+  }
+
+  test("fromAsync allows success to win after a cancellation request") { implicit s =>
+    var callback = Option.empty[CompletionCallback[Int]]
+    val future = CancelableFuture.fromAsync[Int] { cb =>
+      callback = Some(cb)
+      Cancelable.empty
+    }
+
+    s.tick()
+    future.cancel()
+    assertEquals(future.value, None)
+    callback.get.onSuccess(42)
+    assertEquals(future.value, Some(Success(42)))
+  }
+
+  test("fromAsync diagnoses duplicate terminal signals") { implicit s =>
+    val future = CancelableFuture.fromAsync[Int] { cb =>
+      cb.onSuccess(42)
+      cb.onCancellation()
+      Cancelable.empty
+    }
+
+    s.tick()
+    assertEquals(future.value, Some(Success(42)))
+    assert(s.state.lastReportedError.isInstanceOf[CallbackCalledMultipleTimesException])
+  }
+
   test("async reports failures in user code") { implicit s =>
     val dummy = DummyException("dummy")
-    val fa = CancelableFuture.async[Int] { _ =>
+    val fa = legacyAsync[Int] { _ =>
       throw dummy
     }
     assertEquals(fa.value, Some(Failure(dummy)))
   }
 
   test("async throws error if protocol is violated") { implicit s =>
-    val fa = CancelableFuture.async[Int] { cb =>
+    val fa = legacyAsync[Int] { cb =>
       cb(Success(1))
       cb(Success(2))
       Cancelable.empty

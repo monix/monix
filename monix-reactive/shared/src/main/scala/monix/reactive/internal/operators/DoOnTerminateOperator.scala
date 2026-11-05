@@ -18,7 +18,7 @@
 package monix.reactive.internal.operators
 
 import scala.annotation.nowarn
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import monix.execution.Ack
 import monix.execution.Ack.{ Continue, Stop }
@@ -113,12 +113,12 @@ private[reactive] final class DoOnTerminateOperator[A](
       }
 
       def onComplete(): Unit = {
-        onFinish(None).runAsync(Callback.empty)
+        onFinish(None).runAsync(CompletionCallback.empty)
         ()
       }
 
       def onError(ex: Throwable): Unit = {
-        onFinish(Some(ex)).runAsync(Callback.empty)
+        onFinish(Some(ex)).runAsync(CompletionCallback.empty)
         ()
       }
     }

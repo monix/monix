@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2026 Monix Contributors.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +17,10 @@
 
 package monix.eval.internal
 
+import java.util.concurrent.CancellationException
 import cats.effect.CancelToken
 import monix.eval.Task.{ Async, Context }
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.atomic.{ Atomic, AtomicAny }
@@ -55,7 +56,7 @@ private[eval] object TaskParSequenceUnordered {
       ref: AtomicAny[State[A]],
       currentState: State[A],
       mainConn: TaskConnection,
-      finalCallback: Callback[Throwable, List[A]]
+      finalCallback: CompletionCallback[List[A]]
     )(implicit s: Scheduler): Unit = {
 
       currentState match {
@@ -78,7 +79,7 @@ private[eval] object TaskParSequenceUnordered {
       stateRef: AtomicAny[State[A]],
       mainConn: TaskConnection,
       ex: Throwable,
-      finalCallback: Callback[Throwable, List[A]]
+      finalCallback: CompletionCallback[List[A]]
     )(implicit s: Scheduler): Unit = {
 
       val currentState = stateRef.getAndSet(State.Complete)
@@ -90,12 +91,12 @@ private[eval] object TaskParSequenceUnordered {
       }
     }
 
-    def apply(context: Context, finalCallback: Callback[Throwable, List[A]]): Unit = {
+    def apply(context: Context, finalCallback: CompletionCallback[List[A]]): Unit = {
       @tailrec def activate(
         stateRef: AtomicAny[State[A]],
         count: Int,
         conn: TaskConnection,
-        finalCallback: Callback[Throwable, List[A]]
+        finalCallback: CompletionCallback[List[A]]
       )(implicit s: Scheduler): Unit = {
 
         stateRef.get() match {
@@ -146,7 +147,7 @@ private[eval] object TaskParSequenceUnordered {
           Task.unsafeStartEnsureAsync(
             task,
             childCtx,
-            new Callback[Throwable, A] {
+            new CompletionCallback[A] {
               @tailrec
               def onSuccess(value: A): Unit = {
                 val current = stateRef.get()
@@ -161,6 +162,9 @@ private[eval] object TaskParSequenceUnordered {
 
               def onError(ex: Throwable): Unit =
                 reportError(stateRef, mainConn, ex, finalCallback)
+
+              def onCancellation(): Unit =
+                onError(new CancellationException("Task canceled"))
             }
           )
         }

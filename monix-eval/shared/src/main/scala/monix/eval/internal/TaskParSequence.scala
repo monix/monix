@@ -17,9 +17,10 @@
 
 package monix.eval.internal
 
+import java.util.concurrent.CancellationException
 import cats.effect.CancelToken
 import monix.eval.Task.{ Async, Context }
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task
 import monix.execution.Scheduler
 import scala.util.control.NonFatal
@@ -49,7 +50,7 @@ private[eval] object TaskParSequence {
     makeBuilder: () => mutable.Builder[A, M[A]]
   ) extends ForkedRegister[M[A]] {
 
-    def apply(context: Context, finalCallback: Callback[Throwable, M[A]]): Unit = {
+    def apply(context: Context, finalCallback: CompletionCallback[M[A]]): Unit = {
       // We need a monitor to synchronize on, per evaluation!
       val lock = new AnyRef
       val mainConn = context.connection
@@ -65,7 +66,7 @@ private[eval] object TaskParSequence {
 
       // MUST BE synchronized by `lock`!
       // MUST NOT BE called if isActive == false!
-      def maybeSignalFinal(mainConn: TaskConnection, finalCallback: Callback[Throwable, M[A]]): Unit = {
+      def maybeSignalFinal(mainConn: TaskConnection, finalCallback: CompletionCallback[M[A]]): Unit = {
         completed += 1
         if (completed >= tasksCount) {
           isActive = false
@@ -138,7 +139,7 @@ private[eval] object TaskParSequence {
             Task.unsafeStartEnsureAsync(
               tasks(idx),
               childContext,
-              new Callback[Throwable, A] {
+              new CompletionCallback[A] {
                 def onSuccess(value: A): Unit =
                   lock.synchronized {
                     if (isActive) {
@@ -149,6 +150,9 @@ private[eval] object TaskParSequence {
 
                 def onError(ex: Throwable): Unit =
                   lock.synchronized(reportError(mainConn, ex))
+
+                def onCancellation(): Unit =
+                  onError(new CancellationException("Task canceled"))
               }
             )
 

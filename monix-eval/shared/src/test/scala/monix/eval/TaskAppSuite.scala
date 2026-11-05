@@ -69,7 +69,7 @@ object TaskAppSuite extends SimpleTestSuite {
       def run(args: List[String]) = {
         Task.from(
           Task
-            .async[ExitCode] { cb =>
+            .fromAsync[ExitCode] { cb =>
               wasExecuted.success(true)
               cb.onSuccess(ExitCode.Success)
             }

@@ -22,7 +22,7 @@ import cats.effect.{ ConcurrentEffect, IO }
 import monix.eval.Task.Options
 import monix.execution.annotations.UnsafeBecauseImpure
 import monix.execution.compat.BuildFrom
-import monix.execution.{ Callback, Cancelable, CancelableFuture, Scheduler }
+import monix.execution.{ Cancelable, CancelableFuture, CompletionCallback, Scheduler }
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.util.{ Failure, Success, Try }
@@ -140,25 +140,25 @@ private[eval] object TaskDeprecated {
 
     /**
 * DEPRECATED — switch to [[Task.runToFuture]] in combination
-* with [[monix.execution.Callback.fromTry Callback.fromTry]]
+* with [[monix.execution.CompletionCallback.fromTry CompletionCallback.fromTry]]
 * instead.
 *
 * If for example you have a `Try[A] => Unit` function, you can
 * replace usage of `runOnComplete` with:
 *
-* `task.runAsync(Callback.fromTry(f))`
+* `task.runAsync(CompletionCallback.fromTry(f))`
 *
 * A more common usage is via Scala's `Promise`, but with
 * a `Promise` reference this construct would be even more
 * efficient:
 *
-* `task.runAsync(Callback.fromPromise(p))`
+* `task.runAsync(CompletionCallback.fromPromise(p))`
 */
     @UnsafeBecauseImpure
     @deprecated("Please use `Task.runAsync`", since = "3.0.0")
     def runOnComplete(f: Try[A] => Unit)(implicit s: Scheduler): Cancelable = {
       // $COVERAGE-OFF$
-      self.runAsync(Callback.fromTry(f))(s)
+      self.runAsync(CompletionCallback.fromTry(f))(s)
       // $COVERAGE-ON$
     }
 

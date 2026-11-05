@@ -24,7 +24,7 @@ import cats.effect.kernel.testkit.SyncTypeGenerators._
 import cats.effect.laws.AsyncTests
 import cats.kernel.{ Eq, Group, Order }
 import cats.laws.discipline.SemigroupalTests
-import monix.execution.{ BaseLawsSuite, Callback }
+import monix.execution.{ BaseLawsSuite, CompletionCallback }
 import monix.execution.schedulers.TestScheduler
 import org.scalacheck.{ Arbitrary, Cogen, Gen, Prop }
 
@@ -124,9 +124,10 @@ object TaskAsyncLawsSuite extends BaseLawsSuite {
 
   private def unsafeRun[A](source: Task[A]): Option[Either[Throwable, A]] = {
     var result = Option.empty[Either[Throwable, A]]
-    source.unsafeRunAsync(new Callback[Throwable, A] {
+    source.unsafeRunAsync(new CompletionCallback[A] {
       override def onSuccess(value: A): Unit = result = Some(Right(value))
       override def onError(error: Throwable): Unit = result = Some(Left(error))
+      override def onCancellation(): Unit = ()
     })
     drainScheduler()
     result
@@ -139,13 +140,15 @@ object TaskAsyncLawsSuite extends BaseLawsSuite {
     var leftResult = Option.empty[Either[Throwable, A]]
     var rightResult = Option.empty[Either[Throwable, A]]
 
-    left.unsafeRunAsync(new Callback[Throwable, A] {
+    left.unsafeRunAsync(new CompletionCallback[A] {
       override def onSuccess(value: A): Unit = leftResult = Some(Right(value))
       override def onError(error: Throwable): Unit = leftResult = Some(Left(error))
+      override def onCancellation(): Unit = ()
     })
-    right.unsafeRunAsync(new Callback[Throwable, A] {
+    right.unsafeRunAsync(new CompletionCallback[A] {
       override def onSuccess(value: A): Unit = rightResult = Some(Right(value))
       override def onError(error: Throwable): Unit = rightResult = Some(Left(error))
+      override def onCancellation(): Unit = ()
     })
 
     drainScheduler()

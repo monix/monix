@@ -49,7 +49,7 @@ private[eval] object TaskFromFuture {
   def deferAction[A](f: Scheduler => Future[A]): Task[A] =
     rawAsync[A] { (ctx, cb) =>
       implicit val sc = ctx.scheduler
-      // Prevents violations of the Callback contract
+      // Prevents violations of the CompletionCallback contract
       var streamErrors = true
       try {
         val future = f(sc)
@@ -96,7 +96,7 @@ private[eval] object TaskFromFuture {
     )
   }
 
-  private def rawAsync[A](start: (Context, Callback[Throwable, A]) => Unit): Task[A] =
+  private def rawAsync[A](start: (Context, CompletionCallback[A]) => Unit): Task[A] =
     Task.Async(
       start,
       trampolineBefore = true,
@@ -104,7 +104,7 @@ private[eval] object TaskFromFuture {
       restoreLocals = true
     )
 
-  private def startSimple[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A]) = {
+  private def startSimple[A](ctx: Task.Context, cb: CompletionCallback[A], f: Future[A]) = {
 
     f.value match {
       case Some(value) =>
@@ -116,7 +116,7 @@ private[eval] object TaskFromFuture {
     }
   }
 
-  private def startCancelable[A](ctx: Task.Context, cb: Callback[Throwable, A], f: Future[A], c: Cancelable): Unit = {
+  private def startCancelable[A](ctx: Task.Context, cb: CompletionCallback[A], f: Future[A], c: Cancelable): Unit = {
 
     f.value match {
       case Some(value) =>
@@ -133,7 +133,7 @@ private[eval] object TaskFromFuture {
     }
   }
 
-  private def trampolinedCB[A](cb: Callback[Throwable, A], conn: TaskConnection)(
+  private def trampolinedCB[A](cb: CompletionCallback[A], conn: TaskConnection)(
     implicit ec: ExecutionContext
   ): Try[A] => Unit = {
 

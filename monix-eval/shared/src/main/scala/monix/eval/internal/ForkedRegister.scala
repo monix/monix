@@ -17,7 +17,7 @@
 
 package monix.eval.internal
 
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 import monix.eval.Task.{ Async, Context, ContextSwitch, FlatMap, Map }
 import monix.eval.Task
 import scala.annotation.tailrec
@@ -29,12 +29,12 @@ import scala.runtime.AbstractFunction2
   * are more expensive than doing this check.
   *
   * N.B. the rule for start functions being marked via `ForkedStart`
-  * is that the injected `Callback` MUST BE called after a full
+  * is that the injected `CompletionCallback` MUST BE called after a full
   * asynchronous boundary.
   */
-private[eval] abstract class ForkedRegister[A] extends AbstractFunction2[Context, Callback[Throwable, A], Unit] {
+private[eval] abstract class ForkedRegister[A] extends AbstractFunction2[Context, CompletionCallback[A], Unit] {
 
-  def apply(context: Context, cb: Callback[Throwable, A]): Unit
+  def apply(context: Context, cb: CompletionCallback[A]): Unit
 }
 
 private[eval] object ForkedRegister {

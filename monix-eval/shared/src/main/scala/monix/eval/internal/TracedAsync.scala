@@ -19,7 +19,7 @@ package monix.eval.internal
 
 import monix.eval.Task
 import monix.eval.internal.TracingPlatform.{ isCachedStackTracing, isFullStackTracing }
-import monix.execution.Callback
+import monix.execution.CompletionCallback
 
 /**
   * All Credits to https://github.com/typelevel/cats-effect and https://github.com/RaasAhsan
@@ -27,7 +27,7 @@ import monix.execution.Callback
 private[eval] object TracedAsync { // Convenience function for internal Async calls that intend
 // to opt into tracing so the following code isn't repeated.
   def apply[A](
-    k: (Task.Context, Callback[Throwable, A]) => Unit,
+    k: (Task.Context, CompletionCallback[A]) => Unit,
     trampolineBefore: Boolean = false,
     trampolineAfter: Boolean = false,
     restoreLocals: Boolean = true,
