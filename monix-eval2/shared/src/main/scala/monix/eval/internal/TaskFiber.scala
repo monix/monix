@@ -176,8 +176,8 @@ private[eval] final class TaskFiber[A] private[eval] (
       finalizer match {
         case null =>
           // No finalizers remain. Publishing the canceled outcome starts notifying
-          // callers blocked in `Fiber.cancel` or `join`. The root callback has only
-          // success/error channels and is not signaled for cancellation.
+          // callers blocked in `Fiber.cancel` or `join`. The root callback is not
+          // yet notified through its cancellation channel.
           currentRef = ref
           complete(Outcome.Canceled())
           Break

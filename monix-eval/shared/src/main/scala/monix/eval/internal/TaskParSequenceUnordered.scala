@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2026 Monix Contributors.
+ * Copyright (c) 2014-2022 Monix Contributors.
  * See the project homepage at: https://monix.io
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
