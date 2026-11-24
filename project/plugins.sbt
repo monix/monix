@@ -9,6 +9,6 @@ addSbtPlugin("org.scoverage"      % "sbt-scoverage"           % "2.4.4")
 addSbtPlugin("com.eed3si9n"       % "sbt-assembly"            % "2.5.0")
 addSbtPlugin("net.bzzt"           % "sbt-reproducible-builds" % "0.35")
 addSbtPlugin("org.typelevel"      % "sbt-tpolecat"            % "0.5.7")
-addSbtPlugin("com.github.sbt"     % "sbt-pgp"                 % "2.3.2")
+addSbtPlugin("com.github.sbt"     % "sbt-pgp"                 % "2.4.0")
 
 libraryDependencies += "org.typelevel" %% "scalac-options" % "0.1.11"
